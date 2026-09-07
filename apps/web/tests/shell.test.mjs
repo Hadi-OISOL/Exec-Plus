@@ -1,5 +1,5 @@
 /* Use case: Verifies the initial product shell remains honest about delivery state.
-What it does: Protects trust language and distinguishes available uploads from planned profiling. */
+What it does: Protects trust language and distinguishes available preparation from planned analytics. */
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -15,13 +15,13 @@ test("the shell states the verified-computation promise", async () => {
   assert.match(page, /Answer and lineage/);
 });
 
-test("the shell distinguishes available ingestion from planned profiling", async () => {
+test("the shell distinguishes available preparation from planned analytics", async () => {
   const page = await readFile(pageUrl, "utf8");
 
   assert.match(page, /Next delivery phase/);
-  assert.match(page, /Secure CSV and XLSX ingestion is available in the local workspace flow/);
+  assert.match(page, /Secure CSV and XLSX ingestion, profiles, quality checks, and reversible cleaning are available/);
   assert.match(page, /href="\/workspace"/);
-  assert.match(page, /Dataset profiling and quality/);
-  assert.match(page, /Week 1 · Secure ingestion/);
+  assert.match(page, /Verified conversational analytics/);
+  assert.match(page, /Phase 1 · Data preparation/);
 });
 

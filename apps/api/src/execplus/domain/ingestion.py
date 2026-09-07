@@ -89,6 +89,8 @@ class Upload:
     created_by: UUID
     created_at: datetime
 
+    sample_id: str | None = None
+
 
 @dataclass(frozen=True)
 class AuditEvent:

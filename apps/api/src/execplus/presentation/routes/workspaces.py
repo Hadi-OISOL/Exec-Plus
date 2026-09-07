@@ -15,6 +15,8 @@ from starlette.concurrency import run_in_threadpool
 from execplus.application.ports import IdentityProvider
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.domain.ingestion import IngestionError, Upload, User
+from execplus.domain.profiling import Cleaning
+from execplus.domain.samples import SAMPLES
 
 router = APIRouter(tags=["workspaces"])
 
@@ -213,3 +215,108 @@ def download(
 @router.get("/workspaces/{workspace_id}/audit-events")
 def audit_events(workspace_id: UUID, actor: Actor, service: Service) -> object:
     return service.audit_events(actor, workspace_id)
+
+
+class CleaningInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision_id: UUID
+    trim: bool = Field(default=False, strict=True)
+    drop_duplicates: bool = Field(default=False, strict=True)
+    drop_missing: bool = Field(default=False, strict=True)
+    mapping: dict[str, str] = Field(default_factory=dict, max_length=1000)
+
+    def step(self) -> Cleaning:
+        return {
+            "trim": self.trim,
+            "drop_duplicates": self.drop_duplicates,
+            "drop_missing": self.drop_missing,
+            "mapping": self.mapping,
+        }
+
+
+class RestoreInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision_id: UUID
+    revision_id: UUID
+
+
+@router.get("/samples")
+def samples(actor: Actor) -> object:
+    return SAMPLES
+
+
+@router.post("/workspaces/{workspace_id}/samples/{sample_id}", status_code=201)
+def import_sample(workspace_id: UUID, sample_id: str, actor: Actor, service: Service) -> object:
+    return public_upload(service.import_sample(actor, workspace_id, sample_id))
+
+
+@router.get("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/profile")
+def upload_profile(
+    workspace_id: UUID, dataset_id: UUID, upload_id: UUID, actor: Actor, service: Service
+) -> object:
+    return service.profile_upload(actor, workspace_id, dataset_id, upload_id)
+
+
+@router.get("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/revisions")
+def revisions(
+    workspace_id: UUID, dataset_id: UUID, upload_id: UUID, actor: Actor, service: Service
+) -> object:
+    return service.revision_history(actor, workspace_id, dataset_id, upload_id)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/cleaning/preview"
+)
+def preview(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: CleaningInput,
+    actor: Actor,
+    service: Service,
+) -> object:
+    return service.clean(
+        actor, workspace_id, dataset_id, upload_id, body.expected_revision_id, body.step()
+    )
+
+
+@router.post(
+    "/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/cleaning/apply",
+    status_code=201,
+)
+def apply_cleaning(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: CleaningInput,
+    actor: Actor,
+    service: Service,
+) -> object:
+    return service.clean(
+        actor,
+        workspace_id,
+        dataset_id,
+        upload_id,
+        body.expected_revision_id,
+        body.step(),
+        apply=True,
+    )
+
+
+@router.post("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/restore")
+def restore_revision(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: RestoreInput,
+    actor: Actor,
+    service: Service,
+) -> object:
+    return service.restore(
+        actor, workspace_id, dataset_id, upload_id, body.expected_revision_id, body.revision_id
+    )
+
+
+@router.get("/workspaces/{workspace_id}/usage")
+def usage(workspace_id: UUID, actor: Actor, service: Service) -> object:
+    return service.usage(actor, workspace_id)

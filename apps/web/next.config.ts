@@ -4,6 +4,8 @@ What it does: Enables strict React checks and produces a standalone deployment a
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir:
+    process.env.EXECPLUS_BROWSER_BUILD === "1" ? ".next/browser" : ".next",
   output: "standalone",
   reactStrictMode: true,
   allowedDevOrigins: (process.env.EXECPLUS_WEB_DEV_HOSTS ?? "")
@@ -13,4 +15,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-

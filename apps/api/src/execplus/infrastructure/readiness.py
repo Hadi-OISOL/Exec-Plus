@@ -25,7 +25,7 @@ class DatabaseProbe:
                 revision = connection.execute(
                     text("SELECT version_num FROM alembic_version")
                 ).scalar_one()
-                if revision != "0001":
+                if revision != "0002":
                     raise ValueError("Unexpected schema revision")
 
         await asyncio.to_thread(check_database)

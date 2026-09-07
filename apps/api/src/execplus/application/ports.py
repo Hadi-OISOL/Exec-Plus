@@ -25,6 +25,7 @@ from execplus.domain.ingestion import (
     Workspace,
 )
 from execplus.domain.models import QueryPlan, QueryResult, WorkspaceScope
+from execplus.domain.profiling import Revision, TableData, UsageEvent
 
 
 class QueryExecutor(Protocol):
@@ -75,6 +76,8 @@ class ObjectStorage(Protocol):
 
 
 class FileParser(Protocol):
+    def read_table(self, content: BinaryIO, format: str) -> TableData: ...
+
     def parse(self, content: "BinaryIO", filename: str, content_type: str) -> "FileStructure": ...
 
 
@@ -113,6 +116,30 @@ class WorkspaceRepository(Protocol):
 
     def audit_events(self, workspace_id: UUID) -> tuple["AuditEvent", ...]: ...
 
+    def revisions(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> tuple[Revision, ...]: ...
+
+    def revision(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID, revision_id: UUID
+    ) -> Revision: ...
+
+    def active_revision(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> Revision | None: ...
+
+    def set_active_revision(self, revision: Revision) -> None: ...
+
+    def usage_events(self, workspace_id: UUID) -> tuple[UsageEvent, ...]: ...
+
     def add(
-        self, record: "Workspace | Membership | Invitation | Dataset | Upload | AuditEvent"
+        self,
+        record: Workspace
+        | Membership
+        | Invitation
+        | Dataset
+        | Upload
+        | AuditEvent
+        | Revision
+        | UsageEvent,
     ) -> None: ...

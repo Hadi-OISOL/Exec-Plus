@@ -11,6 +11,7 @@ from typing import TypeVar
 from uuid import UUID
 
 from sqlalchemy import Connection, Engine, Table, delete, select, update
+from sqlalchemy.dialects.postgresql import insert
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.domain.ingestion import (
@@ -23,9 +24,21 @@ from execplus.domain.ingestion import (
     User,
     Workspace,
 )
+from execplus.domain.profiling import Revision, UsageEvent
 from execplus.infrastructure.persistence import schema as s
 
-Record = TypeVar("Record", User, Workspace, Membership, Invitation, Dataset, Upload, AuditEvent)
+Record = TypeVar(
+    "Record",
+    User,
+    Workspace,
+    Membership,
+    Invitation,
+    Dataset,
+    Upload,
+    AuditEvent,
+    Revision,
+    UsageEvent,
+)
 
 
 class SQLWorkspaceRepository:
@@ -129,8 +142,72 @@ class SQLWorkspaceRepository:
     def audit_events(self, workspace_id: UUID) -> tuple[AuditEvent, ...]:
         return self._many(AuditEvent, s.audit_events, workspace_id=workspace_id)
 
+    def revisions(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> tuple[Revision, ...]:
+        return self._many(
+            Revision,
+            s.revisions,
+            workspace_id=workspace_id,
+            dataset_id=dataset_id,
+            upload_id=upload_id,
+        )
+
+    def revision(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID, revision_id: UUID
+    ) -> Revision:
+        return self._one(
+            Revision,
+            s.revisions,
+            workspace_id=workspace_id,
+            dataset_id=dataset_id,
+            upload_id=upload_id,
+            id=revision_id,
+        )
+
+    def active_revision(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> Revision | None:
+        row = (
+            self.connection.execute(
+                select(s.revision_heads).filter_by(
+                    workspace_id=workspace_id, dataset_id=dataset_id, upload_id=upload_id
+                )
+            )
+            .mappings()
+            .first()
+        )
+        return (
+            self.revision(workspace_id, dataset_id, upload_id, row["revision_id"]) if row else None
+        )
+
+    def set_active_revision(self, revision: Revision) -> None:
+        statement = insert(s.revision_heads).values(
+            workspace_id=revision.workspace_id,
+            dataset_id=revision.dataset_id,
+            upload_id=revision.upload_id,
+            revision_id=revision.id,
+        )
+        self.connection.execute(
+            statement.on_conflict_do_update(
+                index_elements=["workspace_id", "dataset_id", "upload_id"],
+                set_={"revision_id": revision.id},
+            )
+        )
+
+    def usage_events(self, workspace_id: UUID) -> tuple[UsageEvent, ...]:
+        return self._many(UsageEvent, s.usage_events, workspace_id=workspace_id)
+
     def add(
-        self, record: Workspace | Membership | Invitation | Dataset | Upload | AuditEvent
+        self,
+        record: Workspace
+        | Membership
+        | Invitation
+        | Dataset
+        | Upload
+        | AuditEvent
+        | Revision
+        | UsageEvent,
     ) -> None:
         tables = {
             Workspace: s.workspaces,
@@ -139,6 +216,8 @@ class SQLWorkspaceRepository:
             Dataset: s.datasets,
             Upload: s.uploads,
             AuditEvent: s.audit_events,
+            Revision: s.revisions,
+            UsageEvent: s.usage_events,
         }
         self.connection.execute(tables[type(record)].insert().values(**asdict(record)))
 

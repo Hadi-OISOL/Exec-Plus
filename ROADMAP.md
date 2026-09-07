@@ -51,19 +51,21 @@ Exit evidence:
 
 ## Phase 1 — Secure ingestion and profiling
 
-**Status:** In progress
+**Status:** Complete
 
-Week 1 — Secure workspace and ingestion foundation: **In progress**.
-Implementation and automated acceptance tests pass for the supported local/test
-identity flow, memberships/invitations, 3–50 seats, isolated metadata/storage/audit,
-and CSV/XLSX validation and upload UI. Evidence: 93 backend tests, 2 frontend tests,
-and 2 browser tests using real PostgreSQL 14.24 and MinIO. Final operational
-verification of this host's configured Compose PostgreSQL 16 service is pending;
-its default port rejected development credentials. See
-[verification](docs/verification-week1.md) and [local setup/API](docs/week1-api.md).
+**Completed:** 2026-09-08
 
-Week 2 has not started. Profiling, quality scoring, cleaning, mapping, and the
-remaining Phase 1 activation scope below remain planned.
+Week 1 secure workspace/ingestion foundation and the remaining Phase 1 preparation
+and activation scope are implemented for the supported local/test identity flow.
+Evidence: 134 backend tests against PostgreSQL 16.10 and MinIO, 2 frontend tests,
+4 real-service browser tests, lint/types/compilation and production web build.
+Profiles, stable quality scores, reversible cleaning/mapping, versioned synthetic
+samples, guided onboarding and privacy-safe usage events are covered. See
+[Phase 1 verification](docs/verification-phase1.md) and
+[data preparation contracts](docs/phase1-data-preparation.md).
+
+Production identity/deployment remains outside this local/test acceptance scope.
+Phase 2 is the next delivery phase and has not started.
 
 Scope:
 

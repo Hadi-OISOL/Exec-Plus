@@ -1,6 +1,10 @@
 > **File use case:** Documents the supported Week 1 HTTP and local setup contracts.
 > **What it does:** Explains authentication, role checks, raw uploads, errors, and verification commands.
 
+The Phase 1 completion adds profiles, reversible cleaning/mapping, samples and
+usage. See [the preparation guide](phase1-data-preparation.md) for those contracts.
+Run `make migrate` before starting the updated API.
+
 # Local activation
 
 Run `make install`, `make dev-infra`, `make migrate`, and `make init-storage`.

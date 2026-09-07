@@ -1,6 +1,10 @@
 > **File use case:** Records the Phase 0 and Week 1 gap audit and acceptance evidence.
 > **What it does:** Separates observed baseline behavior from implementation and verification results.
 
+This is the historical Week 1 record. The PostgreSQL 16 operational gap was closed
+on 2026-09-08: configured PostgreSQL 16.10 and MinIO accepted credentials and the
+full Phase 1 suite passed. See [current evidence](verification-phase1.md).
+
 # Audit before implementation — 2026-09-07
 
 Inspected `AGENTS.md`, `ROADMAP.md`, `README.md`, the saved

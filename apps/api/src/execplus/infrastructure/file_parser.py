@@ -6,6 +6,7 @@ What it does: Rejects unsafe names, formulas, malformed tables, and unsafe workb
 import csv
 import re
 import unicodedata
+from datetime import date, datetime
 from io import TextIOWrapper
 from pathlib import PurePosixPath
 from typing import BinaryIO
@@ -17,6 +18,7 @@ from openpyxl import load_workbook
 from openpyxl.utils.cell import coordinate_to_tuple
 
 from execplus.domain.ingestion import FileStructure, IngestionError
+from execplus.domain.profiling import TableData
 
 MAX_BYTES = 20 * 1024 * 1024
 MAX_CELLS = 1_000_000
@@ -115,6 +117,45 @@ class StructuredFileParser:
                 "malformed_excel", "The file is not a readable XLSX workbook.", 422
             )
         return self._xlsx(content)
+
+    def read_table(self, content: BinaryIO, format: str) -> TableData:
+        content.seek(0)
+        if format == "csv":
+            wrapper = TextIOWrapper(content, encoding="utf-8-sig", newline="")
+            try:
+                reader = csv.reader(wrapper, strict=True)
+                return TableData(tuple(next(reader)), tuple(tuple(row) for row in reader))
+            finally:
+                wrapper.detach()
+                content.seek(0)
+        workbook = load_workbook(content, read_only=True, data_only=False, keep_links=False)
+        try:
+            sheet = workbook.worksheets[0]
+            sheet.reset_dimensions()
+            iterator = sheet.iter_rows(values_only=True)
+            headers = tuple(str(value) for value in next(iterator))
+
+            def text(value: object) -> str:
+                if value is None:
+                    return ""
+                if isinstance(value, datetime):
+                    return (
+                        value.date().isoformat()
+                        if value.time().isoformat() == "00:00:00"
+                        else value.isoformat()
+                    )
+                if isinstance(value, date):
+                    return value.isoformat()
+                return str(value)
+
+            rows = tuple(
+                tuple(text(row[i]) if i < len(row) else "" for i in range(len(headers)))
+                for row in iterator
+            )
+            return TableData(headers, rows)
+        finally:
+            workbook.close()
+            content.seek(0)
 
     def _csv(self, content: BinaryIO) -> FileStructure:
         wrapper = TextIOWrapper(content, encoding="utf-8-sig", newline="")

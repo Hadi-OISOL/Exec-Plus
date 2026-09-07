@@ -14,14 +14,16 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 - No vector database vendor has been selected.
 - The local-model path expects an OpenAI-compatible endpoint so Ollama, vLLM, or another server can be evaluated later.
 - Runtime model selection is composed in `execplus/bootstrap.py`; routes and use cases must not branch on vendors.
-- DuckDB is the planned Phase 1 compute engine for uploaded files.
+- Metadata profiling uses deterministic standard-library computation; DuckDB remains the planned Phase 2 analytical query engine.
 - PostgreSQL is reserved for control-plane metadata, permissions, conversations, lineage, and audit records.
 - MinIO provides an S3-compatible local object-store target.
 - Week 1 implements local/test opaque-session identity behind an identity port; production identity remains a separate decision.
 - Workspaces, roles, invitations, seat limits, retained CSV/XLSX uploads, and audit events have real PostgreSQL/MinIO integration coverage.
-- Week 1 code and browser acceptance checks pass; configured Compose PostgreSQL 16 startup verification remains pending in this host session.
-- Current evidence is 93 backend tests, 2 frontend tests, and 2 browser tests against PostgreSQL 14.24 and MinIO; see `docs/verification-week1.md`.
-- Profiling, quality scoring, cleaning, and mapping are not implemented.
+- Phase 1 is complete for supported local/test operation as of 2026-09-08.
+- Profiles, quality scores, immutable cleaning/mapping recipes, synthetic samples, onboarding and usage foundations are implemented.
+- Current evidence is 134 backend tests on PostgreSQL 16.10/MinIO, 2 frontend tests, and 4 browser tests; see `docs/verification-phase1.md`.
+- Migration 0002 preserves uploads; existing uploads receive their initial profile on first access.
+- Preserve profile-v1 reconstruction semantics and synthetic sample versions; introduce new versions for incompatible changes.
 - No product feature should be represented as implemented unless tests prove it.
 
 ## Non-negotiable engineering rules
@@ -75,12 +77,9 @@ make down
 
 ## Next approved slice
 
-Finish the Week 1 operational verification against the configured Compose
-PostgreSQL 16 service. Port 5432 on this host rejected development credentials;
-Compose now accepts `EXECPLUS_POSTGRES_PORT` for a non-conflicting port.
-See `docs/week1-api.md` for setup, supported identity flow, and test commands.
+The instruction to finish all work before Phase 2 superseded the earlier Week 2
+exclusion. Phase 1 acceptance checks now pass. No Phase 2 work was started.
 
-Do not start Week 2 without a new instruction. The current task explicitly
-excludes profiling, quality scoring, cleaning, and mapping. Do not begin
-conversational query generation until ingestion isolation and profiling
-acceptance criteria pass.
+Await a Phase 2 implementation instruction before adding conversational analytics,
+KPI libraries, analytical SQL execution, dashboard recommendations or saved analyses.
+Read `docs/phase1-data-preparation.md` for preparation contracts and limitations.

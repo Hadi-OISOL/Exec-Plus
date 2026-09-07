@@ -333,7 +333,7 @@ async def test_real_readiness_and_migration_roundtrip(integration):
         command.upgrade(env.config, "head")
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0001"
+            == "0002"
         )
     assert (await service.readiness())[0]
 

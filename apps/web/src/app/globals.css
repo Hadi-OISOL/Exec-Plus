@@ -363,3 +363,15 @@ footer {
 .workspaceApp th, .workspaceApp td { padding: 14px; border-bottom: 1px solid var(--line); }
 .muted { color: var(--muted); font-size: .9rem; margin-top: 20px; }
 @media (max-width: 800px) { .workspaceGrid { grid-template-columns: 1fr; gap: 0; } .panel { padding: 20px; } }
+
+.profilePanel li { margin-block: .75rem; }
+.profilePanel fieldset { min-width: 0; border: 1px solid var(--line, #d9ded8); border-radius: 12px; padding: 1rem; margin-block: 1rem; }
+.profilePanel .checkOption { display: flex; flex-direction: row; align-items: center; gap: .7rem; }
+.profilePanel .checkOption input { width: auto; }
+.profilePanel details { margin-block: 1rem; }
+.profilePanel summary { cursor: pointer; font-weight: 600; }
+.profilePanel .checksum { overflow-wrap: anywhere; font-size: .8rem; }
+.profilePanel .recipe { white-space: pre-wrap; overflow-wrap: anywhere; }
+.previewBlock { border: 1px solid #b5cfc0; background: #f3f9f5; padding: 1rem; margin-block: 1rem; border-radius: 12px; }
+.qualityScore { font-size: 1.4rem; }
+.workspaceApp button { margin: .25rem; }

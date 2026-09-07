@@ -11,9 +11,9 @@ const foundations = [
 ];
 
 const upcoming = [
-  "Deterministic dataset profiles",
-  "Reproducible data-quality checks",
-  "Traceable cleaning and mapping",
+  "Verified questions and KPI libraries",
+  "Descriptive dashboards and trends",
+  "Saved analyses with calculation lineage",
 ];
 
 export default function Home() {
@@ -24,7 +24,7 @@ export default function Home() {
           <span className="brandMark" aria-hidden="true">E+</span>
           <span>ExecPlus</span>
         </a>
-        <span className="phaseBadge">Week 1 · Secure ingestion</span>
+        <span className="phaseBadge">Phase 1 · Data preparation</span>
       </nav>
 
       <section className="hero" id="top">
@@ -34,7 +34,7 @@ export default function Home() {
           ExecPlus is being built to turn structured datasets into clear answers,
           explainable charts, and decisions you can verify.
         </p>
-        <p>Secure CSV and XLSX ingestion is available in the local workspace flow.</p>
+        <p>Secure CSV and XLSX ingestion, profiles, quality checks, and reversible cleaning are available in the local workspace flow.</p>
         <div className="heroActions">
           <a className="primaryAction" href="#architecture">Explore the foundation</a>
           <Link href="/workspace">Open workspaces &amp; uploads →</Link>
@@ -71,7 +71,7 @@ export default function Home() {
       <section className="next">
         <div>
           <div className="eyebrow">Next delivery phase</div>
-          <h2>Dataset profiling and quality</h2>
+          <h2>Verified conversational analytics</h2>
         </div>
         <ol>
           {upcoming.map((item) => <li key={item}>{item}</li>)}

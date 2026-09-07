@@ -10,6 +10,7 @@ import unicodedata
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from typing import BinaryIO
 from uuid import UUID, uuid4
 
@@ -27,6 +28,17 @@ from execplus.domain.ingestion import (
     require_manager,
     require_seat_limit,
 )
+from execplus.domain.profiling import (
+    ALGORITHM,
+    Cleaning,
+    Revision,
+    TableData,
+    UsageEvent,
+    profile,
+    reconstruct,
+    transform,
+)
+from execplus.domain.samples import SAMPLES, sample_csv
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 logger = logging.getLogger(__name__)
@@ -89,6 +101,38 @@ class WorkspaceService:
                 datetime.now(timezone.utc),
             )
         )
+        kinds = {
+            "membership.created": "seat_added",
+            "membership.removed": "seat_removed",
+            "upload.stored": "upload",
+            "profile.created": "profile",
+            "cleaning.applied": "cleaning",
+            "revision.restored": "restore",
+            "sample.imported": "sample",
+        }
+        if action in kinds:
+            self._usage(repo, actor, workspace_id, kinds[action], 1, resource_id)
+
+    def _usage(
+        self,
+        repo: WorkspaceRepository,
+        actor: User,
+        workspace_id: UUID,
+        kind: str,
+        quantity: int,
+        resource_id: UUID,
+    ) -> None:
+        repo.add(
+            UsageEvent(
+                uuid4(),
+                workspace_id,
+                actor.id,
+                kind,
+                quantity,
+                resource_id,
+                datetime.now(timezone.utc),
+            )
+        )
 
     def list_workspaces(self, actor: User) -> tuple[Workspace, ...]:
         with self.uow() as repo:
@@ -103,6 +147,7 @@ class WorkspaceService:
             repo.add(Membership(workspace.id, actor.id, "owner", now))
             self._audit(repo, actor, workspace.id, "workspace.created", "workspace", workspace.id)
             self._audit(repo, actor, workspace.id, "membership.created", "user", actor.id)
+            self._usage(repo, actor, workspace.id, "seat_limit", seat_limit, workspace.id)
         return workspace
 
     def list_members(self, actor: User, workspace_id: UUID) -> tuple[MemberView, ...]:
@@ -134,6 +179,7 @@ class WorkspaceService:
                     "seat_limit_reached", "Remove a member or revoke an invitation first.", 409
                 )
             repo.set_seat_limit(workspace_id, seat_limit)
+            self._usage(repo, actor, workspace_id, "seat_limit", seat_limit, workspace_id)
             self._audit(
                 repo, actor, workspace_id, "workspace.seats_changed", "workspace", workspace_id
             )
@@ -288,8 +334,15 @@ class WorkspaceService:
         filename: str,
         content_type: str,
         content: BinaryIO,
+        *,
+        _sample_dataset: Dataset | None = None,
+        _sample_id: str | None = None,
     ) -> Upload:
-        self.get_dataset(actor, workspace_id, dataset_id)
+        if _sample_dataset is None:
+            self.get_dataset(actor, workspace_id, dataset_id)
+        else:
+            with self.uow() as repo:
+                self._authorize(repo, actor, workspace_id)
         content.seek(0, 2)
         size = content.tell()
         if size > self.max_upload_bytes:
@@ -318,17 +371,30 @@ class WorkspaceService:
             structure.column_count,
             actor.id,
             datetime.now(timezone.utc),
+            _sample_id,
         )
+        table = self.parser.read_table(content, structure.format)
+        root = self._make_revision(actor, upload, table, [], None)
+        content.seek(0)
         attempted = False
         try:
             with self.uow() as repo:
                 repo.workspace(workspace_id, lock=True)
                 self._authorize(repo, actor, workspace_id)
+                if _sample_dataset is not None:
+                    repo.add(_sample_dataset)
+                    self._audit(repo, actor, workspace_id, "dataset.created", "dataset", dataset_id)
                 repo.dataset(workspace_id, dataset_id)
                 attempted = True
                 self.storage.put(upload, content)
                 repo.add(upload)
+                repo.add(root)
+                repo.set_active_revision(root)
+                self._audit(repo, actor, workspace_id, "profile.created", "revision", root.id)
+                self._usage(repo, actor, workspace_id, "storage_bytes", size, upload.id)
                 self._audit(repo, actor, workspace_id, "upload.stored", "upload", upload.id)
+                if _sample_id is not None:
+                    self._audit(repo, actor, workspace_id, "sample.imported", "upload", upload.id)
         except Exception:
             if attempted:
                 try:
@@ -355,3 +421,172 @@ class WorkspaceService:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id, manager=True)
             return repo.audit_events(workspace_id)
+
+    def _make_revision(
+        self,
+        actor: User,
+        upload: Upload,
+        table: TableData,
+        recipe: list[Cleaning],
+        parent_id: UUID | None,
+    ) -> Revision:
+        return Revision(
+            uuid4(),
+            upload.workspace_id,
+            upload.dataset_id,
+            upload.id,
+            parent_id,
+            ALGORITHM,
+            upload.checksum,
+            table.checksum(),
+            recipe,
+            profile(table),
+            actor.id,
+            datetime.now(timezone.utc),
+        )
+
+    def _table(self, upload: Upload) -> TableData:
+        content = BytesIO(self.storage.read(upload))
+        self.parser.parse(content, upload.filename, upload.content_type)
+        return self.parser.read_table(content, upload.format)
+
+    def _root(self, repo: WorkspaceRepository, actor: User, upload: Upload) -> Revision:
+        active = repo.active_revision(upload.workspace_id, upload.dataset_id, upload.id)
+        if active:
+            return active
+        root = self._make_revision(actor, upload, self._table(upload), [], None)
+        repo.add(root)
+        repo.set_active_revision(root)
+        self._audit(repo, actor, upload.workspace_id, "profile.created", "revision", root.id)
+        return root
+
+    def profile_upload(
+        self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> Revision:
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            return self._root(repo, actor, upload)
+
+    def revision_history(
+        self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> tuple[Revision, ...]:
+        with self.uow() as repo:
+            self._authorize(repo, actor, workspace_id)
+            repo.upload(workspace_id, dataset_id, upload_id)
+            return repo.revisions(workspace_id, dataset_id, upload_id)
+
+    def clean(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        expected_revision_id: UUID,
+        step: Cleaning,
+        *,
+        apply: bool = False,
+    ) -> dict[str, object]:
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            active = self._root(repo, actor, upload)
+            if active.id != expected_revision_id:
+                raise IngestionError(
+                    "revision_conflict",
+                    "The active revision changed. Reload the profile and preview again.",
+                    409,
+                )
+            if len(active.recipe) >= 20:
+                raise IngestionError(
+                    "recipe_limit",
+                    "Restore an earlier revision before adding more than 20 cleaning steps.",
+                    422,
+                )
+            if active.source_checksum != upload.checksum:
+                raise IngestionError(
+                    "lineage_mismatch", "The source checksum does not match this revision.", 409
+                )
+            source = reconstruct(self._table(upload), active)
+            result = transform(source, step)
+            revision = self._make_revision(actor, upload, result, [*active.recipe, step], active.id)
+            if apply:
+                repo.add(revision)
+                repo.set_active_revision(revision)
+                self._audit(repo, actor, workspace_id, "cleaning.applied", "revision", revision.id)
+                self._audit(repo, actor, workspace_id, "profile.created", "revision", revision.id)
+            return {
+                "revision": revision,
+                "headers": result.headers,
+                "rows": result.rows[:10],
+                "preview_limit": 10,
+                "removed_rows": len(source.rows) - len(result.rows),
+                "applied": apply,
+            }
+
+    def restore(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        expected_revision_id: UUID,
+        revision_id: UUID,
+    ) -> Revision:
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            active = self._root(repo, actor, upload)
+            if active.id != expected_revision_id:
+                raise IngestionError(
+                    "revision_conflict",
+                    "The active revision changed. Reload before restoring.",
+                    409,
+                )
+            revision = repo.revision(workspace_id, dataset_id, upload_id, revision_id)
+            if revision.source_checksum != upload.checksum:
+                raise IngestionError(
+                    "lineage_mismatch", "The source checksum does not match this revision.", 409
+                )
+            reconstruct(self._table(upload), revision)
+            repo.set_active_revision(revision)
+            self._audit(repo, actor, workspace_id, "revision.restored", "revision", revision.id)
+            return revision
+
+    def import_sample(self, actor: User, workspace_id: UUID, sample_id: str) -> Upload:
+        content = sample_csv(sample_id)
+        sample = next(item for item in SAMPLES if item["id"] == sample_id)
+        now = datetime.now(timezone.utc)
+        dataset = Dataset(uuid4(), workspace_id, str(sample["name"]) + " v1", actor.id, now, now)
+        return self.upload(
+            actor,
+            workspace_id,
+            dataset.id,
+            sample_id + ".csv",
+            "text/csv",
+            BytesIO(content),
+            _sample_dataset=dataset,
+            _sample_id=sample_id,
+        )
+
+    def usage(self, actor: User, workspace_id: UUID) -> dict[str, object]:
+        with self.uow() as repo:
+            self._authorize(repo, actor, workspace_id, manager=True)
+            workspace = repo.workspace(workspace_id)
+            uploads = [
+                upload
+                for dataset in repo.datasets(workspace_id)
+                for upload in repo.uploads(workspace_id, dataset.id)
+            ]
+            return {
+                "active_seats": len(repo.members(workspace_id)),
+                "reserved_seats": self._occupied(repo, workspace_id)
+                - len(repo.members(workspace_id)),
+                "seat_limit": workspace.seat_limit,
+                "uploads": len(uploads),
+                "storage_bytes": sum(upload.size for upload in uploads),
+                "events": repo.usage_events(workspace_id),
+            }

@@ -49,7 +49,7 @@ init-storage:
 
 test-integration:
 	@test -n "$(EXECPLUS_TEST_DATABASE_URL)" || (echo "Set EXECPLUS_TEST_DATABASE_URL" && exit 1)
-	python3 -m pytest apps/api/tests/test_workspace_integration.py
+	python3 -m pytest apps/api/tests/test_workspace_integration.py apps/api/tests/test_profile_integration.py
 
 test-browser:
 	python3 scripts/check_browser.py

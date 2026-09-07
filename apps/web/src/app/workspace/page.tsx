@@ -3,9 +3,11 @@ What it does: Supports local sign-in, invitations, team seats, datasets, and val
 
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import type { FormEvent } from "react";
+
+import { ProfilePanel } from "./profile-panel";
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 type Workspace = { id: string; name: string; seat_limit: number };
@@ -21,6 +23,7 @@ type Invitation = {
 type Upload = {
   id: string;
   filename: string;
+  sample_id: string | null;
   size: number;
   row_count: number;
   column_count: number;
@@ -38,6 +41,13 @@ export default function WorkspacePage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [uploads, setUploads] = useState<Upload[]>([]);
+  const [profileUpload, setProfileUpload] = useState("");
+  const [usage, setUsage] = useState<{
+    active_seats: number;
+    seat_limit: number;
+    uploads: number;
+    storage_bytes: number;
+  } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -46,24 +56,27 @@ export default function WorkspacePage() {
   const role = members.find((member) => member.user_id === user?.id)?.role;
   const manager = role === "owner" || role === "admin";
 
-  async function request<T>(
-    path: string,
-    options: RequestInit = {},
-  ): Promise<T> {
-    const response = await fetch(`${api}${path}`, {
-      ...options,
-      headers: { Authorization: `Bearer ${token}`, ...options.headers },
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      if (response.status === 401) setUser(null);
-      throw new Error(
-        body.error?.message ?? "The request failed. Please try again.",
-      );
-    }
-    return response.status === 204 ? (undefined as T) : response.json();
-  }
+  const request = useCallback(
+    async function request<T>(
+      path: string,
+      options: RequestInit = {},
+    ): Promise<T> {
+      const response = await fetch(`${api}${path}`, {
+        ...options,
+        headers: { Authorization: `Bearer ${token}`, ...options.headers },
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        if (response.status === 401) setUser(null);
+        throw new Error(
+          body.error?.message ?? "The request failed. Please try again.",
+        );
+      }
+      return response.status === 204 ? (undefined as T) : response.json();
+    },
+    [token],
+  );
 
   function json(method: string, body: object): RequestInit {
     return {
@@ -93,6 +106,8 @@ export default function WorkspacePage() {
 
   async function selectWorkspace(selected: Workspace, actorId = user?.id) {
     setWorkspace(selected);
+    setUsage(null);
+    setProfileUpload("");
     setDatasets([]);
     setDataset("");
     setUploads([]);
@@ -161,6 +176,7 @@ export default function WorkspacePage() {
         await request<Dataset[]>(`/workspaces/${workspace!.id}/datasets`),
       );
       setDataset(created.id);
+      setProfileUpload("");
       setUploads([]);
       form.reset();
       setMessage("Dataset created. Choose a file to upload.");
@@ -187,6 +203,7 @@ export default function WorkspacePage() {
         },
       );
       setUploads(await request<Upload[]>(prefix));
+      setProfileUpload(stored.id);
       setMessage(
         `${stored.filename} uploaded successfully. Original file retained; structure validated.`,
       );
@@ -248,7 +265,7 @@ export default function WorkspacePage() {
         <Link className="brand" href="/">
           E+ · ExecPlus
         </Link>
-        <span className="phaseBadge">Secure uploads</span>
+        <span className="phaseBadge">Secure data preparation</span>
       </nav>
       <header className="workspaceHeader">
         <p className="eyebrow">Your data starts here</p>
@@ -315,6 +332,29 @@ export default function WorkspacePage() {
               Sign out
             </button>
           </div>
+          <section className="panel" aria-label="Getting started">
+            <h2>Getting started</h2>
+            <ol>
+              <li>
+                {workspace
+                  ? "✓ Workspace ready"
+                  : "Create or join your workspace below."}
+              </li>
+              <li>
+                {members.length > 1 || invitations.length
+                  ? "✓ Team invitation started"
+                  : "Invite a teammate from the Team section (owners and admins)."}
+              </li>
+              <li>
+                Explore a synthetic sample to learn about profiles and quality.
+              </li>
+              <li>
+                {uploads.some((item) => !item.sample_id)
+                  ? "✓ File uploaded — review its profile below"
+                  : "Create a dataset, then upload your first CSV or Excel file."}
+              </li>
+            </ol>
+          </section>
           <div className="workspaceGrid">
             <section className="panel">
               <h2>1. Choose your workspace</h2>
@@ -399,6 +439,7 @@ export default function WorkspacePage() {
                       onChange={(event) => {
                         const id = event.target.value;
                         setDataset(id);
+                        setProfileUpload("");
                         setUploads([]);
                         void run(async () =>
                           setUploads(
@@ -419,6 +460,39 @@ export default function WorkspacePage() {
                       ))}
                     </select>
                   </label>
+                  <h3>Explore sample data</h3>
+                  <p>
+                    Fictional finance, sales and inventory examples, version 1.
+                    Each creates a separate dataset in this workspace.
+                  </p>
+                  {["finance", "sales", "inventory"].map((kind) => (
+                    <button
+                      key={kind}
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          const stored = await request<
+                            Upload & { dataset_id: string }
+                          >(`/workspaces/${workspace.id}/samples/${kind}-v1`, {
+                            method: "POST",
+                          });
+                          setDatasets(
+                            await request<Dataset[]>(
+                              `/workspaces/${workspace.id}/datasets`,
+                            ),
+                          );
+                          setDataset(stored.dataset_id);
+                          setUploads([stored]);
+                          setProfileUpload(stored.id);
+                          setMessage(
+                            "Sample ready. Review its profile and try previewing cleaning changes below.",
+                          );
+                        })
+                      }
+                    >
+                      Try {kind} sample
+                    </button>
+                  ))}
                   <form onSubmit={createDataset}>
                     <label>
                       New dataset name
@@ -465,11 +539,11 @@ export default function WorkspacePage() {
                   <table>
                     <thead>
                       <tr>
-                        <th>File</th>
-                        <th>Size</th>
-                        <th>Rows</th>
-                        <th>Columns</th>
-                        <th>State</th>
+                        <th scope="col">File</th>
+                        <th scope="col">Size</th>
+                        <th scope="col">Rows</th>
+                        <th scope="col">Columns</th>
+                        <th scope="col">State</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -492,10 +566,54 @@ export default function WorkspacePage() {
               ) : (
                 <p>No uploads in the selected dataset yet.</p>
               )}
-              <p className="muted">
-                These counts describe the file structure. Dataset profiling is
-                planned for the next delivery week.
-              </p>
+              {uploads.length > 0 && (
+                <label>
+                  Profile upload
+                  <select
+                    value={profileUpload}
+                    disabled={busy}
+                    onChange={(event) => setProfileUpload(event.target.value)}
+                  >
+                    <option value="">Choose an upload to inspect</option>
+                    {uploads.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.filename}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </section>
+          )}
+          {workspace && dataset && profileUpload && (
+            <ProfilePanel
+              key={`${workspace.id}/${dataset}/${profileUpload}`}
+              root={`/workspaces/${workspace.id}/datasets/${dataset}/uploads/${profileUpload}`}
+              request={request}
+            />
+          )}
+          {workspace && manager && (
+            <section className="panel">
+              <h2>Workspace usage</h2>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  void run(async () =>
+                    setUsage(
+                      await request(`/workspaces/${workspace.id}/usage`),
+                    ),
+                  )
+                }
+              >
+                Refresh usage
+              </button>
+              {usage && (
+                <p>
+                  {usage.active_seats} of {usage.seat_limit} seats used ·{" "}
+                  {usage.uploads} uploads ·{" "}
+                  {usage.storage_bytes.toLocaleString()} bytes retained
+                </p>
+              )}
             </section>
           )}
           {workspace && (
@@ -613,9 +731,14 @@ export default function WorkspacePage() {
                                   disabled={busy}
                                   onClick={() =>
                                     void run(async () => {
-                                      await navigator.clipboard.writeText(
-                                        `${window.location.origin}/workspace?workspace=${workspace.id}&invitation=${item.id}`,
-                                      );
+                                      const link = `${window.location.origin}/workspace?workspace=${workspace.id}&invitation=${item.id}`;
+                                      if (!navigator.clipboard) {
+                                        setMessage(
+                                          `Copy this invitation link: ${link}`,
+                                        );
+                                        return;
+                                      }
+                                      await navigator.clipboard.writeText(link);
                                       setMessage(
                                         "Invitation link copied. Share it with the invited teammate.",
                                       );

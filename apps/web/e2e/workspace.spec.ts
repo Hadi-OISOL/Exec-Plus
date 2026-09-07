@@ -54,25 +54,21 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
     .getByRole("button", { name: "Create dataset", exact: true })
     .click();
   await expect(page.getByRole("status")).toContainText("Dataset created");
-  await page
-    .getByLabel("CSV or Excel file")
-    .setInputFiles({
-      name: "sales.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("item,amount\nwidget,12\n"),
-    });
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "sales.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("item,amount\nwidget,12\n"),
+  });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("uploaded successfully");
   await expect(
     page.getByRole("cell", { name: "Validated and stored" }),
   ).toBeVisible();
-  await page
-    .getByLabel("CSV or Excel file")
-    .setInputFiles({
-      name: "bad.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("a,b\n1,2,3\n"),
-    });
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "bad.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("a,b\n1,2,3\n"),
+  });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   await expect(
     page.getByRole("alert", { name: "Request error" }),
@@ -128,16 +124,97 @@ test("invalid session gives an actionable error on a narrow screen", async ({
   ).toBe(true);
 });
 
-
-test("network dev host activates sign-in and surfaces request errors", async ({ page, baseURL }) => {
+test("network dev host activates sign-in and surfaces request errors", async ({
+  page,
+  baseURL,
+}) => {
   const host = process.env.EXECPLUS_BROWSER_NETWORK_HOST ?? "execplus.test";
   const address = `http://${host}:${new URL(baseURL!).port}/workspace`;
   await page.goto(address);
   expect(await page.evaluate(() => window.isSecureContext)).toBe(false);
   await page.getByLabel("Session token").fill("invalid-session");
-  const authentication = page.waitForRequest((request) => new URL(request.url()).pathname === "/auth/me");
+  const authentication = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === "/auth/me",
+  );
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await authentication;
   await expect(page).toHaveURL(address);
-  await expect(page.getByRole("alert", { name: "Request error" })).toBeVisible();
+  await expect(
+    page.getByRole("alert", { name: "Request error" }),
+  ).toBeVisible();
+});
+
+test("sample exploration, profile, cleaning preview, mapping, undo and own upload", async ({
+  page,
+}) => {
+  await signIn(page, token(`profile-${randomUUID()}@example.test`));
+  await page
+    .getByLabel("Workspace name", { exact: true })
+    .fill("Data preparation");
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Getting started" }),
+  ).toContainText("Workspace ready");
+  await page
+    .getByRole("button", { name: "Try sales sample", exact: true })
+    .click();
+  const profile = page.getByRole("region", { name: "Dataset profile" });
+  await expect(profile).toContainText("93.33/100");
+  await expect(profile).toContainText("2026-01-01 to 2026-01-02");
+  await profile.getByLabel("Trim surrounding whitespace").check();
+  await profile.getByLabel("Remove exact duplicate rows").check();
+  await profile.getByText("Map column names", { exact: true }).click();
+  await profile.getByLabel("Rename amount").fill("sales");
+  await profile
+    .getByRole("button", { name: "Preview changes", exact: true })
+    .click();
+  const preview = profile.getByLabel("Cleaning preview");
+  await expect(preview).toContainText("1 rows removed · 2 rows remaining");
+  await expect(preview).toContainText("100.00/100");
+  await expect(
+    preview.getByRole("columnheader", { name: "sales", exact: true }),
+  ).toBeVisible();
+  await profile
+    .getByRole("button", { name: "Apply reviewed changes", exact: true })
+    .click();
+  await expect(profile).toContainText("Changes applied");
+  await expect(profile).toContainText("2 rows · 4 columns");
+  await profile
+    .getByText("Revision history and lineage", { exact: true })
+    .click();
+  await profile
+    .getByRole("button", { name: "Restore original", exact: true })
+    .click();
+  await expect(profile).toContainText("Revision restored");
+  await expect(profile).toContainText("3 rows · 4 columns");
+  await expect(profile).toContainText("93.33/100");
+  await page.getByLabel("New dataset name").fill("My first upload");
+  await page
+    .getByRole("button", { name: "Create dataset", exact: true })
+    .click();
+  await page
+    .getByLabel("CSV or Excel file")
+    .setInputFiles({
+      name: "my-data.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("date,amount\n2026-01-01,12.50\n2026-01-02,15.25\n"),
+    });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await expect(profile).toContainText("100.00/100");
+  await expect(profile).toContainText("decimal / metric");
+  await expect(
+    page.getByRole("region", { name: "Getting started" }),
+  ).toContainText("File uploaded");
+  await page
+    .getByRole("button", { name: "Refresh usage", exact: true })
+    .click();
+  await expect(page.getByText(/1 of 3 seats used · 2 uploads/)).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });

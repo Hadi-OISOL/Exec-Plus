@@ -1,3 +1,6 @@
+/* Use case: Supplies Next.js framework types to the web compiler.
+What it does: Registers generated image and application type declarations. */
+
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
 import "./.next/dev/types/routes.d.ts";
