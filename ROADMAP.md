@@ -47,10 +47,23 @@ Exit evidence:
 - Baseline tests pass in an installed development environment.
 - Frontend type and lint checks pass in an installed development environment.
 - No runtime dependency points directly at a vector database vendor.
+- Reverified 2026-09-07: compilation, backend tests, frontend tests/lint/types/build, and expanded architecture checks pass. Detailed evidence and the local infrastructure limitation are in [the verification record](docs/verification-week1.md).
 
 ## Phase 1 — Secure ingestion and profiling
 
-**Status:** Planned
+**Status:** In progress
+
+Week 1 — Secure workspace and ingestion foundation: **In progress**.
+Implementation and automated acceptance tests pass for the supported local/test
+identity flow, memberships/invitations, 3–50 seats, isolated metadata/storage/audit,
+and CSV/XLSX validation and upload UI. Evidence: 93 backend tests, 2 frontend tests,
+and 2 browser tests using real PostgreSQL 14.24 and MinIO. Final operational
+verification of this host's configured Compose PostgreSQL 16 service is pending;
+its default port rejected development credentials. See
+[verification](docs/verification-week1.md) and [local setup/API](docs/week1-api.md).
+
+Week 2 has not started. Profiling, quality scoring, cleaning, mapping, and the
+remaining Phase 1 activation scope below remain planned.
 
 Scope:
 

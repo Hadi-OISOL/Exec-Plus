@@ -7,7 +7,9 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
-Phase 0, the engineering foundation, is complete. The API exposes health and readiness endpoints, the web application provides a project-status shell, provider-neutral contracts exist for language models and vector retrieval, and automated architecture tests protect the most important boundaries.
+Phase 0 is verified. Phase 1 Week 1 now implements the supported local/test sign-in flow, workspaces, invitations, roles, seat limits, and workspace-isolated CSV/XLSX uploads with PostgreSQL metadata, MinIO storage, and audit events. The upload wizard is at `/workspace`. Automated backend and browser acceptance checks pass; final startup verification of this host’s configured Compose PostgreSQL 16 service is pending.
+
+Dataset profiling, quality scores, cleaning, and conversational analytics are not implemented. See [verification evidence](docs/verification-week1.md) and [Week 1 setup and API contracts](docs/week1-api.md).
 
 See [ROADMAP.md](ROADMAP.md) for delivery phases and [AGENTS.md](AGENTS.md) for the live engineering handoff.
 
@@ -36,8 +38,13 @@ The backend starts as a modular monolith. Its ports keep compute, language-model
 cp .env.example .env
 make install
 make dev-infra
+make migrate
+make init-storage
+python3 -m execplus.manage provision-user --email owner@example.test
 make api
 ```
+
+The provisioning command prints an eight-hour session token. Enter it on `/workspace`; keep it private. Provision each invited email through the same local operator command. This identity provider is disabled outside local/test. If port 5432 is occupied, follow the alternate-port instructions in [the setup guide](docs/week1-api.md).
 
 In another terminal:
 

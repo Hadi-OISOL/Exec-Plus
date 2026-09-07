@@ -1,6 +1,8 @@
 /* Use case: Provides the initial product-facing web route.
 What it does: Communicates the verified analytics workflow and current engineering phase without implying unfinished features exist. */
 
+import Link from "next/link";
+
 const foundations = [
   "Workspace-first isolation",
   "Database-executed numbers",
@@ -9,9 +11,9 @@ const foundations = [
 ];
 
 const upcoming = [
-  "Secure CSV and XLSX ingestion",
   "Deterministic dataset profiles",
-  "Verified conversational queries",
+  "Reproducible data-quality checks",
+  "Traceable cleaning and mapping",
 ];
 
 export default function Home() {
@@ -22,7 +24,7 @@ export default function Home() {
           <span className="brandMark" aria-hidden="true">E+</span>
           <span>ExecPlus</span>
         </a>
-        <span className="phaseBadge">Foundation · Phase 0</span>
+        <span className="phaseBadge">Week 1 · Secure ingestion</span>
       </nav>
 
       <section className="hero" id="top">
@@ -32,9 +34,10 @@ export default function Home() {
           ExecPlus is being built to turn structured datasets into clear answers,
           explainable charts, and decisions you can verify.
         </p>
+        <p>Secure CSV and XLSX ingestion is available in the local workspace flow.</p>
         <div className="heroActions">
           <a className="primaryAction" href="#architecture">Explore the foundation</a>
-          <span>Alpha workflow under active development</span>
+          <Link href="/workspace">Open workspaces &amp; uploads →</Link>
         </div>
       </section>
 
@@ -52,7 +55,7 @@ export default function Home() {
           <div className="eyebrow">Built for measured scale</div>
           <h2>A clean boundary between language and truth.</h2>
           <p>
-            Models interpret intent and explain results. A controlled query engine
+            The planned analytics workflow uses models to interpret intent and explain results. A controlled query engine
             computes every number. Each response carries the dataset, operation,
             filters, and record count needed to trace it.
           </p>
@@ -68,7 +71,7 @@ export default function Home() {
       <section className="next">
         <div>
           <div className="eyebrow">Next delivery phase</div>
-          <h2>Secure ingestion and profiling</h2>
+          <h2>Dataset profiling and quality</h2>
         </div>
         <ol>
           {upcoming.map((item) => <li key={item}>{item}</li>)}

@@ -14,16 +14,25 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    env:
+      EXECPLUS_TEST_DATABASE_URL: postgresql+psycopg://execplus:execplus@localhost:5432/execplus
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - run: python -m pip install -e '.[dev]'
-      - run: python -m ruff check apps/api/src apps/api/tests tests
+      - run: python -m ruff check apps/api/src apps/api/tests tests migrations scripts
       - run: python -m mypy
+      - run: make dev-infra COMPOSE="docker compose"
+      - run: python -m compileall -q apps/api/src migrations scripts
       - run: python -m pytest
+      - if: always()
+        run: docker compose down -v
 
   web:
     runs-on: ubuntu-latest
@@ -33,9 +42,31 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - run: npm install
+      - run: npm ci
       - run: npm run lint:web
       - run: npm run typecheck:web
       - run: npm run test:web
       - run: npm run build:web
 
+
+  browser:
+    runs-on: ubuntu-latest
+    env:
+      EXECPLUS_TEST_DATABASE_URL: postgresql+psycopg://execplus:execplus@localhost:5432/execplus
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: python -m pip install -e '.[dev]'
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+        working-directory: apps/web
+      - run: make dev-infra COMPOSE="docker compose"
+      - run: make test-browser
+      - if: always()
+        run: docker compose down -v

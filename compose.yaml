@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: execplus
       POSTGRES_PASSWORD: execplus
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${EXECPLUS_POSTGRES_PORT:-5432}:5432"
     volumes:
       - execplus-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -27,8 +27,8 @@ services:
       MINIO_ROOT_USER: execplus
       MINIO_ROOT_PASSWORD: change-me
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - execplus-minio:/data
 

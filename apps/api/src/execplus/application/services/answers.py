@@ -3,6 +3,7 @@
 What it does: Requires matching query results and lineage for numerical answers.
 """
 
+import math
 from decimal import Decimal
 
 from execplus.domain.errors import UnverifiedAnswerError
@@ -26,6 +27,8 @@ class AnswerAssembler:
             raise UnverifiedAnswerError(
                 "The execution result and lineage record counts do not match"
             )
+        if row_index < 0:
+            raise UnverifiedAnswerError("The requested row index must be nonnegative")
         try:
             column_index = result.columns.index(column)
             value = result.rows[row_index][column_index]
@@ -35,4 +38,8 @@ class AnswerAssembler:
             ) from error
         if isinstance(value, bool) or not isinstance(value, int | float | Decimal):
             raise UnverifiedAnswerError("The executed metric is not numeric")
+        if isinstance(value, float) and not math.isfinite(value):
+            raise UnverifiedAnswerError("The executed metric must be finite")
+        if isinstance(value, Decimal) and not value.is_finite():
+            raise UnverifiedAnswerError("The executed metric must be finite")
         return VerifiedMetricAnswer(label=label, value=value, lineage=lineage)

@@ -16,5 +16,11 @@ class HealthService:
     async def readiness(self) -> tuple[bool, tuple[ComponentStatus, ...]]:
         if not self._probes:
             return True, ()
-        statuses = tuple(await asyncio.gather(*(probe.check() for probe in self._probes)))
+        statuses = tuple(await asyncio.gather(*(self._check(probe) for probe in self._probes)))
         return all(status.healthy for status in statuses), statuses
+
+    async def _check(self, probe: ReadinessProbe) -> ComponentStatus:
+        try:
+            return await asyncio.wait_for(probe.check(), timeout=5)
+        except Exception:
+            return ComponentStatus(probe.name, False, "unavailable")

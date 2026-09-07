@@ -86,3 +86,17 @@ def test_rejects_non_numeric_executed_cell() -> None:
             result=text_result,
             lineage=lineage,
         )
+
+
+@pytest.mark.parametrize("value", [True, None, float("nan"), float("inf"), Decimal("NaN")])
+def test_rejects_unusable_numbers(value):
+    result, lineage = make_evidence()
+    invalid = QueryResult(result.query_id, result.columns, ((value,),), result.records_analyzed)
+    with pytest.raises(UnverifiedAnswerError):
+        AnswerAssembler().assemble_metric("Metric", "total_revenue", invalid, lineage)
+
+
+def test_rejects_negative_row_index():
+    result, lineage = make_evidence()
+    with pytest.raises(UnverifiedAnswerError):
+        AnswerAssembler().assemble_metric("Metric", "total_revenue", result, lineage, -1)

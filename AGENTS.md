@@ -3,13 +3,13 @@
 
 # ExecPlus Engineering Handoff
 
-Read this file, `ROADMAP.md`, and `docs/architecture.md` before changing the project.
+Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changing the project.
 
 ## Current state
 
-- Phase 0: Engineering Foundation is complete as of 2026-09-02.
+- Phase 0: Engineering Foundation remains complete; its four exit criteria were reverified on 2026-09-07.
 - The repository is a Python and TypeScript modular monorepo.
-- The API has liveness and readiness endpoints.
+- The API has liveness and dependency-aware readiness endpoints for migrated PostgreSQL and the configured object bucket.
 - Language models and vector databases are represented by provider-neutral protocols.
 - No vector database vendor has been selected.
 - The local-model path expects an OpenAI-compatible endpoint so Ollama, vLLM, or another server can be evaluated later.
@@ -17,7 +17,11 @@ Read this file, `ROADMAP.md`, and `docs/architecture.md` before changing the pro
 - DuckDB is the planned Phase 1 compute engine for uploaded files.
 - PostgreSQL is reserved for control-plane metadata, permissions, conversations, lineage, and audit records.
 - MinIO provides an S3-compatible local object-store target.
-- Authentication provider selection remains an explicit Phase 1 decision.
+- Week 1 implements local/test opaque-session identity behind an identity port; production identity remains a separate decision.
+- Workspaces, roles, invitations, seat limits, retained CSV/XLSX uploads, and audit events have real PostgreSQL/MinIO integration coverage.
+- Week 1 code and browser acceptance checks pass; configured Compose PostgreSQL 16 startup verification remains pending in this host session.
+- Current evidence is 93 backend tests, 2 frontend tests, and 2 browser tests against PostgreSQL 14.24 and MinIO; see `docs/verification-week1.md`.
+- Profiling, quality scoring, cleaning, and mapping are not implemented.
 - No product feature should be represented as implemented unless tests prove it.
 
 ## Non-negotiable engineering rules
@@ -71,14 +75,12 @@ make down
 
 ## Next approved slice
 
-Begin Phase 1 with workspace-aware upload validation and profiling:
+Finish the Week 1 operational verification against the configured Compose
+PostgreSQL 16 service. Port 5432 on this host rejected development credentials;
+Compose now accepts `EXECPLUS_POSTGRES_PORT` for a non-conflicting port.
+See `docs/week1-api.md` for setup, supported identity flow, and test commands.
 
-1. Select and integrate the authentication provider behind an identity port.
-2. Add PostgreSQL migrations for workspaces, memberships, datasets, uploads, and audit events.
-3. Implement streamed CSV and XLSX validation with a 20 MB enforced limit.
-4. Reject multi-sheet or merged-cell workbooks before persistence.
-5. Persist uploads under workspace-scoped object keys.
-6. Profile rows, columns, types, date ranges, dimensions, metrics, and semantic tags.
-7. Add contract, unit, integration, and tenant-isolation tests.
-
-Do not begin conversational query generation until ingestion isolation and profiling acceptance criteria pass.
+Do not start Week 2 without a new instruction. The current task explicitly
+excludes profiling, quality scoring, cleaning, and mapping. Do not begin
+conversational query generation until ingestion isolation and profiling
+acceptance criteria pass.

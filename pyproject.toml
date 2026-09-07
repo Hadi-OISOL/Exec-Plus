@@ -12,6 +12,12 @@ description = "Verified conversational analytics for structured business data"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+  "sqlalchemy>=2.0,<3",
+  "alembic>=1.13,<2",
+  "psycopg[binary]>=3.2,<4",
+  "boto3>=1.35,<2",
+  "openpyxl>=3.1.5,<4",
+  "defusedxml>=0.7,<1",
   "fastapi>=0.111,<1",
   "httpx>=0.27,<1",
   "pydantic>=2.7,<3",
@@ -21,6 +27,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "boto3-stubs[s3]>=1.35,<2",
+  "types-openpyxl>=3.1,<4",
+  "types-defusedxml>=0.7,<1",
   "mypy>=1.10,<2",
   "pytest>=8.2,<9",
   "pytest-asyncio>=0.23,<1",
@@ -32,6 +41,7 @@ dev = [
 packages = ["apps/api/src/execplus"]
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
 addopts = "--strict-config --strict-markers --disable-warnings -q"
 pythonpath = ["apps/api/src"]
 testpaths = ["apps/api/tests", "tests"]
@@ -50,5 +60,5 @@ known-first-party = ["execplus"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["apps/api/src"]
+files = ["apps/api/src", "migrations", "scripts"]
 mypy_path = "apps/api/src"

@@ -33,3 +33,6 @@ exports/
 *.db
 .minio/
 .postgres/
+
+playwright-report/
+test-results/

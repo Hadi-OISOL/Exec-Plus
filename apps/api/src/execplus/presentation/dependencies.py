@@ -1,13 +1,13 @@
-"""Use case: Builds application dependencies for HTTP handlers.
+"""Use case: Resolves application dependencies for HTTP handlers.
 
-What it does: Centralizes provider composition outside route implementations.
+What it does: Reads startup-composed services without selecting providers inside routes.
 """
 
-from functools import lru_cache
+from fastapi import Request
 
 from execplus.application.services.health import HealthService
 
 
-@lru_cache
-def get_health_service() -> HealthService:
-    return HealthService()
+def get_health_service(request: Request) -> HealthService:
+    service: HealthService = request.app.state.runtime.health
+    return service

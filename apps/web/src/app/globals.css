@@ -338,3 +338,28 @@ footer {
   }
 }
 
+
+.workspaceHeader { padding: 48px 0 16px; }
+.workspaceHeader h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); line-height: 1.1; }
+.workspaceHeader p { max-width: 720px; line-height: 1.6; }
+.workspaceGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.panel { padding: 28px; margin: 24px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.panel h2 { font-size: 1.35rem; }
+.panel p { line-height: 1.6; }
+.panel form { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; margin-top: 24px; }
+.panel label { display: flex; flex-direction: column; gap: 8px; width: 100%; font-size: .95rem; font-weight: 600; }
+.panel input, .panel select { padding: 12px; width: 100%; max-width: 560px; background: white; color: var(--ink); border: 1px solid #8b988d; border-radius: 6px; font: inherit; }
+.workspaceApp button { border: 0; padding: 12px 18px; border-radius: 6px; color: white; background: var(--green); font: inherit; cursor: pointer; }
+.workspaceApp button:disabled { opacity: .5; cursor: not-allowed; }
+.workspaceApp :focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
+.notice { min-height: 28px; color: var(--green); line-height: 1.6; }
+.errorNotice { padding: 16px; border: 1px solid #a22727; background: #fff0ed; color: #8c1919; border-radius: 8px; }
+.sessionBar, .memberList li { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.memberList { padding: 0; list-style: none; }
+.memberList li { padding: 16px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.memberList button { margin: 4px; font-size: .85rem; }
+.tableScroll { overflow-x: auto; }
+.workspaceApp table { width: 100%; border-collapse: collapse; text-align: left; }
+.workspaceApp th, .workspaceApp td { padding: 14px; border-bottom: 1px solid var(--line); }
+.muted { color: var(--muted); font-size: .9rem; margin-top: 20px; }
+@media (max-width: 800px) { .workspaceGrid { grid-template-columns: 1fr; gap: 0; } .panel { padding: 20px; } }
