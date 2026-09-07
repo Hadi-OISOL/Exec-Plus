@@ -27,6 +27,32 @@ link. Tokens expire after eight hours; sign-out revokes the current token. Reloa
 the page clears the browser's in-memory session. Do not share or commit tokens.
 This provider is supported only in `local` and `test` environments.
 
+# Access through a network address
+
+Next.js loads frontend environment files from `apps/web`, while the API loads
+`.env` from the repository root. For browser access through a network address,
+configure both explicitly. For example, for `http://192.168.0.120:3000`:
+
+Root `.env`:
+
+```dotenv
+EXECPLUS_WEB_ORIGIN=http://192.168.0.120:3000
+```
+
+`apps/web/.env.local` (copy `apps/web/.env.example` if needed):
+
+```dotenv
+NEXT_PUBLIC_API_URL=http://192.168.0.120:8000
+EXECPLUS_WEB_DEV_HOSTS=192.168.0.120
+```
+
+Use your server's actual address. `EXECPLUS_WEB_DEV_HOSTS` accepts comma-separated
+hostnames without schemes or ports and permits Next.js development connections
+for those hosts only. The API origin must include its scheme and frontend port.
+Restart `make api` and `make web` after configuration changes, then hard-refresh
+the browser. A rejected development connection can leave the rendered sign-in
+form without working event handlers; an API origin mismatch prevents authentication.
+
 # HTTP contract
 
 Except health endpoints, requests require `Authorization: Bearer <session-token>`.

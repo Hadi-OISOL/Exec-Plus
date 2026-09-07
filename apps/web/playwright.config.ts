@@ -8,7 +8,11 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,
-  use: { baseURL: "http://127.0.0.1:3001", trace: "off" },
+  use: {
+    baseURL: "http://127.0.0.1:3001",
+    trace: "off",
+    launchOptions: { args: ["--host-resolver-rules=MAP execplus.test 127.0.0.1"] },
+  },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
@@ -20,6 +24,7 @@ export default defineConfig({
     },
     {
       command: "npm run dev -- --hostname 127.0.0.1 --port 3001",
+      env: { EXECPLUS_WEB_DEV_HOSTS: "execplus.test" },
       url: "http://127.0.0.1:3001",
       reuseExistingServer: false,
     },

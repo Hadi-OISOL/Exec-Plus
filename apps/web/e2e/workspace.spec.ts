@@ -127,3 +127,17 @@ test("invalid session gives an actionable error on a narrow screen", async ({
     ),
   ).toBe(true);
 });
+
+
+test("network dev host activates sign-in and surfaces request errors", async ({ page, baseURL }) => {
+  const host = process.env.EXECPLUS_BROWSER_NETWORK_HOST ?? "execplus.test";
+  const address = `http://${host}:${new URL(baseURL!).port}/workspace`;
+  await page.goto(address);
+  expect(await page.evaluate(() => window.isSecureContext)).toBe(false);
+  await page.getByLabel("Session token").fill("invalid-session");
+  const authentication = page.waitForRequest((request) => new URL(request.url()).pathname === "/auth/me");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await authentication;
+  await expect(page).toHaveURL(address);
+  await expect(page.getByRole("alert", { name: "Request error" })).toBeVisible();
+});
