@@ -117,7 +117,7 @@ export function ProfilePanel({
   }
   return (
     <section className="panel profilePanel" aria-label="Dataset profile">
-      <h2>4. Understand your data</h2>
+      <h2>6. Understand your data</h2>
       {error && (
         <p role="alert" aria-label="Profile error" className="errorNotice">
           {error}{" "}

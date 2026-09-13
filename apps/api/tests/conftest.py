@@ -13,7 +13,13 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
+from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.health import HealthService
+from execplus.application.services.intent_router import IntentRouterService
+from execplus.application.services.joins import JoinService
+from execplus.application.services.saved_items import SavedItemService
+from execplus.application.services.summaries import SummaryService
+from execplus.application.services.threads import ThreadService
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.bootstrap import build_runtime
 from execplus.config import Settings
@@ -54,6 +60,25 @@ def integration():
     runtime.service = WorkspaceService(
         SQLUnitOfWork(engine), runtime.service.storage, runtime.service.parser
     )
+    runtime.analytics = AnalyticsService(
+        SQLUnitOfWork(engine),
+        runtime.analytics.storage,
+        runtime.analytics.parser,
+        runtime.analytics.executor,
+        runtime.analytics.assembler,
+        runtime.analytics.row_limit,
+    )
+    runtime.intent_router = IntentRouterService(runtime.intent_router.model, runtime.analytics)
+    runtime.summaries = SummaryService(runtime.summaries.model)
+    runtime.joins = JoinService(
+        SQLUnitOfWork(engine),
+        runtime.joins.storage,
+        runtime.joins.parser,
+        runtime.joins.executor,
+        runtime.joins.row_limit,
+    )
+    runtime.saved_items = SavedItemService(SQLUnitOfWork(engine))
+    runtime.threads = ThreadService(SQLUnitOfWork(engine), runtime.intent_router)
     runtime.health = HealthService((DatabaseProbe(engine), StorageProbe(runtime.service.storage)))
     runtime.service.storage.client.create_bucket(Bucket=settings.object_store_bucket)
     with TestClient(create_app(settings, runtime)) as client:

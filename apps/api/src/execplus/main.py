@@ -15,8 +15,20 @@ from sqlalchemy.exc import SQLAlchemyError
 from execplus import __version__
 from execplus.bootstrap import Runtime, build_runtime
 from execplus.config import Settings
+from execplus.domain.errors import (
+    AuthorizationError,
+    ClarificationRequiredError,
+    ProviderUnavailableError,
+    UnsafeQueryError,
+    UnsupportedQuestionError,
+    UnverifiedAnswerError,
+)
 from execplus.domain.ingestion import IngestionError
+from execplus.presentation.routes.analytics import router as analytics_router
 from execplus.presentation.routes.health import router as health_router
+from execplus.presentation.routes.joins import router as joins_router
+from execplus.presentation.routes.saved_items import router as saved_items_router
+from execplus.presentation.routes.threads import router as threads_router
 from execplus.presentation.routes.workspaces import router as workspace_router
 
 
@@ -56,6 +68,10 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
 
     application.include_router(health_router)
     application.include_router(workspace_router)
+    application.include_router(analytics_router)
+    application.include_router(joins_router)
+    application.include_router(saved_items_router)
+    application.include_router(threads_router)
 
     @application.exception_handler(IngestionError)
     async def ingestion_error(request: Request, error: IngestionError) -> JSONResponse:
@@ -66,6 +82,66 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
                 "Cache-Control": "no-store",
                 **({"WWW-Authenticate": "Bearer"} if error.status == 401 else {}),
             },
+        )
+
+    @application.exception_handler(AuthorizationError)
+    async def authorization_error(request: Request, error: AuthorizationError) -> JSONResponse:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": {"code": "not_found", "message": "The requested resource is unavailable."}
+            },
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @application.exception_handler(ClarificationRequiredError)
+    async def clarification_required_error(
+        request: Request, error: ClarificationRequiredError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={"error": {"code": "clarification_required", "message": str(error)}},
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @application.exception_handler(UnsupportedQuestionError)
+    async def unsupported_question_error(
+        request: Request, error: UnsupportedQuestionError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={"error": {"code": "unsupported_question", "message": str(error)}},
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @application.exception_handler(UnsafeQueryError)
+    async def unsafe_query_error(request: Request, error: UnsafeQueryError) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={"error": {"code": "unsafe_query", "message": str(error)}},
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @application.exception_handler(ProviderUnavailableError)
+    async def provider_unavailable_error(
+        request: Request, error: ProviderUnavailableError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"error": {"code": "provider_unavailable", "message": str(error)}},
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @application.exception_handler(UnverifiedAnswerError)
+    async def unverified_answer_error(
+        request: Request, error: UnverifiedAnswerError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": {"code": "internal_error", "message": "The answer could not be verified."}
+            },
+            headers={"Cache-Control": "no-store"},
         )
 
     @application.exception_handler(RequestValidationError)

@@ -10,7 +10,14 @@ from botocore.config import Config
 from sqlalchemy import Engine, create_engine
 
 from execplus.application.ports import IdentityProvider, LanguageModel
+from execplus.application.services.analytics import AnalyticsService
+from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.health import HealthService
+from execplus.application.services.intent_router import IntentRouterService
+from execplus.application.services.joins import JoinService
+from execplus.application.services.saved_items import SavedItemService
+from execplus.application.services.summaries import SummaryService
+from execplus.application.services.threads import ThreadService
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.config import Settings
 from execplus.infrastructure.file_parser import StructuredFileParser
@@ -19,6 +26,7 @@ from execplus.infrastructure.models.disabled import DisabledLanguageModel
 from execplus.infrastructure.models.openai_compatible import OpenAICompatibleLanguageModel
 from execplus.infrastructure.object_storage import S3ObjectStorage
 from execplus.infrastructure.persistence.repository import SQLUnitOfWork
+from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 from execplus.infrastructure.readiness import DatabaseProbe, StorageProbe
 
 
@@ -48,13 +56,29 @@ def build_runtime(settings: Settings) -> "Runtime":
     )
     storage = S3ObjectStorage(client, settings.object_store_bucket)
     identity = LocalSessionIdentity(engine, settings.environment)
+    parser = StructuredFileParser()
+    executor = DuckDBQueryExecutor(settings.query_timeout_seconds, settings.query_memory_limit_mb)
+    analytics = AnalyticsService(
+        SQLUnitOfWork(engine),
+        storage,
+        parser,
+        executor,
+        AnswerAssembler(),
+        settings.query_row_limit,
+    )
+    model = build_language_model(settings)
+    intent_router = IntentRouterService(model, analytics)
     return Runtime(
-        WorkspaceService(
-            SQLUnitOfWork(engine), storage, StructuredFileParser(), settings.max_upload_bytes
-        ),
+        WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes),
         identity,
         HealthService((DatabaseProbe(engine), StorageProbe(storage))),
         engine,
+        analytics,
+        intent_router,
+        SummaryService(model),
+        JoinService(SQLUnitOfWork(engine), storage, parser, executor, settings.query_row_limit),
+        SavedItemService(SQLUnitOfWork(engine)),
+        ThreadService(SQLUnitOfWork(engine), intent_router),
     )
 
 
@@ -64,3 +88,9 @@ class Runtime:
     identity: IdentityProvider
     health: HealthService
     engine: Engine
+    analytics: AnalyticsService
+    intent_router: IntentRouterService
+    summaries: SummaryService
+    joins: JoinService
+    saved_items: SavedItemService
+    threads: ThreadService

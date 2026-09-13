@@ -44,6 +44,7 @@ class QueryPlan:
     dataset_id: UUID
     question: str
     sql: str
+    params: tuple[Scalar, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +67,7 @@ class CalculationLineage:
     grouping: tuple[str, ...]
     filters: tuple[str, ...]
     sql: str
+    model_route: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,3 +75,35 @@ class VerifiedMetricAnswer:
     label: str
     value: NumericScalar
     lineage: CalculationLineage
+
+
+@dataclass(frozen=True, slots=True)
+class QueryExecution:
+    id: UUID
+    workspace_id: UUID
+    dataset_id: UUID
+    actor_id: UUID
+    dataset_name: str
+    metric: str
+    aggregation: str
+    grouping: tuple[str, ...]
+    filters: tuple[str, ...]
+    sql: str
+    records_analyzed: int
+    created_at: datetime
+    model_route: str | None = None
+
+    def lineage(self) -> CalculationLineage:
+        return CalculationLineage(
+            query_id=self.id,
+            workspace_id=self.workspace_id,
+            dataset_id=self.dataset_id,
+            dataset_name=self.dataset_name,
+            records_analyzed=self.records_analyzed,
+            metric=self.metric,
+            aggregation=self.aggregation,
+            grouping=self.grouping,
+            filters=self.filters,
+            sql=self.sql,
+            model_route=self.model_route,
+        )

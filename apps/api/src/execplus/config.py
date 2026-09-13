@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     vector_mode: Literal["disabled"] = "disabled"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
     web_origin: str = "http://localhost:3000"
+    query_timeout_seconds: float = Field(default=15.0, gt=0)
+    query_memory_limit_mb: int = Field(default=256, ge=1)
+    query_row_limit: int = Field(default=10_000, ge=1, le=100_000)
 
     @model_validator(mode="after")
     def validate_model_route(self) -> "Settings":

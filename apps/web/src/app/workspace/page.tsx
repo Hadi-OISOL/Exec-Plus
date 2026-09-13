@@ -7,6 +7,8 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import type { FormEvent } from "react";
 
+import { AskPanel } from "./ask-panel";
+import { DashboardPanel } from "./dashboard-panel";
 import { ProfilePanel } from "./profile-panel";
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -584,6 +586,20 @@ export default function WorkspacePage() {
                 </label>
               )}
             </section>
+          )}
+          {workspace && dataset && profileUpload && (
+            <DashboardPanel
+              key={`dashboard-${workspace.id}/${dataset}/${profileUpload}`}
+              root={`/workspaces/${workspace.id}/datasets/${dataset}/uploads/${profileUpload}`}
+              request={request}
+            />
+          )}
+          {workspace && dataset && profileUpload && (
+            <AskPanel
+              key={`ask-${workspace.id}/${dataset}/${profileUpload}`}
+              root={`/workspaces/${workspace.id}/datasets/${dataset}/uploads/${profileUpload}`}
+              request={request}
+            />
           )}
           {workspace && dataset && profileUpload && (
             <ProfilePanel

@@ -5,6 +5,7 @@ What it does: Enforces tenant ownership, references, uniqueness, and seat bounds
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    Text,
     UniqueConstraint,
     Uuid,
 )
@@ -177,4 +179,91 @@ usage_events = Table(
     ),
     CheckConstraint("quantity >= 0", name="usage_quantity"),
     Index("usage_workspace_time", "workspace_id", "created_at"),
+)
+query_executions = Table(
+    "query_executions",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("actor_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("dataset_name", String(100), nullable=False),
+    Column("metric", String(100), nullable=False),
+    Column("aggregation", String(10), nullable=False),
+    Column("grouping", JSON, nullable=False),
+    Column("filters", JSON, nullable=False),
+    Column("sql", Text, nullable=False),
+    Column("records_analyzed", Integer, nullable=False),
+    Column("model_route", String(200), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(["workspace_id", "dataset_id"], ["datasets.workspace_id", "datasets.id"]),
+    Index("query_executions_workspace_dataset", "workspace_id", "dataset_id"),
+    Index("query_executions_workspace_time", "workspace_id", "created_at"),
+)
+saved_items = Table(
+    "saved_items",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("upload_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("description", String(500), nullable=False),
+    Column("payload", JSON, nullable=False),
+    Column("shared", Boolean, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "upload_id"],
+        ["uploads.workspace_id", "uploads.dataset_id", "uploads.id"],
+    ),
+    CheckConstraint("kind IN ('question', 'prompt', 'dashboard')", name="saved_item_kind"),
+    Index("saved_items_workspace_upload", "workspace_id", "dataset_id", "upload_id"),
+    Index("saved_items_owner", "workspace_id", "owner_id"),
+)
+threads = Table(
+    "threads",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("upload_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "upload_id"],
+        ["uploads.workspace_id", "uploads.dataset_id", "uploads.id"],
+    ),
+    Index("threads_workspace_owner", "workspace_id", "owner_id"),
+)
+thread_turns = Table(
+    "thread_turns",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("thread_id", Uuid, ForeignKey("threads.id"), nullable=False),
+    Column("question", String(500), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("query_id", Uuid, ForeignKey("query_executions.id"), nullable=True),
+    Column("message", String(1000), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint(
+        "kind IN ('numerical', 'textual', 'ambiguous', 'unsupported')", name="thread_turn_kind"
+    ),
+    Index("thread_turns_thread_time", "thread_id", "created_at"),
+)
+join_paths = Table(
+    "join_paths",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("left_dataset_id", Uuid, nullable=False),
+    Column("left_column", String(100), nullable=False),
+    Column("right_dataset_id", Uuid, nullable=False),
+    Column("right_column", String(100), nullable=False),
+    Column("created_by", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "left_dataset_id", "right_dataset_id", name="join_paths_pair"),
+    Index("join_paths_workspace", "workspace_id"),
 )

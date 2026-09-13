@@ -24,7 +24,11 @@ from execplus.domain.ingestion import (
     User,
     Workspace,
 )
+from execplus.domain.join_paths import JoinPath
+from execplus.domain.models import QueryExecution
 from execplus.domain.profiling import Revision, UsageEvent
+from execplus.domain.saved_items import SavedItem
+from execplus.domain.threads import Thread, ThreadTurn
 from execplus.infrastructure.persistence import schema as s
 
 Record = TypeVar(
@@ -38,6 +42,11 @@ Record = TypeVar(
     AuditEvent,
     Revision,
     UsageEvent,
+    QueryExecution,
+    SavedItem,
+    Thread,
+    ThreadTurn,
+    JoinPath,
 )
 
 
@@ -198,6 +207,42 @@ class SQLWorkspaceRepository:
     def usage_events(self, workspace_id: UUID) -> tuple[UsageEvent, ...]:
         return self._many(UsageEvent, s.usage_events, workspace_id=workspace_id)
 
+    def query_execution(self, workspace_id: UUID, query_id: UUID) -> QueryExecution:
+        return self._one(QueryExecution, s.query_executions, workspace_id=workspace_id, id=query_id)
+
+    def saved_items(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> tuple[SavedItem, ...]:
+        return self._many(
+            SavedItem,
+            s.saved_items,
+            workspace_id=workspace_id,
+            dataset_id=dataset_id,
+            upload_id=upload_id,
+        )
+
+    def saved_item(self, workspace_id: UUID, item_id: UUID) -> SavedItem:
+        return self._one(SavedItem, s.saved_items, workspace_id=workspace_id, id=item_id)
+
+    def delete_saved_item(self, workspace_id: UUID, item_id: UUID) -> None:
+        self.connection.execute(
+            delete(s.saved_items).where(
+                s.saved_items.c.workspace_id == workspace_id, s.saved_items.c.id == item_id
+            )
+        )
+
+    def thread(self, workspace_id: UUID, thread_id: UUID) -> Thread:
+        return self._one(Thread, s.threads, workspace_id=workspace_id, id=thread_id)
+
+    def thread_turns(self, thread_id: UUID) -> tuple[ThreadTurn, ...]:
+        return self._many(ThreadTurn, s.thread_turns, thread_id=thread_id)
+
+    def join_paths(self, workspace_id: UUID) -> tuple[JoinPath, ...]:
+        return self._many(JoinPath, s.join_paths, workspace_id=workspace_id)
+
+    def join_path(self, workspace_id: UUID, join_path_id: UUID) -> JoinPath:
+        return self._one(JoinPath, s.join_paths, workspace_id=workspace_id, id=join_path_id)
+
     def add(
         self,
         record: Workspace
@@ -207,7 +252,12 @@ class SQLWorkspaceRepository:
         | Upload
         | AuditEvent
         | Revision
-        | UsageEvent,
+        | UsageEvent
+        | QueryExecution
+        | SavedItem
+        | Thread
+        | ThreadTurn
+        | JoinPath,
     ) -> None:
         tables = {
             Workspace: s.workspaces,
@@ -218,6 +268,11 @@ class SQLWorkspaceRepository:
             AuditEvent: s.audit_events,
             Revision: s.revisions,
             UsageEvent: s.usage_events,
+            QueryExecution: s.query_executions,
+            SavedItem: s.saved_items,
+            Thread: s.threads,
+            ThreadTurn: s.thread_turns,
+            JoinPath: s.join_paths,
         }
         self.connection.execute(tables[type(record)].insert().values(**asdict(record)))
 

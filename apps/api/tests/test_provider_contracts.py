@@ -44,6 +44,87 @@ async def test_http_adapter_translates_port_contract(monkeypatch, tier, expected
 
 
 @pytest.mark.asyncio
+async def test_http_adapter_translates_provider_error_status_without_leaking_body(monkeypatch):
+    def handle(request):
+        return httpx.Response(429, json={"error": {"message": "prepayment credits are depleted"}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    model = OpenAICompatibleLanguageModel(
+        "https://model.test/v1/", "test-key", "small", "large", "hosted", max_attempts=1
+    )
+    with pytest.raises(ProviderUnavailableError) as excinfo:
+        await model.complete(ModelRequest((ModelMessage("user", "hi"),), ModelTier.SMALL))
+    assert "prepayment" not in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_http_adapter_translates_malformed_response_body(monkeypatch):
+    def handle(request):
+        return httpx.Response(200, json={"unexpected": "shape"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    model = OpenAICompatibleLanguageModel(
+        "https://model.test/v1/", "test-key", "small", "large", "hosted", max_attempts=1
+    )
+    with pytest.raises(ProviderUnavailableError):
+        await model.complete(ModelRequest((ModelMessage("user", "hi"),), ModelTier.SMALL))
+
+
+@pytest.mark.asyncio
+async def test_http_adapter_retries_a_transient_error_and_then_succeeds(monkeypatch):
+    calls = {"count": 0}
+
+    def handle(request):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return httpx.Response(503, json={"error": {"message": "high demand"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    real_async_client = httpx.AsyncClient
+
+    def new_client(**kwargs: object) -> httpx.AsyncClient:
+        return real_async_client(transport=httpx.MockTransport(handle))
+
+    monkeypatch.setattr(httpx, "AsyncClient", new_client)
+    model = OpenAICompatibleLanguageModel(
+        "https://model.test/v1/",
+        "test-key",
+        "small",
+        "large",
+        "hosted",
+        retry_backoff_seconds=0.01,
+    )
+    result = await model.complete(ModelRequest((ModelMessage("user", "hi"),), ModelTier.SMALL))
+    assert result.content == "ok"
+    assert calls["count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_http_adapter_does_not_retry_a_non_transient_client_error(monkeypatch):
+    calls = {"count": 0}
+
+    def handle(request):
+        calls["count"] += 1
+        return httpx.Response(401, json={"error": {"message": "invalid api key"}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    model = OpenAICompatibleLanguageModel(
+        "https://model.test/v1/",
+        "test-key",
+        "small",
+        "large",
+        "hosted",
+        retry_backoff_seconds=0.01,
+    )
+    with pytest.raises(ProviderUnavailableError):
+        await model.complete(ModelRequest((ModelMessage("user", "hi"),), ModelTier.SMALL))
+    assert calls["count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_disabled_providers_fail_explicitly():
     with pytest.raises(ProviderUnavailableError):
         await DisabledLanguageModel().complete(ModelRequest((), ModelTier.SMALL))

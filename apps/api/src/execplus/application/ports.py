@@ -24,12 +24,29 @@ from execplus.domain.ingestion import (
     User,
     Workspace,
 )
-from execplus.domain.models import QueryPlan, QueryResult, WorkspaceScope
+from execplus.domain.join_paths import JoinPath
+from execplus.domain.models import QueryExecution, QueryPlan, QueryResult, WorkspaceScope
 from execplus.domain.profiling import Revision, TableData, UsageEvent
+from execplus.domain.saved_items import SavedItem
+from execplus.domain.semantics import DatasetView
+from execplus.domain.threads import Thread, ThreadTurn
 
 
 class QueryExecutor(Protocol):
-    async def execute(self, plan: QueryPlan, scope: WorkspaceScope) -> QueryResult: ...
+    async def execute(
+        self, plan: QueryPlan, scope: WorkspaceScope, table: TableData, view: DatasetView
+    ) -> QueryResult: ...
+
+    async def execute_join(
+        self,
+        plan: QueryPlan,
+        scope: WorkspaceScope,
+        join_path: JoinPath,
+        left_table: TableData,
+        left_view: DatasetView,
+        right_table: TableData,
+        right_view: DatasetView,
+    ) -> QueryResult: ...
 
 
 class LanguageModel(Protocol):
@@ -132,6 +149,24 @@ class WorkspaceRepository(Protocol):
 
     def usage_events(self, workspace_id: UUID) -> tuple[UsageEvent, ...]: ...
 
+    def query_execution(self, workspace_id: UUID, query_id: UUID) -> QueryExecution: ...
+
+    def saved_items(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> tuple[SavedItem, ...]: ...
+
+    def saved_item(self, workspace_id: UUID, item_id: UUID) -> SavedItem: ...
+
+    def delete_saved_item(self, workspace_id: UUID, item_id: UUID) -> None: ...
+
+    def thread(self, workspace_id: UUID, thread_id: UUID) -> Thread: ...
+
+    def thread_turns(self, thread_id: UUID) -> tuple[ThreadTurn, ...]: ...
+
+    def join_paths(self, workspace_id: UUID) -> tuple[JoinPath, ...]: ...
+
+    def join_path(self, workspace_id: UUID, join_path_id: UUID) -> JoinPath: ...
+
     def add(
         self,
         record: Workspace
@@ -141,5 +176,10 @@ class WorkspaceRepository(Protocol):
         | Upload
         | AuditEvent
         | Revision
-        | UsageEvent,
+        | UsageEvent
+        | QueryExecution
+        | SavedItem
+        | Thread
+        | ThreadTurn
+        | JoinPath,
     ) -> None: ...
