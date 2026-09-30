@@ -7,6 +7,12 @@ from execplus.domain.ingestion import IngestionError
 
 SAMPLES = (
     {
+        "id": "cities-v1",
+        "name": "City sales sample",
+        "version": 1,
+        "description": "Fictional city sales across Karachi, Lahore and Islamabad.",
+    },
+    {
         "id": "finance-v1",
         "name": "Finance sample",
         "version": 1,
@@ -33,6 +39,18 @@ SAMPLES = (
 
 
 def sample_csv(sample_id: str) -> bytes:
+    if sample_id == "cities-v1":
+        cities = ("Karachi", "Lahore", "Islamabad")
+        channels = ("Direct", "Partner", "Online", "Direct")
+        return (
+            "order_id,date,city,channel,revenue,cost\n"
+            + "\n".join(
+                f"CITY{i:03d},2026-09-{i:02d},{cities[(i - 1) % 3]},"
+                f"{channels[(i - 1) % 4]},{i * 125}.25,{i * 60}.10"
+                for i in range(1, 25)
+            )
+            + "\n"
+        ).encode()
     if sample_id == "finance-v1":
         return (
             "date,category,revenue,cost\n"

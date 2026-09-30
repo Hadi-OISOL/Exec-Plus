@@ -222,13 +222,13 @@ def test_cleaning_audit_failure_rolls_back_revision_head_and_usage(integration, 
     assert env.client.get(f"/workspaces/{wid}/usage", headers=headers).json() == before
 
 
-@pytest.mark.parametrize("sample_id", ["finance-v1", "sales-v1", "inventory-v1"])
+@pytest.mark.parametrize("sample_id", ["finance-v1", "sales-v1", "inventory-v1", "cities-v1"])
 def test_sample_import_has_version_private_original_and_profile(integration, sample_id):
     env = integration
     headers, _ = identity(env, "sample@example.test")
     wid = workspace(env, headers)
     catalog = env.client.get("/samples", headers=headers)
-    assert catalog.status_code == 200 and len(catalog.json()) == 3
+    assert catalog.status_code == 200 and len(catalog.json()) == 4
     sample = env.client.post(f"/workspaces/{wid}/samples/{sample_id}", headers=headers)
     assert sample.status_code == 201, sample.text
     assert sample.json()["sample_id"] == sample_id and "storage_key" not in sample.json()

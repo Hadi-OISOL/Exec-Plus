@@ -162,6 +162,41 @@ revision_heads = Table(
         ["revisions.workspace_id", "revisions.dataset_id", "revisions.upload_id", "revisions.id"],
     ),
 )
+
+understandings = Table(
+    "understandings",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("upload_id", Uuid, nullable=False),
+    Column("revision_id", Uuid, nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("state", String(20), nullable=False),
+    Column("definition", JSON, nullable=False),
+    Column("created_by", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "dataset_id", "version"),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "upload_id", "revision_id"],
+        ["revisions.workspace_id", "revisions.dataset_id", "revisions.upload_id", "revisions.id"],
+    ),
+    CheckConstraint(
+        "state IN ('inferred', 'confirmed', 'rejected', 'needs_review')", name="understanding_state"
+    ),
+    CheckConstraint("version > 0", name="understanding_version"),
+)
+
+data_preferences = Table(
+    "data_preferences",
+    metadata,
+    Column("workspace_id", Uuid, primary_key=True),
+    Column("dataset_id", Uuid, primary_key=True),
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("domain_hint", String(20), nullable=False),
+    Column("goal", String(500), nullable=False),
+    ForeignKeyConstraint(["workspace_id", "dataset_id"], ["datasets.workspace_id", "datasets.id"]),
+)
 usage_events = Table(
     "usage_events",
     metadata,
@@ -195,6 +230,7 @@ query_executions = Table(
     Column("sql", Text, nullable=False),
     Column("records_analyzed", Integer, nullable=False),
     Column("model_route", String(200), nullable=True),
+    Column("receipt", JSON, nullable=False, server_default="{}"),
     Column("created_at", DateTime(timezone=True), nullable=False),
     ForeignKeyConstraint(["workspace_id", "dataset_id"], ["datasets.workspace_id", "datasets.id"]),
     Index("query_executions_workspace_dataset", "workspace_id", "dataset_id"),
@@ -219,8 +255,11 @@ saved_items = Table(
         ["workspace_id", "dataset_id", "upload_id"],
         ["uploads.workspace_id", "uploads.dataset_id", "uploads.id"],
     ),
-    CheckConstraint("kind IN ('question', 'prompt', 'dashboard')", name="saved_item_kind"),
+    CheckConstraint(
+        "kind IN ('question', 'prompt', 'dashboard', 'analysis')", name="saved_item_kind"
+    ),
     Index("saved_items_workspace_upload", "workspace_id", "dataset_id", "upload_id"),
+    UniqueConstraint("workspace_id", "id"),
     Index("saved_items_owner", "workspace_id", "owner_id"),
 )
 threads = Table(
@@ -247,9 +286,16 @@ thread_turns = Table(
     Column("kind", String(20), nullable=False),
     Column("query_id", Uuid, ForeignKey("query_executions.id"), nullable=True),
     Column("message", String(1000), nullable=True),
+    Column("model_route", String(200), nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("request_id", Uuid, nullable=True),
+    Column("status", String(20), nullable=False, server_default="complete"),
+    Column("evidence", JSON, nullable=False, server_default="{}"),
+    UniqueConstraint("thread_id", "request_id", name="thread_request"),
+    CheckConstraint("status IN ('running', 'complete', 'partial', 'failed')", name="thread_status"),
     CheckConstraint(
-        "kind IN ('numerical', 'textual', 'ambiguous', 'unsupported')", name="thread_turn_kind"
+        "kind IN ('numerical', 'rows', 'overview', 'textual', 'mixed', 'ambiguous', 'unsupported')",
+        name="thread_turn_kind",
     ),
     Index("thread_turns_thread_time", "thread_id", "created_at"),
 )
@@ -266,4 +312,301 @@ join_paths = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     UniqueConstraint("workspace_id", "left_dataset_id", "right_dataset_id", name="join_paths_pair"),
     Index("join_paths_workspace", "workspace_id"),
+)
+
+feedback = Table(
+    "feedback",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("actor_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("feature", String(40), nullable=False),
+    Column("rating", Integer, nullable=False),
+    Column("category", String(40), nullable=False),
+    Column("release", String(40), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("rating BETWEEN 1 AND 5", name="feedback_rating"),
+    Index("feedback_workspace", "workspace_id"),
+)
+
+documents = Table(
+    "documents",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("checksum", String(64), nullable=False),
+    Column("size", Integer, nullable=False),
+    Column("shared", Boolean, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "id"),
+    ForeignKeyConstraint(["workspace_id", "dataset_id"], ["datasets.workspace_id", "datasets.id"]),
+    Index("documents_workspace_dataset", "workspace_id", "dataset_id"),
+)
+
+document_chunks = Table(
+    "document_chunks",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("document_id", Uuid, nullable=False),
+    Column("ordinal", Integer, nullable=False),
+    Column("start", Integer, nullable=False),
+    Column("end", Integer, nullable=False),
+    Column("checksum", String(64), nullable=False),
+    Column("algorithm", String(40), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "document_id"],
+        ["documents.workspace_id", "documents.id"],
+        ondelete="CASCADE",
+    ),
+    UniqueConstraint("workspace_id", "document_id", "ordinal"),
+)
+
+report_schedules = Table(
+    "report_schedules",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("item_id", Uuid, nullable=False),
+    Column("interval_hours", Integer, nullable=False),
+    Column("next_due", DateTime(timezone=True), nullable=False),
+    Column("enabled", Boolean, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "item_id"],
+        ["saved_items.workspace_id", "saved_items.id"],
+        ondelete="CASCADE",
+    ),
+    UniqueConstraint("workspace_id", "id"),
+    CheckConstraint("interval_hours BETWEEN 1 AND 8760", name="report_interval"),
+    Index("reports_due", "enabled", "next_due"),
+)
+
+report_deliveries = Table(
+    "report_deliveries",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("schedule_id", Uuid, nullable=False),
+    Column("due_at", DateTime(timezone=True), nullable=False),
+    Column("status", String(40), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "schedule_id"],
+        ["report_schedules.workspace_id", "report_schedules.id"],
+        ondelete="CASCADE",
+    ),
+    UniqueConstraint("workspace_id", "schedule_id", "due_at"),
+)
+
+understandings.append_constraint(
+    UniqueConstraint("workspace_id", "dataset_id", "id", name="understanding_tenant_id")
+)
+uploads.append_constraint(UniqueConstraint("workspace_id", "id", name="upload_workspace_id"))
+organizations = Table(
+    "organizations",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+departments = Table(
+    "departments",
+    metadata,
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), primary_key=True),
+    Column("organization_id", Uuid, ForeignKey("organizations.id"), nullable=False),
+    Column("name", String(100), nullable=False),
+)
+studies = Table(
+    "studies",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("shared", Boolean, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(["workspace_id", "dataset_id"], ["datasets.workspace_id", "datasets.id"]),
+    UniqueConstraint("workspace_id", "id"),
+)
+study_versions = Table(
+    "study_versions",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("study_id", Uuid, nullable=False),
+    Column("number", Integer, nullable=False),
+    Column("upload_id", Uuid, nullable=False),
+    ForeignKeyConstraint(["workspace_id", "upload_id"], ["uploads.workspace_id", "uploads.id"]),
+    Column("parent_id", Uuid, nullable=True),
+    Column("question", String(500), nullable=False),
+    Column("method", JSON, nullable=False),
+    Column("evidence", JSON, nullable=False),
+    Column("created_by", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(["workspace_id", "study_id"], ["studies.workspace_id", "studies.id"]),
+    UniqueConstraint("workspace_id", "study_id", "id"),
+    ForeignKeyConstraint(
+        ["workspace_id", "study_id", "parent_id"],
+        ["study_versions.workspace_id", "study_versions.study_id", "study_versions.id"],
+    ),
+    UniqueConstraint("workspace_id", "study_id", "number"),
+    CheckConstraint("number BETWEEN 1 AND 50", name="study_version_limit"),
+)
+study_boards = Table(
+    "study_boards",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("shared", Boolean, nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("pins", JSON, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("json_array_length(pins) <= 6", name="six_board_pins"),
+    UniqueConstraint("workspace_id", "id"),
+)
+view_dismissals = Table(
+    "view_dismissals",
+    metadata,
+    Column("workspace_id", Uuid, primary_key=True),
+    Column("dataset_id", Uuid, primary_key=True),
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("understanding_id", Uuid, primary_key=True),
+    Column("dismissed", JSON, nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "understanding_id"],
+        ["understandings.workspace_id", "understandings.dataset_id", "understandings.id"],
+    ),
+)
+
+refresh_feeds = Table(
+    "refresh_feeds",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("source", JSON, nullable=False),
+    Column("interval_hours", Integer, nullable=False),
+    Column("freshness_hours", Integer, nullable=False),
+    Column("enabled", Boolean, nullable=False),
+    Column("next_due", DateTime(timezone=True), nullable=False),
+    Column("last_checked_at", DateTime(timezone=True), nullable=True),
+    Column("state", String(40), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "id"),
+    UniqueConstraint("workspace_id", "dataset_id"),
+    ForeignKeyConstraint(["workspace_id", "dataset_id"], ["datasets.workspace_id", "datasets.id"]),
+    CheckConstraint(
+        "interval_hours BETWEEN 1 AND 8760 AND freshness_hours BETWEEN 1 AND 8760",
+        name="refresh_intervals",
+    ),
+    CheckConstraint("version >= 1", name="refresh_version"),
+    Index("refresh_due", "enabled", "next_due"),
+)
+
+refresh_candidates = Table(
+    "refresh_candidates",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("feed_id", Uuid, nullable=False),
+    Column("request_id", Uuid, nullable=False),
+    Column("signature", String(64), nullable=False),
+    Column("base_version", Integer, nullable=False),
+    Column("created_by", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("status", String(40), nullable=False),
+    Column("details", JSON, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "id"),
+    ForeignKeyConstraint(
+        ["workspace_id", "feed_id"], ["refresh_feeds.workspace_id", "refresh_feeds.id"]
+    ),
+    UniqueConstraint("workspace_id", "feed_id", "request_id"),
+)
+
+monitors = Table(
+    "monitors",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("feed_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("method", JSON, nullable=False),
+    Column("relevance", Integer, nullable=False),
+    Column("enabled", Boolean, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "id"),
+    ForeignKeyConstraint(
+        ["workspace_id", "feed_id"], ["refresh_feeds.workspace_id", "refresh_feeds.id"]
+    ),
+    CheckConstraint("relevance BETWEEN 1 AND 5", name="monitor_relevance"),
+)
+
+observations = Table(
+    "observations",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("monitor_id", Uuid, nullable=False),
+    Column("source_version", Integer, nullable=False),
+    Column("source", JSON, nullable=False),
+    Column("status", String(40), nullable=False),
+    Column("attempts", Integer, nullable=False),
+    Column("claimed_at", DateTime(timezone=True), nullable=True),
+    Column("claim_id", Uuid, nullable=True),
+    Column("evidence", JSON, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "id"),
+    ForeignKeyConstraint(["workspace_id", "monitor_id"], ["monitors.workspace_id", "monitors.id"]),
+    UniqueConstraint("workspace_id", "monitor_id", "source_version"),
+    Index("observation_jobs", "status", "created_at"),
+)
+
+alert_rules = Table(
+    "alert_rules",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("monitor_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("operator", String(5), nullable=False),
+    Column("threshold", String(100), nullable=False),
+    Column("cooldown_minutes", Integer, nullable=False),
+    Column("enabled", Boolean, nullable=False),
+    Column("last_delivered_at", DateTime(timezone=True), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "id"),
+    ForeignKeyConstraint(["workspace_id", "monitor_id"], ["monitors.workspace_id", "monitors.id"]),
+    CheckConstraint("cooldown_minutes BETWEEN 1 AND 10080", name="alert_cooldown"),
+)
+
+alert_events = Table(
+    "alert_events",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("rule_id", Uuid, nullable=False),
+    Column("observation_id", Uuid, nullable=False),
+    Column("status", String(40), nullable=False),
+    Column("read_at", DateTime(timezone=True), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "id"),
+    ForeignKeyConstraint(
+        ["workspace_id", "rule_id"], ["alert_rules.workspace_id", "alert_rules.id"]
+    ),
+    ForeignKeyConstraint(
+        ["workspace_id", "observation_id"], ["observations.workspace_id", "observations.id"]
+    ),
+    UniqueConstraint("workspace_id", "rule_id", "observation_id"),
 )

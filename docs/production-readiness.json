@@ -1,0 +1,87 @@
+{
+  "file_use_case": "Mandatory production evidence ledger",
+  "responsibility": "Tracks deferred demo-phase validation until real evidence is reviewed",
+  "scope": "production",
+  "gates": {
+    "representative_corpus": {
+      "description": "Approved representative documents and human question/answer labels",
+      "status": "open",
+      "owner": "release owner",
+      "due": "before production or external customer alpha",
+      "reviewed_by": "",
+      "reviewed_on": "",
+      "evidence_file": "",
+      "sha256": ""
+    },
+    "retrieval_quality": {
+      "description": "Agreed relevance threshold, negative cases and citation accuracy",
+      "status": "open",
+      "owner": "release owner",
+      "due": "before production or external customer alpha",
+      "reviewed_by": "",
+      "reviewed_on": "",
+      "evidence_file": "",
+      "sha256": ""
+    },
+    "vector_provider": {
+      "description": "Selected provider isolation, filtering, deletion, latency and cost tests",
+      "status": "open",
+      "owner": "release owner",
+      "due": "before production or external customer alpha",
+      "reviewed_by": "",
+      "reviewed_on": "",
+      "evidence_file": "",
+      "sha256": ""
+    },
+    "backup_restore": {
+      "description": "Database, source-object and selected search-provider restore drills",
+      "status": "open",
+      "owner": "release owner",
+      "due": "before production or external customer alpha",
+      "reviewed_by": "",
+      "reviewed_on": "",
+      "evidence_file": "",
+      "sha256": ""
+    },
+    "model_comparison": {
+      "description": "Local/hosted quality, latency, token use and reconciled cost comparison",
+      "status": "open",
+      "owner": "release owner",
+      "due": "before production or external customer alpha",
+      "reviewed_by": "",
+      "reviewed_on": "",
+      "evidence_file": "",
+      "sha256": ""
+    },
+    "provider_privacy": {
+      "description": "Approved hosted data handling, residency, retention and secret management",
+      "status": "open",
+      "owner": "release owner",
+      "due": "before production or external customer alpha",
+      "reviewed_by": "",
+      "reviewed_on": "",
+      "evidence_file": "",
+      "sha256": ""
+    },
+    "report_delivery": {
+      "description": "SMTP/worker delivery, unsubscribe and uncertain-claim recovery rehearsal",
+      "status": "open",
+      "owner": "release owner",
+      "due": "before production or external customer alpha",
+      "reviewed_by": "",
+      "reviewed_on": "",
+      "evidence_file": "",
+      "sha256": ""
+    },
+    "identity_security": {
+      "description": "Production identity and tenant isolation security review",
+      "status": "open",
+      "owner": "release owner",
+      "due": "before production or external customer alpha",
+      "reviewed_by": "",
+      "reviewed_on": "",
+      "evidence_file": "",
+      "sha256": ""
+    }
+  }
+}

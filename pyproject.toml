@@ -19,11 +19,13 @@ dependencies = [
   "openpyxl>=3.1.5,<4",
   "defusedxml>=0.7,<1",
   "fastapi>=0.111,<1",
+  "python-multipart>=0.0.32,<0.1",
   "httpx>=0.27,<1",
   "pydantic>=2.7,<3",
   "pydantic-settings>=2.2,<3",
   "uvicorn[standard]>=0.30,<1",
   "duckdb>=1.5.0,<2",
+  "sqlglot>=27,<28",
 ]
 
 [project.optional-dependencies]
@@ -61,7 +63,7 @@ known-first-party = ["execplus"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["apps/api/src", "migrations", "scripts"]
+files = ["apps/api/src", "migrations", "scripts", "deploy/vps"]
 mypy_path = "apps/api/src"
 
 [[tool.mypy.overrides]]

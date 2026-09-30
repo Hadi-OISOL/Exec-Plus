@@ -61,7 +61,7 @@ def test_query_returns_golden_ungrouped_sum(integration):
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["columns"] == ["__value"]
-    assert body["rows"] == [[350.0]]
+    assert body["rows"] == [["350.000000000000"]]
     assert body["records_analyzed"] == 3
     assert body["lineage"]["metric"] == "revenue"
     assert body["lineage"]["aggregation"] == "sum"
@@ -85,7 +85,7 @@ def test_query_group_by_returns_breakdown(integration):
 
     assert response.status_code == 200, response.text
     rows = {(row[0], row[1]) for row in response.json()["rows"]}
-    assert rows == {("North", 150.0), ("South", 200.0)}
+    assert rows == {("North", "150.000000000000"), ("South", "200.000000000000")}
 
 
 def test_query_across_workspaces_is_not_found(integration):
@@ -159,7 +159,7 @@ def test_query_filter_value_is_treated_as_literal_data(integration):
         uid,
         {"metric": "revenue", "aggregation": "sum", "group_by": [], "filters": []},
     )
-    assert still_intact.json()["rows"] == [[350.0]]
+    assert still_intact.json()["rows"] == [["350.000000000000"]]
 
 
 def test_query_lineage_can_be_reconstructed_after_the_fact(integration):
@@ -226,11 +226,11 @@ def test_dashboard_returns_recommended_card_trend_and_breakdown(integration):
     body = response.json()
     assert len(body["cards"]) == 1
     assert body["cards"][0]["metric"] == "revenue"
-    assert body["cards"][0]["rows"] == [[350.0]]
+    assert body["cards"][0]["rows"] == [["350.000000000000"]]
     assert body["trend"]["dimension"] == "sale_date"
     assert body["breakdown"]["dimension"] == "region"
     breakdown_rows = {(row[0], row[1]) for row in body["breakdown"]["rows"]}
-    assert breakdown_rows == {("North", 150.0), ("South", 200.0)}
+    assert breakdown_rows == {("North", "150.000000000000"), ("South", "200.000000000000")}
 
 
 def test_dashboard_card_is_kpi_labeled_when_a_kpi_matches(integration):
@@ -264,9 +264,9 @@ def test_dashboard_applies_the_same_filter_to_every_card_trend_and_breakdown(int
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["cards"][0]["rows"] == [[150.0]]
+    assert body["cards"][0]["rows"] == [["150.000000000000"]]
     breakdown_rows = {(row[0], row[1]) for row in body["breakdown"]["rows"]}
-    assert breakdown_rows == {("North", 150.0)}
+    assert breakdown_rows == {("North", "150.000000000000")}
 
 
 def test_rows_drill_down_returns_matching_records(integration):
@@ -344,7 +344,7 @@ def test_compute_kpi_returns_verified_answer_with_lineage(integration):
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["label"] == "Total revenue"
-    assert body["value"] == 350.0
+    assert body["value"] == "350.000000000000"
     assert body["lineage"]["metric"] == "revenue"
     assert body["lineage"]["aggregation"] == "sum"
 

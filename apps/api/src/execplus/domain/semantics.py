@@ -8,7 +8,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -60,6 +60,7 @@ class AggregationKind(str, Enum):
 
 class FilterOperator(str, Enum):
     EQ = "eq"
+    IEQ = "ieq"
     NE = "ne"
     LT = "lt"
     LTE = "lte"
@@ -111,6 +112,8 @@ class DatasetView:
     columns: tuple[SemanticColumn, ...]
     metrics: frozenset[str]
     dimensions: frozenset[str]
+    sources: tuple[dict[str, str], ...] = ()
+    definition: dict[str, Any] | None = None
 
     def column(self, name: str) -> SemanticColumn | None:
         return next((entry for entry in self.columns if entry.name == name), None)
@@ -122,7 +125,9 @@ def dataset_view(profile: dict[str, Any]) -> DatasetView:
             str(entry["name"]),
             str(entry["type"]),
             str(entry["role"]),
-            frozenset(str(tag) for tag in entry.get("semantic_tags", ())),
+            frozenset(str(tag) for tag in entry.get("semantic_tags", ()))
+            | frozenset(re.findall(r"[a-z]+", str(entry["name"]).lower()))
+            & {"headcount", "salary", "tenure", "turnover", "hires"},
         )
         for entry in profile["columns"]
     )
@@ -161,9 +166,15 @@ def quote_identifier(name: str) -> str:
 
 def normalize_filter_value(column: SemanticColumn, value: Scalar) -> Scalar:
     if column.type in _NUMERIC_TYPES:
-        if isinstance(value, bool) or not isinstance(value, int | float | Decimal):
+        if isinstance(value, bool) or not isinstance(value, int | float | Decimal | str):
             raise UnsupportedQuestionError(f"{column.name!r} requires a numeric filter value")
-        return value
+        try:
+            number = Decimal(str(value))
+        except InvalidOperation:
+            raise UnsupportedQuestionError("Use a valid numeric filter value") from None
+        if not number.is_finite():
+            raise UnsupportedQuestionError("Numeric filters must be finite")
+        return number
     if column.type == "date":
         if isinstance(value, str):
             try:
@@ -194,6 +205,12 @@ def build_where(
         if column is None:
             raise UnsupportedQuestionError(f"{clause.column!r} is not a filterable column")
         normalized = normalize_filter_value(column, clause.value)
+        if clause.operator == FilterOperator.IEQ:
+            if column.type != "text" or not isinstance(normalized, str):
+                raise UnsupportedQuestionError("Case-insensitive equality requires a text column")
+            where_clauses.append(f"LOWER({qualify(clause.column)}) = LOWER(?)")
+            params.append(normalized)
+            continue
         operator_sql = _OPERATOR_SQL[clause.operator]
         where_clauses.append(f"{qualify(clause.column)} {operator_sql} ?")
         params.append(normalized)
@@ -232,6 +249,10 @@ def plan_query(
         sql += " WHERE " + " AND ".join(where_clauses)
     if request.group_by:
         sql += " GROUP BY " + ", ".join(quote_identifier(name) for name in request.group_by)
+    if not 1 <= row_limit <= 100_000:
+        raise UnsafeQueryError("The query row limit is outside supported bounds")
+    if isinstance(request, MetricRequest) and request.group_by:
+        sql += " ORDER BY " + ", ".join(quote_identifier(name) for name in request.group_by)
     sql += f" LIMIT {row_limit}"
 
     validate_read_only(sql)
@@ -269,6 +290,10 @@ def plan_rows(
     sql = f"SELECT {select_sql} FROM {quote_identifier(VIEW_NAME)}"
     if where_clauses:
         sql += " WHERE " + " AND ".join(where_clauses)
+    if not 1 <= row_limit <= 100_000:
+        raise UnsafeQueryError("The query row limit is outside supported bounds")
+    if isinstance(request, MetricRequest) and request.group_by:
+        sql += " ORDER BY " + ", ".join(quote_identifier(name) for name in request.group_by)
     sql += f" LIMIT {row_limit}"
 
     validate_read_only(sql)

@@ -1,0 +1,14 @@
+# Use case: Rechecks staged-file schedules and pending observations every minute.
+# What it does: Starts only the ExecPlus worker; persisted due times control activation.
+
+[Unit]
+Description=ExecPlus refresh worker schedule
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+AccuracySec=5s
+Unit=execplus-refresh.service
+
+[Install]
+WantedBy=timers.target

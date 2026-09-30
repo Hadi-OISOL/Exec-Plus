@@ -60,9 +60,11 @@ const post = (body: object): RequestInit => ({
 export function ProfilePanel({
   root,
   request,
+  onRevisionChange,
 }: {
   root: string;
   request: ApiRequest;
+  onRevisionChange?: () => void;
 }) {
   const [active, setActive] = useState<Revision | null>(null);
   const [history, setHistory] = useState<Revision[]>([]);
@@ -114,6 +116,7 @@ export function ProfilePanel({
     setHistory(await request<Revision[]>(`${root}/revisions`));
     setPreview(null);
     setStep(emptyStep);
+    onRevisionChange?.();
   }
   return (
     <section className="panel profilePanel" aria-label="Dataset profile">

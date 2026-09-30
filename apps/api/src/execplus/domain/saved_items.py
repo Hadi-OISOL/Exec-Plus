@@ -15,6 +15,7 @@ class SavedItemKind(str, Enum):
     QUESTION = "question"
     PROMPT = "prompt"
     DASHBOARD = "dashboard"
+    ANALYSIS = "analysis"
 
 
 @dataclass(frozen=True, slots=True)

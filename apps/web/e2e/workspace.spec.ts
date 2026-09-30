@@ -14,12 +14,253 @@ function token(email: string) {
   ).trim();
 }
 
+test("combined data and document chat reopens private evidence after refresh", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.EXECPLUS_BROWSER_LIVE_MODEL !== "1",
+    "Requires an explicitly enabled live model with fictional data.",
+  );
+  test.setTimeout(150_000);
+  const session = token(`combined-${randomUUID()}@example.test`);
+  await signIn(page, session);
+  await page
+    .getByLabel("Workspace name", { exact: true })
+    .fill("Fictional unified conversation");
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
+  await navigate(page, "Data library");
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "fictional.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("city,revenue\nKarachi,0.10\nLahore,0.20\n"),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Dataset dashboard" })
+      .locator(".kpiValue"),
+  ).toHaveText("0.3");
+  await navigate(page, "Documents");
+  const knowledge = page.getByRole("region", { name: "Reference documents" });
+  await knowledge
+    .getByLabel("Reference document", { exact: true })
+    .setInputFiles({
+      name: "fictional-refund.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from(
+        "# Fictional refund policy\nThe customer support lead approves standard refunds. The source's stated ceiling is 100 PKR.\n",
+      ),
+    });
+  await knowledge
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
+  await expect(
+    knowledge.getByText("Document stored.", { exact: true }),
+  ).toBeVisible();
+  await navigate(page, "Overview");
+  await page
+    .getByLabel("Your question")
+    .fill(
+      "What is total revenue, and who approves standard refunds according to the document?",
+    );
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".answerCard .kpiValue")).toHaveText("0.3", {
+    timeout: 90_000,
+  });
+  await expect(
+    page.getByRole("region", { name: "Document evidence" }),
+  ).toContainText("customer support lead");
+  await page
+    .getByRole("button", { name: "Open conversation citation" })
+    .click();
+  await expect(
+    page.getByText("Verified conversation source passage", { exact: true }),
+  ).toBeVisible();
+  await page.getByText("How this answer was verified", { exact: true }).click();
+  await expect(page.locator(".answerEvidence")).toContainText(
+    "Source revision:",
+  );
+  await page.reload();
+  await signIn(page, session);
+  await page.getByText("Private conversation history", { exact: true }).click();
+  await expect(
+    page.getByLabel("Saved conversation").locator("option"),
+  ).toHaveCount(2);
+  await page.getByLabel("Saved conversation").selectOption({ index: 1 });
+  await page
+    .getByRole("button", { name: "Open conversation", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Load saved answer", exact: true })
+    .click();
+  await expect(page.locator(".answerCard .kpiValue")).toHaveText("0.3");
+  await expect(
+    page.getByRole("region", { name: "Document evidence" }),
+  ).toContainText("customer support lead");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
 async function signIn(page: Page, session: string) {
   await page.goto("/workspace");
   await page.getByLabel("Session token").fill(session);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByText("Signed in as", { exact: false })).toBeVisible();
 }
+
+async function navigate(page: Page, name: string) {
+  await page
+    .getByRole("navigation", { name: "Workspace navigation" })
+    .getByRole("button", { name, exact: true })
+    .click();
+}
+
+test("adaptive studies retain versions and a private six-pin dashboard on mobile", async ({
+  page,
+}) => {
+  const session = token(`studies-${randomUUID()}@example.test`);
+  await signIn(page, session);
+  await page.getByLabel("Workspace name", { exact: true }).fill("Studies team");
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
+  const organizations = page.getByRole("region", {
+    name: "Organization departments",
+  });
+  await organizations
+    .getByLabel("Organization name", { exact: true })
+    .fill("Fictional company");
+  await organizations
+    .getByRole("button", { name: "Create organization", exact: true })
+    .click();
+  await expect(organizations.getByRole("status")).toContainText(
+    "Organization created",
+  );
+  await organizations.getByLabel("Department name").fill("Sales");
+  await organizations
+    .getByRole("button", { name: "Group current workspace" })
+    .click();
+  await expect(organizations.getByRole("status")).toContainText(
+    "grouped as a department",
+  );
+  await navigate(page, "Data library");
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "study.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("city,amount\nKarachi,0.10\nLahore,0.20\n"),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  const meaning = page.getByRole("region", {
+    name: "Data understanding",
+    exact: true,
+  });
+  await meaning.getByLabel("One row represents").selectOption("record");
+  await meaning.getByLabel("Column to review").selectOption("amount");
+  await meaning.getByLabel("Currency code").fill("PKR");
+  await meaning
+    .getByRole("button", { name: "Confirm business definitions" })
+    .click();
+  await expect(meaning.getByText("confirmed", { exact: true })).toBeVisible();
+  await navigate(page, "Studies & dashboards");
+  const studies = page.getByRole("region", { name: "Studies and dashboards" });
+  await expect(studies.locator(".studySuggestion")).not.toHaveCount(0);
+  await studies
+    .getByLabel("Study name (optional)")
+    .fill("Exact revenue evidence");
+  const suggestion = studies.locator(".studySuggestion").filter({
+    has: page.getByRole("heading", {
+      name: "What is the sum of amount?",
+      exact: true,
+    }),
+  });
+  await suggestion.getByRole("button", { name: "Run & save study" }).click();
+  await expect(studies.locator(".studyValue")).toHaveText("0.300000000000");
+  await studies
+    .getByLabel("Dashboard name", { exact: true })
+    .fill("Sales review");
+  await studies.getByRole("button", { name: "Create study dashboard" }).click();
+  await studies.getByRole("button", { name: "Pin this result" }).click();
+  await expect(studies.getByRole("status")).toContainText("Result pinned");
+  await studies
+    .getByRole("button", { name: "Share dashboard", exact: true })
+    .click();
+  await expect(studies.getByRole("alert")).toContainText(
+    "Share each study explicitly",
+  );
+  await studies
+    .getByRole("button", { name: "Share study with workspace" })
+    .click();
+  await studies
+    .getByRole("button", { name: "Share dashboard", exact: true })
+    .click();
+  await studies
+    .getByRole("button", { name: "Open dashboard Sales review" })
+    .click();
+  const board = page.getByRole("region", {
+    name: "Pinned dashboard: Sales review",
+  });
+  await expect(board.locator(".studyValue")).toHaveText("0.300000000000");
+  await studies
+    .getByRole("button", { name: "Rerun on selected snapshot" })
+    .click();
+  await expect(
+    studies.getByRole("button", { name: "Open version 2", exact: true }),
+  ).toBeVisible();
+  await studies.getByText("Compare study versions", { exact: true }).click();
+  await studies
+    .getByLabel("Earlier version")
+    .selectOption({ label: "Exact revenue evidence · v1" });
+  await studies
+    .getByLabel("Later version")
+    .selectOption({ label: "Exact revenue evidence · v2" });
+  await studies
+    .getByRole("button", { name: "Compare evidence", exact: true })
+    .click();
+  await expect(studies.getByLabel("Study comparison")).toContainText(
+    "Differences describe snapshots",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(
+    studies.getByRole("heading", { name: "Studies & dashboards", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+    ),
+  ).toBe(true);
+  await page.reload();
+  await signIn(page, session);
+  await navigate(page, "Studies & dashboards");
+  await studies
+    .getByRole("button", { name: "Open version 1", exact: true })
+    .click();
+  await expect(studies.locator(".studyValue")).toHaveText("0.300000000000");
+  const dismiss = studies.getByRole("button", {
+    name: "Dismiss What is the sum of amount?",
+    exact: true,
+  });
+  await dismiss.focus();
+  await page.keyboard.press("Enter");
+  await expect(dismiss).toHaveCount(0);
+  await studies
+    .getByRole("button", { name: "Restore dismissed suggestions" })
+    .click();
+  await expect(dismiss).toBeVisible();
+  await studies
+    .getByRole("button", { name: "Clear all pins", exact: true })
+    .click();
+  await studies
+    .getByRole("button", { name: "Open dashboard Sales review" })
+    .click();
+  await expect(board).toContainText("Run a study and pin a result here.");
+});
 
 test("create workspace, invite teammate, upload, reject malformed file, switch tenant", async ({
   page,
@@ -49,6 +290,7 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
     "Invitation link copied",
   );
   const invitation = await page.evaluate(() => navigator.clipboard.readText());
+  await navigate(page, "Data library");
   await page.getByLabel("New dataset name").fill("Monthly sales");
   await page
     .getByRole("button", { name: "Create dataset", exact: true })
@@ -61,9 +303,24 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("uploaded successfully");
+  await navigate(page, "Data library");
   await expect(
     page.getByRole("cell", { name: "Validated and stored" }),
   ).toBeVisible();
+  const catalog = page.getByRole("region", { name: "Find data by meaning" });
+  await catalog.getByLabel("Search your catalog").fill("missingword");
+  await catalog.getByRole("button", { name: "Find data", exact: true }).click();
+  await expect(catalog).toContainText("No matching data found.");
+  await catalog.getByLabel("Search your catalog").fill("Monthly sales");
+  await catalog.getByRole("button", { name: "Find data", exact: true }).click();
+  await expect(catalog).toContainText("Meaning: inferred");
+  await catalog
+    .getByRole("button", { name: "Open Monthly sales", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Dataset dashboard" }),
+  ).toBeVisible();
+  await navigate(page, "Data library");
   await page.getByLabel("CSV or Excel file").setInputFiles({
     name: "bad.csv",
     mimeType: "text/csv",
@@ -89,9 +346,11 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
   await page
     .getByLabel("Dataset", { exact: true })
     .selectOption({ label: "Monthly sales" });
+  await navigate(page, "Data library");
   await expect(
     page.getByRole("cell", { name: "sales.csv", exact: true }),
   ).toBeVisible();
+  await navigate(page, "Team & settings");
   await page.getByLabel("Workspace name", { exact: true }).fill("Private team");
   await page
     .getByRole("button", { name: "Create workspace", exact: true })
@@ -155,11 +414,13 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
     .getByRole("button", { name: "Create workspace", exact: true })
     .click();
   await expect(
-    page.getByRole("region", { name: "Getting started" }),
-  ).toContainText("Workspace ready");
+    page.getByRole("heading", { name: "Team · Data preparation" }),
+  ).toBeVisible();
+  await navigate(page, "Data library");
   await page
     .getByRole("button", { name: "Try sales sample", exact: true })
     .click();
+  await navigate(page, "Prepare data");
   const profile = page.getByRole("region", { name: "Dataset profile" });
   await expect(profile).toContainText("93.33/100");
   await expect(profile).toContainText("2026-01-01 to 2026-01-02");
@@ -190,27 +451,415 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
   await expect(profile).toContainText("Revision restored");
   await expect(profile).toContainText("3 rows · 4 columns");
   await expect(profile).toContainText("93.33/100");
+  await navigate(page, "Data library");
   await page.getByLabel("New dataset name").fill("My first upload");
   await page
     .getByRole("button", { name: "Create dataset", exact: true })
     .click();
-  await page
-    .getByLabel("CSV or Excel file")
-    .setInputFiles({
-      name: "my-data.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("date,amount\n2026-01-01,12.50\n2026-01-02,15.25\n"),
-    });
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "my-data.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("date,amount\n2026-01-01,12.50\n2026-01-02,15.25\n"),
+  });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await navigate(page, "Prepare data");
   await expect(profile).toContainText("100.00/100");
   await expect(profile).toContainText("decimal / metric");
+  await navigate(page, "Overview");
   await expect(
-    page.getByRole("region", { name: "Getting started" }),
-  ).toContainText("File uploaded");
+    page.getByRole("region", { name: "Data journey" }),
+  ).toContainText("my-data.csv");
+  await navigate(page, "Team & settings");
   await page
     .getByRole("button", { name: "Refresh usage", exact: true })
     .click();
   await expect(page.getByText(/1 of 3 seats used · 2 uploads/)).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("verified filters, drill-down, shared replay, feedback, citations and unsubscribe", async ({
+  page,
+}) => {
+  const session = token(`analytics-${randomUUID()}@example.test`);
+  await signIn(page, session);
+  await page
+    .getByLabel("Workspace name", { exact: true })
+    .fill("Analytics acceptance");
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
+  await navigate(page, "Data library");
+  await page.getByLabel("New dataset name").fill("Exact values");
+  await page
+    .getByRole("button", { name: "Create dataset", exact: true })
+    .click();
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "exact.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "date,region,amount\n2026-01-01,East,0.1\n2026-01-02,West,0.2\n",
+    ),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  const dashboard = page.getByRole("region", { name: "Dataset dashboard" });
+  await expect(dashboard.locator(".kpiValue").first()).toHaveText("0.15");
+  await dashboard
+    .getByText("Customize view & filters", { exact: true })
+    .click();
+  await dashboard.getByLabel("Filter column").selectOption("region");
+  await dashboard.getByLabel("Filter equals").fill("West");
+  await dashboard
+    .getByRole("button", { name: "Apply dashboard filter" })
+    .click();
+  await expect(dashboard.locator(".kpiValue").first()).toHaveText("0.2");
+  await dashboard.getByRole("button", { name: /West/ }).click();
+  await expect(dashboard.locator(".drilldownRows")).toContainText(
+    "0.200000000000",
+  );
+  await expect(dashboard.locator(".drilldownRows")).not.toContainText("East");
+  await dashboard.getByText("Evidence & save", { exact: true }).first().click();
+  await dashboard
+    .getByLabel("Share amount analysis with workspace members")
+    .check();
+  await dashboard
+    .getByRole("button", { name: "Save amount analysis", exact: true })
+    .click();
+  await navigate(page, "Saved work");
+  const saved = page.getByRole("region", { name: "Saved work" });
+  await saved
+    .getByRole("button", { name: "Open amount analysis", exact: true })
+    .click();
+  await expect(saved.locator("pre")).toContainText("0.200000000000");
+  await saved
+    .getByRole("button", { name: "Email amount analysis daily to me" })
+    .click();
+  await expect(saved).toContainText("Daily report subscribed");
+  await saved.getByRole("button", { name: "Unsubscribe report" }).click();
+  await expect(saved).not.toContainText("Daily report subscribed");
+  const sharedLink = await saved
+    .getByRole("link", { name: "Link to amount analysis" })
+    .getAttribute("href");
+  await navigate(page, "Overview");
+  const activation = page.getByRole("region", {
+    name: "Insights and next steps",
+  });
+  await expect(activation.locator("ol > li")).toHaveCount(3);
+  await activation
+    .getByText("Next steps & product feedback", { exact: true })
+    .click();
+  await activation
+    .getByRole("button", { name: "Send product feedback" })
+    .click();
+  await expect(activation).toContainText(
+    "Feedback recorded without dataset values.",
+  );
+  await navigate(page, "Documents");
+  const knowledge = page.getByRole("region", { name: "Reference documents" });
+  await knowledge
+    .getByLabel("Reference document", { exact: true })
+    .setInputFiles({
+      name: "returns.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Refund requests require a receipt."),
+    });
+  await knowledge.getByRole("button", { name: "Upload document" }).click();
+  await expect(knowledge).toContainText("Document stored.");
+  await knowledge.getByLabel("Search documents").fill("refund receipt");
+  await knowledge.getByRole("button", { name: "Search knowledge" }).click();
+  await expect(knowledge.locator("blockquote")).toContainText(
+    "Refund requests require a receipt.",
+  );
+  await knowledge.getByRole("button", { name: "Open citation" }).click();
+  await expect(knowledge.locator("details")).toContainText(
+    "Refund requests require a receipt.",
+  );
+  await page.goto(sharedLink!);
+  await page.getByLabel("Session token").fill(session);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Saved work" })
+      .getByRole("button", { name: "Open amount analysis" }),
+  ).toBeVisible();
+});
+
+test("upload creates a dataset and opens an interactive responsive exploration", async ({
+  page,
+}) => {
+  await signIn(page, token(`explorer-${randomUUID()}@example.test`));
+  await page
+    .getByLabel("Workspace name", { exact: true })
+    .fill("City exploration");
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Team · City exploration" }),
+  ).toBeVisible();
+  await navigate(page, "Data library");
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "city-demo.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "date,city,revenue\n2026-09-01,Karachi,125.25\n2026-09-02,Lahore,250.25\n2026-09-03,Karachi,375.25\n",
+    ),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "A clearer picture." }),
+  ).toBeVisible();
+  const journey = page.getByRole("region", { name: "Data journey" });
+  await expect(journey).toContainText("3 columns recognized");
+  await journey.getByText("Explore your column map", { exact: false }).click();
+  await expect(
+    journey.getByRole("button", { name: "revenue decimal" }),
+  ).toBeVisible();
+  const dashboard = page.getByRole("region", { name: "Dataset dashboard" });
+  const point = dashboard.locator(".chartPoint").first();
+  await point.focus();
+  await expect(dashboard.locator(".chartReadout")).toContainText("125.25");
+  await dashboard.getByRole("button", { name: /Karachi/ }).click();
+  await expect(dashboard.locator(".drilldownRows")).toContainText(
+    "2 of 2 matching",
+  );
+  await expect(dashboard.locator(".drilldownRows")).not.toContainText("Lahore");
+  await expect(page.getByRole("log", { name: "Conversation" })).toContainText(
+    "What would you like to discover?",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.screenshot({
+    path: "../../data/vps-private/explorer-mobile-check.png",
+    fullPage: true,
+  });
+  const overflowing = await page.evaluate(() =>
+    [...document.querySelectorAll("body *")]
+      .filter((node) => node.getBoundingClientRect().right > innerWidth + 1)
+      .map((node) => ({
+        tag: node.tagName,
+        cls: node.className,
+        width: node.getBoundingClientRect().width,
+        right: node.getBoundingClientRect().right,
+      }))
+      .slice(0, 24),
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+    JSON.stringify(overflowing),
+  ).toBe(true);
+  expect(
+    await dashboard
+      .locator(".barFill")
+      .first()
+      .evaluate((node) => getComputedStyle(node).animationName),
+  ).toBe("none");
+});
+
+test("confirm business meaning and private goals without losing the source", async ({
+  page,
+}) => {
+  await signIn(page, token(`meaning-${randomUUID()}@example.test`));
+  await page
+    .getByLabel("Workspace name", { exact: true })
+    .fill("Business meanings");
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
+  await navigate(page, "Data library");
+  await page
+    .getByLabel("What is this data about? (optional)")
+    .selectOption("sales");
+  await page
+    .getByLabel("What would you like to understand? (private, optional)")
+    .fill("Track paid orders");
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "meaning.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "custno,city,amount,status\n1001,Karachi,0.10,paid\n1002,Lahore,0.20,cancelled\n",
+    ),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  const meaning = page.getByRole("region", {
+    name: "Data understanding",
+    exact: true,
+  });
+  await expect(meaning.getByLabel("Business domain")).toHaveValue("sales");
+  await meaning
+    .getByRole("button", { name: "Confirm business definitions" })
+    .click();
+  await expect(meaning.getByRole("alert")).toContainText("row");
+  await meaning.getByLabel("One row represents").selectOption("order_item");
+  await meaning
+    .getByLabel("Dataset description")
+    .fill("Only paid amounts count toward revenue.");
+  await meaning.getByLabel("Column to review").selectOption("custno");
+  await meaning.getByLabel("Column role").selectOption("identifier");
+  await meaning.getByLabel("Column to review").selectOption("amount");
+  await meaning.getByLabel("Currency code").fill("PKR");
+  await meaning
+    .getByText("Metric definitions and required filters", { exact: true })
+    .click();
+  await meaning
+    .getByRole("button", { name: "Add metric definition", exact: true })
+    .click();
+  await meaning.getByLabel("Metric name", { exact: true }).fill("Paid amount");
+  await meaning.getByRole("button", { name: "Add required filter" }).click();
+  await meaning
+    .getByRole("combobox", { name: "Filter column", exact: true })
+    .selectOption("status");
+  await meaning.getByLabel("Filter value", { exact: true }).fill("paid");
+  await meaning
+    .getByRole("button", { name: "Confirm business definitions" })
+    .click();
+  await expect(meaning.getByText("confirmed", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Dataset dashboard" }).getByRole("alert"),
+  ).toHaveCount(0);
+  const cards = page
+    .getByRole("region", { name: "Dataset dashboard" })
+    .getByRole("article");
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first().locator(".kpiValue")).toHaveText("0.1");
+  await meaning
+    .getByText("Your private analysis goal", { exact: true })
+    .click();
+  await expect(meaning.getByLabel("My analysis goal")).toHaveValue(
+    "Track paid orders",
+  );
+  await navigate(page, "Prepare data");
+  await navigate(page, "Overview");
+  await expect(meaning.getByText("confirmed", { exact: true })).toBeVisible();
+  await meaning
+    .getByText("Review business definitions", { exact: true })
+    .click();
+  await expect(meaning.getByLabel("Dataset description")).toHaveValue(
+    "Only paid amounts count toward revenue.",
+  );
+  await meaning.getByText("Definition history", { exact: true }).click();
+  await meaning.getByRole("button", { name: "Inspect version 1" }).click();
+  await expect(
+    meaning.getByRole("article", { name: "Definition version 1" }),
+  ).toContainText("status eq paid");
+  await meaning
+    .getByRole("button", { name: "Revoke definition", exact: true })
+    .click();
+  await expect(meaning.getByText("rejected", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Dataset dashboard" }).getByRole("alert"),
+  ).toContainText("Review and confirm");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
+test("refresh retains a safe baseline and delivers a private evidenced KPI alert", async ({
+  page,
+}) => {
+  const session = token(`refresh-${randomUUID()}@example.test`);
+  await signIn(page, session);
+  await page
+    .getByLabel("Workspace name", { exact: true })
+    .fill("Fictional refresh team");
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
+  await navigate(page, "Data library");
+  await page
+    .getByLabel("CSV or Excel file")
+    .setInputFiles({
+      name: "baseline.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("city,amount\nKarachi,0.10\nLahore,0.20\n"),
+    });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  const meaning = page.getByRole("region", {
+    name: "Data understanding",
+    exact: true,
+  });
+  await meaning.getByLabel("One row represents").selectOption("record");
+  await meaning.getByLabel("Column to review").selectOption("amount");
+  await meaning.getByLabel("Currency code").fill("PKR");
+  await meaning
+    .getByRole("button", { name: "Confirm business definitions" })
+    .click();
+  await expect(meaning.getByText("confirmed", { exact: true })).toBeVisible();
+  await navigate(page, "Refresh & alerts");
+  const panel = page.locator(".refreshWorkspace");
+  await panel.getByRole("button", { name: "Save refresh settings" }).click();
+  await expect(panel.getByRole("status")).toContainText(
+    "Refresh settings saved",
+  );
+  await panel.getByLabel("Monitor name", { exact: true }).fill("Revenue watch");
+  await panel.getByLabel("Metric", { exact: true }).selectOption("amount");
+  await panel.getByLabel("Driver segment (sum only)").selectOption("city");
+  await panel
+    .getByRole("button", { name: "Create monitor", exact: true })
+    .click();
+  await expect(panel.locator(".observationValue")).toContainText(
+    "0.300000000000",
+  );
+  await panel
+    .getByLabel("Alert monitor")
+    .selectOption({ label: "Revenue watch" });
+  await panel.getByLabel("Threshold", { exact: true }).fill("0.4");
+  await panel.getByRole("button", { name: "Subscribe to alert" }).click();
+  await expect(panel.getByRole("status")).toContainText(
+    "Private alert subscribed",
+  );
+  await panel
+    .getByLabel("Refresh file", { exact: true })
+    .setInputFiles({
+      name: "bad.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("city,amount\nK,1\nL,2\nM,wrong\n"),
+    });
+  await panel.getByRole("button", { name: "Validate staged file" }).click();
+  await expect(panel.getByRole("status")).toContainText("File failed");
+  await expect(panel.locator(".observationValue")).toContainText(
+    "0.300000000000",
+  );
+  await panel
+    .getByLabel("Refresh file", { exact: true })
+    .setInputFiles({
+      name: "updated.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("city,amount\nKarachi,0.30\nLahore,0.20\n"),
+    });
+  await panel.getByRole("button", { name: "Validate staged file" }).click();
+  await expect(panel.getByRole("status")).toContainText("File queued");
+  await panel
+    .getByRole("button", { name: "Activate snapshot", exact: true })
+    .click();
+  await expect(panel.locator(".observationValue")).toContainText(
+    "0.500000000000",
+  );
+  await expect(panel.locator(".refreshDelivery")).toContainText("delivered");
+  await expect(
+    panel.getByRole("table", { name: "Computed contributions to change" }),
+  ).toContainText("0.200000000000");
+  await panel
+    .getByRole("button", { name: "Open observation evidence", exact: true })
+    .click();
+  await expect(
+    panel.getByText("Method, coverage and query receipts", { exact: true }),
+  ).toBeVisible();
+  await panel.getByRole("button", { name: "Mark read", exact: true }).click();
+  await expect(panel.locator(".refreshDelivery")).toContainText("Read");
+  await panel.getByRole("button", { name: "Unsubscribe", exact: true }).click();
+  await expect(
+    panel.getByRole("button", { name: "Unsubscribe", exact: true }),
+  ).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(

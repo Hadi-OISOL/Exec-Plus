@@ -5,10 +5,12 @@ What it does: Migrates an isolated schema, provisions a private bucket, and clea
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 from uuid import uuid4
 
 import boto3
+from browser_transport import browser_transport
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
@@ -29,8 +31,12 @@ def main() -> None:
             "EXECPLUS_OBJECT_STORE_ENDPOINT": os.getenv(
                 "EXECPLUS_TEST_OBJECT_STORE_ENDPOINT", "http://localhost:9000"
             ),
-            "EXECPLUS_OBJECT_STORE_ACCESS_KEY": "execplus",
-            "EXECPLUS_OBJECT_STORE_SECRET_KEY": "change-me",
+            "EXECPLUS_OBJECT_STORE_ACCESS_KEY": os.getenv(
+                "EXECPLUS_TEST_OBJECT_STORE_ACCESS_KEY", "execplus"
+            ),
+            "EXECPLUS_OBJECT_STORE_SECRET_KEY": os.getenv(
+                "EXECPLUS_TEST_OBJECT_STORE_SECRET_KEY", "change-me"
+            ),
             "EXECPLUS_WEB_ORIGIN": "http://127.0.0.1:3001",
             "NEXT_PUBLIC_API_URL": "http://127.0.0.1:8001",
         }
@@ -38,8 +44,8 @@ def main() -> None:
     client = boto3.client(
         "s3",
         endpoint_url=env["EXECPLUS_OBJECT_STORE_ENDPOINT"],
-        aws_access_key_id="execplus",
-        aws_secret_access_key="change-me",
+        aws_access_key_id=env["EXECPLUS_OBJECT_STORE_ACCESS_KEY"],
+        aws_secret_access_key=env["EXECPLUS_OBJECT_STORE_SECRET_KEY"],
     )
     with engine.begin() as connection:
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
@@ -49,12 +55,13 @@ def main() -> None:
         subprocess.run(
             ["python3", "-m", "alembic", "upgrade", "head"], env=env, cwd=root, check=True
         )
-        subprocess.run(
-            ["npm", "run", "test:e2e", "--workspace", "@execplus/web"],
-            env=env,
-            cwd=root,
-            check=True,
-        )
+        with browser_transport(env, bucket) as browser_env:
+            subprocess.run(
+                ["npm", "run", "test:e2e", "--workspace", "@execplus/web", "--", *sys.argv[1:]],
+                env=browser_env,
+                cwd=root,
+                check=True,
+            )
     finally:
         for item in client.list_objects_v2(Bucket=bucket).get("Contents", []):
             client.delete_object(Bucket=bucket, Key=item["Key"])

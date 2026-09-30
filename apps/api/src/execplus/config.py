@@ -35,6 +35,19 @@ class Settings(BaseSettings):
     llm_api_key: str = Field(default="", repr=False)
     llm_small_model: str = ""
     llm_large_model: str = ""
+    llm_json_mode: bool = False
+    llm_max_output_tokens: int = Field(default=1024, ge=1, le=8192)
+    llm_reasoning_effort: Literal["none", "low", "medium", "high", "max"] | None = None
+    llm_selection_base_url: str = ""
+    llm_selection_model: str = ""
+    llm_selection_api_key: str = Field(default="", repr=False)
+    production_evidence_path: str = ""
+    email_mode: Literal["disabled", "smtp"] = "disabled"
+    smtp_host: str = ""
+    smtp_port: int = Field(default=465, ge=1, le=65535)
+    smtp_username: str = ""
+    smtp_password: str = Field(default="", repr=False)
+    smtp_sender: str = ""
     vector_mode: Literal["disabled"] = "disabled"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
     web_origin: str = "http://localhost:3000"
@@ -50,6 +63,14 @@ class Settings(BaseSettings):
             raise ValueError("An active language-model route requires EXECPLUS_LLM_LARGE_MODEL")
         if self.llm_mode == "hosted" and not self.llm_api_key.strip():
             raise ValueError("A hosted language-model route requires EXECPLUS_LLM_API_KEY")
+        if bool(self.llm_selection_base_url.strip()) != bool(self.llm_selection_model.strip()):
+            raise ValueError("Selection requires both a base URL and model name")
+        if self.llm_mode == "disabled" and self.llm_selection_model:
+            raise ValueError("Selection requires an active primary model")
+        if self.email_mode == "smtp" and not all(
+            (self.smtp_host, self.smtp_username, self.smtp_password, self.smtp_sender)
+        ):
+            raise ValueError("SMTP delivery requires host, username, password and sender")
         return self
 
 

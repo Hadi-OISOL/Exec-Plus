@@ -24,11 +24,15 @@ from execplus.domain.errors import (
     UnverifiedAnswerError,
 )
 from execplus.domain.ingestion import IngestionError
+from execplus.presentation.routes.activation import router as activation_router
 from execplus.presentation.routes.analytics import router as analytics_router
 from execplus.presentation.routes.health import router as health_router
 from execplus.presentation.routes.joins import router as joins_router
+from execplus.presentation.routes.refresh import router as refresh_router
 from execplus.presentation.routes.saved_items import router as saved_items_router
+from execplus.presentation.routes.studies import router as studies_router
 from execplus.presentation.routes.threads import router as threads_router
+from execplus.presentation.routes.understanding import router as understanding_router
 from execplus.presentation.routes.workspaces import router as workspace_router
 
 
@@ -53,7 +57,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[configured.web_origin],
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
@@ -66,12 +70,16 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
+    application.include_router(activation_router)
     application.include_router(health_router)
     application.include_router(workspace_router)
     application.include_router(analytics_router)
     application.include_router(joins_router)
     application.include_router(saved_items_router)
     application.include_router(threads_router)
+    application.include_router(understanding_router)
+    application.include_router(studies_router)
+    application.include_router(refresh_router)
 
     @application.exception_handler(IngestionError)
     async def ingestion_error(request: Request, error: IngestionError) -> JSONResponse:

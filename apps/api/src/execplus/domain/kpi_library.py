@@ -136,17 +136,34 @@ def kpi_by_id(kpi_id: str) -> KpiDefinition | None:
 
 
 def _resolve(view: DatasetView, tag: str) -> str | None:
-    for name in sorted(view.metrics):
-        column = view.column(name)
-        if column is not None and (tag in column.tags or column.name == tag):
-            return name
-    return None
+    candidates = [
+        name
+        for name in sorted(view.metrics)
+        if (column := view.column(name)) is not None and (tag in column.tags or column.name == tag)
+    ]
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def compatible_kpis(view: DatasetView) -> tuple[KpiMatch, ...]:
     matches = []
     for definition in LIBRARY:
+        if (
+            view.definition
+            and definition.id == "sales.average_order_value"
+            and view.definition["grain"] != "order"
+        ):
+            continue
         column = _resolve(view, definition.required_tag)
+        configured = next(
+            (
+                item
+                for item in (view.definition or {}).get("metrics", [])
+                if item["column"] == column
+            ),
+            None,
+        )
+        if configured and configured["aggregation"] != definition.aggregation.value:
+            continue
         if column is not None:
             explanation = (
                 f"{definition.name!r} applies because {column!r} is a metric column "

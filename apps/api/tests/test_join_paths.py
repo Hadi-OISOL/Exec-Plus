@@ -128,7 +128,7 @@ def test_plan_join_query_qualifies_every_column_by_table():
         'FROM "dataset_left" JOIN "dataset_right" '
         'ON "dataset_left"."sku" = "dataset_right"."sku" '
         'WHERE "dataset_left"."date" >= ? '
-        'GROUP BY "dataset_right"."category" LIMIT 100'
+        'GROUP BY "dataset_right"."category" ORDER BY "dataset_right"."category" LIMIT 100'
     )
 
 

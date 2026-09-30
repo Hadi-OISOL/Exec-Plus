@@ -23,11 +23,11 @@ web:
 	npm run dev:web
 
 format:
-	python3 -m ruff format apps/api/src apps/api/tests tests migrations scripts
-	python3 -m ruff check --fix apps/api/src apps/api/tests tests migrations scripts
+	python3 -m ruff format apps/api/src apps/api/tests tests migrations scripts deploy/vps
+	python3 -m ruff check --fix apps/api/src apps/api/tests tests migrations scripts deploy/vps
 
 lint:
-	python3 -m ruff check apps/api/src apps/api/tests tests migrations scripts
+	python3 -m ruff check apps/api/src apps/api/tests tests migrations scripts deploy/vps
 	npm run lint:web
 
 typecheck:
@@ -49,7 +49,21 @@ init-storage:
 
 test-integration:
 	@test -n "$(EXECPLUS_TEST_DATABASE_URL)" || (echo "Set EXECPLUS_TEST_DATABASE_URL" && exit 1)
-	python3 -m pytest apps/api/tests/test_workspace_integration.py apps/api/tests/test_profile_integration.py apps/api/tests/test_analytics_integration.py
+	python3 -m pytest apps/api/tests/*integration.py apps/api/tests/test_phase2_hardening.py
 
 test-browser:
 	python3 scripts/check_browser.py
+
+.PHONY: demo-corpus evaluate-demo evaluate-demo-model production-preflight
+
+demo-corpus:
+	python3 scripts/create_demo_corpus.py
+
+evaluate-demo: demo-corpus
+	python3 scripts/evaluate_phase3.py --manifest data/phase3-demo-v1/evaluation.json
+
+evaluate-demo-model: demo-corpus
+	python3 scripts/evaluate_demo_model.py --output data/phase3-demo-v1/model-evaluation.json
+
+production-preflight:
+	python3 scripts/check_production_gates.py

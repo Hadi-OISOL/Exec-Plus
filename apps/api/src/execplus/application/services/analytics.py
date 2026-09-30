@@ -7,19 +7,24 @@ dashboard summary from the dataset's profile.
 
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from io import BytesIO
-from uuid import UUID
+from typing import cast
+from uuid import UUID, uuid4
 
 from execplus.application.ports import FileParser, ObjectStorage, QueryExecutor, WorkspaceRepository
 from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.lineage import persist_query_execution
+from execplus.application.services.understanding import current_meaning
 from execplus.domain.dashboard_templates import TEMPLATES, DashboardTemplate, applicable_templates
-from execplus.domain.errors import UnsupportedQuestionError
-from execplus.domain.ingestion import IngestionError, Membership, Upload, User
+from execplus.domain.errors import ClarificationRequiredError, UnsupportedQuestionError
+from execplus.domain.evidence import receipt, result_evidence, scalar_from_record
+from execplus.domain.ingestion import AuditEvent, IngestionError, Membership, Upload, User
 from execplus.domain.kpi_library import KpiMatch, compatible_kpis, kpi_by_id
 from execplus.domain.models import (
     CalculationLineage,
+    QueryPlan,
     QueryResult,
     VerifiedMetricAnswer,
     WorkspaceScope,
@@ -27,7 +32,6 @@ from execplus.domain.models import (
 from execplus.domain.profiling import TableData, reconstruct
 from execplus.domain.semantics import (
     VALUE_ALIAS,
-    AggregationKind,
     DatasetView,
     MetricFilter,
     MetricRequest,
@@ -40,6 +44,7 @@ from execplus.domain.semantics import (
     recommend_trend_dimension,
 )
 from execplus.domain.suggestions import suggested_questions
+from execplus.domain.understanding import apply_definition, governed_request, preferred_aggregation
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 
@@ -95,7 +100,17 @@ class AnalyticsService:
         self.parser.parse(content, upload.filename, upload.content_type)
         table = self.parser.read_table(content, upload.format)
         table = reconstruct(table, revision)
-        return table, dataset_view(revision.profile)
+        if revision.source_checksum != upload.checksum:
+            raise IngestionError("lineage_mismatch", "The source integrity check failed.", 409)
+        source = {
+            "dataset_id": str(upload.dataset_id),
+            "upload_id": str(upload.id),
+            "revision_id": str(revision.id),
+            "source_checksum": upload.checksum,
+            "output_checksum": revision.output_checksum,
+        }
+        view = replace(dataset_view(revision.profile), sources=(source,))
+        return table, current_meaning(repo, revision, view)
 
     def _context(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
@@ -113,6 +128,52 @@ class AnalyticsService:
     def _persist(self, actor: User, lineage: CalculationLineage) -> None:
         persist_query_execution(self.uow, actor, lineage)
 
+    def context_at(
+        self, actor: User, workspace_id: UUID, source: dict[str, str]
+    ) -> tuple[str, WorkspaceScope, TableData, DatasetView]:
+        with self.uow() as repo:
+            member = self._authorize(repo, actor, workspace_id)
+            did, uid = UUID(source["dataset_id"]), UUID(source["upload_id"])
+            dataset = repo.dataset(workspace_id, did)
+            upload = repo.upload(workspace_id, did, uid)
+            revision = repo.revision(workspace_id, did, uid, UUID(source["revision_id"]))
+            meaning = repo.understanding(workspace_id, did, UUID(source["understanding_id"]))
+            if (
+                meaning.revision_id != revision.id
+                or meaning.state != "confirmed"
+                or source["source_checksum"] != upload.checksum
+                or revision.source_checksum != upload.checksum
+                or source["output_checksum"] != revision.output_checksum
+            ):
+                raise IngestionError(
+                    "lineage_mismatch", "The retained source failed verification.", 409
+                )
+            content = BytesIO(self.storage.read(upload))
+            self.parser.parse(content, upload.filename, upload.content_type)
+            table = reconstruct(self.parser.read_table(content, upload.format), revision)
+            frozen_source = {
+                key: source[key]
+                for key in (
+                    "dataset_id",
+                    "upload_id",
+                    "revision_id",
+                    "source_checksum",
+                    "output_checksum",
+                    "understanding_id",
+                )
+            }
+            view = apply_definition(
+                replace(dataset_view(revision.profile), sources=(frozen_source,)),
+                meaning.definition,
+            )
+            self._authorize(repo, actor, workspace_id)
+        return (
+            dataset.name,
+            WorkspaceScope(workspace_id, actor.id, frozenset({member.role}), frozenset({did})),
+            table,
+            view,
+        )
+
     async def _execute(
         self,
         actor: User,
@@ -124,14 +185,14 @@ class AnalyticsService:
         request: MetricRequest,
         model_route: str | None = None,
     ) -> tuple[QueryResult, CalculationLineage]:
+        request = governed_request(view, table, request)
         plan = plan_query(scope, dataset_id, view, request, row_limit=self.row_limit)
-        result = await self.executor.execute(plan, scope, table, view)
         lineage = CalculationLineage(
             query_id=plan.query_id,
             workspace_id=scope.workspace_id,
             dataset_id=dataset_id,
             dataset_name=dataset_name,
-            records_analyzed=result.records_analyzed,
+            records_analyzed=len(table.rows),
             metric=request.metric,
             aggregation=request.aggregation.value,
             grouping=request.group_by,
@@ -141,6 +202,17 @@ class AnalyticsService:
             ),
             sql=plan.sql,
             model_route=model_route,
+        )
+        with self.uow() as repo:
+            self._authorize(repo, actor, scope.workspace_id)
+        try:
+            result = await self.executor.execute(plan, scope, table, view)
+        except Exception:
+            self._persist(actor, replace(lineage, receipt=receipt(plan, view.sources, None)))
+            raise
+        lineage = replace(
+            lineage,
+            receipt=receipt(plan, view.sources, result, row_query=lineage.aggregation == "rows"),
         )
         self._persist(actor, lineage)
         return result, lineage
@@ -155,15 +227,15 @@ class AnalyticsService:
         view: DatasetView,
         request: RowRequest,
         limit: int,
+        model_route: str | None = None,
     ) -> tuple[QueryResult, CalculationLineage]:
         plan = plan_rows(scope, dataset_id, view, request, row_limit=limit)
-        result = await self.executor.execute(plan, scope, table, view)
         lineage = CalculationLineage(
             query_id=plan.query_id,
             workspace_id=scope.workspace_id,
             dataset_id=dataset_id,
             dataset_name=dataset_name,
-            records_analyzed=result.records_analyzed,
+            records_analyzed=len(table.rows),
             metric="(all columns)",
             aggregation="rows",
             grouping=(),
@@ -172,6 +244,18 @@ class AnalyticsService:
                 for clause in request.filters
             ),
             sql=plan.sql,
+            model_route=model_route,
+        )
+        with self.uow() as repo:
+            self._authorize(repo, actor, scope.workspace_id)
+        try:
+            result = await self.executor.execute(plan, scope, table, view)
+        except Exception:
+            self._persist(actor, replace(lineage, receipt=receipt(plan, view.sources, None)))
+            raise
+        lineage = replace(
+            lineage,
+            receipt=receipt(plan, view.sources, result, row_query=lineage.aggregation == "rows"),
         )
         self._persist(actor, lineage)
         return result, lineage
@@ -204,8 +288,14 @@ class AnalyticsService:
         upload_id: UUID,
         request: MetricRequest,
         model_route: str | None = None,
+        expected_sources: tuple[dict[str, str], ...] | None = None,
     ) -> tuple[QueryResult, CalculationLineage]:
         dataset_name, scope, table, view = self._context(actor, workspace_id, dataset_id, upload_id)
+        if expected_sources is not None and view.sources != expected_sources:
+            raise ClarificationRequiredError(
+                "The data or business definition changed while planning. "
+                "Ask again with the current revision."
+            )
         return await self._execute(
             actor, dataset_id, dataset_name, scope, table, view, request, model_route
         )
@@ -218,12 +308,15 @@ class AnalyticsService:
         upload_id: UUID,
         request: MetricRequest,
         model_route: str | None = None,
+        expected_sources: tuple[dict[str, str], ...] | None = None,
     ) -> VerifiedMetricAnswer:
         if request.group_by:
             raise UnsupportedQuestionError("A single verified answer cannot include grouping")
         result, lineage = await self.run_query(
-            actor, workspace_id, dataset_id, upload_id, request, model_route
+            actor, workspace_id, dataset_id, upload_id, request, model_route, expected_sources
         )
+        if not result.rows or result.rows[0][0] is None:
+            raise UnsupportedQuestionError("No matching numeric values were found for this request")
         return self.assembler.assemble_metric(
             label=request.metric, column=VALUE_ALIAS, result=result, lineage=lineage
         )
@@ -251,6 +344,8 @@ class AnalyticsService:
         result, lineage = await self._execute(
             actor, dataset_id, dataset_name, scope, table, view, request
         )
+        if not result.rows or result.rows[0][0] is None:
+            raise UnsupportedQuestionError("No matching numeric values were found for this request")
         return self.assembler.assemble_metric(
             label=definition.name, column=VALUE_ALIAS, result=result, lineage=lineage
         )
@@ -299,7 +394,9 @@ class AnalyticsService:
         for metric in recommend_metrics(view):
             if metric in covered_columns or len(cards) >= 6:
                 continue
-            request = MetricRequest(metric=metric, aggregation=AggregationKind.SUM, filters=filters)
+            request = MetricRequest(
+                metric=metric, aggregation=preferred_aggregation(view, metric), filters=filters
+            )
             result, lineage = await self._execute(
                 actor, dataset_id, dataset_name, scope, table, view, request
             )
@@ -312,7 +409,7 @@ class AnalyticsService:
         if primary_metric and trend_dimension:
             request = MetricRequest(
                 metric=primary_metric[0],
-                aggregation=AggregationKind.SUM,
+                aggregation=preferred_aggregation(view, primary_metric[0]),
                 group_by=(trend_dimension,),
                 filters=filters,
             )
@@ -326,7 +423,7 @@ class AnalyticsService:
         if primary_metric and breakdown_dimension:
             request = MetricRequest(
                 metric=primary_metric[0],
-                aggregation=AggregationKind.SUM,
+                aggregation=preferred_aggregation(view, primary_metric[0]),
                 group_by=(breakdown_dimension,),
                 filters=filters,
             )
@@ -442,3 +539,155 @@ class AnalyticsService:
         return await self._execute_rows(
             actor, dataset_id, dataset_name, scope, table, view, request, bounded_limit
         )
+
+    async def query_records(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        request: RowRequest,
+        limit: int,
+        model_route: str,
+        expected_sources: tuple[dict[str, str], ...] | None = None,
+    ) -> tuple[QueryResult, CalculationLineage]:
+        dataset_name, scope, table, view = self._context(actor, workspace_id, dataset_id, upload_id)
+        if expected_sources is not None and view.sources != expected_sources:
+            raise ClarificationRequiredError(
+                "The data or business definition changed while planning. "
+                "Ask again with the current revision."
+            )
+        return await self._execute_rows(
+            actor,
+            dataset_id,
+            dataset_name,
+            scope,
+            table,
+            view,
+            request,
+            min(limit, self.row_limit),
+            model_route,
+        )
+
+    async def replay(
+        self, actor: User, workspace_id: UUID, query_id: UUID
+    ) -> tuple[QueryResult, CalculationLineage]:
+        lineage = await self.get_lineage(actor, workspace_id, query_id)
+        evidence = lineage.receipt
+        if evidence.get("version") != "execution-v1" or evidence.get("outcome") != "executed":
+            raise IngestionError(
+                "replay_unavailable",
+                "This historical query has no complete execution receipt.",
+                409,
+            )
+        sources = cast(list[dict[str, str]], evidence["sources"])
+        tables: list[TableData] = []
+        views: list[DatasetView] = []
+        with self.uow() as repo:
+            member = self._authorize(repo, actor, workspace_id)
+            for source in sources:
+                upload = repo.upload(
+                    workspace_id, UUID(source["dataset_id"]), UUID(source["upload_id"])
+                )
+                revision = repo.revision(
+                    workspace_id, upload.dataset_id, upload.id, UUID(source["revision_id"])
+                )
+                if (
+                    upload.checksum != source["source_checksum"]
+                    or revision.output_checksum != source["output_checksum"]
+                ):
+                    raise IngestionError(
+                        "lineage_mismatch", "The snapshot no longer matches its receipt.", 409
+                    )
+                content = BytesIO(self.storage.read(upload))
+                self.parser.parse(content, upload.filename, upload.content_type)
+                tables.append(reconstruct(self.parser.read_table(content, upload.format), revision))
+                view = dataset_view(revision.profile)
+                if source.get("understanding_id"):
+                    meaning = repo.understanding(
+                        workspace_id, upload.dataset_id, UUID(source["understanding_id"])
+                    )
+                    if meaning.revision_id != revision.id or meaning.state != "confirmed":
+                        raise IngestionError(
+                            "lineage_mismatch",
+                            "The definition does not match the recorded revision.",
+                            409,
+                        )
+                    view = apply_definition(view, meaning.definition)
+                views.append(view)
+        scope = WorkspaceScope(
+            workspace_id,
+            actor.id,
+            frozenset({member.role}),
+            frozenset(UUID(source["dataset_id"]) for source in sources),
+        )
+        parameters = cast(list[dict[str, object]], evidence["parameters"])
+        plan = QueryPlan(
+            query_id,
+            workspace_id,
+            lineage.dataset_id,
+            "Replay verified query",
+            lineage.sql,
+            tuple(scalar_from_record(value) for value in parameters),
+        )
+        with self.uow() as repo:
+            self._authorize(repo, actor, workspace_id)
+        if len(tables) == 1:
+            result = await self.executor.execute(plan, scope, tables[0], views[0])
+        elif len(tables) == 2 and "join_path_id" in evidence:
+            with self.uow() as repo:
+                path = repo.join_path(workspace_id, UUID(str(evidence["join_path_id"])))
+            result = await self.executor.execute_join(
+                plan, scope, path, tables[0], views[0], tables[1], views[1]
+            )
+        else:
+            raise IngestionError("replay_unavailable", "Unsupported snapshot receipt.", 409)
+        with self.uow() as repo:
+            self._authorize(repo, actor, workspace_id)
+        if result_evidence(result)["checksum"] != evidence["result_checksum"]:
+            raise IngestionError(
+                "lineage_mismatch", "The replay did not reproduce the recorded answer.", 409
+            )
+        if "matched_records" in evidence and evidence["matched_records"] != result.matched_records:
+            raise IngestionError("lineage_mismatch", "The matching record count changed.", 409)
+        return result, lineage
+
+    async def record_narrative(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        evidence_ids: tuple[str, ...],
+        text: str,
+        model_route: str,
+    ) -> None:
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
+            executions = [repo.query_execution(workspace_id, UUID(key)) for key in evidence_ids]
+            execution = executions[0]
+            updated = dict(execution.receipt)
+            narratives = updated.get("narratives", [])
+            assert isinstance(narratives, list)
+            updated["narratives"] = [
+                *narratives,
+                {
+                    "id": str(uuid4()),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "actor_id": str(actor.id),
+                    "evidence_ids": list(evidence_ids),
+                    "text": text,
+                    "model_route": model_route,
+                },
+            ]
+            repo.set_query_receipt(workspace_id, execution.id, updated)
+            repo.add(
+                AuditEvent(
+                    uuid4(),
+                    workspace_id,
+                    actor.id,
+                    "summary.generated",
+                    "query",
+                    execution.id,
+                    datetime.now(timezone.utc),
+                )
+            )

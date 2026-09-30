@@ -3,7 +3,7 @@
 What it does: Enforces the data required for authorized and verifiable analytics.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
@@ -16,7 +16,10 @@ NumericScalar: TypeAlias = int | float | Decimal
 
 class QuestionKind(str, Enum):
     NUMERICAL = "numerical"
+    ROWS = "rows"
+    OVERVIEW = "overview"
     TEXTUAL = "textual"
+    MIXED = "mixed"
     AMBIGUOUS = "ambiguous"
     UNSUPPORTED = "unsupported"
 
@@ -53,6 +56,7 @@ class QueryResult:
     columns: tuple[str, ...]
     rows: tuple[tuple[Scalar, ...], ...]
     records_analyzed: int
+    matched_records: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +72,7 @@ class CalculationLineage:
     filters: tuple[str, ...]
     sql: str
     model_route: str | None = None
+    receipt: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +97,7 @@ class QueryExecution:
     records_analyzed: int
     created_at: datetime
     model_route: str | None = None
+    receipt: dict[str, object] = field(default_factory=dict)
 
     def lineage(self) -> CalculationLineage:
         return CalculationLineage(
@@ -106,4 +112,5 @@ class QueryExecution:
             filters=self.filters,
             sql=self.sql,
             model_route=self.model_route,
+            receipt=self.receipt,
         )

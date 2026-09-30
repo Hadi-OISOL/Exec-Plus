@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 
 from execplus.domain.ingestion import IngestionError, ObjectMetadata, Upload
+from execplus.domain.knowledge import MAX_DOCUMENT_BYTES, Document
 
 
 def storage_key(upload: Upload) -> str:
@@ -82,3 +83,46 @@ class S3ObjectStorage:
     def ready(self) -> bool:
         self.client.head_bucket(Bucket=self.bucket)
         return True
+
+    def put_document(self, document: Document, content: bytes) -> None:
+        key = f"workspaces/{document.workspace_id}/documents/{document.id}/original"
+        try:
+            self.client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=content,
+                ContentType="application/octet-stream",
+                Metadata={"sha256": document.checksum},
+            )
+        except (BotoCoreError, ClientError) as error:
+            raise IngestionError(
+                "storage_unavailable", "Document storage is unavailable.", 503
+            ) from error
+
+    def read_document(self, document: Document) -> bytes:
+        key = f"workspaces/{document.workspace_id}/documents/{document.id}/original"
+        try:
+            result = self.client.get_object(Bucket=self.bucket, Key=key)
+            body = result["Body"]
+            try:
+                content = body.read(MAX_DOCUMENT_BYTES + 1)
+            finally:
+                body.close()
+            if (
+                len(content) != document.size
+                or hashlib.sha256(content).hexdigest() != document.checksum
+            ):
+                raise IngestionError(
+                    "storage_integrity", "The document failed its integrity check.", 503
+                )
+            return content
+        except (BotoCoreError, ClientError) as error:
+            raise IngestionError(
+                "storage_unavailable", "Document storage is unavailable.", 503
+            ) from error
+
+    def delete_document(self, document: Document) -> None:
+        self.client.delete_object(
+            Bucket=self.bucket,
+            Key=f"workspaces/{document.workspace_id}/documents/{document.id}/original",
+        )

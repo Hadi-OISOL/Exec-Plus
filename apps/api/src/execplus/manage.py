@@ -4,6 +4,8 @@ What it does: Creates a private bucket or prints a short-lived session token for
 """
 
 import argparse
+import asyncio
+import json
 
 from execplus.bootstrap import build_runtime
 from execplus.config import Settings
@@ -13,7 +15,9 @@ from execplus.infrastructure.object_storage import S3ObjectStorage
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["provision-user", "init-storage"])
+    parser.add_argument(
+        "action", choices=["provision-user", "init-storage", "deliver-reports", "process-refreshes"]
+    )
     parser.add_argument("--email")
     args = parser.parse_args()
     settings = Settings()
@@ -25,6 +29,12 @@ def main() -> None:
             if not isinstance(runtime.identity, LocalSessionIdentity):
                 parser.error("local identity is required")
             print(runtime.identity.provision(args.email))
+        elif args.action == "process-refreshes":
+            refreshed = runtime.refresh.process_due()
+            observed = asyncio.run(runtime.monitoring.process())
+            print(json.dumps(dict(refresh=refreshed, observations=observed)))
+        elif args.action == "deliver-reports":
+            print(json.dumps(asyncio.run(runtime.reports.deliver_due())))
         else:
             storage = runtime.service.storage
             if not isinstance(storage, S3ObjectStorage):

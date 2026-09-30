@@ -1,0 +1,12 @@
+# Use case: Runs a bounded daily backup of the private demo.
+# What it does: Calls the project backup workflow independently of other VPS applications.
+
+[Unit]
+Description=ExecPlus private demo backup
+After=docker.service
+RequiresMountsFor=/sdb-disk/OISOL_ExecPLUS
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /sdb-disk/OISOL_ExecPLUS/source/deploy/vps/backup.sh
+UMask=0077

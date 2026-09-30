@@ -4,6 +4,7 @@ What it does: Scopes each saved item to its owner by default; a saved item is
 visible to the rest of the workspace only once its owner explicitly shares it.
 """
 
+import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import datetime, timezone
@@ -38,6 +39,23 @@ class SavedItemService:
         payload: dict[str, Any],
         shared: bool,
     ) -> SavedItem:
+        if (
+            kind not in {"question", "prompt", "dashboard", "analysis"}
+            or len(json.dumps(payload)) > 8000
+        ):
+            raise IngestionError(
+                "invalid_saved_item", "Choose a supported item and bounded configuration.", 422
+            )
+        allowed = {
+            "question": {"question", "metric", "aggregation", "group_by", "filters"},
+            "prompt": {"question"},
+            "dashboard": {"filters", "template_id"},
+            "analysis": {"query_id"},
+        }[kind]
+        if set(payload) - allowed:
+            raise IngestionError(
+                "invalid_saved_item", "This configuration contains unsupported fields.", 422
+            )
         now = datetime.now(timezone.utc)
         item = SavedItem(
             uuid4(),
@@ -56,6 +74,27 @@ class SavedItemService:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id)
             repo.upload(workspace_id, dataset_id, upload_id)
+            if kind == "analysis":
+                try:
+                    query_id = UUID(str(payload["query_id"]))
+                except (ValueError, KeyError):
+                    raise IngestionError(
+                        "invalid_saved_item", "Choose an executed analysis.", 422
+                    ) from None
+                execution = repo.query_execution(workspace_id, query_id)
+                sources = execution.receipt.get("sources", [])
+                if (
+                    execution.receipt.get("outcome") != "executed"
+                    or execution.dataset_id != dataset_id
+                    or not isinstance(sources, list)
+                    or not any(
+                        isinstance(source, dict) and source.get("upload_id") == str(upload_id)
+                        for source in sources
+                    )
+                ):
+                    raise IngestionError(
+                        "not_found", "This analysis does not belong to the upload.", 404
+                    )
             repo.add(item)
             repo.add(
                 AuditEvent(
@@ -75,6 +114,7 @@ class SavedItemService:
     ) -> tuple[SavedItem, ...]:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id)
+            repo.upload(workspace_id, dataset_id, upload_id)
             items = repo.saved_items(workspace_id, dataset_id, upload_id)
         return tuple(item for item in items if item.shared or item.owner_id == actor.id)
 

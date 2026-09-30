@@ -148,9 +148,14 @@ def test_versioned_samples_have_fixed_shapes_and_reproducible_profiles(sample):
     parser = StructuredFileParser()
     structure = parser.parse(BytesIO(content), sample["id"] + ".csv", "text/csv")
     result = profile(parser.read_table(BytesIO(content), "csv"))
-    expected = {"finance-v1": (4, "98.75"), "sales-v1": (3, "93.33"), "inventory-v1": (3, "100.00")}
+    expected = {
+        "finance-v1": (4, "98.75"),
+        "sales-v1": (3, "93.33"),
+        "inventory-v1": (3, "100.00"),
+        "cities-v1": (24, "100.00"),
+    }
     assert (structure.row_count, result["quality_score"]) == expected[sample["id"]]
-    assert result["column_count"] == 4
+    assert result["column_count"] == (6 if sample["id"] == "cities-v1" else 4)
 
 
 def test_no_op_preserves_headers_and_mixed_booleans_are_reported():

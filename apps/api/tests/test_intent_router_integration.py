@@ -62,7 +62,7 @@ def test_ask_executes_only_for_a_numerical_response(integration):
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["value"] == 350.0
+    assert body["value"] == "350.000000000000"
     assert body["lineage"]["metric"] == "revenue"
     assert body["lineage"]["model_route"] == "fake:fake-model"
 
@@ -120,13 +120,19 @@ def test_dashboard_summary_accepts_a_grounded_narrative(integration):
     owner, _ = identity(env, "owner@example.test")
     wid = workspace(env, owner)
     did, uid = uploaded_dataset(env, owner, wid)
-    fake = FakeLanguageModel("Total revenue reached 350.")
+
+    class SelectingModel:
+        async def complete(self, request):
+            bank = json.loads(request.messages[-1].content)
+            return ModelResponse(json.dumps({"evidence_ids": list(bank)[:1]}), "fake", "fake")
+
+    fake = SelectingModel()
     _override_model(env, SummaryService, get_summary_service, fake)
 
     response = summary(env, owner, wid, did, uid)
 
     assert response.status_code == 200, response.text
-    assert response.json()["summary"] == "Total revenue reached 350."
+    assert response.json()["summary"] == "sum of revenue: 350.000000000000."
 
 
 def test_dashboard_summary_rejects_an_ungrounded_number(integration):

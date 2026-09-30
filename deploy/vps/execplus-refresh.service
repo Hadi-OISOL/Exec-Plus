@@ -1,0 +1,15 @@
+# Use case: Processes private-demo refreshes and evidence-backed KPI alerts.
+# What it does: Serializes the bounded worker with backups and exposes no extra ports.
+
+[Unit]
+Description=ExecPlus staged refresh and observation worker
+After=docker.service
+RequiresMountsFor=/sdb-disk/OISOL_ExecPLUS
+
+[Service]
+Type=oneshot
+WorkingDirectory=/sdb-disk/OISOL_ExecPLUS/source
+ExecStart=/usr/bin/flock --nonblock --conflict-exit-code 75 /run/lock/execplus-maintenance.lock /usr/bin/docker compose -f deploy/vps/compose.yaml run --rm -T operator python -m execplus.manage process-refreshes
+SuccessExitStatus=75
+TimeoutStartSec=45min
+UMask=0077

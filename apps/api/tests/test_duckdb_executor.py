@@ -5,6 +5,7 @@ that filter values are always treated as literal bound data.
 """
 
 import time
+from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -13,7 +14,7 @@ import pytest
 from execplus.domain.errors import AuthorizationError, UnsafeQueryError
 from execplus.domain.join_paths import JoinPath, combine, plan_join_query
 from execplus.domain.models import WorkspaceScope
-from execplus.domain.profiling import TableData
+from execplus.domain.profiling import TableData, profile
 from execplus.domain.semantics import (
     AggregationKind,
     FilterOperator,
@@ -182,6 +183,7 @@ async def test_execute_join_computes_aggregate_across_two_datasets():
     request = MetricRequest(
         metric="revenue", aggregation=AggregationKind.SUM, group_by=("category",)
     )
+    path = replace(path, workspace_id=scope_.workspace_id)
     plan = plan_join_query(scope_, path, combined, request, row_limit=100)
 
     executor = DuckDBQueryExecutor(timeout_seconds=5, memory_limit_mb=64)
@@ -217,4 +219,34 @@ async def test_execute_join_rejects_dataset_outside_scope():
     with pytest.raises(AuthorizationError):
         await executor.execute_join(
             plan, narrow_scope, path, sales_table(), sales_view(), products_table(), products_view()
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("aggregation", list(AggregationKind))
+async def test_join_cannot_duplicate_or_reweight_right_measures(aggregation):
+    left_id, right_id = uuid4(), uuid4()
+    scope_ = WorkspaceScope(uuid4(), uuid4(), frozenset({"member"}), frozenset({left_id, right_id}))
+    path = JoinPath(
+        uuid4(),
+        scope_.workspace_id,
+        left_id,
+        "sku",
+        right_id,
+        "sku",
+        scope_.actor_id,
+        datetime.now(timezone.utc),
+    )
+    right = TableData(("sku", "price"), (("A1", "10"), ("B2", "30")))
+    right_view = dataset_view(profile(right))
+    plan = plan_join_query(
+        scope_,
+        path,
+        combine(sales_view(), right_view, path),
+        MetricRequest("price", aggregation),
+        row_limit=100,
+    )
+    with pytest.raises(UnsafeQueryError, match="unique left keys"):
+        await DuckDBQueryExecutor(timeout_seconds=5, memory_limit_mb=64).execute_join(
+            plan, scope_, path, sales_table(), sales_view(), right, right_view
         )

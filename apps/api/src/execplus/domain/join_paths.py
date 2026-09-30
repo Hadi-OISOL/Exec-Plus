@@ -64,8 +64,7 @@ def combine(left: DatasetView, right: DatasetView, join_path: JoinPath) -> Combi
     overlap = (left_names & right_names) - {join_path.left_column, join_path.right_column}
     if overlap:
         raise UnsupportedQuestionError(
-            f"Columns {sorted(overlap)} exist in both datasets; this join cannot "
-            "disambiguate them"
+            f"Columns {sorted(overlap)} exist in both datasets; this join cannot disambiguate them"
         )
     columns = left.columns + right.columns
     metrics = left.metrics | right.metrics
@@ -120,6 +119,10 @@ def plan_join_query(
         sql += " WHERE " + " AND ".join(where_clauses)
     if request.group_by:
         sql += " GROUP BY " + ", ".join(combined.qualify(name) for name in request.group_by)
+    if not 1 <= row_limit <= 100_000:
+        raise UnsafeQueryError("The query row limit is outside supported bounds")
+    if request.group_by:
+        sql += " ORDER BY " + ", ".join(combined.qualify(name) for name in request.group_by)
     sql += f" LIMIT {row_limit}"
 
     validate_read_only(sql)

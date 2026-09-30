@@ -19,6 +19,8 @@ UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 def persist_query_execution(uow: UnitOfWork, actor: User, lineage: CalculationLineage) -> None:
     now = datetime.now(timezone.utc)
     with uow() as repo:
+        repo.workspace(lineage.workspace_id, lock=True)
+        repo.membership(lineage.workspace_id, actor.id)
         repo.add(
             QueryExecution(
                 id=lineage.query_id,
@@ -34,6 +36,7 @@ def persist_query_execution(uow: UnitOfWork, actor: User, lineage: CalculationLi
                 records_analyzed=lineage.records_analyzed,
                 created_at=now,
                 model_route=lineage.model_route,
+                receipt=lineage.receipt,
             )
         )
         repo.add(
@@ -41,7 +44,9 @@ def persist_query_execution(uow: UnitOfWork, actor: User, lineage: CalculationLi
                 uuid4(),
                 lineage.workspace_id,
                 actor.id,
-                "query.executed",
+                "query.executed"
+                if lineage.receipt.get("outcome", "executed") == "executed"
+                else "query.failed",
                 "query",
                 lineage.query_id,
                 now,

@@ -62,7 +62,7 @@ def test_plan_query_builds_parameterized_grouped_sql():
     plan = plan_query(scope(dataset_id), dataset_id, view(), request, row_limit=100)
     assert plan.sql == (
         'SELECT "region", SUM("revenue") AS "__value" FROM "dataset" '
-        'WHERE "sale_date" >= ? GROUP BY "region" LIMIT 100'
+        'WHERE "sale_date" >= ? GROUP BY "region" ORDER BY "region" LIMIT 100'
     )
     assert plan.params == (date(2026, 1, 1),)
     assert plan.dataset_id == dataset_id

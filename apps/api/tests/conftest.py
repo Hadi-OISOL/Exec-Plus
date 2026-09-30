@@ -50,8 +50,8 @@ def integration():
             "EXECPLUS_TEST_OBJECT_STORE_ENDPOINT", "http://localhost:9000"
         ),
         object_store_bucket="test-" + uuid4().hex,
-        object_store_access_key="execplus",
-        object_store_secret_key="change-me",
+        object_store_access_key=os.getenv("EXECPLUS_TEST_OBJECT_STORE_ACCESS_KEY", "execplus"),
+        object_store_secret_key=os.getenv("EXECPLUS_TEST_OBJECT_STORE_SECRET_KEY", "change-me"),
     )
     runtime = build_runtime(settings)
     runtime.engine.dispose()
@@ -79,6 +79,21 @@ def integration():
     )
     runtime.saved_items = SavedItemService(SQLUnitOfWork(engine))
     runtime.threads = ThreadService(SQLUnitOfWork(engine), runtime.intent_router)
+    runtime.activation.uow = SQLUnitOfWork(engine)
+    runtime.activation.analytics = runtime.analytics
+    runtime.knowledge.uow = SQLUnitOfWork(engine)
+    runtime.understanding.uow = SQLUnitOfWork(engine)
+    runtime.catalog.uow = SQLUnitOfWork(engine)
+    runtime.studies.uow = SQLUnitOfWork(engine)
+    runtime.studies.analytics = runtime.analytics
+    runtime.organizations.uow = SQLUnitOfWork(engine)
+    runtime.refresh.uow = SQLUnitOfWork(engine)
+    runtime.refresh.uploads = runtime.service
+    runtime.refresh.analytics = runtime.analytics
+    runtime.monitoring.uow = SQLUnitOfWork(engine)
+    runtime.monitoring.analytics = runtime.analytics
+    runtime.reports.uow = SQLUnitOfWork(engine)
+    runtime.reports.analytics = runtime.analytics
     runtime.health = HealthService((DatabaseProbe(engine), StorageProbe(runtime.service.storage)))
     runtime.service.storage.client.create_bucket(Bucket=settings.object_store_bucket)
     with TestClient(create_app(settings, runtime)) as client:

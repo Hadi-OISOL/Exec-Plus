@@ -28,6 +28,8 @@ class ModelResponse:
     content: str
     model: str
     provider: str
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

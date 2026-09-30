@@ -7,16 +7,38 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
-Phases 0 and 1 are verified for local/test operation. `/workspace` provides sign-in,
-workspaces, invitations, seats, isolated CSV/XLSX uploads, deterministic profiles,
-quality scores, previewable/reversible cleaning and column mapping, synthetic
-finance/sales/inventory samples, guided onboarding and workspace usage counts.
-PostgreSQL 16.10 and MinIO integration and browser acceptance checks pass.
+Phases 0 and 1 remain verified for local/test operation. The teammate's Phase 2
+branch has been audited and hardened: verified DuckDB analytics, KPI dashboards,
+filters, drill-down, conversational planning, private threads, saved analyses and
+workspace sharing are implemented. Phase 3 adds observations, feedback, checklists,
+scheduled report delivery and authorized document search; its production provider
+and representative-corpus evaluation gates remain open.
 
-Conversational analytics and KPI dashboards remain Phase 2 scope. See
-[Phase 1 verification](docs/verification-phase1.md),
-[data preparation guide](docs/phase1-data-preparation.md), and
-[local setup and workspace API](docs/week1-api.md).
+Phase 3A adds editable, versioned business definitions under **Data understanding**,
+private goals, reviewed relationships and definition-aware query/replay safeguards.
+It requires migration 0009. See [the data-understanding guide](docs/phase3-data-understanding.md).
+Unified data/document conversation, private history and catalog discovery now
+require migration 0010. Offline representation and judge trials are documented;
+Phase 3D completed its human-reviewed assessment with a do-not-adopt decision;
+no judge is enabled. Phase 3 is complete for the private-demo scope.
+
+Phase 4 has started with **Studies & dashboards**: goal-aware suggestions, exact
+descriptive studies and immutable versions, ordered survey views, six-pin private
+or shared dashboards, and separate department workspaces grouped by organization.
+The private demo now also includes **Refresh & alerts**: validated staged-file
+replacement/append/merge, schedules, replayable observations, exact segment drivers
+and private KPI notifications. Migration **0012** is required. See the
+[4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
+[4B verification](docs/verification-phase4b.md). Schedules process files staged in
+ExecPlus; live connectors, forecasts and exports remain later Phase 4 slices.
+
+Use `/workspace` for the application. See [Phase 2 contracts](docs/phase2-analytics.md),
+[the interactive explorer and hybrid chat](docs/conversational-explorer.md),
+[Phase 2 verification](docs/verification-phase2.md),
+[Phase 3 contracts and limitations](docs/phase3-activation-knowledge.md), and
+[local setup](docs/week1-api.md). After pulling this branch, run `make install` and
+`make migrate` before restarting the API and web app. Models and email remain
+configuration-dependent; deterministic dashboards do not require a model.
 
 See [ROADMAP.md](ROADMAP.md) for delivery phases and [AGENTS.md](AGENTS.md) for the live engineering handoff.
 
@@ -93,3 +115,28 @@ tests             Cross-cutting architecture tests
 ## Configuration
 
 Configuration is environment-driven. Copy `.env.example` locally and never commit secrets. Production deployments must supply secrets through the cloud provider's secret manager.
+
+## Phase 3 demo
+
+For the private eight-user VPS deployment, individual SSH tunnel keys, session
+renewal, backup operations and expansion checklist, read the
+[VPS demo runbook](docs/vps-demo-runbook.md). DeepSeek handles primary query planning;
+the optional Qwen helper suggests routes/columns and selects executed evidence.
+The earlier standalone Qwen trial is recorded in [VPS verification](docs/verification-vps-demo.md).
+
+Run `make demo-corpus` to create six fictional policy files and twenty known-answer
+questions in `data/phase3-demo-v1/`. Run `make evaluate-demo` for offline retrieval;
+`make evaluate-demo-model` uses the configured hosted model and incurs API usage.
+The approved current model is DeepSeek V4 Pro. See
+[setup and mandatory production gates](docs/phase3-demo-and-production-gates.md).
+`make production-preflight` deliberately fails until real release evidence is reviewed.
+
+Unified chat and catalog discovery are described in
+[the Phase 3 conversation contract](docs/phase3-unified-conversation.md).
+The [verification ledger](docs/verification-phase3b-c.md) distinguishes local and
+deployed checks. [Candidate trials](docs/decisions/0007-representation-and-judge-trials.md)
+do not enable a runtime judge, learned search provider or Parquet cache.
+The [reviewed Phase 3D assessment](docs/verification-phase3d.md) closes the private-demo
+phase. All production gates remain open in Phase 5.
+
+For the optional judge assessment, use the [final evaluation workflow](docs/phase3-judge-evaluation.md).

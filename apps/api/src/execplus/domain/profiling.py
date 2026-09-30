@@ -110,23 +110,7 @@ def profile(table: TableData) -> dict[str, object]:
             type_conflicts = present - types["boolean"]
         identifier = bool(words & {"id", "code", "sku", "zip", "postal"})
         role = "metric" if inferred in {"integer", "decimal"} and not identifier else "dimension"
-        tags = sorted(
-            words
-            & {
-                "revenue",
-                "sales",
-                "cost",
-                "amount",
-                "quantity",
-                "stock",
-                "price",
-                "headcount",
-                "salary",
-                "tenure",
-                "turnover",
-                "hires",
-            }
-        )
+        tags = sorted(words & {"revenue", "sales", "cost", "amount", "quantity", "stock", "price"})
         if identifier:
             tags.append("identifier")
         if inferred == "date":

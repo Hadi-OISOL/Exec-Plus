@@ -11,9 +11,9 @@ const foundations = [
 ];
 
 const upcoming = [
-  "Verified questions and KPI libraries",
-  "Descriptive dashboards and trends",
-  "Saved analyses with calculation lineage",
+  "Evaluate retrieval against representative documents",
+  "Compare model quality, privacy, latency and cost",
+  "Verify production search backup and recovery",
 ];
 
 export default function Home() {
@@ -24,7 +24,7 @@ export default function Home() {
           <span className="brandMark" aria-hidden="true">E+</span>
           <span>ExecPlus</span>
         </a>
-        <span className="phaseBadge">Phase 1 · Data preparation</span>
+        <span className="phaseBadge">Phase 3 · In progress</span>
       </nav>
 
       <section className="hero" id="top">
@@ -34,10 +34,10 @@ export default function Home() {
           ExecPlus is being built to turn structured datasets into clear answers,
           explainable charts, and decisions you can verify.
         </p>
-        <p>Secure CSV and XLSX ingestion, profiles, quality checks, and reversible cleaning are available in the local workspace flow.</p>
+        <p>Secure uploads, profiles, verified dashboards, saved analyses and workspace sharing are available locally. Explore profile observations and reference documents in the workspace.</p>
         <div className="heroActions">
           <a className="primaryAction" href="#architecture">Explore the foundation</a>
-          <Link href="/workspace">Open workspaces &amp; uploads →</Link>
+          <Link href="/workspace">Open your workspace →</Link>
         </div>
       </section>
 
@@ -55,7 +55,7 @@ export default function Home() {
           <div className="eyebrow">Built for measured scale</div>
           <h2>A clean boundary between language and truth.</h2>
           <p>
-            The planned analytics workflow uses models to interpret intent and explain results. A controlled query engine
+            The analytics workflow uses configured models to interpret intent and explain results. A controlled query engine
             computes every number. Each response carries the dataset, operation,
             filters, and record count needed to trace it.
           </p>
@@ -70,8 +70,8 @@ export default function Home() {
 
       <section className="next">
         <div>
-          <div className="eyebrow">Next delivery phase</div>
-          <h2>Verified conversational analytics</h2>
+          <div className="eyebrow">Remaining evaluation gates</div>
+          <h2>Proactive insights and hybrid knowledge</h2>
         </div>
         <ol>
           {upcoming.map((item) => <li key={item}>{item}</li>)}

@@ -1,0 +1,13 @@
+# Use case: Schedules daily private demo recovery snapshots.
+# What it does: Runs a short maintenance backup at 03:00 UTC with missed-run recovery.
+
+[Unit]
+Description=ExecPlus daily private demo backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=execplus-backup.service
+
+[Install]
+WantedBy=timers.target

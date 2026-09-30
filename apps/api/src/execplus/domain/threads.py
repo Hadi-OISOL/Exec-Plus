@@ -5,7 +5,7 @@ or explanation, never raw prior prompt text, so later turns are resolved from
 structured facts rather than a growing transcript.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
@@ -29,3 +29,7 @@ class ThreadTurn:
     query_id: UUID | None
     message: str | None
     created_at: datetime
+    model_route: str | None = None
+    request_id: UUID | None = None
+    status: str = "complete"
+    evidence: dict[str, object] = field(default_factory=dict)

@@ -5,18 +5,25 @@ results alongside their calculation lineage.
 """
 
 from dataclasses import asdict
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field
 
+from execplus.application.conversation import EvidenceAnswer
 from execplus.application.services.analytics import (
     AnalyticsService,
     DashboardBreakdown,
     DashboardCard,
 )
-from execplus.application.services.intent_router import IntentRouterService
+from execplus.application.services.intent_router import (
+    ConversationAnswer,
+    DatasetGuide,
+    IntentRouterService,
+)
 from execplus.application.services.summaries import SummaryService
 from execplus.domain.kpi_library import KpiMatch
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
@@ -95,8 +102,15 @@ class AskInput(BaseModel):
 def query_body(result: QueryResult, lineage: CalculationLineage) -> dict[str, object]:
     return {
         "columns": result.columns,
-        "rows": result.rows,
+        "rows": jsonable_encoder(
+            result.rows,
+            custom_encoder={
+                Decimal: str,
+                int: lambda value: str(value) if abs(value) > 2**53 - 1 else value,
+            },
+        ),
         "records_analyzed": result.records_analyzed,
+        "matched_records": result.matched_records,
         "lineage": asdict(lineage),
     }
 
@@ -129,12 +143,31 @@ def _card_body(card: DashboardCard) -> dict[str, object]:
 
 
 def answer_body(answer: VerifiedMetricAnswer) -> dict[str, object]:
-    return {"label": answer.label, "value": answer.value, "lineage": asdict(answer.lineage)}
+    return {
+        "label": answer.label,
+        "value": str(answer.value)
+        if isinstance(answer.value, Decimal)
+        else (str(answer.value) if abs(answer.value) > 2**53 - 1 else answer.value),
+        "lineage": asdict(answer.lineage),
+    }
 
 
 def numerical_answer_body(
-    answer: VerifiedMetricAnswer | tuple[QueryResult, CalculationLineage],
+    answer: ConversationAnswer,
 ) -> dict[str, object]:
+    if isinstance(answer, EvidenceAnswer):
+        return {
+            "kind": answer.kind,
+            "data": numerical_answer_body(answer.data) if answer.data else None,
+            "citations": answer.citations,
+            "coverage": answer.coverage,
+            "limitations": answer.limitations,
+            "model_route": answer.model_route,
+            "sources": answer.sources,
+            "message": "Calculated data and quoted source statements are shown separately.",
+        }
+    if isinstance(answer, DatasetGuide):
+        return {"kind": "overview", "message": answer.message, "model_route": answer.model_route}
     if isinstance(answer, VerifiedMetricAnswer):
         return answer_body(answer)
     result, lineage = answer
@@ -274,4 +307,24 @@ async def dashboard_summary_narrative(
     summary = await service.dashboard_summary(
         actor, workspace_id, dataset_id, upload_id, metric_filters(body.filters), body.template_id
     )
-    return {"summary": await summaries.summarize(summary)}
+    narrative = await summaries.compose(summary)
+    await service.record_narrative(
+        actor, workspace_id, narrative.evidence_ids, narrative.text, narrative.model_route
+    )
+    return {"summary": narrative.text, "evidence_ids": narrative.evidence_ids}
+
+
+@router.post("/workspaces/{workspace_id}/queries/{query_id}/replay")
+async def replay_query(
+    workspace_id: UUID, query_id: UUID, actor: Actor, service: Service
+) -> object:
+    result, lineage = await service.replay(actor, workspace_id, query_id)
+    return query_body(result, lineage)
+
+
+@router.get("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/schema")
+async def schema_view(
+    workspace_id: UUID, dataset_id: UUID, upload_id: UUID, actor: Actor, service: Service
+) -> object:
+    view = await service.get_view(actor, workspace_id, dataset_id, upload_id)
+    return {"columns": [asdict(column) for column in view.columns]}

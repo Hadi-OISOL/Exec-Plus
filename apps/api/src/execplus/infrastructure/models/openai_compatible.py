@@ -26,7 +26,13 @@ class OpenAICompatibleLanguageModel:
         timeout_seconds: float = 60.0,
         max_attempts: int = 3,
         retry_backoff_seconds: float = 0.5,
+        max_output_tokens: int | None = None,
+        reasoning_effort: str | None = None,
+        json_mode: bool = False,
     ) -> None:
+        self._json_mode = json_mode
+        self._max_output_tokens = max_output_tokens
+        self._reasoning_effort = reasoning_effort
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._models = {ModelTier.SMALL: small_model, ModelTier.LARGE: large_model}
@@ -45,6 +51,12 @@ class OpenAICompatibleLanguageModel:
             ],
             "temperature": request.temperature,
         }
+        if self._json_mode:
+            payload["response_format"] = {"type": "json_object"}
+        if self._max_output_tokens is not None:
+            payload["max_tokens"] = self._max_output_tokens
+        if self._reasoning_effort is not None:
+            payload["reasoning_effort"] = self._reasoning_effort
         last_error: Exception | None = None
         for attempt in range(self._max_attempts):
             if attempt > 0:
@@ -58,16 +70,40 @@ class OpenAICompatibleLanguageModel:
                     )
                     response.raise_for_status()
                 body = response.json()
+                choice = body["choices"][0]
+                content = choice["message"]["content"]
+                if (
+                    choice.get("finish_reason") == "length"
+                    or not isinstance(content, str)
+                    or not content.strip()
+                ):
+                    raise ValueError("Incomplete model response")
+                usage = body.get("usage") or {}
+                input_tokens = usage.get("prompt_tokens")
+                output_tokens = usage.get("completion_tokens")
                 return ModelResponse(
-                    content=str(body["choices"][0]["message"]["content"]),
+                    content=content,
                     model=str(body.get("model", model)),
                     provider=self._provider_name,
+                    input_tokens=input_tokens
+                    if type(input_tokens) is int and input_tokens >= 0
+                    else None,
+                    output_tokens=output_tokens
+                    if type(output_tokens) is int and output_tokens >= 0
+                    else None,
                 )
             except httpx.HTTPStatusError as error:
                 last_error = error
                 if error.response.status_code not in _RETRYABLE_STATUS_CODES:
                     break
-            except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
+            except (
+                httpx.HTTPError,
+                KeyError,
+                IndexError,
+                ValueError,
+                TypeError,
+                AttributeError,
+            ) as error:
                 last_error = error
         raise ProviderUnavailableError(
             "The language-model provider is unavailable. Try again later."

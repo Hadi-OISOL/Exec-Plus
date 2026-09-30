@@ -317,7 +317,23 @@ class WorkspaceService:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id)
             repo.dataset(workspace_id, dataset_id)
-            return repo.uploads(workspace_id, dataset_id)
+            uploads = repo.uploads(workspace_id, dataset_id)
+            feeds = repo.refresh_feeds(workspace_id, dataset_id)
+            if not feeds:
+                return uploads
+            active = feeds[0].source["upload_id"]
+            staged = {
+                c.details.get(key)
+                for c in repo.refresh_candidates(workspace_id, feeds[0].id)
+                for key in ("input_upload_id", "output_upload_id")
+                if c.status != "activated"
+            }
+            return tuple(
+                sorted(
+                    (u for u in uploads if str(u.id) not in staged or str(u.id) == active),
+                    key=lambda u: str(u.id) != active,
+                )
+            )
 
     def get_upload(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
