@@ -4,12 +4,13 @@ What it does: Maps validated requests to AnalyticsService and returns executed
 results alongside their calculation lineage.
 """
 
+import asyncio
 from dataclasses import asdict
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,6 +20,7 @@ from execplus.application.services.analytics import (
     DashboardBreakdown,
     DashboardCard,
 )
+from execplus.application.services.discovery import discover
 from execplus.application.services.intent_router import (
     ConversationAnswer,
     DatasetGuide,
@@ -31,6 +33,7 @@ from execplus.domain.semantics import AggregationKind, FilterOperator, MetricFil
 from execplus.presentation.routes.workspaces import Actor
 
 _MAX_DRILL_DOWN_ROWS = 1000
+_DISCONNECT_POLL_SECONDS = 0.1
 
 router = APIRouter(tags=["analytics"])
 
@@ -167,7 +170,18 @@ def numerical_answer_body(
             "message": "Calculated data and quoted source statements are shown separately.",
         }
     if isinstance(answer, DatasetGuide):
-        return {"kind": "overview", "message": answer.message, "model_route": answer.model_route}
+        return {
+            "kind": "overview",
+            "message": answer.message,
+            "model_route": answer.model_route,
+            "guidance": {
+                "columns": answer.columns,
+                "suggestions": answer.suggestions,
+                "definition_state": answer.definition_state,
+                "focus": answer.focus,
+            },
+            "sources": answer.sources,
+        }
     if isinstance(answer, VerifiedMetricAnswer):
         return answer_body(answer)
     result, lineage = answer
@@ -187,6 +201,60 @@ async def query(
         actor, workspace_id, dataset_id, upload_id, body.request()
     )
     return query_body(result, lineage)
+
+
+async def _wait_for_disconnect(request: Request, finished: asyncio.Event) -> None:
+    while not finished.is_set():
+        if await request.is_disconnected() or finished.is_set():
+            return
+        await asyncio.sleep(_DISCONNECT_POLL_SECONDS)
+
+
+@router.get("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/discovery")
+async def discovery(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    actor: Actor,
+    service: Service,
+    request: Request,
+) -> object:
+    if await request.is_disconnected():
+        return Response(status_code=499)
+    finished = asyncio.Event()
+    computation = asyncio.create_task(discover(service, actor, workspace_id, dataset_id, upload_id))
+    disconnected = asyncio.create_task(_wait_for_disconnect(request, finished))
+    try:
+        completed, _ = await asyncio.wait(
+            (computation, disconnected), return_when=asyncio.FIRST_COMPLETED
+        )
+        if computation in completed:
+            brief = await computation
+        else:
+            await disconnected
+            return Response(status_code=499)
+    finally:
+        finished.set()
+        for task in (computation, disconnected):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(computation, disconnected, return_exceptions=True)
+    return {
+        **brief.metadata,
+        "findings": [
+            {
+                "id": finding.id,
+                "title": finding.title,
+                "text": finding.text,
+                "kind": finding.kind,
+                "metric": finding.metric,
+                "aggregation": finding.aggregation,
+                "question": finding.question,
+                "query": query_body(finding.result, finding.lineage),
+            }
+            for finding in brief.findings
+        ],
+    }
 
 
 @router.post("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/dashboard")

@@ -49,6 +49,7 @@ from execplus.domain.studies import (
 from execplus.domain.threads import Thread, ThreadTurn
 from execplus.domain.understanding import DataPreference, Understanding
 from execplus.infrastructure.persistence import schema as s
+from execplus.infrastructure.persistence.jobs import SQLJobRepository
 
 Record = TypeVar(
     "Record",
@@ -86,7 +87,7 @@ Record = TypeVar(
 )
 
 
-class SQLWorkspaceRepository:
+class SQLWorkspaceRepository(SQLJobRepository):
     def __init__(self, connection: Connection) -> None:
         self.connection = connection
 

@@ -12,9 +12,19 @@ flock -x 9
 mountpoint -q /sdb-disk
 backup="$root/backups/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir "$backup"
-restart_services() { "${compose[@]}" start storage api >/dev/null; }
+active_services="$("${compose[@]}" ps --services --status running)"
+mapfile -t running <<< "$active_services"
+restart=()
+for service in storage api jobs; do
+  for active in "${running[@]}"; do
+    if [[ "$service" == "$active" ]]; then restart+=("$service"); fi
+  done
+done
+restart_services() {
+  if ((${#restart[@]})); then "${compose[@]}" start "${restart[@]}" >/dev/null; fi
+}
 trap restart_services EXIT
-"${compose[@]}" stop api
+"${compose[@]}" stop api jobs
 "${compose[@]}" stop storage
 "${compose[@]}" exec -T postgres pg_dump -U execplus -d execplus -Fc > "$backup/database.dump"
 tar -C "$root/objects" -czf "$backup/objects.tar.gz" .

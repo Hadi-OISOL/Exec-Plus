@@ -178,7 +178,6 @@ def test_invalid_unavailable_or_wrong_helper_does_not_override_primary(integrati
 def test_thread_can_greet_show_rows_and_follow_up_with_exact_total(integration):
     env = integration
     primary = ScriptedModel(
-        {"kind": "overview", "message": "Invented revenue: 999999"},
         record_plan(),
         {
             "kind": "numerical",
@@ -195,7 +194,8 @@ def test_thread_can_greet_show_rows_and_follow_up_with_exact_total(integration):
     greeting = env.client.post(endpoint, headers=owner, json={"question": "Hi, how can you help?"})
     assert greeting.status_code == 200, greeting.text
     assert greeting.json()["turn"]["kind"] == "overview"
-    assert greeting.json()["turn"]["model_route"] == "planner:test-model"
+    assert greeting.json()["turn"]["model_route"] == "deterministic:dataset-guidance-v1"
+    assert not primary.requests
     assert "999999" not in greeting.text
     assert "revenue" in greeting.json()["answer"]["message"]
     records = env.client.post(endpoint, headers=owner, json={"question": "Show Karachi records"})

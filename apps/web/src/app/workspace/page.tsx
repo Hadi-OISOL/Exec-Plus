@@ -20,6 +20,8 @@ import { UnderstandingPanel, domains } from "./understanding-panel";
 import { RefreshPanel } from "./refresh-panel";
 import { StudiesPanel } from "./studies-panel";
 import { OrganizationPanel } from "./organization-panel";
+import { DiscoveryPanel } from "./discovery-panel";
+import { SourceDetails } from "./source-details";
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 type Workspace = { id: string; name: string; seat_limit: number };
@@ -46,6 +48,7 @@ type User = { id: string; email: string };
 export default function WorkspacePage() {
   const [section, setSection] = useState("overview");
   const chat = useRef<ChatHandle>(null);
+  const reviewDisclosure = useRef<HTMLDetailsElement>(null);
   const [revisionTick, setRevisionTick] = useState(0);
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
@@ -64,14 +67,32 @@ export default function WorkspacePage() {
     storage_bytes: number;
   } | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [uploadTarget, setUploadTarget] = useState("new");
   const [uploadDomain, setUploadDomain] = useState("auto");
   const [uploadGoal, setUploadGoal] = useState("");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
+  const [expert, setExpert] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(0);
   const [busy, setBusy] = useState(false);
   const role = members.find((member) => member.user_id === user?.id)?.role;
   const manager = role === "owner" || role === "admin";
+
+  function reviewUnderstanding() {
+    setSection("overview");
+    setReviewOpen(true);
+    window.requestAnimationFrame(() =>
+      reviewDisclosure.current?.scrollIntoView({
+        block: "start",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      }),
+    );
+  }
 
   const request = useCallback(
     async function request<T>(
@@ -86,8 +107,11 @@ export default function WorkspacePage() {
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         if (response.status === 401) setUser(null);
-        throw new Error(
-          body.error?.message ?? "The request failed. Please try again.",
+        throw Object.assign(
+          new Error(
+            body.error?.message ?? "The request failed. Please try again.",
+          ),
+          { status: response.status, code: body.error?.code },
         );
       }
       return response.status === 204 ? (undefined as T) : response.json();
@@ -122,6 +146,7 @@ export default function WorkspacePage() {
   }
 
   async function selectWorkspace(selected: Workspace, actorId = user?.id) {
+    setUploadTarget("new");
     setUploadDomain("auto");
     setUploadGoal("");
     setWorkspace(selected);
@@ -152,6 +177,10 @@ export default function WorkspacePage() {
   }
 
   async function selectDataset(workspaceId: string, datasetId: string) {
+    setReviewOpen(false);
+    setDashboardOpen(false);
+    setStarterQuestions([]);
+    setUploadTarget("new");
     setDataset(datasetId);
     setProfileUpload("");
     setUploads([]);
@@ -191,10 +220,12 @@ export default function WorkspacePage() {
         }
       } else {
         setWorkspace(null);
-        setSection("team");
+        setSection("data");
       }
       setMessage(
-        selected ? "" : "Create a workspace or accept an invitation to begin.",
+        selected
+          ? ""
+          : "Start with a file. We’ll organize it and find a starting point for you.",
       );
     });
   }
@@ -232,6 +263,7 @@ export default function WorkspacePage() {
         await request<Dataset[]>(`/workspaces/${workspace!.id}/datasets`),
       );
       setDataset(created.id);
+      setUploadTarget("existing");
       setSection("data");
       setProfileUpload("");
       setUploads([]);
@@ -249,24 +281,44 @@ export default function WorkspacePage() {
         throw new Error("Files must be at most 20 MiB.");
       if (!/\.(csv|xlsx)$/i.test(file.name))
         throw new Error("Choose a CSV or XLSX file.");
-      let targetDataset = dataset;
+      let targetWorkspace = workspace;
+      if (!targetWorkspace) {
+        targetWorkspace = await request<Workspace>(
+          "/workspaces",
+          json("POST", {
+            name: "My workspace",
+            seat_limit: 3,
+          }),
+        );
+        setWorkspace(targetWorkspace);
+        setWorkspaces(await request<Workspace[]>("/workspaces"));
+        setMembers(
+          await request<Member[]>(`/workspaces/${targetWorkspace.id}/members`),
+        );
+      }
+      let targetDataset = uploadTarget === "existing" ? dataset : "";
       if (!targetDataset) {
         const created = await request<Dataset>(
-          `/workspaces/${workspace!.id}/datasets`,
+          `/workspaces/${targetWorkspace.id}/datasets`,
           json("POST", {
             name: file.name.replace(/\.[^.]+$/, "").slice(0, 100) || "My data",
           }),
         );
         targetDataset = created.id;
         setDataset(created.id);
+        setUploads([]);
+        setProfileUpload("");
+        setUploadTarget("existing");
         setDatasets(
-          await request<Dataset[]>(`/workspaces/${workspace!.id}/datasets`),
+          await request<Dataset[]>(
+            `/workspaces/${targetWorkspace.id}/datasets`,
+          ),
         );
       }
       const mime = file.name.toLowerCase().endsWith(".csv")
         ? "text/csv"
         : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-      const prefix = `/workspaces/${workspace!.id}/datasets/${targetDataset}/uploads`;
+      const prefix = `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}/uploads`;
       const stored = await request<Upload>(
         `${prefix}?filename=${encodeURIComponent(file.name)}`,
         {
@@ -277,16 +329,20 @@ export default function WorkspacePage() {
       );
       setUploads(await request<Upload[]>(prefix));
       setProfileUpload(stored.id);
+      setReviewOpen(false);
+      setDashboardOpen(false);
+      setStarterQuestions([]);
+      setUploadTarget("new");
       setSection("overview");
       setMessage(
-        `${stored.filename} uploaded successfully. Original file retained; structure validated.`,
+        `${stored.filename} uploaded successfully. Your first findings are being prepared below.`,
       );
       setFile(null);
       form.reset();
       if (uploadDomain !== "auto" || uploadGoal.trim()) {
         try {
           await request(
-            `/workspaces/${workspace!.id}/datasets/${targetDataset}/preferences`,
+            `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}/preferences`,
             json("POST", { domain_hint: uploadDomain, goal: uploadGoal }),
           );
           setRevisionTick((value) => value + 1);
@@ -555,7 +611,12 @@ export default function WorkspacePage() {
                     <select
                       value={profileUpload}
                       disabled={busy || !uploads.length}
-                      onChange={(event) => setProfileUpload(event.target.value)}
+                      onChange={(event) => {
+                        setProfileUpload(event.target.value);
+                        setStarterQuestions([]);
+                        setReviewOpen(false);
+                        setDashboardOpen(false);
+                      }}
                     >
                       <option value="" disabled>
                         Select upload
@@ -583,86 +644,65 @@ export default function WorkspacePage() {
                 </section>
               )}
               <div hidden={section !== "data"} className="dataLibraryGrid">
-                {" "}
-                <section className="panel">
-                  <h2>Data library</h2>
+                <section
+                  className="panel uploadStart"
+                  aria-label="Add a data file"
+                >
+                  <div className="uploadIntroIcon">
+                    <Icon name="upload" size={28} />
+                  </div>
+                  <p className="eyebrow">START WITH YOUR DATA</p>
+                  <h2>Drop in a file. Find your first insight.</h2>
                   <p>
-                    A dataset groups retained uploads of the same business
-                    table.
+                    We’ll read the columns, check the data, and show useful
+                    starting points. No setup questionnaire.
                   </p>
-                  {workspace ? (
-                    <>
-                      <CatalogPanel
-                        key={workspace.id}
-                        workspaceId={workspace.id}
-                        request={request}
-                        select={async (id) => {
-                          await selectDataset(workspace.id, id);
-                          setSection("overview");
-                        }}
+                  <form onSubmit={uploadFile}>
+                    <label className="fileDropzone">
+                      CSV or Excel file
+                      <input
+                        key={workspace?.id ?? "first-upload"}
+                        type="file"
+                        accept=".csv,.xlsx"
+                        required
+                        disabled={busy}
+                        onChange={(event) =>
+                          setFile(event.target.files?.[0] ?? null)
+                        }
                       />
-                      <h3>Explore sample data</h3>
-                      <p>
-                        Fictional city sales, finance and inventory examples,
-                        version 1. Each creates a separate dataset in this
-                        workspace.
-                      </p>
-                      {["cities", "finance", "sales", "inventory"].map(
-                        (kind) => (
-                          <button
-                            key={kind}
+                      <span>
+                        {file
+                          ? `${file.name} · ${(file.size / 1024).toFixed(1)} KB`
+                          : "Choose a .csv or .xlsx file · up to 20 MiB"}
+                      </span>
+                    </label>
+                    <button className="uploadPrimary" disabled={!file || busy}>
+                      <Icon name="sparkle" size={18} />
+                      {busy ? "Reading your file…" : "Upload file"}
+                    </button>
+                    <details className="uploadOptions">
+                      <summary>
+                        Add context or choose where to save (optional)
+                      </summary>
+                      {dataset && (
+                        <label>
+                          Save this file
+                          <select
+                            value={uploadTarget}
                             disabled={busy}
-                            onClick={() =>
-                              void run(async () => {
-                                const stored = await request<
-                                  Upload & { dataset_id: string }
-                                >(
-                                  `/workspaces/${workspace.id}/samples/${kind}-v1`,
-                                  {
-                                    method: "POST",
-                                  },
-                                );
-                                setDatasets(
-                                  await request<Dataset[]>(
-                                    `/workspaces/${workspace.id}/datasets`,
-                                  ),
-                                );
-                                setDataset(stored.dataset_id);
-                                setUploads([stored]);
-                                setProfileUpload(stored.id);
-                                setSection("overview");
-                                setMessage(
-                                  "Sample ready. Review its profile and try previewing cleaning changes below.",
-                                );
-                              })
+                            onChange={(event) =>
+                              setUploadTarget(event.target.value)
                             }
                           >
-                            Try {kind} sample
-                          </button>
-                        ),
-                      )}
-                      <form onSubmit={createDataset}>
-                        <label>
-                          New dataset name
-                          <input name="name" required maxLength={100} />
+                            <option value="new">
+                              As a new dataset — named from the file
+                            </option>
+                            <option value="existing">
+                              In the selected dataset
+                            </option>
+                          </select>
                         </label>
-                        <button disabled={busy}>Create dataset</button>
-                      </form>
-                    </>
-                  ) : (
-                    <p>Create or join a workspace first.</p>
-                  )}
-                </section>
-                {workspace && (
-                  <section className="panel">
-                    <h2>Upload a file</h2>
-                    <p>
-                      CSV in UTF-8 or XLSX with one sheet, up to 20 MiB. Use
-                      unique headers, values only, and no merged cells. Maximum
-                      100,000 rows, 1,000 columns, and 1,000,000 cells including
-                      the header.
-                    </p>
-                    <form onSubmit={uploadFile}>
+                      )}
                       <label>
                         What is this data about? (optional)
                         <select
@@ -690,28 +730,37 @@ export default function WorkspacePage() {
                           }
                         />
                       </label>
-                      <label>
-                        CSV or Excel file
-                        <input
-                          key={workspace.id}
-                          type="file"
-                          accept=".csv,.xlsx"
-                          required
-                          disabled={busy}
-                          onChange={(event) =>
-                            setFile(event.target.files?.[0] ?? null)
-                          }
-                        />
-                      </label>
-                      <button disabled={!file || busy}>
-                        {busy ? "Validating and storing…" : "Upload file"}
-                      </button>
-                    </form>
-                    {!dataset && (
-                      <p>A new dataset will be created from your filename.</p>
-                    )}
-                    <h3>Retained uploads</h3>
-                    {uploads.length ? (
+                    </details>
+                  </form>
+                  <div
+                    className="uploadPromises"
+                    aria-label="What happens next"
+                  >
+                    <span>
+                      <Icon name="data" size={16} /> Read the structure
+                    </span>
+                    <span>
+                      <Icon name="overview" size={16} /> Find starting insights
+                    </span>
+                    <span>
+                      <Icon name="chat" size={16} /> Explore together
+                    </span>
+                  </div>
+                  <details className="uploadOptions">
+                    <summary>Supported files & limits</summary>
+                    <p>
+                      CSV in UTF-8 or XLSX with one sheet, up to 20 MiB. Use
+                      unique headers, values only, and no merged cells. Maximum
+                      100,000 rows, 1,000 columns, and 1,000,000 cells including
+                      the header. Your original file is retained.
+                    </p>
+                  </details>
+                  {workspace && uploads.length > 0 && (
+                    <details className="retainedFiles">
+                      <summary>
+                        Retained uploads in the selected dataset (
+                        {uploads.length})
+                      </summary>
                       <div className="tableScroll">
                         <table>
                           <thead>
@@ -740,11 +789,86 @@ export default function WorkspacePage() {
                           </tbody>
                         </table>
                       </div>
-                    ) : (
-                      <p>No uploads in the selected dataset yet.</p>
-                    )}
-                  </section>
-                )}
+                    </details>
+                  )}
+                </section>
+                <section className="panel dataLibrarySidebar">
+                  <h2>Your data library</h2>
+                  {workspace ? (
+                    <>
+                      <CatalogPanel
+                        key={workspace.id}
+                        workspaceId={workspace.id}
+                        request={request}
+                        select={async (id) => {
+                          await selectDataset(workspace.id, id);
+                          setSection("overview");
+                        }}
+                      />
+                      <details className="sampleChoices">
+                        <summary>Try a fictional example</summary>
+                        <p>Explore a sample in its own dataset.</p>
+                        {["cities", "finance", "sales", "inventory"].map(
+                          (kind) => (
+                            <button
+                              key={kind}
+                              disabled={busy}
+                              onClick={() =>
+                                void run(async () => {
+                                  const stored = await request<
+                                    Upload & { dataset_id: string }
+                                  >(
+                                    `/workspaces/${workspace.id}/samples/${kind}-v1`,
+                                    { method: "POST" },
+                                  );
+                                  setDatasets(
+                                    await request<Dataset[]>(
+                                      `/workspaces/${workspace.id}/datasets`,
+                                    ),
+                                  );
+                                  setDataset(stored.dataset_id);
+                                  setUploads([stored]);
+                                  setProfileUpload(stored.id);
+                                  setReviewOpen(false);
+                                  setDashboardOpen(false);
+                                  setStarterQuestions([]);
+                                  setSection("overview");
+                                  setMessage(
+                                    "Sample ready. Explore its findings or ask a question.",
+                                  );
+                                })
+                              }
+                            >
+                              Try {kind} sample
+                            </button>
+                          ),
+                        )}
+                      </details>
+                      <details className="manualDataset">
+                        <summary>Create a named dataset manually</summary>
+                        <form onSubmit={createDataset}>
+                          <label>
+                            New dataset name
+                            <input name="name" required maxLength={100} />
+                          </label>
+                          <button disabled={busy}>Create dataset</button>
+                        </form>
+                      </details>
+                    </>
+                  ) : (
+                    <>
+                      <p>
+                        Your first upload will create your workspace and name
+                        the dataset from your file. Team settings and shared
+                        access are available when you need them.
+                      </p>
+                      <p>Already invited by a teammate?</p>
+                      <button type="button" onClick={() => setSection("team")}>
+                        Join or set up a workspace
+                      </button>
+                    </>
+                  )}
+                </section>
               </div>
               <div hidden={section !== "team"}>
                 {" "}
@@ -999,30 +1123,48 @@ export default function WorkspacePage() {
               {root ? (
                 <>
                   <div hidden={section !== "overview"}>
-                    <UnderstandingPanel
-                      key={`understanding-${root}-${revisionTick}`}
-                      root={root}
-                      request={request}
-                      onChange={() => setRevisionTick((value) => value + 1)}
-                    />
-                    <DatasetMap
-                      key={`map-${root}-${revisionTick}`}
-                      root={root}
-                      filename={selectedUpload?.filename ?? "Selected upload"}
-                      request={request}
-                      onQuestion={(text) => chat.current?.ask(text)}
-                    />
-                    <div className="exploreLayout">
+                    <div className="analysisViewControls">
+                      <div>
+                        <strong>Your data, your level of detail</strong>
+                        <p>
+                          Both views use the same verified results and sources.
+                        </p>
+                      </div>
+                      <fieldset className="analysisViewChoice">
+                        <legend className="srOnly">Analysis view</legend>
+                        <label>
+                          <input
+                            type="radio"
+                            name="analysis-view"
+                            checked={!expert}
+                            onChange={() => setExpert(false)}
+                          />
+                          Simple
+                        </label>
+                        <label>
+                          <input
+                            type="radio"
+                            name="analysis-view"
+                            checked={expert}
+                            onChange={() => setExpert(true)}
+                          />
+                          Expert
+                        </label>
+                      </fieldset>
+                    </div>
+                    <div className="exploreLayout discoveryLayout">
                       <div className="insightCanvas">
-                        <DashboardPanel
-                          key={`dashboard-${root}-${revisionTick}`}
+                        <DiscoveryPanel
+                          enabled={!busy && section === "overview"}
+                          key={`discovery-${root}-${revisionTick}`}
                           root={root}
                           request={request}
-                        />
-                        <ActivationPanel
-                          key={`insights-${root}-${revisionTick}`}
-                          root={root}
-                          request={request}
+                          onQuestion={(text) => chat.current?.ask(text)}
+                          onReady={setStarterQuestions}
+                          onPrepare={() => setSection("prepare")}
+                          onReview={reviewUnderstanding}
+                          onChat={() => chat.current?.focus()}
+                          expert={expert}
                         />
                       </div>
                       <AskPanel
@@ -1031,8 +1173,82 @@ export default function WorkspacePage() {
                         root={root}
                         request={request}
                         filename={selectedUpload?.filename ?? "Selected upload"}
+                        starterQuestions={starterQuestions}
+                        expert={expert}
                       />
                     </div>
+                    {expert && (
+                      <SourceDetails
+                        key={`source-${root}-${revisionTick}`}
+                        root={root}
+                        request={request}
+                      />
+                    )}
+                    <details
+                      className="workspaceDisclosure"
+                      open={dashboardOpen}
+                      onToggle={(event) =>
+                        setDashboardOpen(event.currentTarget.open)
+                      }
+                    >
+                      <summary>
+                        <Icon name="overview" /> Charts & dashboard controls
+                        <span>
+                          Explore trends, filters, saved cards and next steps
+                        </span>
+                      </summary>
+                      {dashboardOpen && (
+                        <div className="expandedWorkspaceTools">
+                          <DashboardPanel
+                            key={`dashboard-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                          />
+                          <ActivationPanel
+                            key={`insights-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                          />
+                        </div>
+                      )}
+                    </details>
+                    <details
+                      ref={reviewDisclosure}
+                      className="workspaceDisclosure"
+                      open={reviewOpen}
+                      onToggle={(event) =>
+                        setReviewOpen(event.currentTarget.open)
+                      }
+                    >
+                      <summary>
+                        <Icon name="prepare" /> Review & refine data
+                        understanding
+                        <span>
+                          Column meanings, business rules and the source map
+                        </span>
+                      </summary>
+                      {reviewOpen && (
+                        <div className="expandedWorkspaceTools">
+                          <UnderstandingPanel
+                            key={`understanding-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                            onChange={() =>
+                              setRevisionTick((value) => value + 1)
+                            }
+                          />
+                          <DatasetMap
+                            key={`map-${root}-${revisionTick}`}
+                            root={root}
+                            filename={
+                              selectedUpload?.filename ?? "Selected upload"
+                            }
+                            request={request}
+                            onQuestion={(text) => chat.current?.ask(text)}
+                          />
+                        </div>
+                      )}
+                    </details>
                   </div>
                   {section === "prepare" && (
                     <ProfilePanel
@@ -1055,13 +1271,14 @@ export default function WorkspacePage() {
                       key={`refresh-${root}-${revisionTick}`}
                       root={root}
                       request={request}
-                      onReview={() => setSection("overview")}
+                      onReview={reviewUnderstanding}
                       onActivated={async (id) => {
                         const available = await request<Upload[]>(
                           `${root.split("/uploads/")[0]}/uploads`,
                         );
                         setUploads(available);
                         setProfileUpload(id);
+                        setStarterQuestions([]);
                         setRevisionTick((value) => value + 1);
                       }}
                     />
@@ -1072,7 +1289,7 @@ export default function WorkspacePage() {
                       root={root}
                       request={request}
                       actorId={user.id}
-                      onReview={() => setSection("overview")}
+                      onReview={reviewUnderstanding}
                     />
                   )}
                 </>
@@ -1089,13 +1306,8 @@ export default function WorkspacePage() {
                       Upload a CSV or Excel file, or try a fictional sample.
                       We&apos;ll map its columns and build your first overview.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setSection(workspace ? "data" : "team")}
-                    >
-                      {workspace
-                        ? "Explore data options"
-                        : "Create a workspace"}
+                    <button type="button" onClick={() => setSection("data")}>
+                      Upload your first file
                       <Icon name="arrow" />
                     </button>
                     <div className="emptyFlow">

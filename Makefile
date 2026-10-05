@@ -1,7 +1,7 @@
 # Use case: Provides a stable command surface for common developer and CI workflows.
 # What it does: Wraps environment setup, local services, applications, tests, and static analysis.
 
-.PHONY: install dev-infra down api web format lint typecheck test check migrate init-storage test-integration test-browser
+.PHONY: install dev-infra down api web jobs format lint typecheck test check migrate init-storage test-integration test-browser
 
 COMPOSE ?= docker-compose
 
@@ -21,6 +21,9 @@ api:
 
 web:
 	npm run dev:web
+
+jobs:
+	python3 -m execplus.manage process-jobs --watch --concurrency 4 --poll-seconds 0.5
 
 format:
 	python3 -m ruff format apps/api/src apps/api/tests tests migrations scripts deploy/vps

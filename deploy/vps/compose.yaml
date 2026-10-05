@@ -74,6 +74,16 @@ services:
       timeout: 6s
       retries: 4
 
+  jobs:
+    <<: *api
+    restart: unless-stopped
+    command: [python, -m, execplus.manage, process-jobs, --watch, --concurrency, "4", --poll-seconds, "0.5"]
+    stop_grace_period: 120s
+    mem_limit: 2g
+    cpus: 4
+    depends_on:
+      api: {condition: service_healthy}
+
   operator:
     <<: *api
     profiles: [operator]

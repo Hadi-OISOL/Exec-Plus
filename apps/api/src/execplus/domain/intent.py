@@ -9,6 +9,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from execplus.domain.guidance import GUIDANCE_FOCUSES
 from execplus.domain.models import QuestionKind
 from execplus.domain.semantics import (
     AggregationKind,
@@ -34,6 +35,8 @@ class RoutedIntent:
     limit: int = 100
     document_query: str = ""
     data_intent: "RoutedIntent | None" = None
+    guide_columns: tuple[str, ...] = ()
+    guide_focus: str = "orientation"
 
 
 def _unsupported(message: str) -> RoutedIntent:
@@ -139,7 +142,18 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
             return _unsupported("The model proposed invalid record fields, filters or limit.")
         return RoutedIntent(kind, rows=RowRequest(filters, tuple(columns)), limit=limit)
     if kind == QuestionKind.OVERVIEW:
-        return RoutedIntent(kind)
+        columns = payload.get("columns", [])
+        focus = payload.get("focus", "orientation")
+        if (
+            not isinstance(columns, list)
+            or len(columns) > 3
+            or not all(isinstance(name, str) and view.column(name) for name in columns)
+            or len(set(columns)) != len(columns)
+            or not isinstance(focus, str)
+            or focus not in GUIDANCE_FOCUSES
+        ):
+            return _unsupported("Choose up to three existing columns to explain.")
+        return RoutedIntent(kind, guide_columns=tuple(columns), guide_focus=focus)
     if kind == QuestionKind.AMBIGUOUS:
         options = payload.get("options")
         clean = tuple(str(option) for option in options) if isinstance(options, list) else ()

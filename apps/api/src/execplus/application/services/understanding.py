@@ -64,7 +64,9 @@ class UnderstandingService:
                 "lineage_mismatch", "The retained source no longer matches its revision.", 409
             )
         content = BytesIO(self.storage.read(upload))
-        self.parser.parse(content, upload.filename, upload.content_type)
+        self.parser.parse(
+            content, upload.filename, upload.content_type, stored_format=upload.format
+        )
         return revision, reconstruct(self.parser.read_table(content, upload.format), revision)
 
     def overview(

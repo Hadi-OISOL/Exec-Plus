@@ -10,8 +10,9 @@ ExecPlus begins as a modular monolith with independently testable modules and ex
 The deployable units are:
 
 - `apps/web`: browser-facing Next.js application.
-- `apps/api`: FastAPI control plane and synchronous request orchestration.
-- Bounded operator worker: scheduled staged-file activation, observation queries and in-app alerts. Other asynchronous ingestion/export responsibilities remain future work.
+- `apps/api`: FastAPI control plane, durable conversation submission and compatible synchronous request orchestration.
+- Conversation worker: PostgreSQL-backed private jobs, fenced attempts, cancellation and recorded activity; Foundation A is verified locally and deployed to the private demo.
+- Bounded operator worker: scheduled staged-file activation, observation queries and in-app alerts. Asynchronous ingestion/export responsibilities remain future work.
 - PostgreSQL: identity references, workspaces, permissions, metadata, threads, lineage, and audit records.
 - Object storage: original uploads, normalized artifacts, and generated exports.
 - DuckDB: exact analytical execution over a workspace-authorized dataset snapshot.
@@ -83,7 +84,32 @@ A production vendor will be selected only after evaluation of metadata filtering
 
 ## Observability and privacy
 
-Logs use request, workspace, actor, dataset, thread, query, and model-run identifiers. They exclude uploaded row values, prompts containing source passages, secrets, and access tokens by default. Metrics cover request latency, ingestion outcomes, clarification rate, query refusal rate, execution time, model usage, retrieval relevance, and answer-verification failures.
+Logs use request, workspace, actor, dataset, thread, query, and model-run identifiers. They exclude uploaded row values, prompts containing source passages, secrets, and access tokens by default. Audits, receipts and bounded job events provide current operational evidence. Complete metrics coverage for request latency, ingestion outcomes, clarification/refusal rates, model usage and verification failures remains planned operational work; this paragraph does not claim that a metrics/tracing backend is deployed.
+
+## October 4 platform foundation
+
+The [audited plan](../platform-foundation-plan.md) extends existing aggregates instead
+of replacing them. Artifact descriptors project uploads, revisions, profiles,
+quality reports, documents, definitions, executions and study versions. Per-node
+authorization applies to bounded lineage traversal; metadata availability never
+claims that source bytes were verified. No physical storage pointer is exposed.
+
+The [compute broker](../compute-broker.md) preserves QueryExecutor while registering
+only the current DuckDB engine at bootstrap. Input/output limits, declared join
+permissions, memory/threads/time and disabled temporary disk spill remain bounded.
+Engine selection is not a model or browser decision. No remote engine or arbitrary
+Python runtime is introduced.
+
+Migration 0013 adds [durable conversation jobs](../conversation-jobs.md) over the
+existing turn claim. A separate worker executes the same governed application
+services, publishes only under a current lease and exposes real action events.
+Legacy turns and receipts remain compatible. Typed plans describe existing
+supported operations; statistics, ML, sandboxed code, extra parsers and broader
+connectors retain their separately gated roadmap slices.
+
+[ADR 0008](0008-durable-analysis-foundations.md) records the reuse, recovery and
+operational tradeoffs. [Release evidence](../verification-platform-foundation.md)
+separates functional acceptance from remaining production and advanced-method work.
 
 
 ## Phase 2 and Phase 3 implementation update (2026-09-17)
@@ -229,3 +255,51 @@ current authorization, definition, freshness and coverage checks. Notifications 
 in-app and private to the subscribing member. The VPS systemd timer and backup share
 a host maintenance lock. No new listening port, external email or source connector
 is added. See [the refresh contract](../phase4-refresh-monitoring.md).
+
+## Dataset explanations in chat
+
+The domain guidance module renders observed profile facts, saved definitions and
+explicitly tentative naming interpretations. Obvious column-meaning requests are
+resolved without model calls; the existing planner may select known columns for
+other explanation phrasings. Model prose does not supply these answers.
+
+Analytics reconstructs an authorized descriptive snapshot even when shared meaning
+is unconfirmed; numerical paths retain their confirmation checks. Overview turn
+evidence holds immutable revision/definition references and bounded column context.
+Reopening checks permissions and original bytes before returning the saved explanation.
+The frontend separates these explanations from numerical Verified answers. No new
+database migration or provider branch is required. See [guidance](../dataset-guidance.md).
+
+## Upload-first discovery and profiling v2 (2026-10-02)
+
+The application discovery service selects bounded descriptive queries from an
+authorized profile and executes them through AnalyticsService. Findings are rendered
+from exact results; model calls and free-form model arithmetic are not involved.
+One parsed snapshot is reused within a briefing; initial parsing and final source
+verification run off the async event loop. The final checksum read is bracketed by
+current permission/revision/definition checks. There is no persistent table cache.
+Saved-definition rules and ordinary receipts apply. The default UI loads one briefing, with heavy dashboards and meaning editors
+behind explicit controls. See [the release contract](../data-partner-reset.md).
+
+Discovery HTTP handling cancels abandoned work and joins its disconnect watcher.
+Interrupted numerical queries retain failed receipts; completed evidence is not
+removed. The browser aborts superseded discoveries, waits for selection to settle
+and obtains starter questions from the same briefing.
+
+The executor binds bounded JSON column arrays to explicit DuckDB array types after
+the existing strict cell validation. Decimals travel as fixed-point strings and
+dates as ISO strings. This avoids per-value optional Python library import checks
+in the minimal deployed image. Connections remain isolated, external access remains
+disabled, and receipt/precision contracts are unchanged. This is internal query
+parameter serialization, not JSON uploads or a persistent Parquet representation.
+
+New ordinary uploads use profile-v2 for label-based text identifiers and valid numeric
+calendar components. Existing profiles, synthetic sample-v1 and legacy lazy profiles
+keep profile-v1. Cleaning and refresh inherit their source version. Stored CSV dialect
+tags make semicolon/tab intake additive without redetecting historical files.
+
+Conversation guidance adds bounded quality/structure/next-step topics. Pending
+clarification evidence retains the original question and source references so a
+short reply can resolve the original request. Changes invalidate that context;
+confirmation guards and numerical execution remain separate. No new migration,
+runtime judge, provider choice or external connector is introduced.

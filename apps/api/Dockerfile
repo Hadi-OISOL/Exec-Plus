@@ -16,7 +16,7 @@ COPY migrations ./migrations
 COPY scripts ./scripts
 
 RUN pip install --no-cache-dir .
-RUN useradd --create-home --uid 10001 execplus
+RUN useradd --create-home --uid 10001 execplus && chmod -R a+rX /app
 
 USER execplus
 

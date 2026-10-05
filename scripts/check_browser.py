@@ -41,6 +41,12 @@ def main() -> None:
             "NEXT_PUBLIC_API_URL": "http://127.0.0.1:8001",
         }
     )
+    if env.get("EXECPLUS_BROWSER_LIVE_MODEL") != "1":
+        env.update(
+            EXECPLUS_LLM_MODE="disabled",
+            EXECPLUS_LLM_SELECTION_MODEL="",
+            EXECPLUS_LLM_SELECTION_BASE_URL="",
+        )
     client = boto3.client(
         "s3",
         endpoint_url=env["EXECPLUS_OBJECT_STORE_ENDPOINT"],

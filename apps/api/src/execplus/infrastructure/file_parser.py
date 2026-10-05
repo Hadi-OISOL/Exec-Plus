@@ -28,6 +28,7 @@ MIME_TYPES = {
     ".csv": {"text/csv", "application/csv", "text/plain"},
     ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 }
+CSV_DELIMITERS = {"csv": ",", "csv;s": ";", "csv;t": "\t"}
 
 
 def validate_filename(filename: str) -> str:
@@ -77,7 +78,14 @@ def validate_dimensions(rows: int, columns: int) -> None:
 
 
 class StructuredFileParser:
-    def parse(self, content: BinaryIO, filename: str, content_type: str) -> FileStructure:
+    def parse(
+        self,
+        content: BinaryIO,
+        filename: str,
+        content_type: str,
+        *,
+        stored_format: str | None = None,
+    ) -> FileStructure:
         filename = validate_filename(filename)
         extension = PurePosixPath(filename).suffix.lower()
         if (
@@ -111,7 +119,9 @@ class StructuredFileParser:
                 if b"\x00" in chunk:
                     raise IngestionError("unsafe_content", "Null bytes are unsupported.", 422)
             content.seek(0)
-            return self._csv(content)
+            if stored_format is not None and stored_format not in CSV_DELIMITERS:
+                raise IngestionError("unsupported_format", "Stored CSV format is unavailable.", 409)
+            return self._csv(content, stored_format or self._csv_format(content))
         if not prefix.startswith(b"PK\x03\x04"):
             raise IngestionError(
                 "malformed_excel", "The file is not a readable XLSX workbook.", 422
@@ -120,10 +130,10 @@ class StructuredFileParser:
 
     def read_table(self, content: BinaryIO, format: str) -> TableData:
         content.seek(0)
-        if format == "csv":
+        if format in CSV_DELIMITERS:
             wrapper = TextIOWrapper(content, encoding="utf-8-sig", newline="")
             try:
-                reader = csv.reader(wrapper, strict=True)
+                reader = csv.reader(wrapper, delimiter=CSV_DELIMITERS[format], strict=True)
                 return TableData(tuple(next(reader)), tuple(tuple(row) for row in reader))
             finally:
                 wrapper.detach()
@@ -157,10 +167,24 @@ class StructuredFileParser:
             workbook.close()
             content.seek(0)
 
-    def _csv(self, content: BinaryIO) -> FileStructure:
+    def _csv_format(self, content: BinaryIO) -> str:
+        for format, delimiter in CSV_DELIMITERS.items():
+            wrapper = TextIOWrapper(content, encoding="utf-8-sig", newline="")
+            try:
+                header = next(csv.reader(wrapper, delimiter=delimiter, strict=True), [])
+                if len(header) > 1:
+                    return format
+            except (csv.Error, UnicodeError):
+                continue
+            finally:
+                wrapper.detach()
+                content.seek(0)
+        return "csv"
+
+    def _csv(self, content: BinaryIO, format: str) -> FileStructure:
         wrapper = TextIOWrapper(content, encoding="utf-8-sig", newline="")
         try:
-            reader = csv.reader(wrapper, strict=True)
+            reader = csv.reader(wrapper, delimiter=CSV_DELIMITERS[format], strict=True)
             header = next(reader, [])
             validate_header(list(header))
             columns = len(header)
@@ -183,7 +207,7 @@ class StructuredFileParser:
                 raise IngestionError(
                     "empty_table", "Include at least one data row below the header.", 422
                 )
-            return FileStructure("csv", rows, columns, 0)
+            return FileStructure(format, rows, columns, 0)
         except (csv.Error, UnicodeError) as error:
             raise IngestionError(
                 "malformed_csv", "Use a well-formed UTF-8 CSV with consistent quoting.", 422

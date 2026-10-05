@@ -7,6 +7,27 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
+The October 4 foundation extension is verified locally and deployed to the private
+VPS demo. It adds durable private
+chat requests with recorded execution activity, cancellation and resume; optional
+Expert views expose existing evidence plus authorized artifact and quality
+descriptions. Run migration **0013** and `make jobs` alongside the API/web app.
+See the [implementation plan](docs/platform-foundation-plan.md),
+[conversation job contract](docs/conversation-jobs.md) and
+[bounded compute contract](docs/compute-broker.md),
+[artifact and quality contract](docs/platform-artifacts-quality.md) and
+[acceptance record](docs/verification-platform-foundation.md). This does not implement the
+remaining forecasts, exports, connectors or advanced research methods.
+
+The October 2 workspace starts with a file: sign in, choose a CSV or single-sheet
+XLSX, and upload. First-time users get an automatic workspace and file-named dataset.
+Calculated starting points, data checks and relevant questions appear beside chat;
+definitions and advanced controls stay optional until a request needs them.
+New uploads handle semicolon/tab CSVs, mixed identifier codes and numeric calendar
+components with versioned reconstruction. Read the
+[data-partner guide](docs/data-partner-reset.md) and
+[verification record](docs/verification-data-partner.md).
+
 Phases 0 and 1 remain verified for local/test operation. The teammate's Phase 2
 branch has been audited and hardened: verified DuckDB analytics, KPI dashboards,
 filters, drill-down, conversational planning, private threads, saved analyses and
@@ -27,7 +48,8 @@ descriptive studies and immutable versions, ordered survey views, six-pin privat
 or shared dashboards, and separate department workspaces grouped by organization.
 The private demo now also includes **Refresh & alerts**: validated staged-file
 replacement/append/merge, schedules, replayable observations, exact segment drivers
-and private KPI notifications. Migration **0012** is required. See the
+and private KPI notifications. That slice introduced migration 0012; the foundation
+extension above now requires **0013**. See the
 [4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
 [4B verification](docs/verification-phase4b.md). Schedules process files staged in
 ExecPlus; live connectors, forecasts and exports remain later Phase 4 slices.
@@ -80,6 +102,17 @@ In another terminal:
 ```bash
 make web
 ```
+
+In a third terminal, start the conversation worker:
+
+```bash
+make jobs
+```
+
+Keep the worker running while using chat. Questions are stored in PostgreSQL so
+closing a browser tab does not lose the request; reopen private conversation
+history to resume its activity. **Cancel request** explicitly asks the worker to
+stop. API-only installations retain the older synchronous `/ask` endpoint.
 
 The API is served at `http://localhost:8000`, its documentation at `http://localhost:8000/docs`, and the web application at `http://localhost:3000`.
 

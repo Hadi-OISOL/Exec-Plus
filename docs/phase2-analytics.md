@@ -51,9 +51,21 @@ revision; analyses replay the original revision. Sharing never makes a public li
 
 ## Numerical and audit contract
 
-- Decimal inputs use DECIMAL(38,12); values outside that range/scale are rejected.
+- Decimal inputs retain DECIMAL(38,12) for historical compatibility, increasing
+  the scale per referenced column when its source requires more fractional digits.
+  The whole column must fit exactly within 38 digits; unsupported precision/range
+  is rejected rather than rounded, converted to floats or silently skipped.
   AVG is reconstructed from exact SUM and COUNT, rounded half-even to 12 decimal
   places. No business result passes through binary floating-point arithmetic.
+- Execution loads the columns referenced by the validated query, including filters,
+  groups and join keys. An unrelated invalid column does not block a valid total.
+  Selecting all records still checks all selected columns. Sample counts preserve
+  every source row even when the SQL references no column. Source/receipt checksums
+  continue to describe the complete immutable source, not the projected table.
+- Invalid referenced values return a column name, one-based data-row position in
+  the reconstructed revision, and expected type/range without echoing the value.
+  Chat preserves this actionable error; mixed document/data answers retain it as
+  a limitation. Provider and unexpected execution details remain redacted.
 - Decimal results and integers outside JavaScript's safe integer range are JSON
   strings. Chart coordinates may be approximate; displayed values retain the
   returned strings. Integers inside the safe range remain JSON numbers.

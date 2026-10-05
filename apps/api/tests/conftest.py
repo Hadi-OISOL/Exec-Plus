@@ -79,11 +79,14 @@ def integration():
     )
     runtime.saved_items = SavedItemService(SQLUnitOfWork(engine))
     runtime.threads = ThreadService(SQLUnitOfWork(engine), runtime.intent_router)
+    runtime.jobs.uow = SQLUnitOfWork(engine)
+    runtime.jobs.threads = runtime.threads
     runtime.activation.uow = SQLUnitOfWork(engine)
     runtime.activation.analytics = runtime.analytics
     runtime.knowledge.uow = SQLUnitOfWork(engine)
     runtime.understanding.uow = SQLUnitOfWork(engine)
     runtime.catalog.uow = SQLUnitOfWork(engine)
+    runtime.artifacts.uow = SQLUnitOfWork(engine)
     runtime.studies.uow = SQLUnitOfWork(engine)
     runtime.studies.analytics = runtime.analytics
     runtime.organizations.uow = SQLUnitOfWork(engine)

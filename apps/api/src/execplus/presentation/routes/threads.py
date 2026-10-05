@@ -54,6 +54,7 @@ def _turn_body(turn: ThreadTurn) -> dict[str, object]:
         "model_route": turn.model_route,
         "created_at": turn.created_at.isoformat(),
         "status": turn.status,
+        "job_id": str(turn.job_id) if turn.job_id else None,
         "request_id": str(turn.request_id) if turn.request_id else None,
     }
 

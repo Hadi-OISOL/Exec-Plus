@@ -30,11 +30,12 @@ from execplus.domain.ingestion import (
 )
 from execplus.domain.profiling import (
     ALGORITHM,
+    CURRENT_ALGORITHM,
     Cleaning,
     Revision,
     TableData,
     UsageEvent,
-    profile,
+    profile_for,
     reconstruct,
     transform,
 )
@@ -390,7 +391,14 @@ class WorkspaceService:
             _sample_id,
         )
         table = self.parser.read_table(content, structure.format)
-        root = self._make_revision(actor, upload, table, [], None)
+        root = self._make_revision(
+            actor,
+            upload,
+            table,
+            [],
+            None,
+            algorithm=ALGORITHM if _sample_id else CURRENT_ALGORITHM,
+        )
         content.seek(0)
         attempted = False
         try:
@@ -445,6 +453,8 @@ class WorkspaceService:
         table: TableData,
         recipe: list[Cleaning],
         parent_id: UUID | None,
+        *,
+        algorithm: str = ALGORITHM,
     ) -> Revision:
         return Revision(
             uuid4(),
@@ -452,18 +462,20 @@ class WorkspaceService:
             upload.dataset_id,
             upload.id,
             parent_id,
-            ALGORITHM,
+            algorithm,
             upload.checksum,
             table.checksum(),
             recipe,
-            profile(table),
+            profile_for(table, algorithm),
             actor.id,
             datetime.now(timezone.utc),
         )
 
     def _table(self, upload: Upload) -> TableData:
         content = BytesIO(self.storage.read(upload))
-        self.parser.parse(content, upload.filename, upload.content_type)
+        self.parser.parse(
+            content, upload.filename, upload.content_type, stored_format=upload.format
+        )
         return self.parser.read_table(content, upload.format)
 
     def _root(self, repo: WorkspaceRepository, actor: User, upload: Upload) -> Revision:
@@ -527,7 +539,14 @@ class WorkspaceService:
                 )
             source = reconstruct(self._table(upload), active)
             result = transform(source, step)
-            revision = self._make_revision(actor, upload, result, [*active.recipe, step], active.id)
+            revision = self._make_revision(
+                actor,
+                upload,
+                result,
+                [*active.recipe, step],
+                active.id,
+                algorithm=active.algorithm,
+            )
             if apply:
                 repo.add(revision)
                 repo.set_active_revision(revision)

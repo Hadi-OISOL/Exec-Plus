@@ -5,6 +5,8 @@ queries, records each query in the audit trail, and derives a deterministic
 dashboard summary from the dataset's profile.
 """
 
+import asyncio
+import hashlib
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
@@ -14,13 +16,16 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from execplus.application.ports import FileParser, ObjectStorage, QueryExecutor, WorkspaceRepository
+from execplus.application.progress import activity
 from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.lineage import persist_query_execution
 from execplus.application.services.understanding import current_meaning
 from execplus.domain.dashboard_templates import TEMPLATES, DashboardTemplate, applicable_templates
 from execplus.domain.errors import ClarificationRequiredError, UnsupportedQuestionError
 from execplus.domain.evidence import receipt, result_evidence, scalar_from_record
+from execplus.domain.guidance import DescriptionContext
 from execplus.domain.ingestion import AuditEvent, IngestionError, Membership, Upload, User
+from execplus.domain.jobs import EventStatus, JobStage
 from execplus.domain.kpi_library import KpiMatch, compatible_kpis, kpi_by_id
 from execplus.domain.models import (
     CalculationLineage,
@@ -29,7 +34,7 @@ from execplus.domain.models import (
     VerifiedMetricAnswer,
     WorkspaceScope,
 )
-from execplus.domain.profiling import TableData, reconstruct
+from execplus.domain.profiling import Revision, TableData, reconstruct
 from execplus.domain.semantics import (
     VALUE_ALIAS,
     DatasetView,
@@ -92,12 +97,13 @@ class AnalyticsService:
     def _authorize(self, repo: WorkspaceRepository, actor: User, workspace_id: UUID) -> Membership:
         return repo.membership(workspace_id, actor.id)
 
-    def _snapshot(self, repo: WorkspaceRepository, upload: Upload) -> tuple[TableData, DatasetView]:
-        revision = repo.active_revision(upload.workspace_id, upload.dataset_id, upload.id)
-        if revision is None:
-            raise IngestionError("not_found", "This upload has not been profiled yet.", 404)
+    def _revision_snapshot(
+        self, upload: Upload, revision: Revision
+    ) -> tuple[TableData, DatasetView]:
         content = BytesIO(self.storage.read(upload))
-        self.parser.parse(content, upload.filename, upload.content_type)
+        self.parser.parse(
+            content, upload.filename, upload.content_type, stored_format=upload.format
+        )
         table = self.parser.read_table(content, upload.format)
         table = reconstruct(table, revision)
         if revision.source_checksum != upload.checksum:
@@ -110,7 +116,125 @@ class AnalyticsService:
             "output_checksum": revision.output_checksum,
         }
         view = replace(dataset_view(revision.profile), sources=(source,))
+        return table, view
+
+    def _snapshot(self, repo: WorkspaceRepository, upload: Upload) -> tuple[TableData, DatasetView]:
+        revision = repo.active_revision(upload.workspace_id, upload.dataset_id, upload.id)
+        if revision is None:
+            raise IngestionError("not_found", "This upload has not been profiled yet.", 404)
+        table, view = self._revision_snapshot(upload, revision)
         return table, current_meaning(repo, revision, view)
+
+    def describe(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        source: dict[str, str] | None = None,
+    ) -> DescriptionContext:
+        context, _, _ = self.descriptive_snapshot(
+            actor, workspace_id, dataset_id, upload_id, source
+        )
+        return context
+
+    def descriptive_snapshot(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        source: dict[str, str] | None = None,
+    ) -> tuple[DescriptionContext, TableData, WorkspaceScope]:
+        with self.uow() as repo:
+            self._authorize(repo, actor, workspace_id)
+            dataset = repo.dataset(workspace_id, dataset_id)
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            revision = (
+                repo.revision(workspace_id, dataset_id, upload_id, UUID(source["revision_id"]))
+                if source
+                else repo.active_revision(workspace_id, dataset_id, upload_id)
+            )
+            if revision is None:
+                raise IngestionError("not_found", "Profile this upload first.", 404)
+            table, view = self._revision_snapshot(upload, revision)
+            saved = (
+                repo.understanding(workspace_id, dataset_id, UUID(source["understanding_id"]))
+                if source and source.get("understanding_id")
+                else None
+                if source
+                else repo.latest_understanding(workspace_id, dataset_id)
+            )
+            state = "inferred"
+            definition = None
+            if saved:
+                state = saved.state if saved.revision_id == revision.id else "needs_review"
+                definition = saved.definition if state in {"inferred", "confirmed"} else None
+                view = replace(
+                    view, sources=({**view.sources[0], "understanding_id": str(saved.id)},)
+                )
+                if state == "confirmed":
+                    view = apply_definition(view, saved.definition)
+            if source and view.sources != (source,):
+                raise IngestionError("lineage_mismatch", "The explanation source changed.", 409)
+            member = self._authorize(repo, actor, workspace_id)
+            context = DescriptionContext(dataset.name, revision.profile, view, definition, state)
+            scope = WorkspaceScope(
+                workspace_id, actor.id, frozenset({member.role}), frozenset({dataset_id})
+            )
+            return context, table, scope
+
+    def _current_description_source(
+        self,
+        repo: WorkspaceRepository,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+    ) -> tuple[Upload, tuple[dict[str, str], ...]]:
+        self._authorize(repo, actor, workspace_id)
+        repo.dataset(workspace_id, dataset_id)
+        upload = repo.upload(workspace_id, dataset_id, upload_id)
+        revision = repo.active_revision(workspace_id, dataset_id, upload_id)
+        if revision is None:
+            raise IngestionError("not_found", "Profile this upload first.", 404)
+        if revision.source_checksum != upload.checksum:
+            raise IngestionError("lineage_mismatch", "The source integrity check failed.", 409)
+        saved = repo.latest_understanding(workspace_id, dataset_id)
+        source = {
+            "dataset_id": str(dataset_id),
+            "upload_id": str(upload_id),
+            "revision_id": str(revision.id),
+            "source_checksum": upload.checksum,
+            "output_checksum": revision.output_checksum,
+        }
+        if saved:
+            source["understanding_id"] = str(saved.id)
+        return upload, (source,)
+
+    def recheck_description(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        expected_sources: tuple[dict[str, str], ...],
+    ) -> None:
+        message = "The file or its meaning changed. Reload the discovery."
+        with self.uow() as repo:
+            upload, before = self._current_description_source(
+                repo, actor, workspace_id, dataset_id, upload_id
+            )
+            if before != expected_sources:
+                raise ClarificationRequiredError(message)
+            content = self.storage.read(upload)
+            if hashlib.sha256(content).hexdigest() != upload.checksum:
+                raise IngestionError("lineage_mismatch", "The source integrity check failed.", 409)
+            _, after = self._current_description_source(
+                repo, actor, workspace_id, dataset_id, upload_id
+            )
+            if after != expected_sources:
+                raise ClarificationRequiredError(message)
 
     def _context(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
@@ -149,7 +273,9 @@ class AnalyticsService:
                     "lineage_mismatch", "The retained source failed verification.", 409
                 )
             content = BytesIO(self.storage.read(upload))
-            self.parser.parse(content, upload.filename, upload.content_type)
+            self.parser.parse(
+                content, upload.filename, upload.content_type, stored_format=upload.format
+            )
             table = reconstruct(self.parser.read_table(content, upload.format), revision)
             frozen_source = {
                 key: source[key]
@@ -205,16 +331,19 @@ class AnalyticsService:
         )
         with self.uow() as repo:
             self._authorize(repo, actor, scope.workspace_id)
+        await activity(JobStage.QUERY, EventStatus.STARTED)
         try:
             result = await self.executor.execute(plan, scope, table, view)
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             self._persist(actor, replace(lineage, receipt=receipt(plan, view.sources, None)))
+            await activity(JobStage.QUERY, EventStatus.FAILED)
             raise
         lineage = replace(
             lineage,
             receipt=receipt(plan, view.sources, result, row_query=lineage.aggregation == "rows"),
         )
         self._persist(actor, lineage)
+        await activity(JobStage.QUERY, EventStatus.COMPLETED)
         return result, lineage
 
     async def _execute_rows(
@@ -248,16 +377,19 @@ class AnalyticsService:
         )
         with self.uow() as repo:
             self._authorize(repo, actor, scope.workspace_id)
+        await activity(JobStage.QUERY, EventStatus.STARTED)
         try:
             result = await self.executor.execute(plan, scope, table, view)
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             self._persist(actor, replace(lineage, receipt=receipt(plan, view.sources, None)))
+            await activity(JobStage.QUERY, EventStatus.FAILED)
             raise
         lineage = replace(
             lineage,
             receipt=receipt(plan, view.sources, result, row_query=lineage.aggregation == "rows"),
         )
         self._persist(actor, lineage)
+        await activity(JobStage.QUERY, EventStatus.COMPLETED)
         return result, lineage
 
     async def get_lineage(
@@ -600,7 +732,9 @@ class AnalyticsService:
                         "lineage_mismatch", "The snapshot no longer matches its receipt.", 409
                     )
                 content = BytesIO(self.storage.read(upload))
-                self.parser.parse(content, upload.filename, upload.content_type)
+                self.parser.parse(
+                    content, upload.filename, upload.content_type, stored_format=upload.format
+                )
                 tables.append(reconstruct(self.parser.read_table(content, upload.format), revision))
                 view = dataset_view(revision.profile)
                 if source.get("understanding_id"):

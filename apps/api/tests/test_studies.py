@@ -157,7 +157,7 @@ def test_study_exact_receipts_missingness_replay_and_rerun(integration):
     assert first["display"]["rows"] == [["0.300000000000"]]
     assert first["display"]["coverage"]["rows"] == [[3, 2, 1]]
     assert first["sample_count"] == 3
-    assert first["version"]["evidence"]["preparation_version"] == "profile-v1"
+    assert first["version"]["evidence"]["preparation_version"] == "profile-v2"
     assert all(
         item["lineage"]["receipt"]["sources"][0]["understanding_id"] for item in first["results"]
     )

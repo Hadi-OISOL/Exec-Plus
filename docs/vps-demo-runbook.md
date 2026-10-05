@@ -4,7 +4,9 @@
 # Private VPS demo
 
 The user authorized this deployment on 2026-09-28 for internal use and supervised
-buyer/investor demonstrations with fictional data. A domain and public customer
+buyer/investor demonstrations with fictional data. On October 2 the user also
+authorized real public datasets for product validation; the separate public-data
+walkthrough below retains attribution. A domain and public customer
 access are deferred. This is a private demo using expiring operator-issued sessions;
 it is not a production identity deployment. Existing production gates remain open.
 
@@ -30,7 +32,8 @@ PostgreSQL stores permissions, metadata, conversations and lineage. Uploaded fil
 stay in object storage; DuckDB computes results from authorized snapshots. This
 does not add a live external database connector or scheduled ETL pipeline.
 
-Compose project `oisol-execplus` owns only its four application/data containers.
+Compose project `oisol-execplus` owns its API, web, conversation worker, PostgreSQL
+and object-store containers after the Foundation A upgrade below.
 The separate `execplus-model.service` runs the existing Ollama 0.20.0 binary as a
 dedicated `execplus-model` OS user. It has its own model directory, eight parallel
 slots, a 16-request waiting queue, a 4096-token context per slot and one loaded
@@ -173,7 +176,7 @@ Review port availability before repeating this deployment on another server.
 
 Then build images, start `postgres storage`, run the operator commands
 `python scripts/wait_infra.py`, `python -m alembic upgrade head`, and
-`python -m execplus.manage init-storage` before starting `api web`.
+`python -m execplus.manage init-storage` before starting `api web jobs`.
 Use `sudo docker compose -f deploy/vps/compose.yaml run --rm operator` as the prefix
 for each operator command. Base images are pinned by digest. ECR's Docker Official
 Images mirror was used because Docker Hub was unreachable from this VPS.
@@ -185,8 +188,11 @@ runtime environment variables cannot replace an already-built browser URL.
 ## Backups and restoration
 
 `execplus-backup.timer` runs daily at 03:00 UTC (08:00 Pakistan time). It briefly
-stops only the ExecPlus API and object store, captures a PostgreSQL dump and MinIO
-files, verifies SHA-256 checksums, and restarts the services even on failure.
+stops the ExecPlus API and conversation worker before the object store, captures a
+PostgreSQL dump and MinIO files, verifies SHA-256 checksums, and restarts only the
+services previously running, including on failure. The maintenance lock also
+excludes the scheduled refresh worker. Do not run another writer outside this
+coordination during a backup.
 Run manually with `sudo bash deploy/vps/backup.sh`. Completed snapshots contain
 `database.dump`, `objects.tar.gz`, and `SHA256SUMS`; partial snapshots lack a complete
 verified set. Protect the credentials separately. Backups currently remain on the
@@ -271,7 +277,7 @@ model service, other VPS applications, network exposure and production gates are
 
 ## Phase 4B release — September 30
 
-The current release runs **0012**. Open **Refresh & alerts** for a confirmed dataset.
+The 4B release introduced **0012**. Open **Refresh & alerts** for a confirmed dataset.
 Use the source date/coverage controls, stage a replacement or explicit append/merge,
 review schema changes, then activate. Choose up to six measures to watch; observations
 and private in-app notifications retain replayable evidence. The eight demo accounts
@@ -304,3 +310,78 @@ Short-lived sessions were renewed into the private local session file because th
 previous set had expired. Existing seeded data, study workspaces, model service,
 other VPS applications, ports and network exposure are unchanged. See
 [contracts](phase4-refresh-monitoring.md) and [verification](verification-phase4b.md).
+
+## Upload-first data partner — October 2
+
+Refresh the browser at `http://localhost:18400/workspace`. A new account starts at
+**Data library**: upload a supported CSV/XLSX directly, with workspace and dataset
+setup supplied automatically. Existing users can select **Public banking and retail
+walkthrough**, shared with all eight demo identities. These files are attributed
+public UCI data, separate from the fictional samples and existing private uploads.
+
+1. Select the bank dataset. Its original publisher CSV contains 4,521 rows. The
+   overview calculates numerical ranges/averages, shows category counts and offers
+   questions relevant to that file. Open **How this was calculated** for receipts.
+2. Ask “Are there any data quality issues?” or “Help me understand my data.”
+3. Ask “What is the total balance?” (6,431,836), “Show all records where job equals
+   retired” (230 matching records), then “What is their total balance?” (533,414).
+   These are the uploaded sample's results, not claims about all bank customers.
+4. Select the retail dataset. Its first 10,000 original rows deliberately retain
+   missing customer IDs and negative quantities. Ask about those issues; do not
+   describe negative values as errors without knowing the source convention.
+5. Business definitions, preparation, studies and refresh remain available through
+   their controls. Optional setup no longer precedes the first useful reading.
+
+Sources and subset limits are recorded in [the contract](data-partner-reset.md).
+The release checkpoint is `releases/pre-partner-20261002/source`, images tagged
+`pre-partner-20261002`, and checksummed backup `20261002T035155Z`. Schema remains
+0012. New ordinary uploads use profile-v2; old profiles and receipts retain v1.
+The preceding application cannot read new v2 revisions, so a rollback must preserve
+new data and account for that compatibility boundary. Do not downgrade the database.
+
+Build/import/activation logs are `ops/partner-*.log`; the corrected API build uses
+`partner-concurrency-*`. Private sessions were renewed into the ignored local
+session file and still expire after eight hours. Models, network bindings, other
+VPS applications and production gates are unchanged. See the
+[verification ledger](verification-data-partner.md) for final acceptance and retained
+failed rehearsals; a healthy endpoint alone does not establish eight-user behavior.
+
+## Foundation A — October 4
+
+Migration **0013** adds durable private chat jobs. API, web and the new `jobs`
+container use the same private endpoints. The worker has four slots, with at most
+two active jobs per workspace, 2 GiB container memory and four CPUs; it adds no
+listening port. Its default execution/publication deadline is 100 seconds, with
+cooperative cancellation and reader/query cleanup. It is not a process sandbox.
+
+Refresh the browser and sign in with the renewed token for your account from the
+ignored local `data/vps-private/sessions.json`. Select a file and ask a question.
+**Current activity** shows recorded actions from that request. **Cancel request**
+asks the worker to stop and reports the actual outcome. Returning to **Private
+conversation history** reconnects a running job or offers **Load saved answer**.
+**Expert** expands evidence and activity without recalculating. **Source capabilities
+& recorded quality** distinguishes observed checks from suggested interpretations.
+
+`make jobs` is needed for local development. On the VPS Compose starts the worker;
+do not launch an additional uncoordinated worker around backups or migrations.
+Jobs/events remain owner-private, including from other workspace members. The
+worker CLI prints categorical failures rather than exception tracebacks or private
+parameters. Reports, refresh and AI summaries retain their existing execution paths.
+
+The preceding source is at `releases/pre-foundation-20261004/source`, with API/web
+images tagged `pre-foundation-20261004` and checksummed backup **20261004T111433Z**.
+Migration preserved aggregate hashes/counts for all 35 legacy tables. Preserve new
+0013 jobs/turn relationships before any rollback; do not blindly downgrade or
+restore the preceding backup over newly saved work. Profile-v2 compatibility still
+applies. Build, migration and activation logs use `ops/foundation-*`.
+
+Model settings, private environment files, other applications and existing network
+bindings are unchanged. See [job contracts](conversation-jobs.md) and
+[the acceptance ledger](verification-platform-foundation.md) for the final release
+checks and their limits. Phase 4C–4E and the eight production gates remain open.
+
+The final eight-user browser rehearsal passed 56 receipt replays, 18 jobs and 32
+private job-access denials. Backup **20261004T113138Z** then verified the new writer
+stop/start sequence, followed by a successful fresh chat job. The initial local
+tunnel stall is retained in the ledger; direct VPS readiness stayed healthy. These
+checks do not replace sustained-load or off-server recovery acceptance.

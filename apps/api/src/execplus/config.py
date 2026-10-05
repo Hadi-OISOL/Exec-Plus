@@ -51,9 +51,17 @@ class Settings(BaseSettings):
     vector_mode: Literal["disabled"] = "disabled"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
     web_origin: str = "http://localhost:3000"
-    query_timeout_seconds: float = Field(default=15.0, gt=0)
-    query_memory_limit_mb: int = Field(default=256, ge=1)
+    query_timeout_seconds: float = Field(default=15.0, gt=0, le=300, allow_inf_nan=False)
+    query_memory_limit_mb: int = Field(default=256, ge=1, le=16384)
     query_row_limit: int = Field(default=10_000, ge=1, le=100_000)
+    query_threads: int = Field(default=1, ge=1, le=8)
+    query_input_rows: int = Field(default=200_000, ge=1, le=200_000)
+    query_input_cells: int = Field(default=2_000_000, ge=1, le=2_000_000)
+    query_result_rows: int = Field(default=100_000, ge=1, le=100_000)
+    jobs_workspace_limit: int = Field(default=2, ge=1, le=8)
+    jobs_lease_seconds: int = Field(default=30, ge=5, le=120)
+    jobs_timeout_seconds: int = Field(default=100, ge=1, le=120)
+    jobs_queue_limit: int = Field(default=32, ge=1, le=100)
 
     @model_validator(mode="after")
     def validate_model_route(self) -> "Settings":

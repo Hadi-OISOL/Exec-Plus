@@ -268,7 +268,9 @@ def test_existing_upload_survives_migration_and_gets_lazy_profile_once(integrati
         env.config.attributes["connection"] = connection
         command.upgrade(env.config, "head")
     profile = env.client.get(root + "/profile", headers=headers)
-    assert profile.status_code == 200 and profile.json()["profile"] == original["profile"]
+    assert profile.status_code == 200
+    assert profile.json()["algorithm"] == "profile-v1"
+    assert profile.json()["profile"] == {**original["profile"], "algorithm": "profile-v1"}
     assert env.client.get(root + "/content", headers=headers).content == content
     assert env.client.get(root + "/profile", headers=headers).json() == profile.json()
     assert len(env.client.get(root + "/revisions", headers=headers).json()) == 1

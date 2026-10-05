@@ -10,9 +10,11 @@ from uuid import UUID
 
 from execplus.application.contracts import ModelMessage, ModelRequest
 from execplus.application.ports import LanguageModel
+from execplus.application.progress import activity, model_call
 from execplus.application.services.knowledge import KnowledgeService
 from execplus.domain.errors import ProviderUnavailableError
 from execplus.domain.ingestion import User
+from execplus.domain.jobs import EventStatus, JobStage
 from execplus.domain.models import ModelTier
 
 
@@ -24,10 +26,13 @@ class DocumentAnswerService:
     async def answer(
         self, actor: User, wid: UUID, did: UUID, query: str
     ) -> tuple[tuple[dict[str, Any], ...], str, str]:
+        await activity(JobStage.RETRIEVAL, EventStatus.STARTED)
         hits = await self.knowledge.search(actor, wid, did, query, 5)
+        await activity(JobStage.RETRIEVAL, EventStatus.COMPLETED)
         if not hits:
             return (), "missing", "retrieval:no_evidence"
         candidates = {f"e{i + 1}": hit for i, hit in enumerate(hits)}
+        await model_call()
         response = await asyncio.wait_for(
             self.model.complete(
                 ModelRequest(

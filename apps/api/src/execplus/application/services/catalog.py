@@ -9,6 +9,12 @@ from typing import Any
 from uuid import UUID
 
 from execplus.application.services.analytics import UnitOfWork
+from execplus.domain.artifacts import (
+    TABULAR_CAPABILITIES,
+    ArtifactKind,
+    ArtifactRef,
+    Capability,
+)
 from execplus.domain.ingestion import IngestionError, User
 
 
@@ -38,6 +44,26 @@ class CatalogService:
                 if saved and (revision is None or saved.revision_id != revision.id):
                     state = "needs_review"
                 documents = repo.documents(wid, dataset.id, actor.id)
+                artifact_refs = []
+                if upload:
+                    artifact_refs.append(
+                        ArtifactRef(
+                            wid, dataset.id, ArtifactKind.RAW_ASSET, upload.id, upload.id
+                        ).record()
+                    )
+                if revision:
+                    artifact_refs.extend(
+                        ArtifactRef(wid, dataset.id, kind, revision.id, revision.upload_id).record()
+                        for kind in (
+                            ArtifactKind.DATASET_SNAPSHOT,
+                            ArtifactKind.PROFILE,
+                            ArtifactKind.QUALITY_REPORT,
+                        )
+                    )
+                artifact_refs.extend(
+                    ArtifactRef(wid, dataset.id, ArtifactKind.DOCUMENT, doc.id).record()
+                    for doc in documents
+                )
                 entry = dict(
                     dataset_id=str(dataset.id),
                     name=dataset.name,
@@ -69,6 +95,13 @@ class CatalogService:
                         for doc in documents
                     ],
                     availability="metadata_only",
+                    asset_kinds=(["tabular"] if upload else [])
+                    + (["document"] if documents else []),
+                    capabilities=sorted(
+                        {item.value for item in TABULAR_CAPABILITIES} if revision else set()
+                    )
+                    + ([Capability.TEXT_SEARCH.value] if documents else []),
+                    artifact_refs=artifact_refs,
                 )
                 searchable = " ".join(
                     [

@@ -22,6 +22,5 @@ test("the shell distinguishes verified analytics from pending provider evaluatio
   assert.match(page, /verified dashboards, saved analyses and workspace sharing are available/);
   assert.match(page, /href="\/workspace"/);
   assert.match(page, /Proactive insights and hybrid knowledge/);
-  assert.match(page, /Phase 3 · In progress/);
 });
 

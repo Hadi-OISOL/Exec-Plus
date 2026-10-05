@@ -9,6 +9,7 @@ import asyncio
 import httpx
 
 from execplus.application.contracts import ModelRequest, ModelResponse
+from execplus.application.progress import provider_attempt
 from execplus.domain.errors import ProviderUnavailableError
 from execplus.domain.models import ModelTier
 
@@ -61,6 +62,7 @@ class OpenAICompatibleLanguageModel:
         for attempt in range(self._max_attempts):
             if attempt > 0:
                 await asyncio.sleep(self._retry_backoff_seconds * attempt)
+            await provider_attempt()
             try:
                 async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
                     response = await client.post(

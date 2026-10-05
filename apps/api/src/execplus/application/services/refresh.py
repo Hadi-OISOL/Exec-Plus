@@ -224,7 +224,15 @@ class RefreshService:
         )
         stored.append(upload)
         self.uploads.storage.put(upload, BytesIO(content))
-        revision = self.uploads._make_revision(actor, upload, table, [], None)
+        source_revision = repo.revision(
+            feed.workspace_id,
+            feed.dataset_id,
+            UUID(feed.source["upload_id"]),
+            UUID(feed.source["revision_id"]),
+        )
+        revision = self.uploads._make_revision(
+            actor, upload, table, [], None, algorithm=source_revision.algorithm
+        )
         repo.add(upload)
         repo.add(revision)
         repo.set_active_revision(revision)

@@ -50,7 +50,9 @@ class JoinService:
         if revision is None:
             raise IngestionError("not_found", "This upload has not been profiled yet.", 404)
         content = BytesIO(self.storage.read(upload))
-        self.parser.parse(content, upload.filename, upload.content_type)
+        self.parser.parse(
+            content, upload.filename, upload.content_type, stored_format=upload.format
+        )
         table = self.parser.read_table(content, upload.format)
         table = reconstruct(table, revision)
         if revision.source_checksum != upload.checksum:

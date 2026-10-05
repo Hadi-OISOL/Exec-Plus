@@ -24,6 +24,10 @@ class UnsafeQueryError(ExecPlusError):
     pass
 
 
+class QueryDataError(UnsafeQueryError):
+    pass
+
+
 class ProviderUnavailableError(ExecPlusError):
     pass
 

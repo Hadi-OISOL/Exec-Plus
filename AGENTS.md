@@ -7,6 +7,48 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+- October 4 Foundation A is Complete for local/test and the private demo: additive
+  artifact/capability and quality projections, compatible bounded compute, durable
+  private conversation jobs and real action activity with resume/cancellation.
+  The audited proposal is sequenced in `docs/platform-foundation-plan.md` and
+  ADR 0008; read `docs/verification-platform-foundation.md` before extending.
+- Migration 0013 adds jobs/attempts/events and fenced turn linkage. The VPS has a
+  separate bounded `jobs` container using the API image, four slots and a default
+  two active jobs per workspace. Local development now needs `make jobs`. Stop
+  API/jobs before object storage during backups; refresh retains the maintenance
+  lock. Preserve 0013 metadata and profile-v2 compatibility during rollback.
+- Foundation evidence: 689 full backend/architecture cases plus nine later reader
+  cleanup/CLI cases (698 distinct, 97 new), seven frontend tests, 18 real-service
+  browser journeys, Ruff/mypy (128 files), types/lint and production builds pass.
+  Eight deployed browsers passed 56 exact receipt replays, 18 jobs, 204 recorded
+  events, 32 private-access denials and desktop/mobile checks. Eight concurrent
+  clean-image computations and original profile-v1/v2 receipt replay also pass.
+- Existing 35 control-plane tables, including 2,497 receipts and 85 turns, retained
+  their aggregate hashes/counts through migration. Checkpoint source/images use
+  `pre-foundation-20261004`; pre-release backup is `20261004T111433Z`. The corrected
+  API image makes packaged files readable by its non-root runtime; retain that
+  clean-image check. Worker-aware backup `20261004T113138Z` stopped both writers
+  before storage, verified checksums and restarted services successfully.
+- Activity events contain server-owned actions, never model chain-of-thought,
+  prompts or source values. Only supported server-derived plans are recorded;
+  no arbitrary DAG/code executes. Simple/Expert changes presentation. Artifact
+  metadata is not byte-integrity proof; labelled quality heuristics are not confirmed
+  errors. Legacy `/ask`, exact numerical wire formats and replay remain supported.
+- Cancellation is cooperative and waits for reader/query cleanup. Safe pre-start
+  claims can retry, while lost started work fails conservatively; do not claim
+  exactly-once execution. Worker fatal logs use fixed codes, and SIGTERM awaits
+  cleanup. Model attempts count actual HTTP retries; three logical calls/seven
+  provider attempts and a default 100-second execution/publication deadline apply.
+- The initial eight-browser attempt stopped at sign-in because its local SSH tunnel
+  stalled; it created no jobs. The reconnect and fresh eight-user pass are retained
+  separately. Measured total jobs took 12.072–27.777 seconds including queue time;
+  this is a short functional rehearsal, not a sustained-load or speed improvement
+  claim. Sessions were renewed privately. Models, environment files, network
+  exposure and production gates did not change.
+- All September 30/October 2 changes remain present and uncommitted on `phase2`,
+  together with Foundation A; no push or merge occurred. Preparation/statistics/
+  sandbox/ML/connector extensions remain mapped future work. Phase 4C–4E remain
+  Planned, Phase 6 Frozen and all eight production gates remain blocked.
 - Phase 0: Engineering Foundation remains complete; its four exit criteria were reverified on 2026-09-07.
 - The repository is a Python and TypeScript modular monorepo.
 - The API has liveness and dependency-aware readiness endpoints for migrated PostgreSQL and the configured object bucket.
@@ -25,7 +67,7 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 - Current Phase 4B evidence: 458 backend tests on isolated PostgreSQL/MinIO plus 46 final targeted hardening/foundation checks, 2 frontend tests, 10 real-service browser journeys including live mixed chat, plus a final refresh journey after declaring the upload parser. Ruff/mypy (109 files), TypeScript, lint and production builds pass. All 8/8 concurrent deployed refresh browsers passed exact activation, alerts, original evidence replay and mobile layout. See `docs/verification-phase4b.md`; this is not a sustained-load benchmark.
 - Phase 3 is Complete for the approved local/test and private-demo scope as of 2026-09-30; its approved fictional demo is verified: six documents, twenty known answers, 16/16 top-three retrieval and 20/20 live DeepSeek cases. Production evaluation work is deferred with mandatory gates.
 - Document passages live in object storage; metadata and immutable citation offsets live in PostgreSQL. The reference hybrid ranker is not a selected production vector provider.
-- Migration 0006 adds execution receipts; 0007 adds activation/document/report metadata; 0008 adds record/overview conversation kinds and model routes; 0009 adds immutable business meanings and private goals. Migration 0011 adds organizations/departments, study versions, six-pin boards and private view dismissals; migration 0012 adds staged refresh heads/candidates, monitoring jobs and private alerts. Readiness requires 0012, now deployed. Legacy executions without receipts cannot be replayed reliably.
+- Migration 0006 adds execution receipts; 0007 adds activation/document/report metadata; 0008 adds record/overview conversation kinds and model routes; 0009 adds immutable business meanings and private goals. Migration 0011 adds organizations/departments, study versions, six-pin boards and private view dismissals; migration 0012 adds staged refresh heads/candidates, monitoring jobs and private alerts. Foundation A advances readiness to deployed 0013 as described above. Legacy executions without receipts cannot be replayed reliably.
 - Reports default to disabled email. `python3 -m execplus.manage deliver-reports` processes due slots; SMTP delivery needs explicit operator configuration. No real email was sent during verification.
 - Decimal results and integers outside JavaScript's safe range are JSON strings. Preserve this wire contract and frozen profile-v1 reconstruction.
 - Runtime model summaries select server-rendered evidence statements; never restore free-form prose guarded only by a number regex.
@@ -79,7 +121,71 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   expiry. Fictional refresh walkthrough workspaces show an exact 0.30 to 0.50 PKR update.
   All eight production gates remain blocked, and model/network settings did not change.
 - Next Phase 4 slice: 4C basic forecasting, then 4D exports and 4E first connectors.
-  None is implemented by 4B. Work remains uncommitted on `phase2` with prior work preserved.
+  None is implemented by 4B. The prior delivery is now captured in `phase2` baseline
+  `c9560af`; the September 30 query repair below remains uncommitted.
+- September 30 spreadsheet repair is verified and deployed: per-column decimal
+  scale expands from twelve only when needed, within 38 digits; query projection
+  includes filter/group/join dependencies and preserves column-free sample counts.
+  Referenced invalid cells identify column/data-row/expected type without contents.
+  Profile-v1, ordinary decimal wire formatting, full-source receipts and AVG rounding
+  are unchanged. Never silently round or skip problematic source values.
+- Repair evidence: 485 backend tests pass, including 24 new regressions; Ruff/mypy
+  pass; all 160 numeric totals in the reported upload match independent Decimal sums.
+  Live dashboard, exact reported question, five API totals/replays and an older
+  monitoring replay pass. See `docs/verification-query-precision.md`. API rollback
+  image is `pre-queryfix-20260930`; no migration or production gate changed.
+- September 30 column-explanation repair is verified and deployed. Chat now matches
+  column names (including spaces/underscores), explains actual metadata and saved
+  meanings, labels inferred/common meanings, and retains column context for “??”
+  and related-value follow-ups. A model may select known columns but cannot author
+  these explanations. Guidance never auto-confirms shared meaning or enables a
+  blocked calculation. No business unit/currency is inferred from ERP labels.
+- `overview` answers add `guidance` and immutable `sources`. Private turns retain
+  versioned explanation evidence; reopening checks original source bytes/definitions.
+  Explanations remain available for unconfirmed meaning, with calculation guards
+  intact. The UI shows paragraphs, relevant question buttons and source details;
+  only executed numerical answers receive the Verified badge.
+- September 30 evidence: 512 backend/architecture tests, 2 frontend tests, 11 real-service
+  browser journeys (including live mixed chat), Ruff/mypy (110 files), web lint/types
+  and production build all pass. The four reported ERP questions and a subsequent
+  exact total passed live on the private VPS. See `docs/dataset-guidance.md` and
+  `docs/verification-dataset-guidance.md`. API/web rollback images use
+  `pre-guidance-20260930`; no migration, model configuration or production gate changed.
+
+- October 2 upload-first data partner repair is verified and deployed for the private
+  demo. First upload supplies a personal workspace and file-named dataset; optional
+  setup and advanced forms no longer precede useful findings. Discovery executes at
+  most seven governed queries, shows exact evidence and supplies relevant chat prompts.
+  It never silently confirms business meanings or guesses a revenue formula/currency.
+- New ordinary files use profile-v2 for label-based identifiers and valid calendar
+  components. Cleaning/refresh inherit their source version. Profile-v1 functions,
+  old receipts and synthetic sample versions remain frozen. Stored CSV dialects add
+  UTF-8 semicolon/tab intake without redetecting historical comma files. No migration.
+- Discovery reuses one parsed snapshot, moves source I/O off the event loop and
+  rechecks permission/revision/meaning around a final checksum read. The browser
+  debounces/aborts superseded requests; the API stops abandoned queries while retaining
+  failed/completed receipts. Chat no longer duplicates parsing for starter questions.
+- DuckDB now binds bounded JSON column parameters after strict source conversion,
+  with fixed-point decimal strings and explicit SQL types. This fixes repeated missing
+  optional-library imports measured in the clean VPS image. It adds no dependency,
+  JSON file intake, persistent cache or Parquet adoption. Query limits and precision
+  contracts are unchanged; keep minimal-runtime checks in future verification.
+- Latest evidence: 601 backend/architecture tests (89 new regressions), 2 frontend
+  tests, 14 real-service browser journeys plus 4 final targeted checks, Ruff/mypy
+  (113 files), web lint/types and production builds pass. Live public-data evaluation
+  passes 24/24. All 8/8 deployed users saw seven findings and replayed seven receipts;
+  live filtered follow-ups and mobile layouts passed. This is a short functional
+  rehearsal, not sustained-load or production acceptance. Failed runs remain retained.
+- The **Public banking and retail walkthrough** workspace contains the attributed UCI
+  4,521-row bank CSV and a disclosed first-10,000-row retail XLSX subset, shared with
+  the eight demo accounts. Original archives, provenance, tests and reports live in
+  ignored `data/realdata-evaluation/`; credentials remain in ignored `data/vps-private/`.
+  See `docs/data-partner-reset.md` and `docs/verification-data-partner.md`.
+- October 2 checkpoint: `releases/pre-partner-20261002/source`, images tagged
+  `pre-partner-20261002`, backup `20261002T035155Z`. Readiness stays on 0012. Older
+  v1-only images cannot read new v2 revisions: preserve new metadata and account for
+  compatibility before rollback. Models, network exposure and all eight production
+  gates are unchanged. Phase 4C–4E remain planned; Phase 6 remains frozen.
 
 ## Non-negotiable engineering rules
 
@@ -134,9 +240,10 @@ make down
 
 The user authorized auditing the teammate's Phase 2 branch and proceeding into
 Phase 3, followed by the private explorer and the September 30 roadmap revision.
-Work is on local branch `phase2`, based on `origin/phase2` at `7d70cd7`.
-The teammate's commit is preserved. The audit/Phase 3 work has not been pushed or
-merged into main. Keep `.env` and customer documents out of version control.
+Work is on local branch `phase2`; local and tracked `origin/phase2` now contain
+baseline `c9560af`, preserving the teammate's original `7d70cd7`. The query and chat
+guidance repairs are deployed but uncommitted; they did not push or merge into main.
+Keep `.env` and customer documents out of version control.
 
 Phase 2 acceptance is verified for local/test operation. Current Phase 3 work uses
 the user-approved fictional corpus and private VPS explorer, with DeepSeek primary planning
@@ -176,3 +283,18 @@ an undeclared multipart package; it was corrected, clean-import checked and all
 release checks passed. Do not repeat that partial release as the final state.
 Next is 4C when instructed; 4B did not implement forecasts, exports or connectors.
 Preserve the 0011 source/image/database checkpoint and all new 0012 user metadata.
+
+The October 2 user request reprioritized an upload-first, useful private data partner
+and authorized public real-data validation. That usability repair is now deployed;
+it does not implement the remaining forecasts, exports, connectors or advanced
+methods. Read its audit/verification before extending. The September 30 repairs and
+October 2 release remain uncommitted on `phase2`; this work did not push or merge
+into main. Preserve both sets of changes and exclude private/generated artifacts.
+
+The October 4 request authorized incorporating the supplied platform proposal
+without replacing verified primitives. The published A–H audit led to the now
+verified Foundation A slice; it did not implement the entire advanced platform.
+Read `docs/conversation-jobs.md`, `docs/platform-artifacts-quality.md`,
+`docs/compute-broker.md` and ADR 0008 for its contracts. Keep Preparation B through
+Integration F aligned with the existing Phase 4/5/6 gates. This release remains
+uncommitted together with prior repairs; never stage private sessions, logs or data.

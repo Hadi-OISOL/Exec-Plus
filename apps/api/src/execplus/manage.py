@@ -1,25 +1,79 @@
-"""Use case: Provisions local development identity and object storage.
+"""Use case: Runs operator provisioning, storage initialization and bounded workers.
 
-What it does: Creates a private bucket or prints a short-lived session token for an operator.
+What it does: Composes configured services for explicit maintenance and durable job execution.
 """
 
 import argparse
 import asyncio
 import json
+import signal
+import sys
 
+from execplus.application.job_worker import work
+from execplus.application.services.jobs import JobService
 from execplus.bootstrap import build_runtime
 from execplus.config import Settings
 from execplus.infrastructure.identity import LocalSessionIdentity
 from execplus.infrastructure.object_storage import S3ObjectStorage
 
 
+async def _run_jobs(jobs: JobService, args: argparse.Namespace) -> dict[str, int]:
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    installed = []
+    try:
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(signum, stop.set)
+            installed.append(signum)
+        return await work(
+            jobs,
+            stop,
+            watch=args.watch,
+            concurrency=args.concurrency,
+            poll_seconds=args.poll_seconds,
+        )
+    finally:
+        for signum in installed:
+            loop.remove_signal_handler(signum)
+
+
+def _jobs_command(args: argparse.Namespace) -> None:
+    try:
+        settings = Settings()
+        runtime = build_runtime(settings)
+        try:
+            result = asyncio.run(_run_jobs(runtime.jobs, args))
+        finally:
+            runtime.engine.dispose()
+    except (Exception, asyncio.CancelledError):
+        print("worker action=process-jobs outcome=failed code=worker_failure", file=sys.stderr)
+        raise SystemExit(1) from None
+    except KeyboardInterrupt:
+        print("worker action=process-jobs outcome=stopped code=worker_interrupted", file=sys.stderr)
+        raise SystemExit(130) from None
+    print(json.dumps(result))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "action", choices=["provision-user", "init-storage", "deliver-reports", "process-refreshes"]
+        "action",
+        choices=[
+            "provision-user",
+            "init-storage",
+            "deliver-reports",
+            "process-refreshes",
+            "process-jobs",
+        ],
     )
     parser.add_argument("--email")
+    parser.add_argument("--watch", action="store_true")
+    parser.add_argument("--concurrency", type=int, default=4)
+    parser.add_argument("--poll-seconds", type=float, default=0.5)
     args = parser.parse_args()
+    if args.action == "process-jobs":
+        _jobs_command(args)
+        return
     settings = Settings()
     runtime = build_runtime(settings)
     try:

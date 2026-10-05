@@ -14,13 +14,16 @@ from uuid import UUID, uuid4
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.intent_router import (
+    ClarificationContext,
     ConversationAnswer,
     DatasetGuide,
     IntentRouterService,
+    PlanningClarification,
 )
 from execplus.domain.errors import (
     ClarificationRequiredError,
     ProviderUnavailableError,
+    QueryDataError,
     UnsafeQueryError,
     UnsupportedQuestionError,
 )
@@ -51,6 +54,7 @@ class ThreadService:
         for turn in turns:
             if (
                 turn.status == "running"
+                and turn.job_id is None
                 and (datetime.now(timezone.utc) - turn.created_at).total_seconds() > 120
             ):
                 turn = replace(
@@ -96,6 +100,9 @@ class ThreadService:
         self, repo: WorkspaceRepository, actor: User, wid: UUID, evidence: dict[str, Any]
     ) -> None:
         repo.membership(wid, actor.id)
+        if evidence.get("guide"):
+            for source in evidence.get("sources", []):
+                repo.upload(wid, UUID(source["dataset_id"]), UUID(source["upload_id"]))
         for ref in evidence.get("citations", []):
             doc = repo.document(wid, UUID(ref["document_id"]))
             repo.dataset(wid, doc.dataset_id)
@@ -163,8 +170,106 @@ class ThreadService:
         if data is not None:
             return data
         if turn.kind == "overview":
+            if turn.evidence.get("guide"):
+                guide = self._saved_guide(turn)
+                for source in guide.sources:
+                    self.intent_router.analytics.describe(
+                        actor, wid, UUID(source["dataset_id"]), UUID(source["upload_id"]), source
+                    )
+                return guide
             return DatasetGuide(turn.message or "", turn.model_route or "historical")
         return None
+
+    def _saved_guide(self, turn: ThreadTurn) -> DatasetGuide:
+        body = cast(dict[str, Any], turn.evidence["guide"])
+        return DatasetGuide(
+            str(body["message"]),
+            turn.model_route or "historical",
+            tuple(body["columns"]),
+            tuple(body["suggestions"]),
+            tuple(cast(list[dict[str, str]], turn.evidence["sources"])),
+            str(body["definition_state"]),
+            str(body.get("focus", "orientation")),
+        )
+
+    def claim(
+        self,
+        repo: WorkspaceRepository,
+        actor: User,
+        wid: UUID,
+        tid: UUID,
+        question: str,
+        request_id: UUID,
+        *,
+        accept_running: bool = False,
+    ) -> tuple[Thread, ThreadTurn, bool]:
+        if not question.strip() or len(question) > 500 or "\x00" in question:
+            raise IngestionError(
+                "invalid_question", "Use a nonempty question up to 500 characters.", 422
+            )
+        repo.workspace(wid, lock=True)
+        thread = self._thread(repo, actor, wid, tid)
+        prior = self._expire(repo, wid, repo.thread_turns(wid, tid))
+        existing = next((item for item in prior if item.request_id == request_id), None)
+        if existing is not None:
+            if existing.question != question:
+                raise IngestionError(
+                    "request_conflict",
+                    "Use a new request identifier for a different question.",
+                    409,
+                )
+            if existing.status == "running" and not accept_running:
+                raise IngestionError(
+                    "request_running",
+                    "This request is still running. Reopen the conversation shortly.",
+                    409,
+                )
+            return thread, existing, False
+        if any(item.status == "running" for item in prior):
+            raise IngestionError(
+                "thread_conflict", "Another request is running in this conversation.", 409
+            )
+        if len(prior) >= 100:
+            raise IngestionError(
+                "thread_limit", "Start a new conversation after one hundred turns.", 422
+            )
+        turn = ThreadTurn(
+            uuid4(),
+            tid,
+            question,
+            "unsupported",
+            None,
+            None,
+            datetime.now(timezone.utc),
+            request_id=request_id,
+            status="running",
+        )
+        repo.add_thread_turn(wid, turn)
+        return thread, turn, True
+
+    def publish(self, repo: WorkspaceRepository, actor: User, wid: UUID, turn: ThreadTurn) -> None:
+        repo.workspace(wid, lock=True)
+        self._thread(repo, actor, wid, turn.thread_id)
+        self._authorize_evidence(repo, actor, wid, turn.evidence)
+        current = next(
+            item for item in repo.thread_turns(wid, turn.thread_id) if item.id == turn.id
+        )
+        if current.status != "running":
+            raise IngestionError(
+                "request_conflict", "This request was already closed. Reopen the conversation.", 409
+            )
+        repo.update_thread_turn(wid, turn)
+        repo.add(
+            AuditEvent(
+                uuid4(),
+                wid,
+                actor.id,
+                f"conversation.{turn.status}",
+                "thread_turn",
+                turn.id,
+                datetime.now(timezone.utc),
+            )
+        )
 
     async def ask(
         self,
@@ -174,74 +279,82 @@ class ThreadService:
         question: str,
         request_id: UUID | None = None,
     ) -> tuple[ConversationAnswer | None, ThreadTurn]:
-        if not question.strip() or len(question) > 500 or "\x00" in question:
-            raise IngestionError(
-                "invalid_question", "Use a nonempty question up to 500 characters.", 422
-            )
-        request_id = request_id or uuid4()
-        now = datetime.now(timezone.utc)
         with self.uow() as repo:
-            repo.workspace(workspace_id, lock=True)
-            thread = self._thread(repo, actor, workspace_id, thread_id)
-            prior_turns = self._expire(
-                repo, workspace_id, repo.thread_turns(workspace_id, thread_id)
+            thread, turn, created = self.claim(
+                repo, actor, workspace_id, thread_id, question, request_id or uuid4()
             )
-            existing = next((item for item in prior_turns if item.request_id == request_id), None)
-            if existing and existing.question != question:
-                raise IngestionError(
-                    "request_conflict",
-                    "Use a new request identifier for a different question.",
-                    409,
+        if not created:
+            return await self.resolve(actor, workspace_id, thread_id, turn.id), turn
+        try:
+            answer, turn = await self.run_turn(actor, workspace_id, thread, turn)
+        except (IngestionError, asyncio.CancelledError):
+            with self.uow() as repo:
+                repo.workspace(workspace_id, lock=True)
+                current = next(
+                    item
+                    for item in repo.thread_turns(workspace_id, thread_id)
+                    if item.id == turn.id
                 )
-            if existing and existing.status == "running":
-                raise IngestionError(
-                    "request_running",
-                    "This request is still running. Reopen the conversation shortly.",
-                    409,
-                )
-            if existing is None and any(item.status == "running" for item in prior_turns):
-                raise IngestionError(
-                    "thread_conflict", "Another request is running in this conversation.", 409
-                )
-            prior_lineage = None
-            prior_document_query = ""
-            if existing is None:
-                if len(prior_turns) >= 100:
-                    raise IngestionError(
-                        "thread_limit", "Start a new conversation after one hundred turns.", 422
+                if current.status == "running":
+                    repo.update_thread_turn(
+                        workspace_id,
+                        replace(
+                            turn,
+                            status="failed",
+                            message=(
+                                "This request was interrupted or a required source is unavailable."
+                            ),
+                        ),
                     )
-                for item in reversed(prior_turns):
-                    if not prior_document_query and item.evidence.get("document_query"):
-                        self._authorize_evidence(repo, actor, workspace_id, item.evidence)
-                        prior_document_query = str(item.evidence["document_query"])
-                    if prior_lineage is None and item.query_id:
-                        prior_lineage = repo.query_execution(workspace_id, item.query_id).lineage()
-                turn = ThreadTurn(
-                    uuid4(),
-                    thread_id,
-                    question,
-                    "unsupported",
-                    None,
-                    None,
-                    now,
-                    request_id=request_id,
-                    status="running",
-                )
-                repo.add_thread_turn(workspace_id, turn)
-        if existing is not None:
-            return await self.resolve(actor, workspace_id, thread_id, existing.id), existing
+            raise
+        with self.uow() as repo:
+            self.publish(repo, actor, workspace_id, turn)
+        return answer, turn
 
+    async def run_turn(
+        self, actor: User, wid: UUID, thread: Thread, turn: ThreadTurn
+    ) -> tuple[ConversationAnswer | None, ThreadTurn]:
+        prior_lineage = None
+        prior_document_query = ""
+        prior_guide = None
+        prior_clarification = None
+        with self.uow() as repo:
+            self._thread(repo, actor, wid, thread.id)
+            all_turns = repo.thread_turns(wid, thread.id)
+            position = next(i for i, item in enumerate(all_turns) if item.id == turn.id)
+            prior_turns = all_turns[:position]
+            for item in reversed(prior_turns):
+                if not prior_document_query and item.evidence.get("document_query"):
+                    self._authorize_evidence(repo, actor, wid, item.evidence)
+                    prior_document_query = str(item.evidence["document_query"])
+                if prior_lineage is None and item.query_id:
+                    prior_lineage = repo.query_execution(wid, item.query_id).lineage()
+            if prior_turns and prior_turns[-1].evidence.get("guide"):
+                self._authorize_evidence(repo, actor, wid, prior_turns[-1].evidence)
+                prior_guide = self._saved_guide(prior_turns[-1])
+                if prior_guide.columns:
+                    prior_lineage = None
+                    prior_document_query = ""
+            if prior_turns and prior_turns[-1].evidence.get("clarification"):
+                saved = cast(dict[str, Any], prior_turns[-1].evidence["clarification"])
+                prior_clarification = ClarificationContext(
+                    str(saved["question"]),
+                    str(saved["message"]),
+                    tuple(cast(list[dict[str, str]], saved["sources"])),
+                )
         answer: ConversationAnswer | None = None
         try:
             answer = await asyncio.wait_for(
                 self.intent_router.ask(
                     actor,
-                    workspace_id,
+                    wid,
                     thread.dataset_id,
                     thread.upload_id,
-                    question,
+                    turn.question,
                     prior_lineage,
                     prior_document_query,
+                    prior_guide,
+                    prior_clarification,
                 ),
                 timeout=100,
             )
@@ -266,10 +379,21 @@ class ThreadService:
                     status="partial" if answer.limitations else "complete",
                 )
             elif isinstance(answer, DatasetGuide):
+                evidence = dict(
+                    guide=dict(
+                        version="dataset-guidance-v1",
+                        message=answer.message,
+                        columns=list(answer.columns),
+                        suggestions=list(answer.suggestions),
+                        definition_state=answer.definition_state,
+                        focus=answer.focus,
+                    ),
+                    sources=list(answer.sources),
+                )
                 turn = replace(
                     turn,
                     kind="overview",
-                    message=answer.message,
+                    message=None,
                     model_route=answer.model_route,
                     status="complete",
                 )
@@ -292,8 +416,21 @@ class ThreadService:
             turn = replace(turn, evidence=evidence)
         except ClarificationRequiredError as error:
             turn = replace(turn, kind="ambiguous", message=str(error)[:1000], status="complete")
+            if isinstance(error, PlanningClarification):
+                turn = replace(
+                    turn,
+                    evidence={
+                        "clarification": {
+                            "question": error.context.question,
+                            "message": error.context.message[:1000],
+                            "sources": list(error.context.sources),
+                        }
+                    },
+                )
         except UnsupportedQuestionError as error:
             turn = replace(turn, kind="unsupported", message=str(error)[:1000], status="complete")
+        except QueryDataError as error:
+            turn = replace(turn, status="failed", message=str(error)[:1000])
         except (ProviderUnavailableError, asyncio.TimeoutError, UnsafeQueryError):
             turn = replace(
                 turn,
@@ -302,37 +439,5 @@ class ThreadService:
                     "This request could not complete safely. No complete answer is available. "
                     "Start a new turn to try again."
                 ),
-            )
-        except IngestionError:
-            with self.uow() as repo:
-                repo.update_thread_turn(
-                    workspace_id,
-                    replace(turn, status="failed", message="A required source is unavailable."),
-                )
-            raise
-        with self.uow() as repo:
-            repo.workspace(workspace_id, lock=True)
-            self._thread(repo, actor, workspace_id, thread_id)
-            self._authorize_evidence(repo, actor, workspace_id, turn.evidence)
-            current = next(
-                item for item in repo.thread_turns(workspace_id, thread_id) if item.id == turn.id
-            )
-            if current.status != "running":
-                raise IngestionError(
-                    "request_conflict",
-                    "This request was already closed. Reopen the conversation.",
-                    409,
-                )
-            repo.update_thread_turn(workspace_id, turn)
-            repo.add(
-                AuditEvent(
-                    uuid4(),
-                    workspace_id,
-                    actor.id,
-                    f"conversation.{turn.status}",
-                    "thread_turn",
-                    turn.id,
-                    datetime.now(timezone.utc),
-                )
             )
         return answer, turn

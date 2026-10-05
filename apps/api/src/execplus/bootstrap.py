@@ -14,10 +14,13 @@ from execplus.application.ports import IdentityProvider, LanguageModel
 from execplus.application.services.activation import ActivationService
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.answers import AnswerAssembler
+from execplus.application.services.artifacts import ArtifactService
 from execplus.application.services.catalog import CatalogService
+from execplus.application.services.compute import ComputeBroker, ComputeEngine
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.health import HealthService
 from execplus.application.services.intent_router import IntentRouterService
+from execplus.application.services.jobs import JobService
 from execplus.application.services.joins import JoinService
 from execplus.application.services.knowledge import KnowledgeService
 from execplus.application.services.monitoring import MonitoringService
@@ -30,6 +33,7 @@ from execplus.application.services.threads import ThreadService
 from execplus.application.services.understanding import UnderstandingService
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.config import Settings
+from execplus.domain.compute import ComputeCapabilities, ComputeOperation, QueryBudget
 from execplus.infrastructure.email import DisabledEmailDelivery, SMTPEmailDelivery
 from execplus.infrastructure.file_parser import StructuredFileParser
 from execplus.infrastructure.identity import LocalSessionIdentity
@@ -92,7 +96,23 @@ def build_runtime(settings: Settings) -> "Runtime":
     storage = S3ObjectStorage(client, settings.object_store_bucket)
     identity = LocalSessionIdentity(engine, settings.environment)
     parser = StructuredFileParser()
-    executor = DuckDBQueryExecutor(settings.query_timeout_seconds, settings.query_memory_limit_mb)
+    budget = QueryBudget(
+        timeout_seconds=settings.query_timeout_seconds,
+        memory_limit_mb=settings.query_memory_limit_mb,
+        threads=settings.query_threads,
+        input_rows=settings.query_input_rows,
+        input_cells=settings.query_input_cells,
+        result_rows=settings.query_result_rows,
+    )
+    executor = ComputeBroker(
+        {
+            "duckdb": ComputeEngine(
+                ComputeCapabilities("duckdb", frozenset(ComputeOperation), budget),
+                DuckDBQueryExecutor(budget.timeout_seconds, budget.memory_limit_mb, budget=budget),
+            )
+        },
+        "duckdb",
+    )
     analytics = AnalyticsService(
         SQLUnitOfWork(engine),
         storage,
@@ -109,6 +129,7 @@ def build_runtime(settings: Settings) -> "Runtime":
     )
     uploads = WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes)
     refresh = RefreshService(SQLUnitOfWork(engine), uploads, analytics)
+    threads = ThreadService(SQLUnitOfWork(engine), intent_router)
     return Runtime(
         uploads,
         identity,
@@ -119,7 +140,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         SummaryService(selector or model),
         JoinService(SQLUnitOfWork(engine), storage, parser, executor, settings.query_row_limit),
         SavedItemService(SQLUnitOfWork(engine)),
-        ThreadService(SQLUnitOfWork(engine), intent_router),
+        threads,
         ActivationService(SQLUnitOfWork(engine), analytics, __version__),
         knowledge,
         ReportService(
@@ -142,6 +163,15 @@ def build_runtime(settings: Settings) -> "Runtime":
         OrganizationService(SQLUnitOfWork(engine)),
         refresh,
         MonitoringService(SQLUnitOfWork(engine), analytics, refresh),
+        ArtifactService(SQLUnitOfWork(engine)),
+        JobService(
+            SQLUnitOfWork(engine),
+            threads,
+            workspace_limit=settings.jobs_workspace_limit,
+            lease_seconds=settings.jobs_lease_seconds,
+            timeout_seconds=settings.jobs_timeout_seconds,
+            queue_limit=settings.jobs_queue_limit,
+        ),
     )
 
 
@@ -166,3 +196,5 @@ class Runtime:
     organizations: OrganizationService
     refresh: RefreshService
     monitoring: MonitoringService
+    artifacts: ArtifactService
+    jobs: JobService

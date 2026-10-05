@@ -16,7 +16,7 @@ from sqlalchemy import delete, select, update
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.intent_router import IntentRouterService
 from execplus.application.services.threads import ThreadService
-from execplus.domain.errors import ProviderUnavailableError
+from execplus.domain.errors import ProviderUnavailableError, QueryDataError
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.intent import route_response
 from execplus.domain.models import QuestionKind
@@ -163,6 +163,24 @@ def test_missing_documents_and_source_outage_never_invent_an_answer(integration,
     assert failed.json()["answer"]["coverage"] == "unavailable"
     assert failed.json()["turn"]["status"] == "partial"
     assert "secret storage" not in failed.text
+
+
+def test_mixed_data_error_keeps_actionable_location_and_document_evidence(integration, monkeypatch):
+    env = integration
+    owner, _, root, path, _ = setup(env, MIXED, SELECT)
+    document(env, owner, root)
+
+    async def fail(*args):
+        raise QueryDataError('Column "revenue", data row 3: expected a finite decimal.')
+
+    monkeypatch.setattr(env.runtime.analytics.executor, "execute", fail)
+    response = ask(env, owner, path)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["turn"]["status"] == "partial"
+    assert body["answer"]["data"] is None
+    assert len(body["answer"]["citations"]) == 1
+    assert 'Column "revenue", data row 3' in body["answer"]["limitations"][0]
 
 
 def test_conflicting_sources_are_quoted_without_resolving_them_or_obeying_instructions(integration):

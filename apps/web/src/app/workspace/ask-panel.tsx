@@ -9,6 +9,14 @@ import { SaveControl } from "./saved-panel";
 import type { ApiRequest } from "./profile-panel";
 import { ConversationEvidence } from "./conversation-evidence";
 import type { Citation } from "./conversation-evidence";
+import { ConversationActivity } from "./conversation-activity";
+import {
+  isTerminalJob,
+  mergeJobEvents,
+  pollPause,
+  reconcileJob,
+} from "./conversation-job";
+import type { ConversationJob, JobEvent, JobEvents } from "./conversation-job";
 
 type Lineage = {
   query_id: string;
@@ -34,6 +42,12 @@ type Answer = {
   citations?: Citation[];
   limitations?: string[];
   coverage?: string;
+  guidance?: {
+    columns: string[];
+    suggestions: string[];
+    definition_state: string;
+  };
+  sources?: { revision_id: string; understanding_id?: string }[];
 };
 type Turn = {
   id: number | string;
@@ -44,6 +58,10 @@ type Turn = {
   requestId?: string;
   serverId?: string;
   status?: string;
+  jobId?: string;
+  job?: ConversationJob;
+  events?: JobEvent[];
+  unavailable?: boolean;
 };
 type History = { id: string; created_at: string };
 type SavedTurn = {
@@ -51,9 +69,11 @@ type SavedTurn = {
   question: string;
   kind: string;
   message: string | null;
-  request_id: string;
+  request_id: string | null;
   status: string;
+  job_id?: string | null;
 };
+type JobResult = { turn: SavedTurn; answer: Answer | null };
 const flatten = (answer: Answer | null): Answer | null =>
   answer?.data ? { ...answer, ...answer.data, data: undefined } : answer;
 function requestIdentifier(): string {
@@ -71,7 +91,7 @@ function requestIdentifier(): string {
     hex.slice(20),
   ].join("-");
 }
-export type ChatHandle = { ask: (question: string) => void };
+export type ChatHandle = { ask: (question: string) => void; focus: () => void };
 const post = (body: object): RequestInit => ({
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -82,38 +102,178 @@ export function AskPanel({
   root,
   request,
   filename,
+  starterQuestions = [],
+  expert = false,
   ref,
 }: {
   root: string;
   request: ApiRequest;
   filename: string;
+  starterQuestions?: string[];
+  expert?: boolean;
   ref?: Ref<ChatHandle>;
 }) {
   const [threadId, setThreadId] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState("");
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<History[]>([]);
   const [selectedThread, setSelectedThread] = useState("");
   const [historyError, setHistoryError] = useState("");
+  const [activeJob, setActiveJob] = useState<ConversationJob | null>(null);
+  const [activityEvents, setActivityEvents] = useState<JobEvent[]>([]);
+  const [cancelPending, setCancelPending] = useState(false);
+  const [cancelError, setCancelError] = useState("");
   const serial = useRef(0);
   const inFlight = useRef(false);
+  const operation = useRef<AbortController | null>(null);
+  const lastActivity = useRef<{
+    job: ConversationJob;
+    events: JobEvent[];
+  } | null>(null);
   const conversation = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const workspaceRoot = root.split("/datasets/")[0];
 
-  useEffect(() => {
-    let cancelled = false;
-    request<string[]>(`${root}/suggested-questions`)
-      .then((result) => {
-        if (!cancelled) setSuggestions(result);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [root, request]);
+  useEffect(() => () => operation.current?.abort(), [root, request]);
+
+  function beginOperation() {
+    const controller = new AbortController();
+    operation.current = controller;
+    inFlight.current = true;
+    lastActivity.current = null;
+    setBusy(true);
+    setCancelError("");
+    setCancelPending(false);
+    return controller;
+  }
+
+  function finishOperation(controller: AbortController) {
+    if (controller.signal.aborted || operation.current !== controller) return;
+    controller.abort();
+    operation.current = null;
+    inFlight.current = false;
+    setBusy(false);
+    setPending("");
+    setActiveJob(null);
+    setCancelPending(false);
+    input.current?.focus({ preventScroll: true });
+  }
+
+  async function observeJob(
+    initial: ConversationJob,
+    turn: Turn,
+    controller: AbortController,
+  ) {
+    let events: JobEvent[] = [];
+    let sequence = 0;
+    setActiveJob(initial);
+    setActivityEvents(events);
+    lastActivity.current = { job: initial, events };
+    const path = `${workspaceRoot}/jobs/${initial.id}`;
+    while (!controller.signal.aborted) {
+      const [observedJob, activity] = await Promise.all([
+        request<ConversationJob>(path, { signal: controller.signal }),
+        request<JobEvents>(`${path}/events?after=${sequence}`, {
+          signal: controller.signal,
+        }),
+      ]);
+      if (controller.signal.aborted) return;
+      const job = reconcileJob(lastActivity.current?.job, observedJob);
+      events = mergeJobEvents(events, activity.events);
+      sequence = Math.max(sequence, activity.next_sequence);
+      lastActivity.current = { job, events };
+      setActiveJob(job);
+      setActivityEvents(events);
+      if (isTerminalJob(job)) {
+        const finalActivity = await request<JobEvents>(
+          `${path}/events?after=${sequence}`,
+          { signal: controller.signal },
+        );
+        if (controller.signal.aborted) return;
+        events = mergeJobEvents(events, finalActivity.events);
+        lastActivity.current = { job, events };
+        const result = await request<JobResult>(`${path}/result`, {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        setTurns((previous) => [
+          ...previous.filter((item) => item.id !== turn.id),
+          {
+            ...turn,
+            serverId: result.turn.id,
+            status: result.turn.status,
+            answer: flatten(result.answer),
+            message: result.turn.message ?? "",
+            failed: ["failed", "expired"].includes(job.status),
+            jobId: job.id,
+            job,
+            events,
+          },
+        ]);
+        return;
+      }
+      await pollPause(controller.signal, document.hidden ? 3000 : 1000);
+    }
+  }
+
+  function interruptedTurn(turn: Turn, cause: unknown) {
+    const status = (cause as { status?: number })?.status;
+    const unavailable = status === 401 || status === 403 || status === 404;
+    const activity = lastActivity.current;
+    setTurns((previous) => [
+      ...previous.filter((item) => item.id !== turn.id),
+      {
+        ...turn,
+        failed: true,
+        unavailable,
+        jobId: activity?.job.id ?? turn.jobId,
+        job: activity?.job,
+        events: activity?.events,
+        message:
+          unavailable || (status && !activity)
+            ? cause instanceof Error
+              ? cause.message
+              : "This request is unavailable."
+            : "The connection was interrupted. Your request may still be running. Resume or check the same request before starting another.",
+      },
+    ]);
+  }
+
+  async function cancelJob() {
+    const job = activeJob;
+    const controller = operation.current;
+    if (!job || !controller || cancelPending || isTerminalJob(job)) return;
+    setCancelPending(true);
+    setCancelError("");
+    try {
+      const result = await request<ConversationJob>(
+        `${workspaceRoot}/jobs/${job.id}/cancel`,
+        {
+          method: "POST",
+          signal: controller.signal,
+        },
+      );
+      if (!controller.signal.aborted) {
+        const current = reconcileJob(lastActivity.current?.job, result);
+        lastActivity.current = {
+          job: current,
+          events: lastActivity.current?.events ?? [],
+        };
+        setActiveJob(current);
+      }
+    } catch (cause) {
+      if (!controller.signal.aborted) {
+        setCancelPending(false);
+        setCancelError(
+          cause instanceof Error
+            ? cause.message
+            : "Cancellation could not be requested. The request may still be running.",
+        );
+      }
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -129,54 +289,88 @@ export function AskPanel({
 
   async function openHistory() {
     if (!selectedThread || inFlight.current) return;
-    setBusy(true);
+    const controller = beginOperation();
     setHistoryError("");
-    inFlight.current = true;
     try {
       const result = await request<{ turns: SavedTurn[] }>(
-        `${root.split("/datasets/")[0]}/threads/${selectedThread}`,
+        `${workspaceRoot}/threads/${selectedThread}`,
+        { signal: controller.signal },
       );
+      if (controller.signal.aborted) return;
       setThreadId(selectedThread);
-      setTurns(
-        result.turns.map((turn) => ({
-          id: turn.id,
-          serverId: turn.id,
-          requestId: turn.request_id,
-          status: turn.status,
-          question: turn.question,
-          answer: null,
-          failed: turn.status === "failed",
-          message:
-            turn.message ??
-            (turn.status === "running"
-              ? "This request is still running. Reopen this conversation shortly."
-              : "Saved answer — load its evidence below."),
-        })),
+      const savedTurns: Turn[] = result.turns.map((turn) => ({
+        id: turn.id,
+        serverId: turn.id,
+        requestId: turn.request_id ?? undefined,
+        status: turn.status,
+        jobId: turn.job_id ?? undefined,
+        question: turn.question,
+        answer: null,
+        failed: turn.status === "failed",
+        message:
+          turn.message ??
+          (turn.status === "running"
+            ? "This request is still running."
+            : "Saved answer — load its evidence below."),
+      }));
+      setTurns(savedTurns);
+      const running = savedTurns.find(
+        (turn) => turn.status === "running" && turn.jobId,
       );
+      if (running) {
+        setPending(running.question);
+        setTurns(savedTurns.filter((turn) => turn.id !== running.id));
+        try {
+          const job = await request<ConversationJob>(
+            `${workspaceRoot}/jobs/${running.jobId}`,
+            { signal: controller.signal },
+          );
+          if (!controller.signal.aborted)
+            await observeJob(job, running, controller);
+        } catch (cause) {
+          if (!controller.signal.aborted) interruptedTurn(running, cause);
+        }
+      }
     } catch (cause) {
-      setHistoryError(
-        cause instanceof Error ? cause.message : "Conversation unavailable.",
-      );
+      if (!controller.signal.aborted)
+        setHistoryError(
+          cause instanceof Error ? cause.message : "Conversation unavailable.",
+        );
     } finally {
-      setBusy(false);
-      inFlight.current = false;
+      finishOperation(controller);
     }
   }
 
   async function loadAnswer(turn: Turn) {
     if (!turn.serverId || inFlight.current) return;
-    setBusy(true);
-    inFlight.current = true;
+    const controller = beginOperation();
     try {
       const answer = await request<Answer | null>(
-        `${root.split("/datasets/")[0]}/threads/${threadId}/turns/${turn.serverId}/answer`,
+        `${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/answer`,
+        { signal: controller.signal },
       );
+      if (controller.signal.aborted) return;
+      const activity = turn.jobId
+        ? await request<JobEvents>(
+            `${workspaceRoot}/jobs/${turn.jobId}/events?after=0`,
+            { signal: controller.signal },
+          )
+        : null;
+      const job = turn.jobId
+        ? await request<ConversationJob>(
+            `${workspaceRoot}/jobs/${turn.jobId}`,
+            { signal: controller.signal },
+          )
+        : null;
+      if (controller.signal.aborted) return;
       setTurns((items) =>
         items.map((item) =>
           item.id === turn.id
             ? {
                 ...item,
                 answer: flatten(answer),
+                job: job ?? undefined,
+                events: activity?.events,
                 message: answer
                   ? "Reopened historical evidence. A follow-up will check for source changes."
                   : item.message,
@@ -185,6 +379,7 @@ export function AskPanel({
         ),
       );
     } catch (cause) {
+      if (controller.signal.aborted) return;
       setTurns((items) =>
         items.map((item) =>
           item.id === turn.id
@@ -200,8 +395,7 @@ export function AskPanel({
         ),
       );
     } finally {
-      setBusy(false);
-      inFlight.current = false;
+      finishOperation(controller);
     }
   }
 
@@ -212,82 +406,87 @@ export function AskPanel({
 
   async function ask(text: string, retry?: Turn) {
     if (inFlight.current || !text.trim()) return;
-    inFlight.current = true;
-    setBusy(true);
+    const controller = beginOperation();
     setPending(text);
     setQuestion("");
     const id = retry?.id ?? ++serial.current;
     const requestId = retry?.requestId ?? requestIdentifier();
+    const turn: Turn = {
+      id,
+      question: text,
+      requestId,
+      answer: null,
+      message: "",
+      jobId: retry?.jobId,
+    };
     if (retry) setTurns((items) => items.filter((item) => item.id !== id));
     try {
+      if (retry?.jobId) {
+        const job = await request<ConversationJob>(
+          `${workspaceRoot}/jobs/${retry.jobId}`,
+          { signal: controller.signal },
+        );
+        if (!controller.signal.aborted) await observeJob(job, turn, controller);
+        return;
+      }
       const thread =
         threadId ||
-        (await request<{ id: string }>(`${root}/threads`, { method: "POST" }))
-          .id;
+        (
+          await request<{ id: string }>(`${root}/threads`, {
+            method: "POST",
+            signal: controller.signal,
+          })
+        ).id;
+      if (controller.signal.aborted) return;
       setThreadId(thread);
-      const result = await request<{
-        answer: Answer | null;
-        turn: {
-          id: string;
-          message: string | null;
-          kind: string;
-          status: string;
-        };
-      }>(
-        `${root.split("/datasets/")[0]}/threads/${thread}/ask`,
-        post({ question: text, request_id: requestId }),
+      const job = await request<ConversationJob>(
+        `${workspaceRoot}/threads/${thread}/jobs`,
+        {
+          ...post({ question: text, request_id: requestId }),
+          signal: controller.signal,
+        },
       );
-      setTurns((previous) => [
-        ...previous,
-        {
-          id,
-          question: text,
-          answer: flatten(result.answer),
-          message: result.turn.message ?? "",
-          serverId: result.turn.id,
-          status: result.turn.status,
-        },
-      ]);
+      if (!controller.signal.aborted) await observeJob(job, turn, controller);
     } catch (cause) {
-      setTurns((previous) => [
-        ...previous,
-        {
-          id,
-          question: text,
-          answer: null,
-          message:
-            cause instanceof Error
-              ? cause.message
-              : "Could not answer. Please try again.",
-          failed: true,
-          requestId,
-        },
-      ]);
+      if (controller.signal.aborted) return;
+      interruptedTurn(turn, cause);
       setQuestion(text);
     } finally {
-      inFlight.current = false;
-      setBusy(false);
-      setPending("");
-      input.current?.focus({ preventScroll: true });
+      finishOperation(controller);
     }
   }
   useImperativeHandle(ref, () => ({
+    focus: () => {
+      input.current?.scrollIntoView({
+        block: "center",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
+      input.current?.focus({ preventScroll: true });
+    },
     ask: (text) => {
+      input.current?.scrollIntoView({
+        block: "center",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
       void ask(text);
     },
   }));
 
   async function generateSummary() {
     if (inFlight.current) return;
-    inFlight.current = true;
-    setBusy(true);
+    const controller = beginOperation();
     setPending("Summarize the verified insights");
     const id = ++serial.current;
     try {
       const result = await request<{ summary: string }>(
         `${root}/dashboard/summary`,
-        post({ filters: [] }),
+        { ...post({ filters: [] }), signal: controller.signal },
       );
+      if (controller.signal.aborted) return;
       setTurns((previous) => [
         ...previous,
         {
@@ -298,6 +497,7 @@ export function AskPanel({
         },
       ]);
     } catch (cause) {
+      if (controller.signal.aborted) return;
       setTurns((previous) => [
         ...previous,
         {
@@ -312,9 +512,7 @@ export function AskPanel({
         },
       ]);
     } finally {
-      inFlight.current = false;
-      setBusy(false);
-      setPending("");
+      finishOperation(controller);
     }
   }
 
@@ -385,7 +583,7 @@ export function AskPanel({
       <div className="chatSource">
         <span className="liveDot" />
         <span>{filename}</span>
-        <span>Connected</span>
+        <span>Selected file</span>
       </div>
       <div
         className="conversationLog"
@@ -399,29 +597,34 @@ export function AskPanel({
           <span className="messageAuthor">ExecPlus</span>
           <h3>What would you like to discover?</h3>
           <p>
-            I can find records, calculate totals and break results down by
-            category, and find supporting document passages. Ask a follow-up to
-            keep exploring.
+            You’re exploring <strong>{filename}</strong>. Ask what a column
+            means, find specific records, or explore one of the findings
+            alongside this conversation.
           </p>
           <p className="chatHint">
-            Try “show all records of Karachi” when your file has a city column.
+            You don’t need to know the right query. Start with what you want to
+            understand.
           </p>
         </div>
         {!turns.length && (
           <div className="suggestionChips">
-            {[...suggestions.slice(0, 3), "Show the first 10 records"].map(
-              (item) => (
-                <button
-                  type="button"
-                  key={item}
-                  disabled={busy}
-                  onClick={() => void ask(item)}
-                >
-                  {item}
-                  <Icon name="arrow" size={14} />
-                </button>
-              ),
-            )}
+            {[
+              ...new Set([
+                "Help me understand my data",
+                ...starterQuestions.slice(0, 2),
+                "Show the first 10 records",
+              ]),
+            ].map((item) => (
+              <button
+                type="button"
+                key={item}
+                disabled={busy}
+                onClick={() => void ask(item)}
+              >
+                {item}
+                <Icon name="arrow" size={14} />
+              </button>
+            ))}
           </div>
         )}
         {turns.map((turn) => (
@@ -439,7 +642,52 @@ export function AskPanel({
                   </span>
                 )}
               </span>
-              {turn.answer?.message ? (
+              {turn.answer?.guidance ? (
+                <div className="datasetGuidance" aria-label="Data explanation">
+                  {turn.answer.message
+                    ?.split("\n\n")
+                    .map((paragraph, index) => (
+                      <p key={index}>{paragraph}</p>
+                    ))}
+                  <div
+                    className="suggestionChips"
+                    aria-label="Explore this explanation"
+                  >
+                    {turn.answer.guidance.suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void ask(suggestion)}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                  <details className="answerEvidence" open={expert}>
+                    <summary>What this explanation is based on</summary>
+                    <p>
+                      Selected-file profile and saved workspace definitions.
+                      Naming-based interpretations are tentative.
+                    </p>
+                    <p>
+                      Definition status:{" "}
+                      {turn.answer.guidance.definition_state.replaceAll(
+                        "_",
+                        " ",
+                      )}
+                    </p>
+                    {turn.answer.sources?.map((source) => (
+                      <p key={source.revision_id}>
+                        Source revision: {source.revision_id}
+                        {source.understanding_id
+                          ? ` · Definition version: ${source.understanding_id}`
+                          : ""}
+                      </p>
+                    ))}
+                  </details>
+                </div>
+              ) : turn.answer?.message ? (
                 <p>{turn.answer.message}</p>
               ) : (
                 turn.message && (
@@ -477,8 +725,7 @@ export function AskPanel({
               )}
               {turn.serverId &&
                 !turn.answer &&
-                turn.status !== "running" &&
-                turn.status !== "failed" && (
+                ["complete", "partial"].includes(turn.status ?? "") && (
                   <button
                     type="button"
                     disabled={busy}
@@ -487,15 +734,32 @@ export function AskPanel({
                     Load saved answer
                   </button>
                 )}
-              {turn.failed && turn.requestId && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void ask(turn.question, turn)}
-                >
-                  Check or retry this request
-                </button>
-              )}
+              {turn.failed &&
+                !turn.unavailable &&
+                turn.requestId &&
+                (!turn.job || !isTerminalJob(turn.job)) && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void ask(turn.question, turn)}
+                  >
+                    {turn.jobId
+                      ? "Resume activity"
+                      : "Check or retry this request"}
+                  </button>
+                )}
+              {turn.failed &&
+                turn.job &&
+                isTerminalJob(turn.job) &&
+                !turn.unavailable && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void ask(turn.question)}
+                  >
+                    Try as a new request
+                  </button>
+                )}
               {turn.answer?.rows && (
                 <>
                   <p>
@@ -520,7 +784,7 @@ export function AskPanel({
                     {turn.answer.lineage.records_analyzed.toLocaleString()}{" "}
                     source records
                   </span>
-                  <details className="answerEvidence">
+                  <details className="answerEvidence" open={expert}>
                     <summary>How this answer was verified</summary>
                     <p>
                       {turn.answer.lineage.filters.length
@@ -550,6 +814,16 @@ export function AskPanel({
                   </details>
                 </>
               )}
+              {turn.job && (
+                <details className="answerEvidence" open={expert}>
+                  <summary>Request activity</summary>
+                  <ConversationActivity
+                    job={turn.job}
+                    events={turn.events ?? []}
+                    expert={expert}
+                  />
+                </details>
+              )}
               <details className="saveQuestion">
                 <summary>Save question</summary>
                 <SaveControl
@@ -569,24 +843,26 @@ export function AskPanel({
               <span className="messageAuthor">You</span>
               <p>{pending}</p>
             </div>
-            <div className="thinkingFlow" aria-busy="true">
-              <span className="thinkingDots">
-                <i />
-                <i />
-                <i />
-              </span>
-              <p>Planning and checking your request…</p>
-              <div>
-                <span>Question</span>
-                <Icon name="arrow" size={14} />
-                <span>Data + documents</span>
-                <Icon name="arrow" size={14} />
-                <span>Evidence</span>
-              </div>
-            </div>
+            {!activeJob && (
+              <p className="requestPending" role="status">
+                {pending === "Summarize the verified insights"
+                  ? "Requesting a summary of verified insights…"
+                  : "Submitting your request…"}
+              </p>
+            )}
           </>
         )}
       </div>
+      {activeJob && (
+        <ConversationActivity
+          job={activeJob}
+          events={activityEvents}
+          expert={expert}
+          cancelPending={cancelPending}
+          error={cancelError}
+          onCancel={() => void cancelJob()}
+        />
+      )}
       <div className="chatComposer">
         <button
           className="summaryAction"

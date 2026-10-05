@@ -15,6 +15,64 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 4 — Platform foundation extension
+
+**Status:** Complete for Foundation A's local/test and private-demo scope. The
+October 4 proposal is incorporated as dependency-ordered
+extensions to the existing product, not a replacement of its verified contracts.
+The preimplementation [audit and delivery plan](docs/platform-foundation-plan.md)
+records the gaps, migration/API design, risks and acceptance criteria.
+
+The current **Foundation A** slice adds typed artifact/capability and quality views
+over retained sources, a compatible bounded compute broker, and durable private
+conversation jobs with actual progress, cancellation and resume. Its UI activity
+trace records executed actions; it never displays a fabricated chain of thought.
+PostgreSQL/MinIO, cancellation, crash recovery, permissions, migration preservation,
+historical replay and browser checks passed. The private VPS runs migration 0013
+and its bounded worker. Eight deployed users passed 56 receipt replays, 18 jobs,
+204 recorded events and 32 private-access denials. See the
+[verification ledger](docs/verification-platform-foundation.md) for all checks,
+retained failures and limits. This completes Foundation A, not the whole proposal.
+
+The remaining proposal is assigned without weakening the original phase gates:
+
+| Extension | Remaining work | Roadmap relationship |
+| --- | --- | --- |
+| Preparation B | Parser registry/process budgets, versioned quality rules, classified model disclosure, approved transforms and retention/rebuild | Extends Phase 1 foundations before new ingestion formats |
+| Analysis C | Deterministic method registry, bounded analysis plans, tested statistics and trusted chart specifications | Enables Phase 4C forecasting and 4D reproducible exports |
+| Execution D | Process-isolated Python with package/network/filesystem/resource controls and provenance | Prerequisite for eligible advanced Phase 6 methods |
+| Experiment E | Reproducible feature/experiment/ML artifacts and measured evaluations | Phase 6 remains Frozen until activated |
+| Integration F | Secret-provider boundary, approved read-only connectors, registered remote compute and endpoint controls | Phase 4E first sources; broader integrations retain Phase 6 gates |
+
+Measured caches, tracing/metrics, operational quotas and independent evaluations
+belong with their owning slice and Phase 5 acceptance. No new format, connector,
+statistics method, forecasting capability, sandbox or ML feature is implemented
+merely by introducing an interface. Phase 4C–4E remain Planned.
+
+## October 2 — Upload-first data partner repair
+
+**Status:** Complete for the approved local/test and private-demo scope; verification is recorded in
+[the data-partner ledger](docs/verification-data-partner.md).
+
+The user reprioritized a usable private demo: upload a supported file, receive
+useful calculated findings, and explore through conversation with minimal setup.
+The [gap audit and contracts](docs/data-partner-reset.md) separate this usability
+work from the still-unimplemented 4C–4E features. Production work remains deferred
+as requested; it does not block this private-demo usability release.
+
+Acceptance covers automatic workspace/dataset setup, source-backed discovery,
+optional advanced controls, private clarification continuity, versioned real-file
+inference, licensed public-data tests and a deployed eight-user rehearsal. Existing
+Phase 0–4B evidence remains historical; this entry does not redefine all statistical
+analysis, forecasting or arbitrary connectivity as implemented.
+
+The final private VPS rehearsal passed eight concurrent browser journeys with all
+seven expected findings and receipt replays per user, live filtered follow-ups and
+mobile layouts. Licensed banking/retail evaluation passed 24/24 cases. Minimal
+runtime testing exposed and fixed DuckDB parameter-binding overhead; development
+machine timings were not used as deployed acceptance evidence. This is a short
+functional rehearsal, not a sustained-load benchmark or production approval.
+
 ## Revised remaining delivery sequence — 2026-09-30
 
 The user requested that the data-partner improvements be incorporated into the
@@ -150,6 +208,13 @@ quality comparisons remain the separate Phase 3 evaluation gate.
 See [Phase 2 verification](docs/verification-phase2.md) and
 [analytics contracts](docs/phase2-analytics.md).
 
+September 30 repair: wide spreadsheets now preserve decimal scales beyond twelve
+places within the 38-digit bound, and unrelated columns no longer block a valid
+query. Actionable cell-location errors replace generic chat failures for invalid
+referenced data. The deployed reported question, dashboard and historical replay
+pass; 485 backend tests pass. See [repair evidence](docs/verification-query-precision.md).
+This is analytics hardening, not completion of another Phase 4 slice.
+
 Scope:
 
 - Curated semantic definitions and join-path representation.
@@ -182,6 +247,14 @@ Exit criteria:
 
 **Status:** Complete for approved local/test and private-demo scope, September 30.
 Deferred production acceptance remains mandatory in Phase 5.
+
+September 30 usability repair: chat now explains columns and dataset structure from
+authorized metadata and versioned definitions, separates tentative meanings from
+confirmed ones, and preserves explanation follow-ups/history. The four reported
+ERP messages pass live; the complete suite has 512 backend checks and 11 browser
+journeys. See [guidance contract](docs/dataset-guidance.md) and
+[verification](docs/verification-dataset-guidance.md). This does not claim automatic
+knowledge of company terminology or clear the deferred production gates.
 
 Implemented and tested for local/test operation: ranked profile observations,
 executed comparison commentary, self-subscribed scheduled reports with delivery-time

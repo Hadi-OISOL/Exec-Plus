@@ -24,7 +24,6 @@ export default function Home() {
           <span className="brandMark" aria-hidden="true">E+</span>
           <span>ExecPlus</span>
         </a>
-        <span className="phaseBadge">Phase 3 · In progress</span>
       </nav>
 
       <section className="hero" id="top">

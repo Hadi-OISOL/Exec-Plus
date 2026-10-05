@@ -10,12 +10,13 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
-from typing import TypedDict
+from typing import Any, TypedDict, cast
 from uuid import UUID
 
 from execplus.domain.ingestion import IngestionError
 
 ALGORITHM = "profile-v1"
+CURRENT_ALGORITHM = "profile-v2"
 
 
 class Cleaning(TypedDict):
@@ -183,6 +184,77 @@ def profile(table: TableData) -> dict[str, object]:
     }
 
 
+def _header_words(name: str) -> set[str]:
+    separated = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", name)
+    return set(re.findall(r"[a-z]+", separated.lower()))
+
+
+def _identifier_header(name: str) -> bool:
+    words = _header_words(name)
+    compact = re.sub(r"[^a-z0-9]", "", name.lower())
+    return bool(
+        words & {"id", "code", "sku", "zip", "postal"}
+        or compact in {"invoiceno", "invoicenumber", "stockcode", "customerid", "orderno"}
+        or (
+            words & {"no", "number"}
+            and words & {"invoice", "order", "account", "transaction", "customer", "patient"}
+        )
+    )
+
+
+def _calendar_component(name: str, values: list[str]) -> bool:
+    compact = re.sub(r"[^a-z]", "", name.lower())
+    bounds = {"day": 31, "dayofmonth": 31, "month": 12, "monthofyear": 12, "year": 9999}
+    maximum = bounds.get(compact)
+    return (
+        maximum is not None
+        and bool(values)
+        and all(
+            cell_type(value) == "integer" and Decimal(1) <= Decimal(value) <= maximum
+            for value in values
+        )
+    )
+
+
+def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
+    if algorithm == ALGORITHM:
+        return profile(table)
+    if algorithm != CURRENT_ALGORITHM:
+        raise IngestionError("unsupported_version", "This profiling version is unavailable.", 409)
+    result = profile(table)
+    columns = cast(list[dict[str, Any]], result["columns"])
+    for index, column in enumerate(columns):
+        identifier = _identifier_header(str(column["name"]))
+        values = [row[index].strip() for row in table.rows if row[index].strip()]
+        calendar = not identifier and _calendar_component(str(column["name"]), values)
+        if not identifier and not calendar:
+            continue
+        column.update(
+            type="text" if identifier else "integer",
+            role="dimension",
+            type_conflicts=0,
+            invalid_dates=0,
+            date_min=None,
+            date_max=None,
+            semantic_tags=sorted(
+                (set(column["semantic_tags"]) - {"date"})
+                | {"identifier" if identifier else "calendar_component"}
+            ),
+        )
+    counts = {
+        "type_conflicts": sum(int(column["type_conflicts"]) for column in columns),
+        "invalid_dates": sum(int(column["invalid_dates"]) for column in columns),
+    }
+    checks = cast(list[dict[str, Any]], result["quality_checks"])
+    for check in checks:
+        if check["code"] in counts:
+            check["count"] = counts[check["code"]]
+    penalty = sum(Decimal(check["count"]) / max(check["denominator"], 1) for check in checks)
+    score = (Decimal(100) - 20 * penalty).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    result.update(algorithm=CURRENT_ALGORITHM, quality_score=str(score))
+    return result
+
+
 def transform(table: TableData, step: Cleaning) -> TableData:
     mapping = step["mapping"]
     if set(mapping) - set(table.headers):
@@ -212,7 +284,7 @@ def transform(table: TableData, step: Cleaning) -> TableData:
 
 
 def reconstruct(table: TableData, revision: Revision) -> TableData:
-    if revision.algorithm != ALGORITHM:
+    if revision.algorithm not in {ALGORITHM, CURRENT_ALGORITHM}:
         raise IngestionError("unsupported_version", "This profiling version is unavailable.", 409)
     for step in revision.recipe:
         table = transform(table, step)

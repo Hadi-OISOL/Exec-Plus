@@ -14,6 +14,400 @@ function token(email: string) {
   ).trim();
 }
 
+test("first file needs no setup and opens sourced discoveries with useful conversation", async ({
+  page,
+}) => {
+  test.setTimeout(150_000);
+  const session = token(`first-reading-${randomUUID()}@example.test`);
+  let legacySuggestionRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/suggested-questions"))
+      legacySuggestionRequests += 1;
+  });
+  await signIn(page, session, false);
+  await expect(
+    page.getByRole("heading", {
+      name: "Drop in a file. Find your first insight.",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("Workspace name", { exact: true }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByLabel("What is this data about? (optional)"),
+  ).not.toBeVisible();
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "branch-performance.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("branch,revenue\nNorth,0.10\nSouth,0.20\nNorth,0.30\n"),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await expect(page.getByLabel("Current workspace")).toHaveValue(/.+/);
+  await expect(
+    page.getByLabel("Dataset", { exact: true }).locator("option:checked"),
+  ).toHaveText("branch-performance");
+  const discovery = page.getByRole("region", {
+    name: "First reading of your data",
+    exact: true,
+  });
+  await expect(discovery.locator(".discoveryValue")).toHaveText([
+    "0.1",
+    "0.3",
+    "0.2",
+  ]);
+  await expect(discovery).toContainText("North has 2 rows");
+  await page.screenshot({
+    path: "../../data/vps-private/discovery-first-reading-desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: "../../data/vps-private/discovery-first-reading-mobile.png",
+    fullPage: true,
+  });
+  await discovery
+    .getByRole("button", { name: "Ask about this file", exact: true })
+    .click();
+  await expect(page.getByLabel("Your question")).toBeFocused();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(
+    page.getByRole("region", { name: "Data understanding", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Dataset dashboard" }),
+  ).toHaveCount(0);
+  await discovery
+    .getByText("How this was calculated", { exact: true })
+    .first()
+    .click();
+  await expect(discovery).toContainText("Query receipt:");
+  await expect(discovery).toContainText("0.100000000000");
+  await discovery.getByText("Source & interpretation", { exact: true }).click();
+  await expect(discovery).toContainText("Source revision:");
+  const chat = page.getByRole("region", {
+    name: "Ask a question",
+    exact: true,
+  });
+  await expect(chat).not.toContainText("Karachi");
+  await chat
+    .getByRole("button", { name: "Help me understand my data", exact: true })
+    .click();
+  await expect(chat.locator(".datasetGuidance")).toContainText(
+    "3 rows and 2 columns",
+  );
+  const averageSubmitted = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/threads\/[^/]+\/jobs$/.test(new URL(response.url()).pathname),
+  );
+  const averageFinished = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      /\/jobs\/[^/]+\/result$/.test(new URL(response.url()).pathname),
+    { timeout: 90_000 },
+  );
+  const averageStarted = Date.now();
+  await discovery
+    .getByRole("button", { name: "What is the average revenue?", exact: true })
+    .first()
+    .click();
+  const submission = await averageSubmitted;
+  const job = await submission.json();
+  const completed = await (await averageFinished).json();
+  const eventResponse = await page.request.get(
+    `${new URL(submission.url()).origin}/workspaces/${job.workspace_id}/jobs/${job.id}/events?after=0`,
+    { headers: { Authorization: `Bearer ${session}` } },
+  );
+  const activity = await eventResponse.json();
+  const startedPlanning = activity.events.find(
+    (event: { stage: string; status: string }) =>
+      event.stage === "planning" && event.status === "started",
+  );
+  const finishedPlanning = activity.events.find(
+    (event: { stage: string; status: string }) =>
+      event.stage === "planning" && event.status === "completed",
+  );
+  console.info(
+    "LIVE_QUERY_TIMING",
+    JSON.stringify({
+      case: "first_reading_average",
+      elapsed_ms: Date.now() - averageStarted,
+      planning_ms:
+        startedPlanning && finishedPlanning
+          ? Date.parse(finishedPlanning.created_at) -
+            Date.parse(startedPlanning.created_at)
+          : null,
+      status: completed.turn.status,
+    }),
+  );
+  expect(completed.turn.status).toBe("complete");
+  await expect(chat.locator(".answerCard .kpiValue")).toHaveText("0.2", {
+    timeout: 90_000,
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await expect(page.getByLabel("Your question")).toBeInViewport({ ratio: 1 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
+  await expect(
+    discovery.locator(".discoveryBarTrack > span").first(),
+  ).toHaveCSS("animation-name", "none");
+  await page.screenshot({
+    path: "../../data/vps-private/discovery-mobile-check.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: "../../data/vps-private/discovery-desktop-check.png",
+    fullPage: true,
+  });
+  await navigate(page, "Data library");
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "new-inventory.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("item,quantity\nPart,4\n"),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await expect(
+    page.getByLabel("Dataset", { exact: true }).locator("option:checked"),
+  ).toHaveText("new-inventory");
+  await expect(
+    page.getByLabel("Dataset", { exact: true }).locator("option"),
+  ).toHaveCount(3);
+  await expect(
+    page.getByLabel("Profile upload").locator("option:checked"),
+  ).toHaveText("new-inventory.csv");
+  expect(legacySuggestionRequests).toBe(0);
+});
+
+test("superseded discoveries are cancelled and rapid file selection only reads the final source", async ({
+  page,
+}) => {
+  await signIn(
+    page,
+    token(`discovery-switch-${randomUUID()}@example.test`),
+    false,
+  );
+  const discovery = page.getByRole("region", {
+    name: "First reading of your data",
+    exact: true,
+  });
+  const dataset = page.getByLabel("Dataset", { exact: true });
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "earlier.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("amount\n0.10\n"),
+  });
+  const originalResponse = page.waitForResponse((response) =>
+    response.url().endsWith("/discovery"),
+  );
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  const originalUrl = (await originalResponse).url();
+  await expect(discovery.locator(".discoveryValue")).toHaveText([
+    "0.1",
+    "0.1",
+    "0.1",
+  ]);
+  const originalDataset = await dataset.inputValue();
+  await navigate(page, "Data library");
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "current.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("amount\n0.90\n"),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await expect(discovery.locator(".discoveryValue")).toHaveText([
+    "0.9",
+    "0.9",
+    "0.9",
+  ]);
+  const currentDataset = await dataset.inputValue();
+  let release: () => void = () => {};
+  let started: () => void = () => {};
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const delayed = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  let supersededRequests = 0;
+  await page.route(originalUrl, async (route) => {
+    supersededRequests += 1;
+    const response = await route.fetch();
+    started();
+    await hold;
+    await route.fulfill({ response }).catch(() => {});
+  });
+  try {
+    await dataset.selectOption(originalDataset);
+    await delayed;
+    const aborted = page.waitForEvent(
+      "requestfailed",
+      (request) => request.url() === originalUrl,
+    );
+    await dataset.selectOption(currentDataset);
+    release();
+    await aborted;
+    await expect(discovery.locator(".discoveryFilename")).toHaveText("current");
+    await expect(discovery.locator(".discoveryValue")).toHaveText([
+      "0.9",
+      "0.9",
+      "0.9",
+    ]);
+    await expect(discovery.getByRole("alert")).toHaveCount(0);
+    await dataset.selectOption(originalDataset);
+    await expect(dataset).toBeEnabled();
+    await dataset.selectOption(currentDataset);
+    await expect(discovery.locator(".discoveryValue")).toHaveText([
+      "0.9",
+      "0.9",
+      "0.9",
+    ]);
+    expect(supersededRequests).toBe(1);
+  } finally {
+    release();
+  }
+});
+
+test("automatic discoveries show leading categories and keep saved review gates visible", async ({
+  page,
+}) => {
+  await signIn(
+    page,
+    token(`discovery-review-${randomUUID()}@example.test`),
+    false,
+  );
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "categories.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      `category,amount\n${["Alpha.00", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Zulu", "Zulu", "Zulu", "Zulu"].map((name) => `${name},1.00`).join("\n")}\n`,
+    ),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  const discovery = page.getByRole("region", {
+    name: "First reading of your data",
+    exact: true,
+  });
+  await expect(discovery.locator(".discoveryBars li").first()).toContainText(
+    "Zulu",
+  );
+  await expect(discovery.locator(".discoveryBars li")).toHaveCount(8);
+  await expect(
+    discovery.locator(".discoveryBarLabel").filter({ hasText: "Alpha.00" }),
+  ).toHaveText("Alpha.00");
+  await expect(discovery).toContainText("Top 8 of 10 groups shown");
+  await expect(discovery.locator(".discoveryMetricNote")).toContainText(
+    "inferred, not confirmed",
+  );
+  await reveal(page, "Review & refine data understanding");
+  const meaning = page.getByRole("region", {
+    name: "Data understanding",
+    exact: true,
+  });
+  await meaning
+    .getByRole("button", { name: "Save for review", exact: true })
+    .click();
+  await expect(discovery).toContainText("needs review before new calculations");
+  await expect(discovery.locator(".discoveryValue")).toHaveCount(0);
+  await reveal(page, "Review & refine data understanding");
+  await discovery
+    .getByRole("button", {
+      name: "Review saved business definitions",
+      exact: true,
+    })
+    .click();
+  await expect(meaning.getByLabel("One row represents")).toBeVisible();
+});
+
+test("column meanings use dataset evidence and retain understandable follow-ups", async ({
+  page,
+}) => {
+  const session = token(`guidance-${randomUUID()}@example.test`);
+  await signIn(page, session);
+  await page
+    .getByLabel("Workspace name", { exact: true })
+    .fill("Fictional ERP guidance");
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
+  await navigate(page, "Data library");
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "fictional-erp.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "item_code,item_description,category,attock_erp,attock_erp_value\nA1,Example item,Parts,2,5.25\nA2,Other item,Parts,3,8.75\n",
+    ),
+  });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  const explanations = page.locator(".datasetGuidance");
+  await page.getByLabel("Your question").fill("what is this attock erp means");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(explanations).toHaveCount(1);
+  await expect(explanations.last()).toContainText(
+    "Enterprise Resource Planning",
+  );
+  await expect(explanations.last()).toContainText("Tentative interpretation");
+  await expect(page.locator(".assistantMessage .verifiedBadge")).toHaveCount(0);
+  await page.getByLabel("Your question").fill("??");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(explanations).toHaveCount(2);
+  await expect(explanations.last()).toContainText("In plain words: attock_erp");
+  await explanations
+    .last()
+    .getByRole("button", {
+      name: "What does attock_erp_value mean?",
+      exact: true,
+    })
+    .click();
+  await expect(explanations).toHaveCount(3);
+  await expect(explanations.last()).toContainText(
+    "attock_erp_value has no confirmed business definition",
+  );
+  await explanations
+    .last()
+    .getByRole("button", {
+      name: "Help me understand this dataset",
+      exact: true,
+    })
+    .click();
+  await expect(explanations).toHaveCount(4);
+  await expect(explanations.last()).toContainText("2 rows and 5 columns");
+  await expect(explanations.last()).toContainText(
+    "Repeated measure/value pairs",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
+  await page.reload();
+  await signIn(page, session);
+  await page.getByText("Private conversation history", { exact: true }).click();
+  await page.getByLabel("Saved conversation").selectOption({ index: 1 });
+  await page
+    .getByRole("button", { name: "Open conversation", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Load saved answer", exact: true })
+    .first()
+    .click();
+  await expect(explanations.first()).toContainText(
+    "Enterprise Resource Planning",
+  );
+  await explanations
+    .first()
+    .getByText("What this explanation is based on", { exact: true })
+    .click();
+  await expect(explanations.first()).toContainText("Source revision:");
+});
+
 test("combined data and document chat reopens private evidence after refresh", async ({
   page,
 }) => {
@@ -37,6 +431,7 @@ test("combined data and document chat reopens private evidence after refresh", a
     buffer: Buffer.from("city,revenue\nKarachi,0.10\nLahore,0.20\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await reveal(page, "Charts & dashboard controls");
   await expect(
     page
       .getByRole("region", { name: "Dataset dashboard" })
@@ -79,9 +474,13 @@ test("combined data and document chat reopens private evidence after refresh", a
     page.getByText("Verified conversation source passage", { exact: true }),
   ).toBeVisible();
   await page.getByText("How this answer was verified", { exact: true }).click();
-  await expect(page.locator(".answerEvidence")).toContainText(
-    "Source revision:",
-  );
+  await expect(
+    page
+      .locator(".answerEvidence")
+      .filter({
+        has: page.getByText("How this answer was verified", { exact: true }),
+      }),
+  ).toContainText("Source revision:");
   await page.reload();
   await signIn(page, session);
   await page.getByText("Private conversation history", { exact: true }).click();
@@ -107,11 +506,29 @@ test("combined data and document chat reopens private evidence after refresh", a
   ).toBe(true);
 });
 
-async function signIn(page: Page, session: string) {
+async function signIn(page: Page, session: string, configureWorkspace = true) {
   await page.goto("/workspace");
   await page.getByLabel("Session token").fill(session);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByText("Signed in as", { exact: false })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sign out", exact: true }),
+  ).toBeEnabled();
+  if (
+    configureWorkspace &&
+    !(await page.getByLabel("Current workspace").count())
+  )
+    await navigate(page, "Team & settings");
+}
+
+async function reveal(page: Page, name: string) {
+  const summary = page.locator("summary").filter({ hasText: name });
+  if (
+    !(await summary.evaluate(
+      (node) => (node.parentElement as HTMLDetailsElement).open,
+    ))
+  )
+    await summary.click();
 }
 
 async function navigate(page: Page, name: string) {
@@ -156,6 +573,7 @@ test("adaptive studies retain versions and a private six-pin dashboard on mobile
     buffer: Buffer.from("city,amount\nKarachi,0.10\nLahore,0.20\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await reveal(page, "Review & refine data understanding");
   const meaning = page.getByRole("region", {
     name: "Data understanding",
     exact: true,
@@ -291,6 +709,9 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
   );
   const invitation = await page.evaluate(() => navigator.clipboard.readText());
   await navigate(page, "Data library");
+  await page
+    .getByText("Create a named dataset manually", { exact: true })
+    .click();
   await page.getByLabel("New dataset name").fill("Monthly sales");
   await page
     .getByRole("button", { name: "Create dataset", exact: true })
@@ -304,6 +725,7 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("uploaded successfully");
   await navigate(page, "Data library");
+  await page.getByText(/Retained uploads in the selected dataset/).click();
   await expect(
     page.getByRole("cell", { name: "Validated and stored" }),
   ).toBeVisible();
@@ -318,7 +740,7 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
     .getByRole("button", { name: "Open Monthly sales", exact: true })
     .click();
   await expect(
-    page.getByRole("region", { name: "Dataset dashboard" }),
+    page.getByRole("region", { name: "First reading of your data" }),
   ).toBeVisible();
   await navigate(page, "Data library");
   await page.getByLabel("CSV or Excel file").setInputFiles({
@@ -347,6 +769,7 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
     .getByLabel("Dataset", { exact: true })
     .selectOption({ label: "Monthly sales" });
   await navigate(page, "Data library");
+  await reveal(page, "Retained uploads in the selected dataset");
   await expect(
     page.getByRole("cell", { name: "sales.csv", exact: true }),
   ).toBeVisible();
@@ -417,6 +840,7 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
     page.getByRole("heading", { name: "Team · Data preparation" }),
   ).toBeVisible();
   await navigate(page, "Data library");
+  await page.getByText("Try a fictional example", { exact: true }).click();
   await page
     .getByRole("button", { name: "Try sales sample", exact: true })
     .click();
@@ -452,6 +876,9 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
   await expect(profile).toContainText("3 rows · 4 columns");
   await expect(profile).toContainText("93.33/100");
   await navigate(page, "Data library");
+  await page
+    .getByText("Create a named dataset manually", { exact: true })
+    .click();
   await page.getByLabel("New dataset name").fill("My first upload");
   await page
     .getByRole("button", { name: "Create dataset", exact: true })
@@ -466,6 +893,7 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
   await expect(profile).toContainText("100.00/100");
   await expect(profile).toContainText("decimal / metric");
   await navigate(page, "Overview");
+  await reveal(page, "Review & refine data understanding");
   await expect(
     page.getByRole("region", { name: "Data journey" }),
   ).toContainText("my-data.csv");
@@ -494,6 +922,9 @@ test("verified filters, drill-down, shared replay, feedback, citations and unsub
     .getByRole("button", { name: "Create workspace", exact: true })
     .click();
   await navigate(page, "Data library");
+  await page
+    .getByText("Create a named dataset manually", { exact: true })
+    .click();
   await page.getByLabel("New dataset name").fill("Exact values");
   await page
     .getByRole("button", { name: "Create dataset", exact: true })
@@ -506,6 +937,7 @@ test("verified filters, drill-down, shared replay, feedback, citations and unsub
     ),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await reveal(page, "Charts & dashboard controls");
   const dashboard = page.getByRole("region", { name: "Dataset dashboard" });
   await expect(dashboard.locator(".kpiValue").first()).toHaveText("0.15");
   await dashboard
@@ -613,12 +1045,14 @@ test("upload creates a dataset and opens an interactive responsive exploration",
   await expect(
     page.getByRole("heading", { name: "A clearer picture." }),
   ).toBeVisible();
+  await reveal(page, "Review & refine data understanding");
   const journey = page.getByRole("region", { name: "Data journey" });
   await expect(journey).toContainText("3 columns recognized");
   await journey.getByText("Explore your column map", { exact: false }).click();
   await expect(
     journey.getByRole("button", { name: "revenue decimal" }),
   ).toBeVisible();
+  await reveal(page, "Charts & dashboard controls");
   const dashboard = page.getByRole("region", { name: "Dataset dashboard" });
   const point = dashboard.locator(".chartPoint").first();
   await point.focus();
@@ -674,6 +1108,11 @@ test("confirm business meaning and private goals without losing the source", asy
     .click();
   await navigate(page, "Data library");
   await page
+    .getByText("Add context or choose where to save (optional)", {
+      exact: true,
+    })
+    .click();
+  await page
     .getByLabel("What is this data about? (optional)")
     .selectOption("sales");
   await page
@@ -687,6 +1126,7 @@ test("confirm business meaning and private goals without losing the source", asy
     ),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await reveal(page, "Review & refine data understanding");
   const meaning = page.getByRole("region", {
     name: "Data understanding",
     exact: true,
@@ -723,6 +1163,7 @@ test("confirm business meaning and private goals without losing the source", asy
   await expect(
     page.getByRole("region", { name: "Dataset dashboard" }).getByRole("alert"),
   ).toHaveCount(0);
+  await reveal(page, "Charts & dashboard controls");
   const cards = page
     .getByRole("region", { name: "Dataset dashboard" })
     .getByRole("article");
@@ -775,14 +1216,13 @@ test("refresh retains a safe baseline and delivers a private evidenced KPI alert
     .getByRole("button", { name: "Create workspace", exact: true })
     .click();
   await navigate(page, "Data library");
-  await page
-    .getByLabel("CSV or Excel file")
-    .setInputFiles({
-      name: "baseline.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("city,amount\nKarachi,0.10\nLahore,0.20\n"),
-    });
+  await page.getByLabel("CSV or Excel file").setInputFiles({
+    name: "baseline.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("city,amount\nKarachi,0.10\nLahore,0.20\n"),
+  });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await reveal(page, "Review & refine data understanding");
   const meaning = page.getByRole("region", {
     name: "Data understanding",
     exact: true,
@@ -817,25 +1257,21 @@ test("refresh retains a safe baseline and delivers a private evidenced KPI alert
   await expect(panel.getByRole("status")).toContainText(
     "Private alert subscribed",
   );
-  await panel
-    .getByLabel("Refresh file", { exact: true })
-    .setInputFiles({
-      name: "bad.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("city,amount\nK,1\nL,2\nM,wrong\n"),
-    });
+  await panel.getByLabel("Refresh file", { exact: true }).setInputFiles({
+    name: "bad.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("city,amount\nK,1\nL,2\nM,wrong\n"),
+  });
   await panel.getByRole("button", { name: "Validate staged file" }).click();
   await expect(panel.getByRole("status")).toContainText("File failed");
   await expect(panel.locator(".observationValue")).toContainText(
     "0.300000000000",
   );
-  await panel
-    .getByLabel("Refresh file", { exact: true })
-    .setInputFiles({
-      name: "updated.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("city,amount\nKarachi,0.30\nLahore,0.20\n"),
-    });
+  await panel.getByLabel("Refresh file", { exact: true }).setInputFiles({
+    name: "updated.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("city,amount\nKarachi,0.30\nLahore,0.20\n"),
+  });
   await panel.getByRole("button", { name: "Validate staged file" }).click();
   await expect(panel.getByRole("status")).toContainText("File queued");
   await panel

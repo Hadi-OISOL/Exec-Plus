@@ -33,3 +33,4 @@ class ThreadTurn:
     request_id: UUID | None = None
     status: str = "complete"
     evidence: dict[str, object] = field(default_factory=dict)
+    job_id: UUID | None = None
