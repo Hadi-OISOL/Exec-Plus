@@ -1,9 +1,13 @@
 /* Use case: Turns confirmed meanings into interactive, reproducible investigations.
 What it does: Runs supported studies, reopens versions and manages permission-aware six-pin dashboards. */
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
-import { RecordTable, type Cell } from "./explore-components";
+import { Icon, RecordTable, type Cell } from "./explore-components";
+import { AnswerVisualization } from "./answer-visualization";
+import { LibraryControls, visibleLibraryItem } from "./library-controls";
+import type { LibraryLayout, LibraryVisibility } from "./library-controls";
+import styles from "./library.module.css";
 
 type Method = {
   kind: string;
@@ -87,109 +91,10 @@ export const studyJson = (method: string, value: object): RequestInit => ({
   body: JSON.stringify(value),
 });
 
-function StudyChart({ data, component }: { data: Table; component: string }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const rows = data.rows.slice(0, 30);
-  const values = rows.map((row) =>
-    row.at(-1) === null ? NaN : Number(row.at(-1)),
-  );
-  const magnitude = Math.max(
-    1,
-    ...values.filter(Number.isFinite).map(Math.abs),
-  );
-  if (component === "card")
-    return (
-      <p className="kpiValue studyValue">
-        {String(data.rows[0]?.at(-1) ?? "No matching values")}
-      </p>
-    );
-  if (!["bar", "line", "distribution"].includes(component) || !rows.length)
-    return null;
-  const points = values.map(
-    (value, index) =>
-      `${20 + (index * 560) / Math.max(1, values.length - 1)},${100 - (value / magnitude) * 75}`,
-  );
-  return (
-    <div className="studyChart">
-      {component === "line" && (
-        <svg
-          viewBox="0 0 600 200"
-          role="img"
-          aria-label="Observed values by date; gaps are not interpolated"
-        >
-          <path d="M20 100H580" stroke="currentColor" opacity="0.2" />
-          {points.map(
-            (point, index) =>
-              Number.isFinite(values[index]) && (
-                <circle
-                  key={index}
-                  cx={point.split(",")[0]}
-                  cy={point.split(",")[1]}
-                  r="4"
-                  fill="currentColor"
-                />
-              ),
-          )}
-        </svg>
-      )}
-      <p className="chartCaption">
-        {component === "line"
-          ? "Observed date points; no inferred values between dates."
-          : "Bar size is approximate; labels and the table retain exact values."}{" "}
-        Select a value to inspect it.
-      </p>
-      <ul className="barList">
-        {rows.map((row, index) => (
-          <li key={index}>
-            <button
-              className="barButton"
-              type="button"
-              aria-pressed={selected === index}
-              onClick={() => setSelected(selected === index ? null : index)}
-            >
-              <span className="barLabel">
-                {row
-                  .slice(0, -1)
-                  .map((value) => String(value ?? "Missing response"))
-                  .join(" / ")}
-              </span>
-              <span className="barTrack">
-                <span
-                  className="barFill"
-                  style={{
-                    width: `${Number.isFinite(values[index]) ? (Math.abs(values[index]) / magnitude) * 100 : 0}%`,
-                  }}
-                />
-              </span>
-              <span className="barValue">
-                {String(row.at(-1) ?? "No value")}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      {data.rows.length > 30 && (
-        <p>
-          Chart shows the first 30 groups. The table includes every returned
-          group.
-        </p>
-      )}
-      {selected !== null && (
-        <p role="status">
-          Selected:{" "}
-          {rows[selected]
-            .map((value) => String(value ?? "Missing response"))
-            .join(" · ")}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function StudyResult({ value }: { value: Result }) {
   return (
     <article
-      className="studyResult"
+      className={`studyResult ${styles.result}`}
       aria-label={`Study result: ${value.study.name}`}
     >
       <div className="sectionHeading">
@@ -205,15 +110,23 @@ export function StudyResult({ value }: { value: Result }) {
         uploaded{" "}
         {new Date(value.version.evidence.source_uploaded_at).toLocaleString()}
       </p>
-      <StudyChart
-        key={value.version.id}
-        data={value.display}
-        component={value.version.evidence.component}
-      />
-      <RecordTable
-        key={`records-${value.version.id}`}
-        data={{ ...value.display, records_analyzed: value.sample_count }}
-      />
+      {value.version.evidence.component === "card" ? (
+        <p className="kpiValue studyValue">{String(value.display.rows[0]?.at(-1) ?? "No matching values")}</p>
+      ) : (
+        <AnswerVisualization
+          key={value.version.id}
+          title={value.version.question}
+          columns={value.display.columns}
+          rows={value.display.rows}
+          valueIndex={value.display.columns.length - 1}
+          recordsAnalyzed={value.sample_count}
+          initialMode={["bar", "line", "distribution"].includes(value.version.evidence.component) ? "chart" : "table"}
+          initialChart={value.version.evidence.component === "line" ? "line" : "bar"}
+          allowLine={value.version.evidence.component === "line"}
+          connectLinePoints={false}
+          chartAllowed={value.display.columns.length === 2}
+        />
+      )}
       {value.display.coverage && value.version.method.kind === "metric" && (
         <details>
           <summary>Sample coverage and missing values</summary>
@@ -230,7 +143,7 @@ export function StudyResult({ value }: { value: Result }) {
           <li key={text}>{text}</li>
         ))}
       </ul>
-      <details>
+      <details className={styles.evidence}>
         <summary>Study method, source versions and evidence</summary>
         <p>{value.version.evidence.method_version}</p>
         <pre>
@@ -256,6 +169,22 @@ export function StudiesPanel({
   actorId: string;
   onReview: () => void;
 }) {
+  return <StudyLibrary key={`${root}:${actorId}`} root={root} request={request} actorId={actorId} onReview={onReview} />;
+}
+
+function StudyLibrary({ root, request, actorId, onReview }: {
+  root: string;
+  request: ApiRequest;
+  actorId: string;
+  onReview: () => void;
+}) {
+  const libraryId = useId();
+  const [studySearch, setStudySearch] = useState("");
+  const [studyVisibility, setStudyVisibility] = useState<LibraryVisibility>("all");
+  const [studyLayout, setStudyLayout] = useState<LibraryLayout>("grid");
+  const [boardSearch, setBoardSearch] = useState("");
+  const [boardVisibility, setBoardVisibility] = useState<LibraryVisibility>("all");
+  const [boardLayout, setBoardLayout] = useState<LibraryLayout>("grid");
   const datasetPath = root.split("/uploads/")[0];
   const workspacePath = root.split("/datasets/")[0];
   const [views, setViews] = useState<Views | null>(null);
@@ -294,7 +223,15 @@ export function StudiesPanel({
         }
       })
       .catch((cause: Error) => {
-        if (active) setError(cause.message);
+        if (active) {
+          setError(cause.message);
+          setViews(null);
+          setStudies([]);
+          setBoards([]);
+          setResult(null);
+          setBoard(null);
+          setComparison(null);
+        }
       });
     return () => {
       active = false;
@@ -307,6 +244,9 @@ export function StudiesPanel({
     try {
       await task();
     } catch (cause) {
+      setResult(null);
+      setBoard(null);
+      setComparison(null);
       setError(
         cause instanceof Error
           ? cause.message
@@ -359,16 +299,23 @@ export function StudiesPanel({
     views?.columns?.filter(
       (item) => !["identifier", "ignored"].includes(item.role),
     ) ?? [];
+  const visibleStudies = studies.filter((item) => visibleLibraryItem(item, studySearch, studyVisibility));
+  const visibleBoards = boards.filter((item) => visibleLibraryItem(item, boardSearch, boardVisibility));
   return (
-    <section className="panel studiesPanel" aria-label="Studies and dashboards">
-      <div className="sectionHeading">
-        <h2>Studies & dashboards</h2>
-        <span>Evidence you can return to</span>
+    <section className={`panel studiesPanel ${styles.library}`} aria-label="Studies and dashboards">
+      <div className={styles.libraryHeader}>
+        <div>
+          <span className={styles.eyebrow}>Your analysis library</span>
+          <h2>Studies & dashboards</h2>
+          <p>Explore a question once. Keep the answer, compare versions and bring useful results together on a dashboard. Every run saves its original evidence.</p>
+        </div>
+        <span className={styles.badge}>Explicit versions · exact results</span>
       </div>
-      <p>
-        Start with a suggested view or a descriptive survey. Every run saves a
-        version; rerunning preserves the original.
-      </p>
+      <div className={styles.actions} role="group" aria-label="Jump to study library">
+        <a href={`#${libraryId}-suggestions`}>Suggested studies</a>
+        <a href={`#${libraryId}-studies`}>Saved studies · {studies.length}</a>
+        <a href={`#${libraryId}-dashboards`}>Workspace dashboards · {boards.length}</a>
+      </div>
       {error && (
         <p role="alert" className="errorNotice">
           {error}
@@ -376,7 +323,7 @@ export function StudiesPanel({
       )}
       {message && <p role="status">{message}</p>}
       {!views && !error && <p>Reading confirmed data meaning…</p>}
-      <button type="button" onClick={onReview}>
+      <button type="button" onClick={onReview} style={{ marginTop: 20 }}>
         Review meaning or change my goal
       </button>
       {views?.state === "needs_review" && (
@@ -400,7 +347,7 @@ export function StudiesPanel({
               placeholder="Give this investigation a name"
             />
           </label>
-          <div className="studyRecommendations">
+          <div id={`${libraryId}-suggestions`} className="studyRecommendations">
             {views.recommendations.map((item) => (
               <article key={item.id} className="studySuggestion">
                 <span className="studyComponent">{item.component}</span>
@@ -604,25 +551,35 @@ export function StudiesPanel({
           </div>
         </>
       )}
-      <div className="studyLibrary">
+      <div className={`studyLibrary ${styles.collection}`} id={`${libraryId}-studies`}>
         <h3>Saved studies</h3>
         <p>
           Sharing makes the chosen question, method and all versions visible to
           workspace members.
         </p>
-        {!studies.length && <p>No studies yet.</p>}
-        {studies.map((item) => (
-          <article key={item.id}>
-            <h4>
-              {item.name} · {item.shared ? "Workspace" : "Private"}
-            </h4>
-            <div className="studyActions">
+        <LibraryControls name="saved studies" search={studySearch} onSearch={setStudySearch} visibility={studyVisibility} onVisibility={setStudyVisibility} layout={studyLayout} onLayout={setStudyLayout} count={visibleStudies.length} />
+        {!studies.length && <p className={styles.empty}>No studies yet. Run a suggested study to start your evidence library.</p>}
+        {!!studies.length && !visibleStudies.length && <p className={styles.empty}>No saved studies match these filters.</p>}
+        <div className={studyLayout === "grid" ? styles.grid : styles.list} data-library-layout={studyLayout} aria-label="Saved study cards">
+        {visibleStudies.map((item) => (
+          <article key={item.id} className={styles.card}>
+            <div className={styles.cardTop}>
+              <span className={styles.cardIcon}><Icon name="usage" /></span>
+              <span className={styles.cardType}>Saved study</span>
+              <span className={styles.badge}>{item.shared ? "Workspace" : "Private"}</span>
+            </div>
+            <h4>{item.name}</h4>
+            <p className={styles.description}>{item.versions.at(-1)?.question}</p>
+            <p className={styles.metadata}>{item.versions.length} saved {item.versions.length === 1 ? "version" : "versions"}</p>
+            <div className={`studyActions ${styles.actions}`}>
               {item.versions.map((version) => (
                 <button
                   disabled={busy}
                   key={version.id}
                   onClick={() =>
                     void action(async () => {
+                      setResult(null);
+                      setComparison(null);
                       setResult(
                         await request(
                           `${workspacePath}/study-versions/${version.id}`,
@@ -685,6 +642,7 @@ export function StudiesPanel({
             </div>
           </article>
         ))}
+        </div>
       </div>
       <details>
         <summary>Compare study versions</summary>
@@ -766,13 +724,12 @@ export function StudiesPanel({
           </div>
         </div>
       )}
-      <div className="studyLibrary">
+      <div className={`studyLibrary ${styles.collection}`} id={`${libraryId}-dashboards`}>
         <h3>Workspace dashboards</h3>
         <p>
-          Pin up to six saved results. Shared dashboards require explicitly
-          shared studies.
+          Pin up to six saved results. These are saved snapshots; rerun a study when you want new evidence. Shared dashboards require explicitly shared studies.
         </p>
-        <form
+        <form className={styles.createBoard}
           onSubmit={(event) => {
             event.preventDefault();
             const form = event.currentTarget;
@@ -794,11 +751,21 @@ export function StudiesPanel({
           </label>
           <button disabled={busy}>Create study dashboard</button>
         </form>
-        {boards.map((item) => (
-          <article key={item.id}>
-            <strong>{item.name}</strong> · {item.pins.length}/6 pins ·{" "}
-            {item.shared ? "Workspace" : "Private"}
-            <div className="studyActions">
+        <LibraryControls name="dashboards" search={boardSearch} onSearch={setBoardSearch} visibility={boardVisibility} onVisibility={setBoardVisibility} layout={boardLayout} onLayout={setBoardLayout} count={visibleBoards.length} />
+        {!boards.length && <p className={styles.empty}>Create a dashboard, then pin the saved results you want to see together.</p>}
+        {!!boards.length && !visibleBoards.length && <p className={styles.empty}>No dashboards match these filters.</p>}
+        <div className={boardLayout === "grid" ? styles.grid : styles.list} data-library-layout={boardLayout} aria-label="Dashboard cards">
+        {visibleBoards.map((item) => (
+          <article key={item.id} className={styles.card}>
+            <div className={styles.cardTop}>
+              <span className={styles.cardIcon}><Icon name="overview" /></span>
+              <span className={styles.cardType}>Dashboard</span>
+              <span className={styles.badge}>{item.shared ? "Workspace" : "Private"}</span>
+            </div>
+            <h4>{item.name}</h4>
+            <p className={styles.metadata}>{item.pins.length}/6 pins · Version {item.version}</p>
+            <p className={styles.description}>{item.pins.length ? "A collection of saved study evidence." : "Ready for your first saved result."}</p>
+            <div className={`studyActions ${styles.actions}`}>
               <button
                 disabled={busy}
                 onClick={() =>
@@ -853,10 +820,15 @@ export function StudiesPanel({
             </div>
           </article>
         ))}
+        </div>
       </div>
       {board && (
-        <section aria-label={`Pinned dashboard: ${board.board.name}`}>
-          <h3>{board.board.name}</h3>
+        <section className={styles.board} aria-label={`Pinned dashboard: ${board.board.name}`}>
+          <div className={styles.libraryHeader}>
+            <div><span className={styles.eyebrow}>Saved evidence dashboard</span><h3>{board.board.name}</h3></div>
+            <span className={styles.badge}>{board.board.shared ? "Workspace" : "Private"} · {board.studies.length}/6 pins</span>
+          </div>
+          <p className={styles.boardSummary}>Each card retains its saved source and study version. Opening this dashboard verifies its evidence; it does not silently rerun the studies.</p>
           {!board.studies.length && <p>Run a study and pin a result here.</p>}
           <div className="studyPinnedGrid">
             {board.studies.map((item) => (

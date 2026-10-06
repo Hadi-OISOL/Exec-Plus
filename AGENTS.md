@@ -7,6 +7,37 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+- October 6 analytics interface redesign is Complete for local/test and the private
+  demo. The public ThoughtSpot reference audit led to grouped navigation, question-led
+  Home, dedicated chat, authorized data search/dashboard, reusable chart/table/expand
+  controls and searchable saved-answer/study/board libraries. This is not complete
+  ThoughtSpot feature or visual parity. Read `docs/interface-redesign-audit.md`,
+  `docs/analytics-interface.md` and `docs/verification-interface-redesign.md`.
+- Numerical labels/tables preserve returned strings, signs, zero and nulls; plot
+  coordinates are approximate. Study date views remain observed points. Applied
+  dashboard configuration is saved only after successful execution; all filters and
+  record drills use existing authorized queries. Saved guidance/documents receive
+  no calculation badge. A second question during active work stays an explicit draft.
+- Interface evidence: 76 targeted backend/architecture cases, 17 frontend tests
+  (eight new), all 29 distinct browser journeys, Ruff/mypy (148 files), types/lint
+  and local/VPS production builds pass. The full browser attempt had 26 passes and
+  three outdated-selector/navigation failures; all three corrected tests passed.
+  Earlier focused/mobile failures and fixes remain recorded in the ledger.
+- Eight deployed users passed eight real guidance jobs, eight exact saved replays,
+  56 cross-user private-item denials with eight authorized controls and 72 layouts
+  in 43.935 seconds, with zero browser errors and unchanged source metadata. This
+  is a functional rehearsal, not sustained load. Two earlier checker-selector
+  failures are retained; only test selectors changed between deployed attempts.
+- A subsequent display-only caption cleanup passed the visualization browser case,
+  fresh local/VPS builds and a deployed chart-header/exact-replay check. The eight-user
+  rehearsal predates this caption cleanup; its report is retained separately.
+- The interface release changes only web on migration 0015. API/jobs containers,
+  database, models and network exposure are unchanged. Previous source lives at
+  `releases/pre-interface-20261006/source`; web rollback tag is
+  `pre-interface-20261006`. The verified `20261006T082942Z` backup remains available.
+  Only this interface/report work is uncommitted on `phase2`; baseline `769acea`
+  now retains forecasting and operations. No commit, push or merge occurred here.
+  Phase 4D/4E remain unfinished, Phase 6 Frozen and all eight production gates blocked.
 - October 6 internal operations slice is Complete for local/test and the private
   demo: separate operator-managed staff grants, metadata-only admin console, private
   support lifecycle and aggregate product usage/cohorts. Phase 5 remains In progress;
@@ -42,9 +73,9 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   ticket, event and audit data plus forecasts/jobs/profile versions before rollback;
   old images expect 0014. Only the first existing demo account received admin staff
   access. Models, network exposure and all eight production gates are unchanged.
-- October 6 forecast/audit and operations work remain uncommitted on `phase2` at
-  baseline `9c2445d`; this delivery did not push or merge. Phase 4D/4E remain unfinished,
-  and Phase 6 remains Frozen. Refresh and backup timers remain active.
+- October 6 forecast/audit and operations work are retained in baseline `769acea`
+  on `phase2`. The subsequent interface work remains uncommitted. Phase 4D/4E remain
+  unfinished and Phase 6 remains Frozen. Refresh and backup timers remain active.
 - The user requested ongoing DOCX upkeep after verified deliveries. Maintain the
   original 64 feature IDs in `docs/product-feature-audit.json` and use
   `scripts/build_feature_report.py` to regenerate the Desktop report with backups.
@@ -336,9 +367,9 @@ make down
 
 The user authorized auditing the teammate's Phase 2 branch and proceeding into
 Phase 3, followed by the private explorer and the September 30 roadmap revision.
-Work is on local branch `phase2`, with baseline `9c2445d` preserving earlier work,
+Work is on local branch `phase2`, with baseline `769acea` preserving earlier work,
 including the teammate's original `7d70cd7` and the later query/guidance repairs.
-October 6 changes are uncommitted; this task did not push or merge into main.
+October 6 interface changes are uncommitted; this task did not push or merge into main.
 Keep `.env` and customer documents out of version control.
 
 Phase 2 acceptance is verified for local/test operation. Current Phase 3 work uses
@@ -416,3 +447,11 @@ verification before extending. Keep the VC report current after verified deliver
 Do not infer commercial readiness from the admin/support screens: billing, external
 support delivery, representative performance and all eight production gates remain
 open. No instruction to start frozen Phase 6 or push these changes was given.
+
+The latest October 6 request prioritizes the ThoughtSpot-referenced analytics
+interface. Its approved private-demo presentation slice is now verified and
+running; full competitor parity and the marketing website were not established by
+this work. Read its audit, interface contract and verification before extending.
+Retain exact values, source-bound selections, observed-only study points, current
+permissions and the distinction between guidance and executed calculations.
+Do not promote exports, connectors or commercial readiness from a visual redesign.

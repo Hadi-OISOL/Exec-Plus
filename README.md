@@ -72,7 +72,7 @@ or shared dashboards, and separate department workspaces grouped by organization
 The private demo now also includes **Refresh & alerts**: validated staged-file
 replacement/append/merge, schedules, replayable observations, exact segment drivers
 and private KPI notifications. That slice introduced migration 0012; the current
-application requires **0014**. See the
+application requires **0015**. See the
 [4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
 [4B verification](docs/verification-phase4b.md). Schedules process files staged in
 ExecPlus. Forecast comparisons can use an accepted refresh without changing the
@@ -119,10 +119,13 @@ The backend starts as a modular monolith. Its ports keep compute, language-model
 ## Prerequisites
 
 - Python 3.10 or newer
-- Node.js 20 or newer
+- Node.js 20.9 or newer (the deployment uses Node.js 22)
 - Docker with Compose for PostgreSQL and object storage
 
 ## Local setup
+
+For simple numbered instructions, including the VPS tunnel, local sign-in and
+common startup fixes, use [Start ExecPlus](docs/start-project.md).
 
 ```bash
 cp .env.example .env

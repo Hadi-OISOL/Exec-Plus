@@ -2,7 +2,9 @@
 What it does: Renders deterministic KPI cards, a trend line, and a clickable category
 breakdown that drills down into the underlying rows, each traceable to its lineage. */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AnswerVisualization } from "./answer-visualization";
+import styles from "./dashboard-presentation.module.css";
 import { Icon } from "./explore-components";
 
 import { SaveControl } from "./saved-panel";
@@ -56,12 +58,6 @@ function label(name: string): string {
   return name.replaceAll("_", " ").replace(/^./, (char) => char.toUpperCase());
 }
 
-function asNumber(value: Cell): number | null {
-  if (value === null) return null;
-  const number = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(number) ? number : null;
-}
-
 function formatValue(value: Cell): string {
   return value === null
     ? "No data"
@@ -102,143 +98,21 @@ function KpiCard({
 }
 
 function TrendChart({ trend }: { trend: Breakdown }) {
-  const [active, setActive] = useState<number | null>(null);
-  const points = [...trend.rows]
-    .map((row) => ({
-      key: String(row[0]),
-      value: asNumber(row[1]),
-      raw: row[1],
-    }))
-    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
-  const known = points.filter((point) => point.value !== null) as {
-    key: string;
-    value: number;
-  }[];
-  const max = Math.max(0, ...known.map((point) => point.value));
-  const min = Math.min(0, ...known.map((point) => point.value));
-  const width = 320;
-  const height = 96;
-  const step = points.length > 1 ? width / (points.length - 1) : 0;
-  const coordinateFor = (value: number) =>
-    height - ((value - min) / (max - min || 1)) * (height - 12) - 6;
-  const coordinates = points
-    .map((point, index) =>
-      point.value === null
-        ? null
-        : `${(points.length > 1 ? index * step : width / 2).toFixed(1)},${coordinateFor(point.value).toFixed(1)}`,
-    )
-    .filter((entry): entry is string => entry !== null);
-  return (
-    <div className="chartCard">
-      <h3>{label(trend.dimension)} trend</h3>
-      <p className="chartCaption">
-        {label(trend.lineage.metric)} by {label(trend.dimension)} · verified
-        from {trend.records_analyzed.toLocaleString()} records
-      </p>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        role="group"
-        aria-label={`${label(trend.lineage.metric)} trend across ${points.length} ${label(trend.dimension).toLowerCase()} values`}
-        className="trendSvg"
-      >
-        {[0, 0.5, 1].map((fraction) => (
-          <line
-            key={fraction}
-            x1={0}
-            x2={width}
-            y1={fraction * height}
-            y2={fraction * height}
-            stroke="var(--line)"
-            strokeDasharray="3 4"
-          />
-        ))}
-        <polyline
-          points={coordinates.join(" ")}
-          fill="none"
-          stroke="var(--green)"
-          strokeWidth={2}
-        />
-        {points.map(
-          (point, index) =>
-            point.value !== null && (
-              <circle
-                key={point.key + index}
-                cx={points.length > 1 ? index * step : width / 2}
-                cy={coordinateFor(point.value)}
-                r={active === index ? 5 : 3}
-                fill="var(--green)"
-                className="chartPoint"
-                tabIndex={0}
-                role="img"
-                aria-label={`${point.key}: ${formatValue(point.raw)}`}
-                onMouseEnter={() => setActive(index)}
-                onFocus={() => setActive(index)}
-                onClick={() => setActive(index)}
-              />
-            ),
-        )}
-      </svg>
-      <div className="chartReadout" aria-live="polite">
-        <span>
-          {active === null
-            ? "Hover or focus a point to explore"
-            : points[active]?.key}
-        </span>
-        <strong>
-          {active === null ? "" : formatValue(points[active]?.raw ?? null)}
-        </strong>
-      </div>
-      <details className="cardDetails">
-        <summary>View trend values</summary>
-        <div className="tableScroll">
-          <table>
-            <caption>Underlying trend values</caption>
-            <tbody>
-              {points.map((point) => (
-                <tr key={point.key}>
-                  <th scope="row">{point.key}</th>
-                  <td>{formatValue(point.raw)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
-    </div>
+  const rows = [...trend.rows].sort((left, right) =>
+    String(left[0]).localeCompare(String(right[0])),
   );
-}
-
-function DrilldownRows({ rows }: { rows: QueryBody }) {
   return (
-    <div className="drilldownRows tableScroll">
-      <table>
-        <thead>
-          <tr>
-            {rows.columns.map((column) => (
-              <th scope="col" key={column}>
-                {label(column)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.rows.map((row, index) => (
-            <tr key={index}>
-              {row.map((cell, column) => (
-                <td key={column}>
-                  {cell === null ? "(missing)" : String(cell)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="chartCaption">
-        {rows.rows.length} of{" "}
-        {(rows.matched_records ?? rows.records_analyzed).toLocaleString()}{" "}
-        matching records shown.
-      </p>
-    </div>
+    <AnswerVisualization
+      title={`${label(trend.dimension)} trend`}
+      columns={trend.columns.map((column, index) =>
+        column === "__value" && index === trend.columns.length - 1
+          ? label(trend.lineage.metric) : column,
+      )}
+      rows={rows}
+      initialChart="line"
+      allowLine
+      recordsAnalyzed={trend.records_analyzed}
+    />
   );
 }
 
@@ -253,109 +127,117 @@ function BreakdownChart({
   request: ApiRequest;
   filters: Filter[];
 }) {
-  const bars = [...breakdown.rows]
-    .map((row) => ({
-      key: JSON.stringify(row[0]),
-      label: row[0] === null ? "Missing value" : String(row[0]),
-      filterValue: row[0],
-      value: asNumber(row[1]),
-      raw: row[1],
-    }))
-    .sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity));
-  const max = Math.max(1, ...bars.map((bar) => Math.abs(bar.value ?? 0)));
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Cell>(null);
   const [drilldown, setDrilldown] = useState<QueryBody | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const pending = useRef<AbortController | null>(null);
+  useEffect(() => () => pending.current?.abort(), []);
 
-  async function toggle(key: string, value: Cell) {
+  function clear() {
+    pending.current?.abort();
+    setSelected(null);
+    setDrilldown(null);
+    setError("");
+    setBusy(false);
+  }
+
+  async function select(value: Cell) {
     if (value === null) return;
-    if (expanded === key) {
-      setExpanded(null);
-      setDrilldown(null);
+    if (value === selected) {
+      clear();
       return;
     }
-    setExpanded(key);
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
+    setSelected(value);
     setDrilldown(null);
     setError("");
     setBusy(true);
     try {
-      const result = await request<QueryBody>(
-        `${root}/rows`,
-        post({
+      const result = await request<QueryBody>(`${root}/rows`, {
+        ...post({
           filters: [
             ...filters,
             { column: breakdown.dimension, operator: "eq", value },
           ],
           limit: 20,
         }),
-      );
-      setDrilldown(result);
+        signal: controller.signal,
+      });
+      if (!controller.signal.aborted) setDrilldown(result);
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Could not load matching rows.",
-      );
+      if (!controller.signal.aborted)
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Could not load matching rows.",
+        );
     } finally {
-      setBusy(false);
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
 
   return (
-    <div className="chartCard">
-      <h3>
-        {label(breakdown.lineage.metric)} by {label(breakdown.dimension)}
-      </h3>
-      <p className="chartCaption">
-        Verified from {breakdown.records_analyzed.toLocaleString()} records ·
-        select a value to see its underlying rows
+    <div className={styles.breakdown}>
+      <AnswerVisualization
+        title={`${label(breakdown.lineage.metric)} by ${label(breakdown.dimension)}`}
+        columns={breakdown.columns.map((column, index) =>
+          column === "__value" && index === breakdown.columns.length - 1
+            ? label(breakdown.lineage.metric) : column,
+        )}
+        rows={breakdown.rows}
+        recordsAnalyzed={breakdown.records_analyzed}
+        onSelect={(value) => void select(value)}
+        selectionDisabled={busy}
+      />
+      <p className={styles.drillHint}>
+        Select a category to inspect its matching source records.
       </p>
-      <ul className="barList">
-        {bars.map((bar) => (
-          <li key={bar.key}>
-            <button
-              type="button"
-              className="barButton"
-              aria-expanded={expanded === bar.key}
-              disabled={busy || bar.filterValue === null}
-              title={
-                bar.filterValue === null
-                  ? "Inspect missing values in Prepare data"
-                  : undefined
-              }
-              onClick={() => void toggle(bar.key, bar.filterValue)}
-            >
-              <span className="barLabel">{bar.label}</span>
-              <span className="barTrack">
-                <span
-                  className="barFill"
-                  style={{
-                    width: `${(Math.abs(bar.value ?? 0) / max) * 100}%`,
-                  }}
-                />
-              </span>
-              <span className="barValue">{formatValue(bar.raw)}</span>
+      {selected !== null && (
+        <div className="drilldownPanel">
+          <div className={styles.drillHeading}>
+            <strong>
+              {label(breakdown.dimension)}: {String(selected)}
+            </strong>
+            <button type="button" onClick={clear}>
+              Close matching records
             </button>
-            {expanded === bar.key && (
-              <div className="drilldownPanel">
-                {busy && <p>Loading matching rows…</p>}
-                {error && (
-                  <p role="alert" className="errorNotice">
-                    {error}
-                  </p>
-                )}
-                {drilldown && <DrilldownRows rows={drilldown} />}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+          </div>
+          {busy && <p role="status">Loading matching rows…</p>}
+          {error && (
+            <p role="alert" className="errorNotice">
+              {error}
+            </p>
+          )}
+          {drilldown && (
+            <div className="drilldownRows">
+              <AnswerVisualization
+                title="Matching source records"
+                columns={drilldown.columns}
+                rows={drilldown.rows}
+                initialMode="table"
+                chartAllowed={false}
+                recordsAnalyzed={drilldown.records_analyzed}
+                matchedRecords={drilldown.matched_records}
+              />
+              <p className="chartCaption">
+                {drilldown.rows.length} of{" "}
+                {(
+                  drilldown.matched_records ?? drilldown.records_analyzed
+                ).toLocaleString()}{" "}
+                matching records shown.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-export function DashboardPanel({
+function DashboardContent({
   root,
   request,
 }: {
@@ -368,6 +250,8 @@ export function DashboardPanel({
   );
   const [template, setTemplate] = useState("");
   const [filters, setFilters] = useState<Filter[]>([]);
+  const [appliedTemplate, setAppliedTemplate] = useState("");
+  const pending = useRef<AbortController | null>(null);
   const [filterColumn, setFilterColumn] = useState("");
   const [filterValue, setFilterValue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -376,33 +260,56 @@ export function DashboardPanel({
 
   useEffect(() => {
     let cancelled = false;
-    request<{ columns: Column[] }>(`${root}/schema`)
+    const controller = new AbortController();
+    pending.current = controller;
+    request<{ columns: Column[] }>(`${root}/schema`, {
+      signal: controller.signal,
+    })
       .then((value) => {
         if (!cancelled) setColumns(value.columns);
       })
       .catch(() => {});
-    request<{ id: string; name: string }[]>(`${root}/dashboard-templates`)
+    request<{ id: string; name: string }[]>(`${root}/dashboard-templates`, {
+      signal: controller.signal,
+    })
       .then((value) => {
         if (!cancelled) setTemplates(value);
       })
       .catch(() => {});
-    request<Dashboard>(`${root}/dashboard`, post({ filters: [] }))
+    request<Dashboard>(`${root}/dashboard`, {
+      ...post({ filters: [] }),
+      signal: controller.signal,
+    })
       .then((result) => {
-        if (!cancelled) setDashboard(result);
+        if (!cancelled && !controller.signal.aborted) setDashboard(result);
       })
       .catch((cause: Error) => {
-        if (!cancelled) setError(cause.message);
+        if (!cancelled && !controller.signal.aborted) setError(cause.message);
       });
     return () => {
       cancelled = true;
+      controller.abort();
+      pending.current?.abort();
     };
   }, [root, request]);
 
   async function applyFilters(clear = false) {
+    const kind = columns.find((column) => column.name === filterColumn)?.type;
+    if (
+      !clear &&
+      filterColumn &&
+      kind === "boolean" &&
+      !["true", "false"].includes(filterValue)
+    ) {
+      setError("For a boolean column, enter true or false.");
+      return;
+    }
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
     setBusy(true);
     setError("");
     try {
-      const kind = columns.find((column) => column.name === filterColumn)?.type;
       const value =
         kind === "boolean"
           ? filterValue === "true"
@@ -413,23 +320,34 @@ export function DashboardPanel({
         !clear && filterColumn
           ? [{ column: filterColumn, operator: "eq", value }]
           : [];
-      const result = await request<Dashboard>(
-        `${root}/dashboard`,
-        post({ filters: selected, template_id: template || null }),
-      );
+      const result = await request<Dashboard>(`${root}/dashboard`, {
+        ...post({ filters: selected, template_id: template || null }),
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
       setDashboard(result);
       setFilters(selected);
+      setAppliedTemplate(template);
+      if (clear) {
+        setFilterColumn("");
+        setFilterValue("");
+      }
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Could not load dashboard.",
-      );
+      if (!controller.signal.aborted)
+        setError(
+          cause instanceof Error ? cause.message : "Could not load dashboard.",
+        );
     } finally {
-      setBusy(false);
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
 
   return (
-    <section className="panel dashboardPanel" aria-label="Dataset dashboard">
+    <section
+      className={`panel dashboardPanel ${styles.dashboard}`}
+      aria-label="Dataset dashboard"
+      aria-busy={busy}
+    >
       <div className="sectionHeading">
         <h2>Your data at a glance</h2>
         <span>
@@ -494,11 +412,41 @@ export function DashboardPanel({
             root={root}
             request={request}
             kind="dashboard"
-            payload={{ filters, template_id: template || null }}
+            payload={{ filters, template_id: appliedTemplate || null }}
             name="dashboard configuration"
           />
         )}
       </details>
+      <div
+        className={styles.filterStrip}
+        aria-label="Applied dashboard filters"
+      >
+        <span className={styles.filterCaption}>Viewing</span>
+        {filters.length ? (
+          filters.map((filter) => (
+            <span className={styles.filterChip} key={filter.column}>
+              {filter.column} = {String(filter.value)}
+              <button
+                type="button"
+                aria-label="Remove dashboard filter"
+                disabled={busy}
+                onClick={() => void applyFilters(true)}
+              >
+                ×
+              </button>
+            </span>
+          ))
+        ) : (
+          <span className={styles.allRows}>All source rows</span>
+        )}
+        {appliedTemplate && (
+          <span className={styles.allRows}>
+            {templates.find((item) => item.id === appliedTemplate)?.name ??
+              appliedTemplate}
+          </span>
+        )}
+        {busy && <span role="status">Updating calculations…</span>}
+      </div>
       {error && (
         <p role="alert" aria-label="Dashboard error" className="errorNotice">
           {error}
@@ -548,4 +496,8 @@ export function DashboardPanel({
       )}
     </section>
   );
+}
+
+export function DashboardPanel(props: { root: string; request: ApiRequest }) {
+  return <DashboardContent key={props.root} {...props} />;
 }

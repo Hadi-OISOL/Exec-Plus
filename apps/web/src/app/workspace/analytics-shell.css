@@ -1,0 +1,317 @@
+/* Use case: Applies an analytics-first visual system to the existing governed workspace.
+What it does: Styles grouped navigation, question-led home, source context and data surfaces across screen sizes. */
+
+.analyticsShell.workbench {
+  --ink: #222b3d;
+  --muted: #667085;
+  --paper: #f6f7fb;
+  --surface: #ffffff;
+  --line: #e4e7ef;
+  --green: #5147d9;
+  --orange: #a65f17;
+  grid-template-columns: 210px minmax(0, 1fr);
+  background: var(--paper);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+.analyticsShell .workbenchRail {
+  background: #202b40;
+  color: #c3cbda;
+  padding: 0 0 20px;
+  height: 100vh;
+  scrollbar-width: thin;
+}
+.analyticsShell .workbenchRail .brand {
+  height: 56px;
+  min-height: 56px;
+  padding: 0 18px;
+  background: #182133;
+  border-bottom: 1px solid #344056;
+  font-size: 19px;
+  letter-spacing: -.04em;
+}
+.analyticsShell .workbenchRail .brandMark {
+  width: 29px;
+  height: 29px;
+  background: #b6b2ff;
+  color: #252060;
+  border-radius: 8px;
+  font-size: 21px;
+}
+.analyticsShell .workbenchRail .brandMark span { font-size: 14px; margin-top: 3px; }
+.analyticsShell .workbenchRail .brand small { display: none; }
+.analyticsShell .workbenchRail nav { padding: 8px 0; gap: 4px; }
+.analyticsShell .analyticsNavGroup { display: grid; gap: 2px; min-width: 0; }
+.analyticsShell .railCaption { padding: 17px 18px 8px; font-size: 9px; letter-spacing: .1em; color: #93a1ba; }
+.analyticsShell .workbenchRail nav button {
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  padding: 9px 11px;
+  min-height: 37px;
+  color: #d0d7e4;
+  font-size: 12px;
+  gap: 10px;
+  text-align: left;
+  justify-content: flex-start;
+  background: transparent;
+}
+.analyticsShell .workbenchRail nav button svg { flex-shrink: 0; width: 17px; height: 17px; }
+.analyticsShell .workbenchRail nav button > span:first-of-type { display: inline; position: static; width: auto; height: auto; clip-path: none; overflow: visible; white-space: nowrap; }
+.analyticsShell .workbenchRail .brand > span:last-child { display: inline; }
+.analyticsShell .workbenchRail nav button[aria-current] { background: #344163; color: #c8c5ff; box-shadow: inset 3px 0 #a49dff; }
+.analyticsShell .workbenchRail nav button:hover:not(:disabled) { background: #2c3954; filter: none; }
+.analyticsShell .railNote { margin: 24px 17px 0; padding: 16px 0 0; border-color: #3c4960; font-size: 10px; }
+.analyticsShell .railNote > svg { display: none; }
+.analyticsShell .railNote strong { font-size: 11px; }
+.analyticsShell .railNote p { font-size: 10px; margin: 7px 0 14px; }
+.analyticsShell .workbenchTop {
+  height: 56px;
+  min-width: 0;
+  padding: 0 24px;
+  color: #dbe0eb;
+  background: #182133;
+  border-bottom: 1px solid #344056;
+  gap: 16px;
+}
+.analyticsShell .workbenchTop > div:first-child { gap: 20px; min-width: 0; }
+.analyticsShell .topBreadcrumb { font-size: 11px; color: #a9b4c8; white-space: nowrap; }
+.analyticsShell .topBreadcrumb strong { color: white; font-weight: 500; }
+.analyticsShell .headerSearch {
+  padding: 5px 12px;
+  color: #c0cada;
+  background: #2d394f;
+  border: 1px solid #3d4960;
+  border-radius: 7px;
+  min-width: 180px;
+  justify-content: flex-start;
+  font-size: 11px;
+  font-weight: 400;
+}
+.analyticsShell .privateBadge { border: 0; color: #c4cee0; background: transparent; font-size: 10px; padding: 0; }
+.analyticsShell .sessionBar { flex-wrap: nowrap; color: #ccd5e5; font-size: 10px; min-width: 0; }
+.analyticsShell .userIdentity { min-width: 0; gap: 7px; }
+.analyticsShell .userIdentity > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+.analyticsShell .userAvatar { background: #5147d9; color: #fff; width: 26px; height: 26px; flex-shrink: 0; }
+.analyticsShell .sessionBar button { color: #dbe0eb; white-space: nowrap; }
+.analyticsShell .workbenchContent { padding: 24px 28px 0; max-width: 1700px; }
+.analyticsShell .workspaceHeader { padding: 0 0 18px; gap: 16px; }
+.analyticsShell .workspaceHeader h1 { font-size: 24px; letter-spacing: -.04em; margin-bottom: 5px; }
+.analyticsShell .workspaceHeader .eyebrow { font-size: 9px; color: var(--muted); margin-bottom: 5px; }
+.analyticsShell .workspaceHeader p:last-child { font-size: 12px; }
+.analyticsShell .uploadShortcut { box-shadow: none; background: #5147d9; padding: 9px 13px; font-size: 12px; }
+.analyticsShell button { border-radius: 6px; }
+.analyticsShell button:focus-visible,
+.analyticsShell input:focus-visible,
+.analyticsShell select:focus-visible,
+.analyticsShell textarea:focus-visible,
+.analyticsShell summary:focus-visible { outline: 3px solid #9390f6; outline-offset: 3px; }
+.analyticsShell .datasetToolbar {
+  border-radius: 7px;
+  padding: 10px 15px;
+  gap: 15px;
+  background: #fff;
+  box-shadow: 0 1px 2px #1c244505;
+  margin-bottom: 20px;
+}
+.analyticsShell .datasetToolbar label { font-size: 9px; color: var(--muted); }
+.analyticsShell .datasetToolbar select { font-size: 12px; font-weight: 500; padding: 3px 18px 3px 0; color: #313c50; }
+.analyticsShell .sourceStats { font-size: 9px; padding-left: 15px; }
+.analyticsShell .sourceStats strong { font-size: 15px; }
+.analyticsShell .sourceStats > span { color: #697486; }
+.analyticsShell .panel { border-radius: 8px; border-color: var(--line); padding: 23px; box-shadow: 0 1px 3px #1a234205; }
+.analyticsShell .panel h2 { font-size: 18px; }
+.analyticsShell .panel p { color: var(--muted); }
+.analyticsShell .tableScroll { max-width: 100%; scrollbar-width: thin; }
+.analyticsShell table { font-variant-numeric: tabular-nums; }
+.analyticsShell th { background: #f7f8fb; color: #526079; font-size: 11px; font-weight: 600; }
+.analyticsShell td { color: #303a4f; font-size: 12px; }
+.analyticsShell .verifiedBadge { background: #ecf7f2; color: #267453; }
+.analyticsShell .analysisIntent { padding: 9px 13px; background: #fff; border-color: var(--line); border-radius: 7px; }
+.analyticsShell .analysisIntent label { font-size: 10px; }
+.analyticsShell .analysisIntent select { font-size: 11px; }
+.analyticsShell .analysisIntent p { font-size: 10px; }
+.analyticsShell .analysisViewControls { padding: 10px 0 14px; font-size: 11px; }
+.analyticsShell .analysisViewControls p { font-size: 10px; }
+.analyticsShell .analysisViewChoice { border-color: var(--line); border-radius: 6px; }
+.analyticsShell .analysisViewChoice label { font-size: 11px; }
+.analyticsShell .workspaceDisclosure { border-radius: 8px; border-color: var(--line); background: #fff; }
+.analyticsShell .workspaceDisclosure > summary { padding: 15px 18px; font-size: 12px; }
+.analyticsShell .expandedWorkspaceTools { padding: 15px; }
+.analyticsShell .searchDataWorkspace { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(0, 2.6fr); gap: 18px; align-items: start; }
+.analyticsShell .searchDataWorkspace > .panel { padding: 18px; }
+.analyticsShell .searchDataWorkspace .dashboardPanel { margin: 0; }
+.analyticsShell .searchDataWorkspace .dashboardTools { padding: 0; }
+.analyticsShell .searchDataWorkspace .dashboardPanel > p { margin-top: 4px; }
+.analyticsShell .analyticsHome { margin: 0 0 28px; }
+.analyticsShell .homeWelcome { text-align: center; padding: 25px 10px 16px; background: radial-gradient(ellipse at center, #ededff80, transparent 68%); }
+.analyticsShell .homeAssistantMark { display: inline-grid; place-items: center; background: #e7e4ff; color: #6353c9; width: 44px; height: 44px; border-radius: 15px; margin-bottom: 13px; }
+.analyticsShell .homeWelcome h2 { font-size: clamp(21px, 2.3vw, 30px); letter-spacing: -.035em; font-weight: 600; margin: 0 0 8px; color: #30374c; }
+.analyticsShell .homeWelcome p { font-size: 12px; color: var(--muted); margin: 0; }
+.analyticsShell .homeComposer { width: min(690px, 100%); margin: 8px auto 0; padding: 14px 15px 10px; background: white; border: 1px solid #9990f5; border-radius: 12px; box-shadow: 0 4px 20px #7163db10; }
+.analyticsShell .homeComposer > input { width: 100%; border: 0; padding: 8px 2px 18px; background: transparent; font-size: 14px; box-shadow: none; }
+.analyticsShell .homeComposer > input:focus { outline-offset: 1px; }
+.analyticsShell .homeComposerFooter { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.analyticsShell .homeSourcePill { display: inline-flex; align-items: center; gap: 7px; border-radius: 6px; padding: 5px 9px; max-width: 65%; background: #f0f1f7; color: #515971; font-size: 11px; overflow-wrap: anywhere; min-width: 0; }
+.analyticsShell .homeSourcePill svg { flex-shrink: 0; }
+.analyticsShell .homeComposerFooter .homeSourceChange { padding: 4px; background: none; color: #6a6594; font-size: 10px; }
+.analyticsShell .homeComposerFooter button[type=submit] { width: 32px; height: 32px; border-radius: 50%; padding: 0; margin-left: auto; flex-shrink: 0; }
+.analyticsShell .homeQuickQuestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin: 15px 0 30px; }
+.analyticsShell .homeQuickQuestions button { padding: 7px 10px; font-size: 11px; background: #fff; color: #626c80; border: 1px solid var(--line); border-radius: 20px; font-weight: 400; }
+.analyticsShell .homeLibraryGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 1000px; margin: 0 auto; }
+.analyticsShell .homeLibraryCard { background: white; border: 1px solid var(--line); border-radius: 8px; min-width: 0; overflow: hidden; }
+.analyticsShell .homeLibraryCard > header { padding: 14px 17px; border-bottom: 1px solid #edf0f6; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.analyticsShell .homeLibraryCard h3 { font-size: 13px; font-weight: 600; margin: 0; }
+.analyticsShell .homeLibraryCard > header button { font-size: 10px; background: transparent; color: #6255cb; padding: 0; }
+.analyticsShell .homePrivateLabel { color: var(--muted); font-size: 9px; }
+.analyticsShell .homeLibraryCard ul { list-style: none; margin: 0; padding: 6px; }
+.analyticsShell .homeLibraryCard li > button { display: flex; width: 100%; padding: 12px 10px; gap: 12px; text-align: left; background: transparent; color: #313b50; justify-content: flex-start; font-weight: 400; }
+.analyticsShell .homeLibraryCard li > button:hover { background: #f7f8fd; }
+.analyticsShell .homeLibraryCard li > button > svg { margin-left: auto; color: #a0a6b5; flex-shrink: 0; }
+.analyticsShell .homeLibraryCard li strong { display: block; font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.analyticsShell .homeLibraryCard li small { display: block; font-size: 10px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+.analyticsShell .homeItemIcon { width: 31px; height: 31px; border-radius: 7px; color: #787ab2; background: #f1f1fa; display: grid; place-items: center; flex-shrink: 0; }
+.analyticsShell .homeLibraryEmpty { padding: 26px 18px; text-align: center; color: var(--muted); }
+.analyticsShell .homeLibraryEmpty p { color: #5d667b; font-size: 12px; margin: 7px 0 4px; }
+.analyticsShell .homeLibraryEmpty span { color: var(--muted); font-size: 10px; }
+.analyticsShell .homeLibraryCard > p { padding: 16px; font-size: 12px; }
+.analyticsShell .discoveryLayout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.analyticsShell .discoveryPanel { border: 0; background: transparent; }
+.analyticsShell .discoveryIntro { background: #fff; padding: 20px; border: 1px solid var(--line); border-radius: 8px; }
+.analyticsShell .discoveryIntro p { font-size: 12px; }
+.analyticsShell .discoveryTitle h2 { font-size: 20px; }
+.analyticsShell .discoveryFindings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.analyticsShell .discoveryMetricGroup, .analyticsShell .discoveryFinding { border-radius: 8px; background: #fff; border-color: var(--line); box-shadow: 0 1px 3px #1a234205; padding: 20px; }
+.analyticsShell .discoveryMetricGroup:nth-child(n), .analyticsShell .discoveryFinding:nth-child(n) { background: #fff; }
+.analyticsShell .discoveryValue { font-size: clamp(23px, 2.4vw, 35px); color: #253049; font-variant-numeric: tabular-nums; }
+.analyticsShell .discoveryChecks { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 16px; }
+.analyticsShell .discoveryBars .discoveryBarTrack span { background: #7564e0; }
+.analyticsShell .findingQuestion { color: #6554c9; }
+.analyticsShell .askPanel { position: static; padding: 0; border-radius: 9px; background: white; border: 1px solid var(--line); box-shadow: none; }
+.analyticsShell .chatHeader { padding: 17px 22px; border-bottom: 1px solid var(--line); }
+.analyticsShell .chatHeader h2 { font-size: 16px; }
+.analyticsShell .chatHeader > div > span { font-size: 11px; }
+.analyticsShell .assistantAvatar { color: #6554c9; background: #edeaff; border-radius: 50%; width: 34px; height: 34px; }
+.analyticsShell .chatHeader .quietButton { font-size: 11px; max-width: none; padding: 7px 9px; border: 1px solid var(--line); color: #637086; }
+.analyticsShell .chatSource { background: #fafbfe; padding: 10px 22px; font-size: 11px; }
+.analyticsShell .conversationLog { height: 560px; padding: 26px 26px; }
+.analyticsShell .dedicatedConversation .conversationLog { height: max(420px, calc(100vh - 390px)); }
+.analyticsShell .dedicatedConversation { max-width: 1150px; margin: 0 auto; }
+.analyticsShell .dedicatedConversation .askPanel { border-radius: 9px; }
+.analyticsShell .dedicatedConversation .discoveryLayout { display: block; }
+.analyticsShell .messageAuthor { font-size: 11px; }
+.analyticsShell .assistantMessage p { font-size: 13px; line-height: 1.7; color: #475067; }
+.analyticsShell .assistantMessage h3 { font-size: 21px; }
+.analyticsShell .userMessage { background: #f2f3f8; margin-left: auto; max-width: 80%; border-radius: 12px 12px 2px 12px; padding: 13px 17px; }
+.analyticsShell .userMessage p { font-size: 13px; color: #303c54; }
+.analyticsShell .userMessage .messageAuthor { color: var(--muted); font-size: 10px; }
+.analyticsShell .conversationTurn { padding-bottom: 14px; }
+.analyticsShell .assistantMessage { padding-top: 18px; }
+.analyticsShell .askPanel .suggestionChips { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+.analyticsShell .askPanel .suggestionChips button { font-size: 11px; padding: 9px 12px; border-color: var(--line); background: #fafbfe; color: #5e6384; }
+.analyticsShell .chatComposer { background: #fff; padding: 16px 22px; border-top: 1px solid var(--line); }
+.analyticsShell .chatComposer form { border-color: #a19ae8; border-radius: 10px; box-shadow: 0 3px 14px #6d56d70c; padding: 12px; }
+.analyticsShell .chatComposer textarea { font-size: 13px; min-height: 44px; }
+.analyticsShell .chatComposer form button { background: #6250d5; border-radius: 50%; }
+.analyticsShell .chatComposer > small { font-size: 10px; color: var(--muted); }
+.analyticsShell .chatComposer .summaryAction { color: #716692; font-size: 11px; }
+.analyticsShell .answerCard { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 22px; }
+.analyticsShell .answerCard .kpiValue { font-size: 36px; color: #27334c; }
+.analyticsShell .answerEvidence { padding: 12px 0; border-color: var(--line); }
+.analyticsShell .answerEvidence > summary { font-size: 11px; color: var(--muted); }
+.analyticsShell .recordResult { border-radius: 7px; }
+.analyticsShell .recordResult th { background: #f7f8fc; }
+.analyticsShell .recordResult td { font-variant-numeric: tabular-nums; }
+.analyticsShell .recordPagination { padding: 10px 12px; font-size: 10px; }
+.analyticsShell .kpiCard:nth-child(n) { background: white; border: 1px solid var(--line); border-radius: 8px; }
+.analyticsShell .kpiCard .kpiValue { color: #25334c; }
+.analyticsShell .chartCard { border-color: var(--line); background: white; border-radius: 8px; }
+.analyticsShell .loginPanel { max-width: 560px; margin: 60px auto; padding: 35px; }
+.analyticsShell footer { font-size: 10px; color: var(--muted); padding: 28px 0; }
+
+@media (min-width: 1600px) {
+  .analyticsShell.workbench { grid-template-columns: 226px minmax(0, 1fr); }
+  .analyticsShell .homeWelcome { padding-top: 36px; }
+}
+@media (max-width: 1180px) {
+  .analyticsShell .privateBadge { display: none; }
+  .analyticsShell .headerSearch { min-width: 140px; }
+  .analyticsShell .userIdentity > span:last-child { max-width: 150px; }
+  .analyticsShell .searchDataWorkspace { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .analyticsShell.workbench { display: block; }
+  .analyticsShell .workbenchRail { height: auto; max-width: 100vw; padding: 0; position: static; overflow: hidden; }
+  .analyticsShell .workbenchRail .brand { display: none; }
+  .analyticsShell .workbenchRail nav { display: flex; flex-direction: row; align-items: center; gap: 3px; overflow-x: auto; padding: 7px; max-width: 100%; border: 0; scrollbar-width: thin; }
+  .analyticsShell .analyticsNavGroup { display: contents; }
+  .analyticsShell .railCaption, .analyticsShell .railNote { display: none; }
+  .analyticsShell .workbenchRail nav button { width: auto; flex: 0 0 auto; margin: 0; padding: 9px 10px; font-size: 11px; min-height: 34px; }
+  .analyticsShell .workbenchRail nav button span { display: inline; }
+  .analyticsShell .workbenchRail nav button svg { width: 15px; height: 15px; }
+  .analyticsShell .workbenchTop { padding: 0 16px; height: 48px; gap: 10px; }
+  .analyticsShell .workbenchTop > div:first-child { display: flex; gap: 10px; }
+  .analyticsShell .topBreadcrumb { display: none; }
+  .analyticsShell .workbenchContent { padding: 20px 18px 0; }
+  .analyticsShell .datasetToolbar { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .analyticsShell .sourceStats { border: 0; padding: 0; }
+}
+@media (max-width: 560px) {
+  .analyticsShell .workbenchContent { padding: 17px 12px 0; }
+  .analyticsShell .workbenchTop { padding: 0 12px; }
+  .analyticsShell .headerSearch { min-width: 0; padding: 7px; }
+  .analyticsShell .headerSearch span { display: none; }
+  .analyticsShell .sessionBar { gap: 8px; }
+  .analyticsShell .userIdentity > span:last-child { max-width: 170px; }
+  .analyticsShell .userAvatar { display: none; }
+  .analyticsShell .workspaceHeader h1 { font-size: 21px; }
+  .analyticsShell .workspaceHeader p:last-child { font-size: 11px; }
+  .analyticsShell .workspaceHeader { align-items: flex-start; gap: 10px; }
+  .analyticsShell .uploadShortcut { font-size: 11px; padding: 8px 10px; flex-shrink: 0; }
+  .analyticsShell .uploadShortcut svg { width: 15px; }
+  .analyticsShell .homeWelcome { padding: 16px 5px; }
+  .analyticsShell .homeWelcome h2 { font-size: 23px; }
+  .analyticsShell .homeWelcome p { font-size: 11px; }
+  .analyticsShell .homeComposer { padding: 11px; border-radius: 9px; }
+  .analyticsShell .homeComposer > input { font-size: 12px; }
+  .analyticsShell .homeComposerFooter { gap: 6px; }
+  .analyticsShell .homeSourcePill { font-size: 10px; max-width: 58%; padding: 5px 7px; }
+  .analyticsShell .homeComposerFooter .homeSourceChange { font-size: 9px; }
+  .analyticsShell .homeQuickQuestions { gap: 6px; margin: 12px 0 22px; }
+  .analyticsShell .homeQuickQuestions button { font-size: 10px; padding: 6px 8px; }
+  .analyticsShell .homeLibraryGrid { grid-template-columns: 1fr; gap: 12px; }
+  .analyticsShell .homeLibraryCard > header { padding: 12px 14px; }
+  .analyticsShell .homeLibraryCard li > button { padding: 10px 8px; }
+  .analyticsShell .homeLibraryEmpty { padding: 18px; }
+  .analyticsShell .panel { padding: 16px; }
+  .analyticsShell .analysisIntent { display: block; }
+  .analyticsShell .analysisIntent p { margin: 7px 0 0; }
+  .analyticsShell .analysisViewControls { align-items: flex-start; gap: 8px; }
+  .analyticsShell .analysisViewControls p { max-width: 170px; }
+  .analyticsShell .discoveryFindings { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .analyticsShell .discoveryIntro, .analyticsShell .discoveryMetricGroup, .analyticsShell .discoveryFinding { padding: 16px; }
+  .analyticsShell .discoveryValue { font-size: 25px; }
+  .analyticsShell .chatHeader { padding: 14px; }
+  .analyticsShell .chatHeader h2 { font-size: 14px; }
+  .analyticsShell .chatHeader .quietButton { font-size: 10px; padding: 5px; }
+  .analyticsShell .chatSource { padding: 8px 14px; }
+  .analyticsShell .conversationLog { height: 500px; padding: 18px 14px; }
+  .analyticsShell .assistantMessage h3 { font-size: 18px; }
+  .analyticsShell .assistantMessage p { font-size: 12px; }
+  .analyticsShell .userMessage { max-width: 92%; padding: 10px 12px; }
+  .analyticsShell .chatComposer { padding: 12px; }
+  .analyticsShell .chatComposer textarea { font-size: 12px; }
+  .analyticsShell .askPanel { padding: 0; }
+  .analyticsShell .answerCard .kpiValue { font-size: 27px; }
+  .analyticsShell .dedicatedConversation .conversationLog { height: 450px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analyticsShell *, .analyticsShell *::before, .analyticsShell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+.analyticsShell .answerSaveActions { border-top: 1px solid var(--line); padding: 12px 0; }
+.analyticsShell .answerSaveActions > div { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.analyticsShell .answerSaveActions label { flex-direction: row; align-items: center; display: flex; font-size: 11px; color: var(--muted); gap: 7px; }
+.analyticsShell .answerSaveActions button { font-size: 11px; background: #f1effd; color: #6150c8; border: 1px solid #e6e2fc; padding: 7px 10px; }
+.analyticsShell .nextQuestionNotice { padding: 10px 12px; font-size: 12px; color: #51478d; background: #f3f1ff; border-radius: 6px; }

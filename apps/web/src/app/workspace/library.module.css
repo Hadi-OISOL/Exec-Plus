@@ -1,0 +1,79 @@
+/* Use case: Presents saved answers and evidence dashboards as a browsable content library.
+What it does: Scopes responsive gallery, toolbar and result styling without changing application-wide controls. */
+
+.library { min-width: 0; }
+.libraryHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.libraryHeader h2, .libraryHeader h3 { margin: 0 0 8px; }
+.libraryHeader p { max-width: 740px; color: var(--muted); font-size: .88rem; line-height: 1.6; margin-bottom: 0; }
+.eyebrow { color: var(--green); text-transform: uppercase; letter-spacing: .1em; font-size: .65rem; font-weight: 800; display: block; margin-bottom: 9px; }
+.toolbar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; padding: 16px 0 22px; }
+.toolbar label { margin: 0; font-size: .74rem; gap: 7px; }
+.search { flex: 1; min-width: 180px; }
+.search input { min-height: 42px; background: var(--surface, white); }
+.visibility { flex: 0 1 195px; min-width: 170px; }
+.visibility select { min-height: 42px; }
+.viewSwitch { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; padding: 3px; gap: 3px; }
+.viewSwitch button { display: grid; place-items: center; padding: 7px; border: 0; background: transparent; color: var(--muted); min-height: 34px; }
+.viewSwitch button[aria-pressed="true"] { color: var(--green); background: color-mix(in srgb, var(--green) 10%, white); }
+.viewSwitch svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.count { color: var(--muted); font-size: .74rem; align-self: center; white-space: nowrap; padding-top: 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(255px, 100%), 1fr)); gap: 16px; margin-bottom: 24px; }
+.card { display: flex; flex-direction: column; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, white); box-shadow: 0 2px 4px rgba(19, 31, 52, .025); }
+.card:hover { border-color: color-mix(in srgb, var(--green) 42%, var(--line)); box-shadow: 0 5px 16px rgba(19, 31, 52, .05); }
+.cardTop { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.cardIcon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; color: var(--green); background: color-mix(in srgb, var(--green) 8%, white); flex-shrink: 0; }
+.cardType { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.badge { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; font-size: .65rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
+.card h3, .card h4 { margin: 0 0 8px; font-size: .98rem; line-height: 1.45; overflow-wrap: anywhere; }
+.description { font-size: .8rem; line-height: 1.5; color: var(--muted); margin: 0 0 15px; overflow-wrap: anywhere; }
+.metadata { font-size: .71rem; color: var(--muted); margin: 0 0 16px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; }
+.actions button, .actions a { font-size: .75rem; padding: 8px 10px; line-height: 1.4; }
+.actions button[aria-pressed="true"] { color: white; background: var(--green); border-color: var(--green); }
+.actions button[aria-pressed="false"] { color: var(--muted); background: var(--surface, white); border: 1px solid var(--line); }
+.actions a { border: 1px solid var(--line); border-radius: 5px; }
+.secondaryActions { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.secondaryActions summary { font-size: .75rem; color: var(--muted); cursor: pointer; }
+.secondaryActions .actions { margin-top: 12px; }
+.list { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 24px; }
+.list .card { padding: 17px 20px; }
+.list .cardTop { margin-bottom: 10px; }
+.empty { border: 1px dashed var(--line); padding: 36px 20px; text-align: center; border-radius: 10px; color: var(--muted); font-size: .88rem; }
+.empty h3 { color: var(--ink); margin: 0 0 10px; }
+.result { margin: 24px 0; background: var(--surface, white); border: 1px solid var(--line); border-radius: 10px; padding: 24px; min-width: 0; }
+.resultHeading { display: flex; align-items: center; gap: 16px; justify-content: space-between; margin-bottom: 16px; }
+.resultHeading h3 { margin: 0; overflow-wrap: anywhere; }
+.resultHeading > span { font-size: .75rem; color: var(--muted); }
+.resultMetric { margin: 25px 0; }
+.resultMetric strong { display: block; font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 650; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.resultMetric span { display: block; color: var(--muted); font-size: .8rem; margin-bottom: 10px; }
+.evidence { padding-top: 16px; margin-top: 20px; border-top: 1px solid var(--line); }
+.evidence summary { cursor: pointer; font-size: .78rem; color: var(--muted); }
+.evidence pre { font-size: .73rem; max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.collection { margin-top: 30px; border-top: 1px solid var(--line); padding-top: 28px; }
+.collection h3 { margin-top: 0; }
+.collection .card { padding: 20px; border: 1px solid var(--line); }
+.createBoard { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.createBoard label { flex: 1; min-width: 180px; margin: 0; }
+.createBoard button { margin-bottom: 0; min-height: 42px; }
+.board { margin-top: 28px; padding: 24px; border-radius: 12px; background: color-mix(in srgb, var(--green) 3%, white); border: 1px solid var(--line); min-width: 0; }
+.board .result { margin: 0; padding: 18px; }
+.boardSummary { font-size: .8rem; color: var(--muted); line-height: 1.6; }
+.savedSchedules { border-top: 1px solid var(--line); padding-top: 16px; }
+.savedSchedules p { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: .8rem; }
+@media (min-width: 900px) {
+  .list .card { display: grid; grid-template-columns: 150px minmax(160px, 1fr) auto; gap: 8px 24px; align-items: start; }
+  .list .cardTop { grid-row: span 3; margin: 0; flex-wrap: wrap; }
+  .list .cardTop .badge { margin-left: 0; }
+  .list .card h3, .list .card h4, .list .description, .list .metadata { grid-column: 2; margin: 0; }
+  .list .actions { grid-column: 3; grid-row: 1 / span 3; align-self: center; max-width: 310px; }
+}
+@media (max-width: 600px) {
+  .libraryHeader, .resultHeading { flex-direction: column; gap: 10px; }
+  .toolbar { gap: 10px; }
+  .search { flex-basis: 100%; }
+  .visibility { flex: 1; }
+  .count { flex-basis: 100%; padding-top: 0; }
+  .card, .collection .card, .result, .board { padding: 16px; }
+  .actions button, .actions a { max-width: 100%; overflow-wrap: anywhere; }
+}

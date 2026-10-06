@@ -4,6 +4,7 @@ What it does: Keeps paired turns, renders exact results and record tables, and e
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
 import { Icon, RecordTable } from "./explore-components";
+import { AnswerVisualization } from "./answer-visualization";
 import type { Cell } from "./explore-components";
 import { SaveControl } from "./saved-panel";
 import type { ApiRequest } from "./profile-panel";
@@ -117,6 +118,7 @@ export function AskPanel({
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState("");
+  const [draftNotice, setDraftNotice] = useState(false);
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<History[]>([]);
   const [selectedThread, setSelectedThread] = useState("");
@@ -405,7 +407,13 @@ export function AskPanel({
   }, [turns, pending]);
 
   async function ask(text: string, retry?: Turn) {
-    if (inFlight.current || !text.trim()) return;
+    if (!text.trim()) return;
+    if (inFlight.current) {
+      setQuestion(text);
+      setDraftNotice(true);
+      return;
+    }
+    setDraftNotice(false);
     const controller = beginOperation();
     setPending(text);
     setQuestion("");
@@ -450,7 +458,7 @@ export function AskPanel({
     } catch (cause) {
       if (controller.signal.aborted) return;
       interruptedTurn(turn, cause);
-      setQuestion(text);
+      setQuestion((draft) => draft || text);
     } finally {
       finishOperation(controller);
     }
@@ -535,6 +543,7 @@ export function AskPanel({
             setThreadId("");
             setTurns([]);
             setQuestion("");
+            setDraftNotice(false);
           }}
         >
           New conversation
@@ -767,14 +776,29 @@ export function AskPanel({
                       ? "Here are the matching records."
                       : "Here's the breakdown."}
                   </p>
-                  <RecordTable
-                    data={{
-                      columns: turn.answer.columns ?? [],
-                      rows: turn.answer.rows,
-                      records_analyzed: turn.answer.records_analyzed ?? 0,
-                      matched_records: turn.answer.matched_records,
-                    }}
-                  />
+                  {turn.answer.lineage &&
+                    turn.answer.lineage.aggregation !== "rows" &&
+                    turn.answer.columns?.length === 2 ? (
+                    <AnswerVisualization
+                      title={turn.answer.label ?? turn.question}
+                      columns={turn.answer.columns.map((column, index) =>
+                        column === "__value" && index === turn.answer!.columns!.length - 1
+                          ? "Calculated value" : column,
+                      )}
+                      rows={turn.answer.rows}
+                      recordsAnalyzed={turn.answer.records_analyzed ?? turn.answer.lineage.records_analyzed}
+                      matchedRecords={turn.answer.matched_records}
+                    />
+                  ) : (
+                    <RecordTable
+                      data={{
+                        columns: turn.answer.columns ?? [],
+                        rows: turn.answer.rows,
+                        records_analyzed: turn.answer.records_analyzed ?? 0,
+                        matched_records: turn.answer.matched_records,
+                      }}
+                    />
+                  )}
                 </>
               )}
               {turn.answer?.lineage && (
@@ -804,6 +828,8 @@ export function AskPanel({
                           : " · Profile-based interpretation"}
                       </p>
                     ))}
+                  </details>
+                  <div className="answerSaveActions">
                     <SaveControl
                       root={root}
                       request={request}
@@ -811,7 +837,7 @@ export function AskPanel({
                       payload={{ query_id: turn.answer.lineage.query_id }}
                       name="conversation result"
                     />
-                  </details>
+                  </div>
                 </>
               )}
               {turn.job && (
@@ -864,6 +890,7 @@ export function AskPanel({
         />
       )}
       <div className="chatComposer">
+        {draftNotice && <p role="status" className="nextQuestionNotice">Your next question is saved below. Send it when the current answer finishes.</p>}
         <button
           className="summaryAction"
           type="button"

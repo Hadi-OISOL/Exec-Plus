@@ -1,0 +1,383 @@
+/* Use case: Styles reusable answer cards and their focused exploration view.
+What it does: Provides a responsive chart canvas, exact tables and keyboard-visible controls without global selector changes. */
+
+.visualization {
+  min-width: 0;
+  color: #202938;
+  background: #fff;
+  border: 1px solid #e4e8ef;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 22px 14px;
+}
+.header > div:first-child {
+  min-width: 0;
+}
+.header h3 {
+  margin: 0;
+  color: #202938;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.fieldCaption {
+  margin: 5px 0 0;
+  color: #657184;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.actions button,
+.chartChoice button,
+.pagination button {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #657184;
+  font-size: 12px;
+  padding: 7px 10px;
+  font-weight: 550;
+  min-height: 32px;
+  cursor: pointer;
+}
+.actions button:hover,
+.chartChoice button:hover,
+.pagination button:hover {
+  background: #edf2fb;
+  color: #254db5;
+}
+.segmented {
+  display: flex;
+  background: #f1f3f7;
+  border-radius: 7px;
+  padding: 2px;
+}
+.segmented button {
+  padding: 5px 10px;
+}
+.segmented button[aria-pressed="true"] {
+  background: #fff;
+  color: #2455c8;
+  box-shadow: 0 1px 4px #172f5814;
+}
+.actions .expandButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
+}
+.chartChoice {
+  display: flex;
+  gap: 4px;
+  padding: 0 22px 4px;
+}
+.chartChoice button[aria-pressed="true"] {
+  color: #2455c8;
+  background: #edf3ff;
+}
+.plot {
+  padding: 4px 22px 14px;
+}
+.axisLabel {
+  color: #43506a;
+  margin: 3px 0 20px;
+  font-size: 11px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.axisLabel span {
+  color: #657184;
+  font-weight: 400;
+}
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.visualization .barRow {
+  display: grid;
+  grid-template-columns: minmax(68px, 1fr) minmax(55px, 2fr) minmax(42px, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 0;
+  background: transparent;
+  color: #293345;
+  border: 0;
+  border-radius: 5px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.45;
+}
+button.barRow:not(:disabled):hover {
+  background: #f3f6fb;
+}
+button.barRow:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.barLabel {
+  overflow-wrap: anywhere;
+}
+.barTrack {
+  height: 18px;
+  position: relative;
+  background: transparent;
+  border-radius: 0;
+  min-width: 0;
+  overflow: visible;
+}
+.barTrack .barFill {
+  display: block;
+  position: absolute;
+  top: 0;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: #507be6;
+  animation: none;
+}
+.barTrack .negative {
+  background: #9d74d8;
+  border-radius: 3px 0 0 3px;
+}
+.zeroLine {
+  position: absolute;
+  top: -4px;
+  height: 26px;
+  width: 1px;
+  background: #c7d2e2;
+}
+.barValue {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.lineChart {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 150px;
+  overflow: visible;
+}
+.gridLine {
+  stroke: #edf0f5;
+  stroke-width: 1;
+}
+.zeroAxis {
+  stroke: #b6c3d5;
+  stroke-width: 1;
+}
+.line {
+  stroke: #567ced;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.point {
+  fill: #567ced;
+  stroke: white;
+  stroke-width: 1.5;
+}
+.point:focus {
+  outline: none;
+  stroke: #132c79;
+  stroke-width: 3;
+}
+.axisText {
+  font-size: 10px;
+  fill: #66748b;
+}
+.readout {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 0;
+  min-height: 30px;
+  color: #63718a;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.readout strong {
+  color: #28344b;
+  font-variant-numeric: tabular-nums;
+}
+.note,
+.plotNote {
+  font-size: 11px;
+  color: #6b788b;
+  line-height: 1.6;
+  margin: 15px 0 0;
+}
+.plotNote {
+  color: #657184;
+  font-size: 10px;
+}
+.tableView {
+  min-width: 0;
+}
+.tableScroll {
+  margin: 0;
+  width: 100%;
+  max-height: 440px;
+}
+.tableScroll table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+.tableScroll th {
+  background: #f8f9fc;
+  text-align: left;
+  color: #6c778b;
+  font-weight: 550;
+}
+.tableScroll th,
+.tableScroll td {
+  padding: 12px 20px;
+  border-top: 1px solid #edf0f5;
+  white-space: nowrap;
+}
+.tableScroll tbody tr:hover {
+  background: #f7f9fe;
+}
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 11px;
+  color: #657184;
+}
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sourceCount {
+  border-top: 1px solid #edf0f5;
+  padding: 12px 22px;
+  font-size: 11px;
+  color: #657184;
+  line-height: 1.6;
+}
+.empty {
+  padding: 16px 22px;
+  color: #657184;
+  font-size: 13px;
+}
+.dialog {
+  width: min(1120px, calc(100vw - 40px));
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  border: 1px solid #d9e0eb;
+  border-radius: 14px;
+  background: #fff;
+  color: #202938;
+  overflow: auto;
+  box-shadow: 0 30px 100px #07152b38;
+}
+.dialog::backdrop {
+  background: #14213880;
+  backdrop-filter: blur(3px);
+}
+.dialog .header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+  border-bottom: 1px solid #edf0f5;
+  padding: 20px 28px;
+}
+.dialog .plot {
+  padding: 24px 35px;
+}
+.dialog .lineChart {
+  max-height: 55dvh;
+}
+.dialog .bars {
+  gap: 14px;
+}
+.dialog .barRow {
+  grid-template-columns: minmax(90px, 1fr) minmax(85px, 3fr) minmax(70px, 1fr);
+}
+.visualization button:focus-visible,
+.visualization [tabindex="0"]:focus-visible {
+  outline: 2px solid #365bca;
+  outline-offset: 3px;
+}
+.compact .header {
+  padding: 16px 18px 12px;
+}
+.compact .plot {
+  padding: 0 18px 14px;
+}
+@media (max-width: 650px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px;
+  }
+  .header > div:first-child {
+    flex: 1 1 150px;
+  }
+  .header .actions {
+    margin-left: auto;
+  }
+  .plot,
+  .compact .plot {
+    padding: 4px 16px 14px;
+  }
+  .visualization .barRow {
+    grid-template-columns: minmax(52px, 1fr) minmax(32px, 1fr) minmax(46px, 1fr);
+    gap: 7px;
+  }
+  .sourceCount {
+    padding: 12px 16px;
+  }
+  .dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+  .dialog .header {
+    padding: 16px;
+  }
+  .dialog .plot {
+    padding: 20px 14px;
+  }
+  .dialog .barRow {
+    grid-template-columns: minmax(60px, 1fr) minmax(36px, 1fr) minmax(52px, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .visualization *,
+  .dialog * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.bars > li {
+  display: block;
+  min-width: 0;
+}

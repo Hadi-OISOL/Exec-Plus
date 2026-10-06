@@ -15,6 +15,8 @@ import { AskPanel } from "./ask-panel";
 import { UnderstandingPanel, domains } from "./understanding-panel";
 import { DiscoveryPanel } from "./discovery-panel";
 import type { StaffRole } from "./support-panel";
+import { AnalyticsHome } from "./analytics-home";
+import "./analytics-shell.css";
 
 const loadingView = () => <p role="status">Loading this view…</p>;
 const ActivationPanel = dynamic(
@@ -99,6 +101,7 @@ type User = { id: string; email: string };
 
 export default function WorkspacePage() {
   const [section, setSection] = useState("overview");
+  const [savedSelection, setSavedSelection] = useState<{ root: string; id: string } | null>(null);
   const chat = useRef<ChatHandle>(null);
   const reviewDisclosure = useRef<HTMLDetailsElement>(null);
   const [revisionTick, setRevisionTick] = useState(0);
@@ -167,6 +170,7 @@ export default function WorkspacePage() {
           setWorkspaces([]);
           setMembers([]);
           setStaffRole(null);
+          setSavedSelection(null);
           setSection("data");
         }
         throw Object.assign(
@@ -257,6 +261,7 @@ export default function WorkspacePage() {
   }
 
   async function selectDataset(workspaceId: string, datasetId: string) {
+    setSavedSelection(null);
     setAnalysisIntent("descriptive");
     setReviewOpen(false);
     setDashboardOpen(false);
@@ -494,23 +499,38 @@ export default function WorkspacePage() {
       ? `/workspaces/${workspace.id}/datasets/${dataset}/uploads/${profileUpload}`
       : "";
   const sections = [
-    { id: "overview", name: "Overview" },
-    { id: "data", name: "Data library" },
-    { id: "prepare", name: "Prepare data" },
-    { id: "documents", name: "Documents" },
-    { id: "saved", name: "Saved work" },
-    { id: "studies", name: "Studies & dashboards" },
-    { id: "forecasts", name: "Forecasts" },
-    { id: "refresh", name: "Refresh & alerts" },
-    { id: "audit", name: "Audit history" },
-    { id: "team", name: "Team & settings" },
-    ...(manager ? [{ id: "usage", name: "Usage & retention" }] : []),
-    { id: "support", name: "Support" },
-    ...(staffRole ? [{ id: "admin", name: "Admin console" }] : []),
+    { id: "overview", name: "Overview", group: "INSIGHTS" },
+    { id: "ask", name: "Ask ExecPlus", group: "INSIGHTS" },
+    { id: "search", name: "Search data", group: "INSIGHTS" },
+    { id: "studies", name: "Studies & dashboards", group: "LIBRARY" },
+    { id: "saved", name: "Saved work", group: "LIBRARY" },
+    { id: "forecasts", name: "Forecasts", group: "ANALYSIS & ALERTS" },
+    { id: "refresh", name: "Refresh & alerts", group: "ANALYSIS & ALERTS" },
+    { id: "data", name: "Data library", group: "DATA WORKSPACE" },
+    { id: "prepare", name: "Prepare data", group: "DATA WORKSPACE" },
+    { id: "documents", name: "Documents", group: "DATA WORKSPACE" },
+    { id: "team", name: "Team & settings", group: "MANAGE" },
+    { id: "audit", name: "Audit history", group: "MANAGE" },
+    ...(manager ? [{ id: "usage", name: "Usage & retention", group: "MANAGE" }] : []),
+    { id: "support", name: "Support", group: "MANAGE" },
+    ...(staffRole ? [{ id: "admin", name: "Admin console", group: "MANAGE" }] : []),
   ];
+  function navigate(next: string) {
+    setSection(next);
+    setMessage("");
+    setError("");
+    setSavedSelection(null);
+    if (next === "forecasts") setAnalysisIntent("predictive");
+    if (next === "overview") setAnalysisIntent("descriptive");
+  }
+  function askFromHome(text: string) {
+    setSection("ask");
+    window.requestAnimationFrame(() => chat.current?.ask(text));
+  }
   return (
     <main
-      className={`workspaceApp workbench ${user ? "isSignedIn" : "isSignedOut"}`}
+      className={`workspaceApp workbench analyticsShell ${user ? "isSignedIn" : "isSignedOut"}`}
+      data-section={section}
     >
       <aside className="workbenchRail">
         <Link className="brand" href="/">
@@ -521,27 +541,24 @@ export default function WorkspacePage() {
             ExecPlus<small>YOUR DATA. CLEARER.</small>
           </span>
         </Link>
-        <div className="railCaption">WORKSPACE</div>
         <nav aria-label="Workspace navigation">
-          {sections.map((item) => (
-            <button
-              type="button"
-              key={item.id}
-              title={item.name}
-              disabled={!user || busy}
-              aria-current={section === item.id ? "page" : undefined}
-              onClick={() => {
-                setSection(item.id);
-                setMessage("");
-                setError("");
-                if (item.id === "forecasts") setAnalysisIntent("predictive");
-                if (item.id === "overview") setAnalysisIntent("descriptive");
-              }}
-            >
-              <Icon name={item.id} />
-              <span>{item.name}</span>
-              {section === item.id && <span className="navActiveDot" />}
-            </button>
+          {[...new Set(sections.map((item) => item.group))].map((group) => (
+            <div className="analyticsNavGroup" key={group}>
+              <div className="railCaption">{group}</div>
+              {sections.filter((item) => item.group === group).map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  title={item.name}
+                  disabled={!user || busy}
+                  aria-current={section === item.id ? "page" : undefined}
+                  onClick={() => navigate(item.id)}
+                >
+                  <Icon name={item.id === "ask" ? "chat" : item.id === "search" ? "search" : item.id} />
+                  <span>{item.name}</span>
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="railNote">
@@ -555,8 +572,11 @@ export default function WorkspacePage() {
         <header className="workbenchTop">
           <div>
             <span className="topBreadcrumb">
-              Workspace / {sections.find((item) => item.id === section)?.name}
+              <strong>ExecPlus</strong> / {sections.find((item) => item.id === section)?.name}
             </span>
+            {user && <button className="headerSearch" type="button" aria-label="Search your data" onClick={() => navigate("search")}>
+              <Icon name="search" size={15} /><span>Search your data</span>
+            </button>}
             <span className="privateBadge">
               <span className="liveDot" /> Private workspace
             </span>
@@ -583,6 +603,7 @@ export default function WorkspacePage() {
                     setDataset("");
                     setMembers([]);
                     setStaffRole(null);
+                    setSavedSelection(null);
                     setInvitations([]);
                     setUploads([]);
                     setFile(null);
@@ -599,17 +620,17 @@ export default function WorkspacePage() {
         <div className="workbenchContent">
           <header className="workspaceHeader">
             <div>
-              <p className="eyebrow">YOUR DECISION SPACE</p>
+              <p className="eyebrow">{sections.find((item) => item.id === section)?.group ?? "WELCOME"}</p>
               <h1>
                 {!user
                   ? "Meet your data."
                   : section === "overview"
-                    ? "A clearer picture."
+                    ? "Overview"
                     : sections.find((item) => item.id === section)?.name}
               </h1>
               <p>
                 {section === "overview"
-                  ? "From raw data to answers you can act on."
+                  ? "Explore, ask and build on what you discover."
                   : "Everything you need to explore, prepare and share your data."}
               </p>
             </div>
@@ -712,6 +733,7 @@ export default function WorkspacePage() {
                       disabled={busy || !uploads.length}
                       onChange={(event) => {
                         setProfileUpload(event.target.value);
+                        setSavedSelection(null);
                         setStarterQuestions([]);
                         setReviewOpen(false);
                         setDashboardOpen(false);
@@ -1257,8 +1279,23 @@ export default function WorkspacePage() {
                   request={request}
                 />
               )}
+              {section === "search" && workspace && <div className="searchDataWorkspace">
+                <CatalogPanel workspaceId={workspace.id} request={request} select={async (id) => {
+                  await run(async () => { await selectDataset(workspace.id, id); setSection("search"); });
+                }} />
+                {root && <DashboardPanel key={`search-${root}-${revisionTick}`} root={root} request={request} />}
+              </div>}
               {root ? (
                 <>
+                  {section === "overview" && <AnalyticsHome
+                    key={`home-${root}-${revisionTick}`}
+                    root={root}
+                    filename={selectedUpload?.filename ?? "Selected upload"}
+                    request={request}
+                    onAsk={askFromHome}
+                    onSaved={(id) => { setSavedSelection({ root, id }); setSection("saved"); }}
+                    onNavigate={navigate}
+                  />}
                   {["overview", "forecasts"].includes(section) && (
                     <div className="analysisIntent">
                       <label>
@@ -1294,7 +1331,7 @@ export default function WorkspacePage() {
                       </p>
                     </div>
                   )}
-                  <div hidden={section !== "overview"}>
+                  <div hidden={!["overview", "ask"].includes(section)} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
                     <div className="analysisViewControls">
                       <div>
                         <strong>Your data, your level of detail</strong>
@@ -1325,7 +1362,7 @@ export default function WorkspacePage() {
                       </fieldset>
                     </div>
                     <div className="exploreLayout discoveryLayout">
-                      <div className="insightCanvas">
+                      <div className="insightCanvas" hidden={section === "ask"}>
                         <DiscoveryPanel
                           enabled={!busy && section === "overview"}
                           key={`discovery-${root}-${revisionTick}`}
@@ -1382,6 +1419,7 @@ export default function WorkspacePage() {
                     )}
                     <details
                       className="workspaceDisclosure"
+                      hidden={section === "ask"}
                       open={dashboardOpen}
                       onToggle={(event) =>
                         setDashboardOpen(event.currentTarget.open)
@@ -1410,6 +1448,7 @@ export default function WorkspacePage() {
                     </details>
                     <details
                       ref={reviewDisclosure}
+                      hidden={section === "ask"}
                       className="workspaceDisclosure"
                       open={reviewOpen}
                       onToggle={(event) =>
@@ -1460,7 +1499,7 @@ export default function WorkspacePage() {
                     <KnowledgePanel key={root} root={root} request={request} />
                   )}
                   {section === "saved" && (
-                    <SavedPanel key={root} root={root} request={request} />
+                    <SavedPanel key={root} root={root} request={request} initialItemId={savedSelection?.root === root ? savedSelection.id : undefined} />
                   )}
                   {section === "refresh" && (
                     <RefreshPanel
@@ -1507,6 +1546,7 @@ export default function WorkspacePage() {
                   "support",
                   "admin",
                   "usage",
+                  ...(workspace ? ["search"] : []),
                 ].includes(section) && (
                   <section className="emptyWorkspace">
                     <div className="emptyOrbit">

@@ -381,3 +381,24 @@ clarification evidence retains the original question and source references so a
 short reply can resolve the original request. Changes invalidate that context;
 confirmation guards and numerical execution remain separate. No new migration,
 runtime judge, provider choice or external connector is introduced.
+
+## October 6 analytics interface
+
+The presentation layer now provides a question-led home, dedicated conversation,
+authorized catalog/dashboard view and searchable saved-answer/study libraries.
+These use the existing application contracts. Search within a content library is
+metadata filtering; opening an item still goes through its authorized replay/run
+endpoint. Home's saved-item selection is bound to its selected source.
+
+Reusable SVG charts only derive drawing coordinates from returned values. Exact
+tables, evidence and labels keep the original numeric strings and nulls. Signed
+bars share a zero baseline; explicit nulls break lines. Study date views remain
+observed points. A display toggle does not rerun or reinterpret evidence. Expanded
+drill-down delegates to the existing record query rather than client-side row
+filtering. Only responses with calculation lineage receive calculation labels.
+
+The UI records real server activity, keeps a second incoming question as an explicit
+draft during active work and preserves original study pins. This does not change
+identity, model composition, storage, query limits or any migration. See the
+[interface contract](../analytics-interface.md) and
+[verification](../verification-interface-redesign.md).

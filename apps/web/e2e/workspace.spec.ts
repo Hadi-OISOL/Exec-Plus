@@ -145,8 +145,10 @@ test("first file needs no setup and opens sourced discoveries with useful conver
     timeout: 90_000,
   });
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.evaluate(() => window.scrollTo(0, 500));
+  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await page.getByLabel("Your question").scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Your question")).toBeInViewport({ ratio: 1 });
+  await navigate(page, "Overview");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(
@@ -699,12 +701,12 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
   await page
     .getByRole("button", { name: "Create invitation", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Invitation created");
+  await expect(page.locator('.notice[role="status"]')).toContainText("Invitation created");
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page
     .getByRole("button", { name: `Copy link for ${memberEmail}` })
     .click();
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.locator('.notice[role="status"]')).toContainText(
     "Invitation link copied",
   );
   const invitation = await page.evaluate(() => navigator.clipboard.readText());
@@ -716,14 +718,14 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
   await page
     .getByRole("button", { name: "Create dataset", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Dataset created");
+  await expect(page.locator('.notice[role="status"]')).toContainText("Dataset created");
   await page.getByLabel("CSV or Excel file").setInputFiles({
     name: "sales.csv",
     mimeType: "text/csv",
     buffer: Buffer.from("item,amount\nwidget,12\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("uploaded successfully");
+  await expect(page.locator('.notice[role="status"]')).toContainText("uploaded successfully");
   await navigate(page, "Data library");
   await page.getByText(/Retained uploads in the selected dataset/).click();
   await expect(
@@ -761,7 +763,7 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
   await page
     .getByRole("button", { name: "Accept invitation", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Invitation accepted");
+  await expect(page.locator('.notice[role="status"]')).toContainText("Invitation accepted");
   await expect(
     page.getByRole("button", { name: "Create invitation", exact: true }),
   ).toHaveCount(0);
@@ -1090,7 +1092,7 @@ test("upload creates a dataset and opens an interactive responsive exploration",
   ).toBe(true);
   expect(
     await dashboard
-      .locator(".barFill")
+      .locator(".discoveryBarTrack > span")
       .first()
       .evaluate((node) => getComputedStyle(node).animationName),
   ).toBe("none");

@@ -105,15 +105,19 @@
       "section": "Month 1",
       "feature": "Descriptive dashboards",
       "status": "done",
-      "note": "Interactive cards, charts and category breakdowns work, with supporting evidence and mobile layouts. They describe uploaded data.",
+      "note": "Cards and charts offer table views, expansion and exact evidence. Saved dashboards retain their snapshots.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/web/src/app/workspace/dashboard-panel.tsx",
         "apps/api/tests/test_analytics_integration.py",
-        "apps/web/e2e/workspace.spec.ts"
+        "apps/web/e2e/workspace.spec.ts",
+        "apps/web/src/app/workspace/answer-visualization.tsx",
+        "apps/web/e2e/visualization-interface.spec.ts",
+        "docs/verification-interface-redesign.md"
       ],
       "evidence_groups": [
-        "E2"
+        "E2",
+        "E13"
       ]
     },
     {
@@ -137,15 +141,19 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Supports totals, records, filters, breakdowns and follow-ups. Unclear questions prompt clarification; unsupported analysis is declined.",
+      "note": "Ask-first chat handles totals, filters and follow-ups. Busy requests retain drafts; unclear questions are clarified.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
         "apps/api/tests/test_partner_conversation.py",
-        "docs/verification-data-partner.md"
+        "docs/verification-data-partner.md",
+        "apps/web/src/app/workspace/analytics-home.tsx",
+        "apps/web/e2e/analytics-home.spec.ts",
+        "docs/verification-interface-redesign.md"
       ],
       "evidence_groups": [
-        "E2"
+        "E2",
+        "E13"
       ]
     },
     {
@@ -169,15 +177,18 @@
       "section": "Month 1",
       "feature": "Filters and drill-down",
       "status": "done",
-      "note": "Filters update cards and charts consistently. Clicking a category opens matching records with access checks.",
+      "note": "Visible filters and expanded-chart drill-down open matching records with the same access checks.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/web/src/app/workspace/dashboard-panel.tsx",
         "apps/api/tests/test_analytics_integration.py",
-        "apps/web/e2e/workspace.spec.ts"
+        "apps/web/e2e/workspace.spec.ts",
+        "apps/web/e2e/visualization-interface.spec.ts",
+        "docs/verification-interface-redesign.md"
       ],
       "evidence_groups": [
-        "E2"
+        "E2",
+        "E13"
       ]
     },
     {
@@ -185,15 +196,20 @@
       "section": "Month 1",
       "feature": "Save and share analysis",
       "status": "done",
-      "note": "Save analyses privately or share within an authorized workspace. Saved answers recalculate against original evidence.",
+      "note": "Search answers and dashboards in grid/list views. Shared access and original-evidence replay remain enforced.",
       "evidence": [
         "apps/api/src/execplus/application/services/saved_items.py",
         "apps/api/src/execplus/presentation/routes/saved_items.py",
         "apps/api/tests/test_saved_items_integration.py",
-        "apps/web/e2e/workspace.spec.ts"
+        "apps/web/e2e/workspace.spec.ts",
+        "apps/web/src/app/workspace/saved-panel.tsx",
+        "apps/web/src/app/workspace/studies-panel.tsx",
+        "apps/web/e2e/library-interface.spec.ts",
+        "docs/verification-interface-redesign.md"
       ],
       "evidence_groups": [
-        "E2"
+        "E2",
+        "E13"
       ]
     },
     {
@@ -356,15 +372,19 @@
       "section": "Improve activation",
       "feature": "Saved questions and prompts",
       "status": "done",
-      "note": "Save and reopen reusable questions; prompt items are also supported by the API. Private/shared access works. There is no separate prompt-library editor.",
+      "note": "Search reusable questions and API-created prompts. Saved explanations show sources without a calculation badge. A separate prompt editor remains unavailable.",
       "evidence": [
         "apps/api/src/execplus/application/services/saved_items.py",
         "apps/api/src/execplus/presentation/routes/saved_items.py",
         "apps/api/tests/test_saved_items_integration.py",
-        "apps/web/src/app/workspace/ask-panel.tsx"
+        "apps/web/src/app/workspace/ask-panel.tsx",
+        "apps/web/src/app/workspace/saved-result.tsx",
+        "apps/web/e2e/library-interface.spec.ts",
+        "docs/verification-interface-redesign.md"
       ],
       "evidence_groups": [
-        "E2"
+        "E2",
+        "E13"
       ]
     },
     {
@@ -1155,6 +1175,15 @@
         "docs/operations-console-support.md",
         "scripts/benchmark_operations.py"
       ]
+    ],
+    "E13": [
+      "Analytics interface and demo startup",
+      [
+        "docs/verification-interface-redesign.md",
+        "docs/interface-redesign-audit.md",
+        "docs/start-project.md",
+        "apps/web/e2e/library-interface.spec.ts"
+      ]
     ]
   },
   "section_intros": {
@@ -1270,10 +1299,10 @@
     "p03": "Customer self-signup and production login; PDF/Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
     "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
-    "p06": "“Company registration” is interpreted as business/account signup in the software, not legal incorporation of a company.",
+    "p06": "“Company registration” means software account signup, not legal incorporation.",
     "p07": "“Done” here includes a simplified guided upload flow and a small basic KPI library. It does not mean an unlimited library or full automated business understanding.",
     "p08": "ExecPlus overlaps with parts of the upload → question → dashboard experience. It has not reached the connected-data breadth or commercial completeness of either target.",
-    "p09": "This is a comparison of documented capabilities, not a hands-on benchmark or a percentage-parity score. Vendor features can depend on edition, setup and permissions. Official sources were reviewed on 5 October 2026.",
+    "p09": "This documents capabilities, not hands-on performance or percentage parity. Editions and setup differ. The comparison was reviewed on 5 October 2026; the separate October 6 interface-reference review is recorded in E13.",
     "p10": "Conversational analytics, AI dashboards and governed queries are shared capabilities, not proven unique advantages. Our strongest current demonstration is the combination of retained files, reviewed meanings, exact calculations, replayable answers, document citations and visible request activity. A shared evaluation would be needed to claim better quality or speed.",
     "p11": "Do not assume every vendor catalog tile is live: Polymer labels some connectors “Coming Soon”. The VC requested accounting and advanced-analysis features are not automatically capabilities of both target products. [P1]",
     "p12": "Most unfinished items are already planned or deliberately deferred. “Not yet” does not mean they were forgotten; it means no complete feature is available today.",
@@ -1288,13 +1317,13 @@
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Describe verified descriptive analytics and bounded basic daily/monthly forecasts with their accuracy checks and limitations. Full predictive or prescriptive analytics must not be advertised. This instruction is not counted as a 65th feature.",
-    "p24": "Reviewed October 6 code and evidence on phase2; deployed changes are uncommitted.",
-    "p25": "869 backend cases, nine frontend tests and 24 browser journeys passed. Eight deployed users passed support/usage workflows and 36 access denials; old evidence still replays. Private demo only; production and sustained-load acceptance remain open. [E11, E12]",
+    "p24": "Phase2 769acea retains forecasts/operations; October 6 interface changes are uncommitted.",
+    "p25": "Interface checks: 17 frontend, 29 browser and 76 targeted backend; prior full suite: 869 backend. VPS: eight users passed saved replays, 56 privacy denials and 72 layouts. Local/VPS startup and token renewal steps are documented; eight renewed tokens passed live identity checks. No schema/API/model change. Private demo only; production and load gates remain open. [E11–E13]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
-    "p27": "One score per original VC line, in the original order. Overlapping lines remain visible rather than silently merged.",
-    "p28": "Combined items need their important parts to be complete. Variance alone does not complete root-cause analysis; an app API alone does not complete API-and-webhooks.",
-    "p29": "Partial items are not counted as done. Done rows retain scope restrictions such as one-sheet Excel, eight basic KPIs or in-app-only alerts.",
-    "p30": "The 64-line score measures this checklist only. It is not an estimate of remaining cost, time or parity with an entire competitor product.",
+    "p27": "One score per original VC line, in order; keep overlapping requests separate.",
+    "p28": "Combined requests need all key parts; variance and root cause are different.",
+    "p29": "Partial is not done. Delivered features retain each row’s stated limits.",
+    "p30": "Checklist counts do not measure effort, cost, time or complete competitor parity.",
     "p31": "Clickable references for the comparison table. Reviewed 5 October 2026; these are vendor documentation and marketing claims, not independent performance or security validation.",
     "p32": "Feature availability can vary by edition, version, configuration and permissions. Missing mention on a website is not proof a competitor lacks a feature. We did not assign either vendor a 64-item completion score or infer all accounting/forecasting features from generic “AI analytics” language.",
     "p33": "ThoughtSpot permission claims here refer to documented governed-query execution; this is not a blanket assessment of every AI context or memory path. Polymer scheduled emails are documented; threshold-alert support was not established by the pages reviewed.",

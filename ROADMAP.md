@@ -15,6 +15,26 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 6 — Analytics interface priority
+
+**Status:** Complete for local/test and the private-demo presentation slice.
+The interface now has a question-led Home, grouped navigation, dedicated chat,
+authorized data search/dashboard, chart/table and expansion controls, visible
+applied filters and searchable saved-answer/study/dashboard libraries. Existing
+exact receipts, private conversations and six-pin immutable boards remain binding.
+This is an adaptation of publicly observable ThoughtSpot patterns with ExecPlus
+branding, not complete feature or visual parity with its authenticated product.
+
+The [reference/gap audit](docs/interface-redesign-audit.md),
+[interface contract](docs/analytics-interface.md) and
+[verification](docs/verification-interface-redesign.md) record the boundary.
+Acceptance includes 76 targeted backend cases, 17 frontend tests and all 29 distinct
+browser journeys, with corrected selector attempts disclosed. Eight deployed users
+passed exact saved replay, private-access controls and desktop/mobile checks.
+Only web changed on 0015; production gates and the remaining Phase 4D/4E and Phase 5
+requirements are unchanged. Phase 6 remains Frozen. The maintained 64-item VC
+report retains **36 Done / 13 Partial / 15 Not yet**.
+
 ## October 6 — Internal operations priorities
 
 **Status:** Complete for the approved local/test and private-demo operations slice.

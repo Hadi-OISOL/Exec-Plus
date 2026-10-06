@@ -10,11 +10,28 @@ walkthrough below retains attribution. A domain and public customer
 access are deferred. This is a private demo using expiring operator-issued sessions;
 it is not a production identity deployment. Existing production gates remain open.
 
-The October 6 deployment runs migration **0014**, adding private basic forecasts,
-later-actual comparisons, grounded commentary and authorized audit history. The
+The October 6 deployment runs migration **0015**, retaining private basic forecasts,
+later-actual comparisons, grounded commentary and authorized audit history, and
+adding the verified internal operations/support slice. The subsequent analytics
+interface release changes only the web image. The
 [Phase 4C section](#phase-4c-and-audit-history--october-6) below gives the current
 walkthrough and rollback boundary. Historical release sections retain their original
 migration/checkpoint details.
+
+The analytics interface opens at the same `/workspace` address: **Overview** starts
+questions, **Ask ExecPlus** continues the conversation, **Search data** opens the
+authorized catalog and dashboard, and the two library views browse saved answers
+and study dashboards. Hard-refresh an already-open tab after the web release.
+See [interface usage](analytics-interface.md) and
+[its verification ledger](verification-interface-redesign.md).
+
+The prior web image is `oisol-execplus/web:pre-interface-20261006`; prior source is
+`releases/pre-interface-20261006/source`. Only web was recreated under the maintenance
+lock. API/jobs images and containers, migration 0015, secrets, model settings and
+loopback ports are unchanged. A web rollback can retag that preserved image and
+run `docker compose -f deploy/vps/compose.yaml up -d --no-deps web` from the source
+directory. Restore the matching frontend source before a subsequent rebuild;
+do not downgrade database metadata for this presentation-only release.
 
 ## What is separate on the VPS
 

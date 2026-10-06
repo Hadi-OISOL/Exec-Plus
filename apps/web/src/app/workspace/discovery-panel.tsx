@@ -4,6 +4,9 @@ What it does: Shows source-backed discoveries, data checks and relevant question
 import { useEffect, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { Icon } from "./explore-components";
+import { AnswerVisualization } from "./answer-visualization";
+import { compareExactNumeric } from "./visualization-values";
+import styles from "./dashboard-presentation.module.css";
 
 type Cell = string | number | boolean | null;
 type Finding = {
@@ -161,36 +164,30 @@ function FindingCard({
 }) {
   const rows = [...finding.query.rows].sort(
     (left, right) =>
-      Number(right[1]) - Number(left[1]) ||
+      compareExactNumeric(right[1], left[1]) ||
       String(left[0]).localeCompare(String(right[0])),
   );
-  const magnitudes = rows.map((row) => {
-    const value = Number(row[1]);
-    return Number.isFinite(value) ? Math.abs(value) : 0;
-  });
-  const maximum = Math.max(1, ...magnitudes);
   return (
-    <article className="discoveryFinding distribution">
+    <article
+      className={`discoveryFinding distribution ${styles.discoveryCard}`}
+    >
       <div className="findingEyebrow">
         <Icon name="check" size={13} /> Calculated from your file
       </div>
-      <h3>{finding.title}</h3>
+      <AnswerVisualization
+        title={finding.title}
+        columns={finding.query.columns.map((column, index) =>
+          column === "__value" && index === finding.query.columns.length - 1
+            ? finding.aggregation === "count" ? "Count" : finding.metric
+            : column,
+        )}
+        rows={rows}
+        recordsAnalyzed={finding.query.records_analyzed}
+        compact
+        chartLimit={8}
+        chartClassName="discoveryBars"
+      />
       <p>{finding.text}</p>
-      <ul className="discoveryBars" aria-label={finding.title}>
-        {rows.slice(0, 8).map((row, index) => (
-          <li key={index}>
-            <span className="discoveryBarLabel">
-              {row[0] === null ? "Missing" : String(row[0])}
-            </span>
-            <span className="discoveryBarTrack" aria-hidden="true">
-              <span
-                style={{ width: `${(magnitudes[index] / maximum) * 100}%` }}
-              />
-            </span>
-            <strong>{exact(row[1] ?? null)}</strong>
-          </li>
-        ))}
-      </ul>
       {rows.length > 8 && (
         <p>
           Top 8 of {rows.length} groups shown. All groups are available in the

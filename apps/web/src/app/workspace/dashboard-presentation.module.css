@@ -1,0 +1,109 @@
+/* Use case: Arranges verified dashboard and discovery cards as an analytical canvas.
+What it does: Adds readable filters and result chrome while retaining source-backed actions and exact evidence. */
+
+.dashboard {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.filterStrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 52px;
+  margin: 12px 0 20px;
+  padding: 10px 14px;
+  border: 1px solid #e5eaf2;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 12px;
+}
+.filterCaption {
+  color: #657184;
+  margin-right: 4px;
+}
+.allRows {
+  color: #56637a;
+}
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #eef3ff;
+  color: #3156aa;
+  padding: 5px 8px 5px 12px;
+  border: 1px solid #dde6fb;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.filterChip button {
+  color: #3156aa;
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  line-height: 1;
+  font-size: 16px;
+}
+.breakdown {
+  min-width: 0;
+}
+.drillHint {
+  margin: 8px 4px;
+  font-size: 11px;
+  color: #657184;
+}
+.drillHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.drillHeading button {
+  font-size: 11px;
+  background: #edf3ff;
+  color: #3156aa;
+  border: 1px solid #dce5f8;
+  padding: 5px 9px;
+  border-radius: 6px;
+}
+.discoveryCard {
+  min-width: 0;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid #e4e8ef;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 2px 5px #15223c03;
+}
+.discoveryCard > div:first-child {
+  padding: 16px 20px 0;
+}
+.discoveryCard > p {
+  margin: 12px 20px;
+}
+.discoveryCard > button {
+  margin: 0 20px 16px;
+  max-width: calc(100% - 40px);
+}
+.discoveryCard > details {
+  margin: 0 20px 20px;
+}
+.discoveryCard > div[data-visualization] {
+  border: 0;
+  border-radius: 0;
+}
+@media (max-width: 650px) {
+  .filterStrip {
+    padding: 10px;
+  }
+  .filterChip {
+    min-width: 0;
+  }
+}
