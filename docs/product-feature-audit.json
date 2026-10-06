@@ -1,0 +1,1303 @@
+{
+  "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
+  "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
+  "date": "2026-10-06",
+  "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
+  "rows": [
+    {
+      "id": 1,
+      "section": "Month 1",
+      "feature": "Company registration and secure login",
+      "status": "partial",
+      "note": "Operator-issued, expiring tokens support demo login. Self-service company signup and production authentication are unfinished.",
+      "evidence": [
+        "apps/api/src/execplus/infrastructure/identity.py",
+        "apps/api/src/execplus/manage.py",
+        "apps/api/tests/test_workspace_integration.py",
+        "docs/production-readiness.json"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 2,
+      "section": "Month 1",
+      "feature": "Organization and user workspace",
+      "status": "done",
+      "note": "Isolated user workspaces and organization/department grouping work. Group membership does not grant access to department data.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/src/execplus/application/services/studies.py",
+        "apps/api/tests/test_studies.py",
+        "apps/web/src/app/workspace/organization-panel.tsx"
+      ],
+      "evidence_groups": [
+        "E4"
+      ]
+    },
+    {
+      "id": 3,
+      "section": "Month 1",
+      "feature": "Excel and CSV upload",
+      "status": "done",
+      "note": "CSV and single-sheet Excel upload, validation, retention and profiling work (about 20 MB limit). Multi-sheet workbooks remain unsupported.",
+      "evidence": [
+        "apps/api/src/execplus/infrastructure/file_parser.py",
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/tests/test_file_parser.py",
+        "apps/api/tests/test_delimited_intake.py"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 4,
+      "section": "Month 1",
+      "feature": "Automated column identification",
+      "status": "done",
+      "note": "Identifies headers, numbers, dates, categories and likely identifier columns. Business-specific meanings still need confirmation.",
+      "evidence": [
+        "apps/api/src/execplus/domain/profiling.py",
+        "apps/api/src/execplus/domain/understanding.py",
+        "apps/api/tests/test_profiling.py",
+        "apps/api/tests/test_profile_v2.py"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 5,
+      "section": "Month 1",
+      "feature": "Data-quality validation",
+      "status": "done",
+      "note": "Checks missing cells, duplicates, mixed types and invalid dates. Suggested issues do not prove that values are wrong.",
+      "evidence": [
+        "apps/api/src/execplus/domain/profiling.py",
+        "apps/api/src/execplus/domain/quality.py",
+        "apps/api/tests/test_profiling.py",
+        "apps/api/tests/test_artifacts.py"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 6,
+      "section": "Month 1",
+      "feature": "Basic data cleaning and mapping",
+      "status": "done",
+      "note": "Preview/apply basic cleaning and column renaming. Original files, change history and restoration remain available.",
+      "evidence": [
+        "apps/api/src/execplus/domain/profiling.py",
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/tests/test_profile_integration.py",
+        "apps/web/src/app/workspace/profile-panel.tsx"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 7,
+      "section": "Month 1",
+      "feature": "Descriptive dashboards",
+      "status": "done",
+      "note": "Interactive cards, charts and category breakdowns work, with supporting evidence and mobile layouts. They describe uploaded data.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/analytics.py",
+        "apps/web/src/app/workspace/dashboard-panel.tsx",
+        "apps/api/tests/test_analytics_integration.py",
+        "apps/web/e2e/workspace.spec.ts"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 8,
+      "section": "Month 1",
+      "feature": "KPI cards and trend analysis",
+      "status": "done",
+      "note": "Computes KPI cards and historical trends when matching columns exist. Basic forecasting is available separately.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/analytics.py",
+        "apps/api/src/execplus/domain/semantics.py",
+        "apps/api/tests/test_analytics_integration.py",
+        "apps/web/src/app/workspace/dashboard-panel.tsx"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 9,
+      "section": "Month 1",
+      "feature": "Natural-language questions",
+      "status": "done",
+      "note": "Supports totals, records, filters, breakdowns and follow-ups. Unclear questions prompt clarification; unsupported analysis is declined.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/intent_router.py",
+        "apps/api/src/execplus/application/services/threads.py",
+        "apps/api/tests/test_partner_conversation.py",
+        "docs/verification-data-partner.md"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 10,
+      "section": "Month 1",
+      "feature": "AI-generated management summaries",
+      "status": "done",
+      "note": "AI selects a factual recap from verified calculations. It does not invent figures or provide unrestricted strategic advice.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/summaries.py",
+        "apps/api/tests/test_intent_router_integration.py",
+        "apps/api/tests/test_phase2_hardening.py",
+        "docs/verification-phase2.md"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 11,
+      "section": "Month 1",
+      "feature": "Filters and drill-down",
+      "status": "done",
+      "note": "Filters update cards and charts consistently. Clicking a category opens matching records with access checks.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/analytics.py",
+        "apps/web/src/app/workspace/dashboard-panel.tsx",
+        "apps/api/tests/test_analytics_integration.py",
+        "apps/web/e2e/workspace.spec.ts"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 12,
+      "section": "Month 1",
+      "feature": "Save and share analysis",
+      "status": "done",
+      "note": "Save analyses privately or share within an authorized workspace. Saved answers recalculate against original evidence.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/saved_items.py",
+        "apps/api/src/execplus/presentation/routes/saved_items.py",
+        "apps/api/tests/test_saved_items_integration.py",
+        "apps/web/e2e/workspace.spec.ts"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 13,
+      "section": "Month 1",
+      "feature": "PDF/Excel export",
+      "status": "missing",
+      "note": "PDF and Excel analysis exports are not available yet. They remain planned for Phase 4D.",
+      "evidence": [
+        "ROADMAP.md",
+        "README.md",
+        "docs/verification-platform-foundation.md"
+      ],
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 14,
+      "section": "Month 1",
+      "feature": "Usage limits and metering",
+      "status": "partial",
+      "note": "General seat, file-size and processing limits plus usage counts exist. Paid-plan quotas and billing-grade metering are missing.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/src/execplus/application/services/activation.py",
+        "apps/api/tests/test_profile_integration.py",
+        "ROADMAP.md"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 15,
+      "section": "Month 1",
+      "feature": "Subscription and payment management",
+      "status": "missing",
+      "note": "Subscriptions, checkout, payment processing and billing reconciliation are not implemented.",
+      "evidence": [
+        "ROADMAP.md",
+        "docs/platform-foundation-plan.md"
+      ],
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 16,
+      "section": "Month 1",
+      "feature": "Customer feedback mechanism",
+      "status": "done",
+      "note": "In-app ratings and fixed feedback categories work without copying uploaded data.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/activation.py",
+        "apps/web/src/app/workspace/activation-panel.tsx",
+        "apps/api/tests/test_phase3_integration.py",
+        "apps/web/e2e/workspace.spec.ts"
+      ],
+      "evidence_groups": [
+        "E3"
+      ]
+    },
+    {
+      "id": 17,
+      "section": "Month 1",
+      "feature": "Finance, sales and inventory templates",
+      "status": "done",
+      "note": "Finance, sales and inventory templates select compatible KPIs. They require matching columns and do not invent missing formulas.",
+      "evidence": [
+        "apps/api/src/execplus/domain/dashboard_templates.py",
+        "apps/api/tests/test_dashboard_templates.py",
+        "apps/api/tests/test_analytics_integration.py",
+        "apps/web/src/app/workspace/dashboard-panel.tsx"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 18,
+      "section": "Improve activation",
+      "feature": "Guided data-upload wizard",
+      "status": "done",
+      "note": "A simplified guided upload flow validates files, creates a workspace and dataset when needed, and opens profiles and findings. Optional setup stays available.",
+      "evidence": [
+        "apps/web/src/app/workspace/page.tsx",
+        "apps/web/e2e/workspace.spec.ts",
+        "docs/verification-data-partner.md"
+      ],
+      "evidence_groups": [
+        "E10"
+      ]
+    },
+    {
+      "id": 19,
+      "section": "Improve activation",
+      "feature": "Sample datasets",
+      "status": "done",
+      "note": "Versioned fictional finance, sales, inventory and city datasets let users explore before uploading their own files. Samples retain reproducible profiles and private originals.",
+      "evidence": [
+        "apps/api/src/execplus/domain/samples.py",
+        "apps/api/tests/test_profiling.py",
+        "apps/api/tests/test_profile_integration.py",
+        "apps/web/e2e/workspace.spec.ts"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 20,
+      "section": "Improve activation",
+      "feature": "Automated dashboard recommendations",
+      "status": "done",
+      "note": "Compatible columns and KPIs drive automatic dashboard suggestions. Confirmed meanings and private goals refine study recommendations; users can dismiss suggestions.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/analytics.py",
+        "apps/api/src/execplus/domain/studies.py",
+        "apps/api/tests/test_analytics_integration.py",
+        "apps/api/tests/test_studies.py"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 21,
+      "section": "Improve activation",
+      "feature": "Finance, sales, inventory and HR KPI libraries",
+      "status": "done",
+      "note": "Eight basic KPI definitions cover finance, sales, inventory and HR, with units and column-matching rules. More advanced formulas such as gross margin are unsupported.",
+      "evidence": [
+        "apps/api/src/execplus/domain/kpi_library.py",
+        "apps/api/tests/test_kpi_library.py",
+        "apps/api/tests/test_analytics_integration.py"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 22,
+      "section": "Improve activation",
+      "feature": "Data-quality score",
+      "status": "done",
+      "note": "Shows a repeatable quality score with reasons for missing values, duplicates and date/type issues. The score does not prove business accuracy.",
+      "evidence": [
+        "apps/api/src/execplus/domain/profiling.py",
+        "apps/web/src/app/workspace/profile-panel.tsx",
+        "apps/api/tests/test_profiling.py",
+        "apps/api/tests/test_profile_integration.py"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 23,
+      "section": "Improve activation",
+      "feature": "Saved questions and prompts",
+      "status": "done",
+      "note": "Save and reopen reusable questions; prompt items are also supported by the API. Private/shared access works. There is no separate prompt-library editor.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/saved_items.py",
+        "apps/api/src/execplus/presentation/routes/saved_items.py",
+        "apps/api/tests/test_saved_items_integration.py",
+        "apps/web/src/app/workspace/ask-panel.tsx"
+      ],
+      "evidence_groups": [
+        "E2"
+      ]
+    },
+    {
+      "id": 24,
+      "section": "Improve activation",
+      "feature": "Scheduled email reports",
+      "status": "partial",
+      "note": "Scheduling, unsubscribe, access checks and an email adapter are built and tested. Email is disabled by default; real scheduled delivery has not been verified.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/reports.py",
+        "apps/api/src/execplus/infrastructure/email.py",
+        "apps/api/tests/test_phase3_integration.py",
+        "docs/verification-phase3.md"
+      ],
+      "evidence_groups": [
+        "E3"
+      ]
+    },
+    {
+      "id": 25,
+      "section": "Improve activation",
+      "feature": "Team invitations",
+      "status": "done",
+      "note": "Role-based invitation links and seat reservations are tested. Teammates need operator-provided demo accounts; invitation emails are not sent automatically.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/tests/test_workspace_integration.py",
+        "apps/web/src/app/workspace/page.tsx",
+        "apps/web/e2e/workspace.spec.ts"
+      ],
+      "evidence_groups": [
+        "E1"
+      ]
+    },
+    {
+      "id": 26,
+      "section": "Improve activation",
+      "feature": "Customer usage analytics",
+      "status": "done",
+      "note": "Managers can view aggregate feature use, activation and weekly return cohorts in the private demo. Incomplete return weeks stay unavailable; individual histories, billing entitlements and churn prediction are excluded.",
+      "evidence": [
+        "docs/verification-operations.md",
+        "docs/operations-console-support.md"
+      ],
+      "evidence_groups": [
+        "E12"
+      ],
+      "roadmap": "Verified private-demo operations slice; Phase 5 production/commercial criteria remain open."
+    },
+    {
+      "id": 27,
+      "section": "Improve activation",
+      "feature": "In-app onboarding",
+      "status": "done",
+      "note": "In-app next steps track workspace creation, invitations, upload, exploration and saving. Samples and immediate findings help users begin; this is not automated commercial account provisioning.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/activation.py",
+        "apps/web/src/app/workspace/activation-panel.tsx",
+        "apps/api/tests/test_phase3_integration.py",
+        "apps/web/e2e/workspace.spec.ts"
+      ],
+      "evidence_groups": [
+        "E3"
+      ]
+    },
+    {
+      "id": 28,
+      "section": "Improve activation",
+      "feature": "Billing and plan upgrades",
+      "status": "missing",
+      "note": "No billing checkout, paid plans, upgrade/downgrade flow or payment-driven entitlement changes are implemented. These remain Phase 5 work.",
+      "evidence": [
+        "ROADMAP.md",
+        "docs/platform-foundation-plan.md"
+      ],
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 29,
+      "section": "Growth-plan features",
+      "feature": "Role-based access",
+      "status": "done",
+      "note": "Owner, admin and member roles control workspace actions. Private studies, conversations and goals retain separate ownership checks; this is the verified private-demo scope.",
+      "evidence": [
+        "apps/api/src/execplus/domain/ingestion.py",
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/tests/test_workspace_integration.py",
+        "apps/api/tests/test_studies.py"
+      ],
+      "evidence_groups": [
+        "E4"
+      ]
+    },
+    {
+      "id": 30,
+      "section": "Growth-plan features",
+      "feature": "Multiple workspaces",
+      "status": "done",
+      "note": "Users can create and switch between isolated workspaces. Organizations can group department workspaces without granting extra access.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/src/execplus/application/services/studies.py",
+        "apps/api/tests/test_workspace_integration.py",
+        "apps/api/tests/test_studies.py"
+      ],
+      "evidence_groups": [
+        "E4"
+      ]
+    },
+    {
+      "id": 31,
+      "section": "Growth-plan features",
+      "feature": "Department dashboards",
+      "status": "done",
+      "note": "Departments use separate workspaces with saved, shareable dashboards containing up to six verified study results. Access is checked for every pinned result.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/studies.py",
+        "apps/web/src/app/workspace/organization-panel.tsx",
+        "apps/web/src/app/workspace/studies-panel.tsx",
+        "apps/api/tests/test_studies.py",
+        "docs/verification-phase4a.md"
+      ],
+      "evidence_groups": [
+        "E4"
+      ]
+    },
+    {
+      "id": 32,
+      "section": "Growth-plan features",
+      "feature": "KPI alerts",
+      "status": "done",
+      "note": "Users can subscribe to private in-app threshold alerts with cooldowns, delivery states and replayable evidence. Email KPI alerts are not included.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/monitoring.py",
+        "apps/api/tests/test_refresh.py",
+        "docs/verification-phase4b.md"
+      ],
+      "evidence_groups": [
+        "E5"
+      ]
+    },
+    {
+      "id": 33,
+      "section": "Growth-plan features",
+      "feature": "Variance and root-cause analysis",
+      "status": "partial",
+      "note": "Shows exact changes over time or between files, plus which groups contributed to a change. It does not prove the business cause.",
+      "evidence": [
+        "apps/api/src/execplus/domain/refresh.py",
+        "apps/api/src/execplus/application/services/monitoring.py",
+        "apps/api/tests/test_refresh.py",
+        "docs/phase4-refresh-monitoring.md"
+      ],
+      "roadmap": "4B delivered descriptive drivers; advanced causal methods remain Phase 6",
+      "evidence_groups": [
+        "E5"
+      ]
+    },
+    {
+      "id": 34,
+      "section": "Growth-plan features",
+      "feature": "Basic time-series forecasting",
+      "status": "done",
+      "note": "Basic daily/monthly forecasts compare simple methods using complete history. Future values are estimates with heuristic error ranges; advanced predictive and prescriptive analytics remain unavailable.",
+      "evidence": [
+        "docs/verification-phase4c.md",
+        "docs/phase4-forecasting.md",
+        "apps/api/src/execplus/domain/forecasting.py",
+        "apps/api/tests/test_forecasting.py",
+        "apps/api/tests/test_forecast_integration.py",
+        "apps/web/e2e/forecasts.spec.ts"
+      ],
+      "roadmap": "Phase 4C complete for verified local/test and private-demo scope",
+      "evidence_groups": [
+        "E11"
+      ]
+    },
+    {
+      "id": 35,
+      "section": "Growth-plan features",
+      "feature": "Forecast accuracy measurement",
+      "status": "done",
+      "note": "Shows held-out MAE, RMSE and eligible percentage errors, plus a last-value benchmark. Chronological validation chooses the method; measured past error does not guarantee future accuracy.",
+      "evidence": [
+        "docs/verification-phase4c.md",
+        "docs/phase4-forecasting.md",
+        "apps/api/src/execplus/domain/forecasting.py",
+        "apps/api/tests/test_forecasting.py",
+        "apps/api/tests/test_forecast_integration.py",
+        "apps/web/e2e/forecasts.spec.ts"
+      ],
+      "roadmap": "Phase 4C complete for verified local/test and private-demo scope",
+      "evidence_groups": [
+        "E11"
+      ]
+    },
+    {
+      "id": 36,
+      "section": "Growth-plan features",
+      "feature": "Comparison between actual and forecast",
+      "status": "done",
+      "note": "Save comparisons with later actual data while preserving the original forecast. Missing actual periods stay pending. Original sources and three exact calculation receipts remain replayable.",
+      "evidence": [
+        "docs/verification-phase4c.md",
+        "docs/phase4-forecasting.md",
+        "apps/api/src/execplus/domain/forecasting.py",
+        "apps/api/tests/test_forecasting.py",
+        "apps/api/tests/test_forecast_integration.py",
+        "apps/web/e2e/forecasts.spec.ts"
+      ],
+      "roadmap": "Phase 4C complete for verified local/test and private-demo scope",
+      "evidence_groups": [
+        "E11"
+      ]
+    },
+    {
+      "id": 37,
+      "section": "Growth-plan features",
+      "feature": "Scheduled data refresh",
+      "status": "done",
+      "note": "Can schedule checks and activation of files already staged in ExecPlus. Users must supply the new file; it does not yet pull fresh data from other systems.",
+      "evidence": [
+        "apps/api/src/execplus/application/services/refresh.py",
+        "deploy/vps/execplus-refresh.service",
+        "apps/api/tests/test_refresh.py",
+        "docs/verification-phase4b.md",
+        "docs/verification-phase4c.md"
+      ],
+      "evidence_groups": [
+        "E5"
+      ]
+    },
+    {
+      "id": 38,
+      "section": "Growth-plan features",
+      "feature": "Management commentary",
+      "status": "done",
+      "note": "Plain-language commentary explains actual changes, forecast estimates, heuristic ranges and observed errors from verified evidence. It does not invent numbers, prove causes or prescribe business actions.",
+      "evidence": [
+        "docs/verification-phase4c.md",
+        "docs/phase4-forecasting.md",
+        "apps/api/src/execplus/domain/forecasting.py",
+        "apps/api/tests/test_forecasting.py",
+        "apps/api/tests/test_forecast_integration.py",
+        "apps/web/e2e/forecasts.spec.ts"
+      ],
+      "roadmap": "Phase 4C complete for verified local/test and private-demo scope",
+      "evidence_groups": [
+        "E11"
+      ]
+    },
+    {
+      "id": 39,
+      "section": "Growth-plan features",
+      "feature": "Audit history",
+      "status": "done",
+      "note": "Searchable audit history shows authorized actions with date, action and resource filters. Private forecast, conversation and other private activity remains hidden from other users, including workspace managers.",
+      "evidence": [
+        "docs/verification-phase4c.md",
+        "docs/audit-history.md",
+        "apps/web/src/app/workspace/audit-panel.tsx",
+        "apps/api/tests/test_audit_history.py"
+      ],
+      "roadmap": "Priority audit-history view delivered with Phase 4C; finer enterprise controls remain separate",
+      "evidence_groups": [
+        "E11"
+      ]
+    },
+    {
+      "id": 40,
+      "section": "Commercial readiness",
+      "feature": "Security hardening",
+      "status": "partial",
+      "note": "Private access, workspace checks, restricted queries and safe error handling exist. Production login, public HTTPS and independent security/privacy review are unfinished.",
+      "evidence": [
+        "apps/api/src/execplus/main.py",
+        "apps/api/src/execplus/infrastructure/identity.py",
+        "deploy/vps/compose.yaml",
+        "apps/api/tests/test_job_cli_privacy.py",
+        "docs/production-readiness.json"
+      ],
+      "roadmap": "Phase 5",
+      "evidence_groups": [
+        "E6",
+        "E7"
+      ]
+    },
+    {
+      "id": 41,
+      "section": "Commercial readiness",
+      "feature": "Customer-data isolation",
+      "status": "done",
+      "note": "Current private-demo workflows keep workspace data and private resources separate. Automated cross-workspace tests pass; production security review remains open.",
+      "evidence": [
+        "apps/api/tests/test_workspace_integration.py",
+        "apps/api/tests/test_phase3_integration.py",
+        "apps/api/tests/test_studies.py",
+        "apps/api/tests/test_artifacts.py",
+        "apps/api/tests/test_conversation_jobs.py",
+        "docs/verification-platform-foundation.md"
+      ],
+      "evidence_groups": [
+        "E6",
+        "E7"
+      ]
+    },
+    {
+      "id": 42,
+      "section": "Commercial readiness",
+      "feature": "Backup and recovery",
+      "status": "partial",
+      "note": "Daily backups and an earlier separate restore test exist. Recovery of the latest version, off-server copies and full production recovery targets still need verification.",
+      "evidence": [
+        "deploy/vps/backup.sh",
+        "apps/api/tests/test_backup_worker_coordination.py",
+        "docs/verification-vps-demo.md",
+        "docs/verification-platform-foundation.md",
+        "docs/production-readiness.json"
+      ],
+      "roadmap": "Phase 5",
+      "evidence_groups": [
+        "E9"
+      ]
+    },
+    {
+      "id": 43,
+      "section": "Commercial readiness",
+      "feature": "Error monitoring",
+      "status": "partial",
+      "note": "Health checks, safe failure logs, failed-query counts and job failure states exist. Central error collection, operational alerts and incident monitoring are not implemented.",
+      "evidence": [
+        "apps/api/src/execplus/infrastructure/readiness.py",
+        "apps/api/src/execplus/application/services/activation.py",
+        "apps/api/src/execplus/manage.py",
+        "apps/api/tests/test_job_cli_privacy.py",
+        "ROADMAP.md"
+      ],
+      "roadmap": "Phase 5",
+      "evidence_groups": [
+        "E6",
+        "E8"
+      ]
+    },
+    {
+      "id": 44,
+      "section": "Commercial readiness",
+      "feature": "AI-response evaluation",
+      "status": "partial",
+      "note": "Repeatable demo and public-data AI tests exist, with failures retained. Representative customer-data targets and production model/provider comparisons are still unfinished.",
+      "evidence": [
+        "scripts/evaluate_demo_model.py",
+        "scripts/evaluate_data_partner.py",
+        "apps/api/tests/test_demo_readiness.py",
+        "docs/verification-data-partner.md",
+        "docs/production-readiness.json"
+      ],
+      "roadmap": "Phase 5 production evaluation gates",
+      "evidence_groups": [
+        "E7"
+      ]
+    },
+    {
+      "id": 45,
+      "section": "Commercial readiness",
+      "feature": "Query cost controls",
+      "status": "partial",
+      "note": "Processing time, memory, data volume and model-request limits exist. Actual provider spending measurement and money-based spending caps are missing.",
+      "evidence": [
+        "apps/api/src/execplus/domain/compute.py",
+        "apps/api/src/execplus/domain/jobs.py",
+        "apps/api/tests/test_compute_broker.py",
+        "apps/api/tests/test_conversation_jobs.py",
+        "docs/production-readiness.json"
+      ],
+      "roadmap": "Phase 5 financial metering and budgets",
+      "evidence_groups": [
+        "E6",
+        "E7"
+      ]
+    },
+    {
+      "id": 46,
+      "section": "Commercial readiness",
+      "feature": "Plan-specific usage limits",
+      "status": "missing",
+      "note": "General usage limits exist. There are no subscription tiers with their own allowances and automatic enforcement.",
+      "evidence": [
+        "apps/api/src/execplus/config.py",
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/src/execplus/infrastructure/persistence/schema.py",
+        "ROADMAP.md"
+      ],
+      "roadmap": "Phase 5",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 47,
+      "section": "Commercial readiness",
+      "feature": "Automated onboarding",
+      "status": "partial",
+      "note": "First upload creates a workspace and dataset; checklists and samples guide users. Account access is still operator-managed, without automatic paid-plan setup.",
+      "evidence": [
+        "apps/web/src/app/workspace/page.tsx",
+        "apps/api/src/execplus/application/services/activation.py",
+        "apps/api/src/execplus/infrastructure/identity.py",
+        "apps/web/e2e/workspace.spec.ts"
+      ],
+      "roadmap": "Phase 5 commercial onboarding",
+      "evidence_groups": [
+        "E10"
+      ]
+    },
+    {
+      "id": 48,
+      "section": "Commercial readiness",
+      "feature": "Admin console",
+      "status": "done",
+      "note": "Explicitly authorized internal staff can inspect workspace metadata, resource counts and job/support health. This private-demo console grants no customer-data access; paid-plan administration and production operations remain separate.",
+      "evidence": [
+        "docs/verification-operations.md",
+        "docs/operations-console-support.md"
+      ],
+      "roadmap": "Verified private-demo operations slice; Phase 5 production/commercial criteria remain open.",
+      "evidence_groups": [
+        "E12"
+      ]
+    },
+    {
+      "id": 49,
+      "section": "Commercial readiness",
+      "feature": "Customer-support workflow",
+      "status": "done",
+      "note": "Private support requests support replies, assignment, triage, escalation, resolution and reopening with version checks and audit records. This verified private-demo workflow does not automatically attach customer files, prompts or answers.",
+      "evidence": [
+        "docs/verification-operations.md",
+        "docs/operations-console-support.md"
+      ],
+      "roadmap": "Verified private-demo operations slice; Phase 5 production/commercial criteria remain open.",
+      "evidence_groups": [
+        "E12"
+      ]
+    },
+    {
+      "id": 50,
+      "section": "Commercial readiness",
+      "feature": "Performance optimization",
+      "status": "partial",
+      "note": "Local overview median improved from 1,934.907 to 241.882 ms on the 100k-per-table fixture; initial JavaScript gzip fell 7.64%. Representative sustained alpha workloads and broader performance acceptance remain open.",
+      "evidence": [
+        "docs/verification-operations.md",
+        "docs/operations-console-support.md"
+      ],
+      "roadmap": "Measured optimization delivered; representative sustained-load/alpha performance acceptance remains open.",
+      "evidence_groups": [
+        "E12"
+      ]
+    },
+    {
+      "id": 51,
+      "section": "Commercial readiness",
+      "feature": "Product usage and retention reporting",
+      "status": "done",
+      "note": "Private-demo dashboards report aggregate activity, feature adoption, activation, completed-week cohort retention and inactivity. Definitions and immature periods are explicit; this is not paid-customer retention measurement or predicted churn.",
+      "evidence": [
+        "docs/verification-operations.md",
+        "docs/operations-console-support.md"
+      ],
+      "roadmap": "Verified private-demo operations slice; Phase 5 production/commercial criteria remain open.",
+      "evidence_groups": [
+        "E12"
+      ]
+    },
+    {
+      "id": 52,
+      "section": "Integration with other Solutions",
+      "feature": "QuickBooks or Xero integration",
+      "status": "missing",
+      "note": "No accounting-system connector is implemented. Files exported from those products can only use the existing supported-file upload flow.",
+      "evidence": [
+        "ROADMAP.md",
+        "apps/api/src/execplus/application/ports.py",
+        "apps/api/src/execplus/bootstrap.py"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 53,
+      "section": "Integration with other Solutions",
+      "feature": "Zoho Books or Odoo integration",
+      "status": "missing",
+      "note": "No Zoho Books or Odoo connector, authentication flow or synchronization is implemented.",
+      "evidence": [
+        "ROADMAP.md",
+        "apps/api/src/execplus/application/ports.py",
+        "apps/api/src/execplus/bootstrap.py"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 54,
+      "section": "Integration with other Solutions",
+      "feature": "Google Sheets integration",
+      "status": "missing",
+      "note": "No Google Sheets connection or live refresh exists. It is planned as an initial controlled read-only connector.",
+      "evidence": [
+        "ROADMAP.md",
+        "docs/platform-foundation-plan.md",
+        "apps/api/src/execplus/bootstrap.py"
+      ],
+      "roadmap": "Phase 4E",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 55,
+      "section": "Integration with other Solutions",
+      "feature": "Database/BigQuery connector",
+      "status": "missing",
+      "note": "PostgreSQL currently stores ExecPlus’s own metadata. It is not an external customer-data connector. Read-only PostgreSQL and BigQuery connectors are still unbuilt.",
+      "evidence": [
+        "ROADMAP.md",
+        "apps/api/src/execplus/application/ports.py",
+        "apps/api/src/execplus/bootstrap.py"
+      ],
+      "roadmap": "PostgreSQL Phase 4E; BigQuery Phase 6",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 56,
+      "section": "Integration with other Solutions",
+      "feature": "Advanced forecasts",
+      "status": "missing",
+      "note": "Basic bounded forecasts are now delivered separately. Advanced forecasting methods, representative customer validation and broader decision workflows remain frozen or unimplemented.",
+      "evidence": [
+        "docs/phase4-forecasting.md",
+        "ROADMAP.md"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 57,
+      "section": "Integration with other Solutions",
+      "feature": "Scenario planning",
+      "status": "missing",
+      "note": "No what-if scenario models, saved assumptions or scenario-comparison engine are implemented. Existing comparisons use recorded source results.",
+      "evidence": [
+        "ROADMAP.md",
+        "apps/api/src/execplus/application/services/studies.py"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 58,
+      "section": "Integration with other Solutions",
+      "feature": "Anomaly detection",
+      "status": "missing",
+      "note": "Data-quality checks and threshold alerts exist. A tested anomaly detector that identifies unusual patterns is not implemented.",
+      "evidence": [
+        "ROADMAP.md",
+        "docs/phase4-refresh-monitoring.md",
+        "apps/api/src/execplus/domain/quality.py",
+        "apps/api/src/execplus/application/services/monitoring.py"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 59,
+      "section": "Integration with other Solutions",
+      "feature": "Prescriptive recommendations",
+      "status": "missing",
+      "note": "The product suggests descriptive views and questions. It does not provide validated recommended business decisions or action plans.",
+      "evidence": [
+        "ROADMAP.md",
+        "apps/api/src/execplus/domain/studies.py",
+        "apps/api/src/execplus/domain/suggestions.py"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 60,
+      "section": "Integration with other Solutions",
+      "feature": "Recommendation approval workflow",
+      "status": "missing",
+      "note": "Meaning confirmation and refresh review exist, but there is no workflow to approve, reject or execute prescriptive business recommendations.",
+      "evidence": [
+        "ROADMAP.md",
+        "apps/api/src/execplus/application/services/understanding.py",
+        "apps/api/src/execplus/application/services/refresh.py"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 61,
+      "section": "Integration with other Solutions",
+      "feature": "Multi-company consolidation",
+      "status": "missing",
+      "note": "Organizations group separate workspaces. They do not combine company accounts, handle currency/period differences or remove inter-company transactions.",
+      "evidence": [
+        "ROADMAP.md",
+        "apps/api/src/execplus/application/services/studies.py",
+        "apps/api/tests/test_studies.py",
+        "docs/phase4-studies.md"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 62,
+      "section": "Integration with other Solutions",
+      "feature": "API and webhooks",
+      "status": "partial",
+      "note": "The app has an authenticated backend API. A customer integration API with scoped keys and signed, retried outgoing webhooks is not implemented.",
+      "evidence": [
+        "apps/api/src/execplus/main.py",
+        "apps/api/src/execplus/presentation/routes/workspaces.py",
+        "apps/api/src/execplus/infrastructure/identity.py",
+        "ROADMAP.md"
+      ],
+      "roadmap": "Phase 6 customer API and webhooks",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 63,
+      "section": "Integration with other Solutions",
+      "feature": "Embedded dashboards",
+      "status": "missing",
+      "note": "Dashboards work inside ExecPlus. Third-party embedding, tenant-bound embed tokens and allowed-host controls are not implemented.",
+      "evidence": [
+        "apps/web/src/app/workspace/dashboard-panel.tsx",
+        "apps/web/src/app/workspace/studies-panel.tsx",
+        "ROADMAP.md"
+      ],
+      "roadmap": "Phase 6, Frozen",
+      "evidence_groups": [
+        "E8"
+      ]
+    },
+    {
+      "id": 64,
+      "section": "Integration with other Solutions",
+      "feature": "Detailed permissions and audit logs",
+      "status": "partial",
+      "note": "Workspace roles, private/shared items and audit records exist. Controls over individual rows/columns and regulated-customer audit requirements remain unfinished.",
+      "evidence": [
+        "apps/api/src/execplus/domain/ingestion.py",
+        "apps/api/src/execplus/application/services/workspaces.py",
+        "apps/api/tests/test_workspace_integration.py",
+        "apps/api/tests/test_studies.py",
+        "ROADMAP.md"
+      ],
+      "roadmap": "Phase 6 regulated-customer controls",
+      "evidence_groups": [
+        "E8"
+      ]
+    }
+  ],
+  "competitor_review_date": "2026-10-05",
+  "in_progress_ids": [
+    50
+  ],
+  "update_policy": "Reassess affected original rows after verified deliveries; Done means tested private-demo scope, never production certification. Rebuild report counts from these rows.",
+  "evidence_groups": {
+    "E1": [
+      "Accounts, ingestion and preparation",
+      [
+        "docs/verification-phase1.md",
+        "docs/phase1-data-preparation.md",
+        "apps/api/tests/test_workspace_integration.py",
+        "apps/api/tests/test_profile_integration.py"
+      ]
+    ],
+    "E2": [
+      "Analytics, KPIs, saving and sharing",
+      [
+        "docs/verification-phase2.md",
+        "docs/phase2-analytics.md",
+        "apps/api/tests/test_conversational_explorer.py"
+      ]
+    ],
+    "E3": [
+      "Activation, feedback, usage and reports",
+      [
+        "docs/phase3-activation-knowledge.md",
+        "apps/api/tests/test_phase3_integration.py",
+        "apps/api/src/execplus/application/services/activation.py"
+      ]
+    ],
+    "E4": [
+      "Organizations, departments and studies",
+      [
+        "docs/verification-phase4a.md",
+        "docs/phase4-studies.md",
+        "apps/api/tests/test_studies.py"
+      ]
+    ],
+    "E5": [
+      "Refresh, comparisons and alerts",
+      [
+        "docs/verification-phase4b.md",
+        "docs/phase4-refresh-monitoring.md",
+        "apps/api/tests/test_refresh.py"
+      ]
+    ],
+    "E6": [
+      "Current jobs, compute and deployment evidence",
+      [
+        "docs/verification-platform-foundation.md",
+        "docs/conversation-jobs.md",
+        "apps/api/tests/test_conversation_jobs.py"
+      ]
+    ],
+    "E7": [
+      "AI evaluation and production acceptance",
+      [
+        "docs/verification-data-partner.md",
+        "docs/verification-phase3d.md",
+        "docs/production-readiness.json"
+      ]
+    ],
+    "E8": [
+      "Remaining scope and implementation boundaries",
+      [
+        "ROADMAP.md",
+        "docs/platform-foundation-plan.md",
+        "docs/decisions/architecture.md"
+      ]
+    ],
+    "E9": [
+      "Private operations and recovery",
+      [
+        "docs/vps-demo-runbook.md",
+        "docs/verification-vps-demo.md",
+        "apps/api/tests/test_backup_worker_coordination.py"
+      ]
+    ],
+    "E10": [
+      "Upload-first onboarding and exact answers",
+      [
+        "docs/verification-data-partner.md",
+        "docs/verification-query-precision.md",
+        "apps/api/tests/test_partner_conversation.py"
+      ]
+    ],
+    "E11": [
+      "Forecasts and audit",
+      [
+        "docs/verification-phase4c.md",
+        "docs/phase4-forecasting.md",
+        "docs/audit-history.md"
+      ]
+    ],
+    "E12": [
+      "Operations and usage",
+      [
+        "docs/verification-operations.md",
+        "docs/operations-console-support.md",
+        "scripts/benchmark_operations.py"
+      ]
+    ]
+  },
+  "section_intros": {
+    "Month 1": "Core data analysis works. Four of the original Month 1 requests still need work, including signup, exports and payments.",
+    "Improve activation": "The upload-first experience and aggregate usage-reporting screens are delivered. Verified live email delivery and billing/upgrades remain unfinished.",
+    "Growth-plan features": "Basic forecasting, accuracy checks, later-actual comparisons, grounded commentary and searchable audit history now join the delivered team, dashboard, refresh and alert features. Proven root-cause analysis remains open.",
+    "Commercial readiness": "The private-demo admin console, support workflow and usage/retention reporting are delivered. Broader performance, paid-plan operation and production launch requirements remain open.",
+    "Integration with other Solutions": "No live external source connector is delivered yet. The existing app API and access controls provide only part of the wider integration request."
+  },
+  "comparison_sources": {
+    "P1": [
+      "Polymer: integrations",
+      "https://www.polymersearch.com/integrations"
+    ],
+    "P2": [
+      "Polymer: PolyAI and generated boards",
+      "https://www.polymersearch.com/landers/ai-generated-boards"
+    ],
+    "P3": [
+      "Polymer: embedded analytics",
+      "https://www.polymersearch.com/embedded-analytics-guides/polymer-embedded-analytics"
+    ],
+    "P4": [
+      "Polymer: API and notifications",
+      "https://apidocs.polymersearch.com/"
+    ],
+    "P5": [
+      "Polymer: reporting and export",
+      "https://www.polymersearch.com/blog/marketing-agency-reporting"
+    ],
+    "P6": [
+      "Polymer: data handling",
+      "https://www.polymersearch.com/data-handling"
+    ],
+    "T1": [
+      "ThoughtSpot: data connections",
+      "https://docs.thoughtspot.com/cloud/26.10.0.cl/connections"
+    ],
+    "T2": [
+      "ThoughtSpot: Spotter CSV upload",
+      "https://docs.thoughtspot.com/cloud/26.9.0.cl/spotter-getting-started"
+    ],
+    "T3": [
+      "ThoughtSpot: Spotter AI analyst",
+      "https://www.thoughtspot.com/product/agents/spotter"
+    ],
+    "T4": [
+      "ThoughtSpot: SpotterViz dashboards",
+      "https://www.thoughtspot.com/product/agents/spotterviz"
+    ],
+    "T5": [
+      "ThoughtSpot: Liveboard downloads",
+      "https://docs.thoughtspot.com/cloud/26.9.0.cl/liveboard-download-pdf"
+    ],
+    "T6": [
+      "ThoughtSpot: developer embedding",
+      "https://developers.thoughtspot.com/docs/getting-started"
+    ],
+    "T7": [
+      "ThoughtSpot: scheduled Liveboards",
+      "https://docs.thoughtspot.com/cloud/26.10.0.cl/schedule-liveboards"
+    ],
+    "T8": [
+      "ThoughtSpot: KPI attribute alerts",
+      "https://docs.thoughtspot.com/cloud/26.10.0.cl/monitor-alert-attributes"
+    ],
+    "T9": [
+      "ThoughtSpot: governed AgentQL queries",
+      "https://docs.thoughtspot.com/cloud/26.10.0.cl/agentql"
+    ]
+  },
+  "comparison_rows": [
+    [
+      "Get data in",
+      "CSV/Excel upload and a catalog of connectors; API database connections. [P1, P4]",
+      "Direct CSV chat and database/warehouse connections. [T1, T2]",
+      "CSV and single-sheet Excel work. Live Google Sheets, accounting and database connections are missing."
+    ],
+    [
+      "Ask questions",
+      "PolyAI accepts natural-language questions and suggests visual answers. [P2]",
+      "Spotter supports conversation and follow-ups over governed data. [T3, T9]",
+      "Supported data/document questions and follow-ups work. Calculations have retained evidence; unsupported methods remain unavailable."
+    ],
+    [
+      "Build dashboards",
+      "Advertises AI-created dashboards, suggested insights and reusable templates. [P2, P3]",
+      "SpotterViz creates and changes dashboards through conversation. [T4]",
+      "Suggested dashboards, basic domain templates and six-pin study boards work. Supported charts are bounded."
+    ],
+    [
+      "Share and export",
+      "Documents board sharing/embedding and advertises PDF/PPT reporting. [P3, P4, P5]",
+      "Documents PDF/CSV/Excel downloads and embedding tools. [T5, T6]",
+      "Sharing within authorized workspaces works. PDF/Excel export and third-party dashboard embedding are missing."
+    ],
+    [
+      "Reports and alerts",
+      "API documents scheduled board email digests. Threshold alerts were not established by the reviewed sources. [P4]",
+      "Documents scheduled reports and KPI threshold alerts. [T7, T8]",
+      "In-app KPI alerts work. Email scheduling exists, but live email delivery is not verified."
+    ],
+    [
+      "Access control",
+      "Documents workspace/board permissions and vendor-stated encryption controls. [P4, P6]",
+      "Documents roles and row/column rules for governed queries. [T3, T9]",
+      "Workspace roles and private/shared items work. Production login, finer data permissions and external security review remain."
+    ]
+  ],
+  "narrative": {
+    "p01": "A working private analytics demo exists. Commercial launch requirements and broader integrations still need substantial work.",
+    "p02": "CSV/Excel analysis, data checks and cleaning, dashboards, supported chat, saved work, team workspaces, staged refresh, KPI alerts, basic forecasts, actual comparisons, audit history, internal support and usage reporting.",
+    "p03": "Customer self-signup and production login; PDF/Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
+    "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
+    "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
+    "p06": "“Company registration” is interpreted as business/account signup in the software, not legal incorporation of a company.",
+    "p07": "“Done” here includes a simplified guided upload flow and a small basic KPI library. It does not mean an unlimited library or full automated business understanding.",
+    "p08": "ExecPlus overlaps with parts of the upload → question → dashboard experience. It has not reached the connected-data breadth or commercial completeness of either target.",
+    "p09": "This is a comparison of documented capabilities, not a hands-on benchmark or a percentage-parity score. Vendor features can depend on edition, setup and permissions. Official sources were reviewed on 5 October 2026.",
+    "p10": "Conversational analytics, AI dashboards and governed queries are shared capabilities, not proven unique advantages. Our strongest current demonstration is the combination of retained files, reviewed meanings, exact calculations, replayable answers, document citations and visible request activity. A shared evaluation would be needed to claim better quality or speed.",
+    "p11": "Do not assume every vendor catalog tile is live: Polymer labels some connectors “Coming Soon”. The VC requested accounting and advanced-analysis features are not automatically capabilities of both target products. [P1]",
+    "p12": "Most unfinished items are already planned or deliberately deferred. “Not yet” does not mean they were forgotten; it means no complete feature is available today.",
+    "p13": "Replace operator-issued demo tokens with proper customer signup and production login, then complete the security and privacy review.",
+    "p14": "Basic forecasts and accuracy checks are delivered. Next, export verified results as PDF/Excel and preserve the evidence behind each output.",
+    "p15": "Start with read-only Google Sheets and an approved PostgreSQL source. Add accounting systems and BigQuery only after safe connection/refresh behavior is verified.",
+    "p16": "Internal administration, support and usage reporting are delivered for the private demo. Payments, plans, upgrades, plan-specific limits and real email delivery remain unfinished.",
+    "p17": "Complete representative AI checks, off-server recovery, error alerts, spending controls and sustained-load testing with realistic customer data.",
+    "p18": "Only after the earlier gates: advanced forecasts, scenarios, anomaly detection, business recommendations and approval workflows.",
+    "p19": "PDF/Excel exports were placed in Phase 4D, while production account access, payments and paid-plan operation were placed in Phase 5. They remain unfinished against the VC’s Month 1 checklist even though earlier project phases are marked complete.",
+    "p20": "Representative customer examples and labels; retrieval/citation quality; a tested production search provider; backup/restore proof; model quality/speed/cost comparison; hosted-provider privacy; real email delivery; and production identity/security. A successful demo does not close these checks. [E7]",
+    "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
+    "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
+    "p23": "Describe verified descriptive analytics and bounded basic daily/monthly forecasts with their accuracy checks and limitations. Full predictive or prescriptive analytics must not be advertised. This instruction is not counted as a 65th feature.",
+    "p24": "Reviewed October 6 code and evidence on phase2; deployed changes are uncommitted.",
+    "p25": "869 backend cases, nine frontend tests and 24 browser journeys passed. Eight deployed users passed support/usage workflows and 36 access denials; old evidence still replays. Private demo only; production and sustained-load acceptance remain open. [E11, E12]",
+    "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
+    "p27": "One score per original VC line, in the original order. Overlapping lines remain visible rather than silently merged.",
+    "p28": "Combined items need their important parts to be complete. Variance alone does not complete root-cause analysis; an app API alone does not complete API-and-webhooks.",
+    "p29": "Partial items are not counted as done. Done rows retain scope restrictions such as one-sheet Excel, eight basic KPIs or in-app-only alerts.",
+    "p30": "The 64-line score measures this checklist only. It is not an estimate of remaining cost, time or parity with an entire competitor product.",
+    "p31": "Clickable references for the comparison table. Reviewed 5 October 2026; these are vendor documentation and marketing claims, not independent performance or security validation.",
+    "p32": "Feature availability can vary by edition, version, configuration and permissions. Missing mention on a website is not proof a competitor lacks a feature. We did not assign either vendor a 64-item completion score or infer all accounting/forecasting features from generic “AI analytics” language.",
+    "p33": "ThoughtSpot permission claims here refer to documented governed-query execution; this is not a blanket assessment of every AI context or memory path. Polymer scheduled emails are documented; threshold-alert support was not established by the pages reviewed.",
+    "p34": "Suggested positioning is our inference: demonstrate a focused, evidence-backed data-partner workflow, then prove any quality, speed or usability advantage with the same disclosed datasets and tasks for all products."
+  }
+}

@@ -10,11 +10,24 @@ from datetime import datetime, timezone
 from typing import TypeVar
 from uuid import UUID
 
-from sqlalchemy import Connection, Engine, Table, delete, select, update
+from sqlalchemy import (
+    Connection,
+    Engine,
+    String,
+    Table,
+    and_,
+    cast,
+    delete,
+    exists,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.dialects.postgresql import insert
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
+from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.ingestion import (
     AuditEvent,
     Dataset,
@@ -50,6 +63,8 @@ from execplus.domain.threads import Thread, ThreadTurn
 from execplus.domain.understanding import DataPreference, Understanding
 from execplus.infrastructure.persistence import schema as s
 from execplus.infrastructure.persistence.jobs import SQLJobRepository
+from execplus.infrastructure.persistence.operations import SQLOperationsRepository
+from execplus.infrastructure.persistence.reporting import SQLReportingRepository
 
 Record = TypeVar(
     "Record",
@@ -84,12 +99,52 @@ Record = TypeVar(
     Observation,
     AlertRule,
     AlertEvent,
+    ForecastRun,
+    ForecastComparison,
 )
 
 
-class SQLWorkspaceRepository(SQLJobRepository):
+class SQLWorkspaceRepository(SQLJobRepository, SQLOperationsRepository, SQLReportingRepository):
     def __init__(self, connection: Connection) -> None:
         self.connection = connection
+
+    def forecast_runs(
+        self, workspace_id: UUID, dataset_id: UUID, owner_id: UUID
+    ) -> tuple[ForecastRun, ...]:
+        rows = self.connection.execute(
+            select(s.forecast_runs)
+            .filter_by(workspace_id=workspace_id, dataset_id=dataset_id, owner_id=owner_id)
+            .order_by(s.forecast_runs.c.created_at.desc(), s.forecast_runs.c.id.desc())
+        ).mappings()
+        return tuple(ForecastRun(**row) for row in rows)
+
+    def forecast_run(self, workspace_id: UUID, record_id: UUID, owner_id: UUID) -> ForecastRun:
+        return self._one(
+            ForecastRun, s.forecast_runs, workspace_id=workspace_id, id=record_id, owner_id=owner_id
+        )
+
+    def forecast_comparisons(
+        self, workspace_id: UUID, forecast_id: UUID, owner_id: UUID
+    ) -> tuple[ForecastComparison, ...]:
+        rows = self.connection.execute(
+            select(s.forecast_comparisons)
+            .filter_by(workspace_id=workspace_id, forecast_id=forecast_id, owner_id=owner_id)
+            .order_by(
+                s.forecast_comparisons.c.created_at.desc(), s.forecast_comparisons.c.id.desc()
+            )
+        ).mappings()
+        return tuple(ForecastComparison(**row) for row in rows)
+
+    def forecast_comparison(
+        self, workspace_id: UUID, record_id: UUID, owner_id: UUID
+    ) -> ForecastComparison:
+        return self._one(
+            ForecastComparison,
+            s.forecast_comparisons,
+            workspace_id=workspace_id,
+            id=record_id,
+            owner_id=owner_id,
+        )
 
     def refresh_feed(self, workspace_id: UUID, record_id: UUID) -> RefreshFeed:
         return self._one(RefreshFeed, s.refresh_feeds, workspace_id=workspace_id, id=record_id)
@@ -494,6 +549,97 @@ class SQLWorkspaceRepository(SQLJobRepository):
     def audit_events(self, workspace_id: UUID) -> tuple[AuditEvent, ...]:
         return self._many(AuditEvent, s.audit_events, workspace_id=workspace_id)
 
+    def visible_audit_events(
+        self,
+        workspace_id: UUID,
+        actor_id: UUID,
+        shared_actions: tuple[str, ...],
+        *,
+        limit: int | None = None,
+        before: tuple[datetime, UUID] | None = None,
+        q: str = "",
+        action: str = "",
+        resource_type: str = "",
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> tuple[AuditEvent, ...]:
+        events = s.audit_events
+        shared_study = exists(
+            select(s.studies.c.id).where(
+                s.studies.c.workspace_id == workspace_id,
+                s.studies.c.shared.is_(True),
+                or_(
+                    s.studies.c.id == events.c.resource_id,
+                    exists(
+                        select(s.study_versions.c.id)
+                        .where(
+                            s.study_versions.c.workspace_id == workspace_id,
+                            s.study_versions.c.study_id == s.studies.c.id,
+                            s.study_versions.c.id == events.c.resource_id,
+                        )
+                        .correlate(s.studies, events)
+                    ),
+                ),
+            )
+        )
+        shared = [and_(events.c.resource_type == "study", shared_study)]
+        for resource_type_name, table in (
+            ("dashboard", s.study_boards),
+            ("document", s.documents),
+            ("saved_item", s.saved_items),
+        ):
+            shared.append(
+                and_(
+                    events.c.resource_type == resource_type_name,
+                    exists(
+                        select(table.c.id).where(
+                            table.c.workspace_id == workspace_id,
+                            table.c.id == events.c.resource_id,
+                            table.c.shared.is_(True),
+                        )
+                    ),
+                )
+            )
+        statement = select(events).where(
+            events.c.workspace_id == workspace_id,
+            or_(events.c.actor_id == actor_id, events.c.action.in_(shared_actions), *shared),
+        )
+        if before is not None:
+            stamp, record_id = before
+            statement = statement.where(
+                or_(
+                    events.c.created_at < stamp,
+                    and_(events.c.created_at == stamp, events.c.id < record_id),
+                )
+            )
+        if action:
+            statement = statement.where(events.c.action == action)
+        if resource_type:
+            statement = statement.where(events.c.resource_type == resource_type)
+        if since is not None:
+            statement = statement.where(events.c.created_at >= since)
+        if until is not None:
+            statement = statement.where(events.c.created_at <= until)
+        if q:
+            statement = statement.where(
+                or_(
+                    *(
+                        cast(column, String).icontains(q, autoescape=True)
+                        for column in (
+                            events.c.action,
+                            events.c.resource_type,
+                            events.c.resource_id,
+                            events.c.actor_id,
+                            events.c.id,
+                        )
+                    )
+                )
+            )
+        statement = statement.order_by(events.c.created_at.desc(), events.c.id.desc())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return tuple(AuditEvent(**row) for row in self.connection.execute(statement).mappings())
+
     def revisions(
         self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> tuple[Revision, ...]:
@@ -758,7 +904,9 @@ class SQLWorkspaceRepository(SQLJobRepository):
         | Monitor
         | Observation
         | AlertRule
-        | AlertEvent,
+        | AlertEvent
+        | ForecastRun
+        | ForecastComparison,
     ) -> None:
         tables = {
             Workspace: s.workspaces,
@@ -791,6 +939,8 @@ class SQLWorkspaceRepository(SQLJobRepository):
             Observation: s.observations,
             AlertRule: s.alert_rules,
             AlertEvent: s.alert_events,
+            ForecastRun: s.forecast_runs,
+            ForecastComparison: s.forecast_comparisons,
         }
         self.connection.execute(tables[type(record)].insert().values(**asdict(record)))
 

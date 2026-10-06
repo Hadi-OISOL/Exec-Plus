@@ -1943,6 +1943,12 @@ footer {
   }
 }
 @media (max-width: 520px) {
+  .workbenchRail nav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    flex: 1 1 0%;
+    min-width: 0;
+  }
   .workbenchContent {
     padding: 22px 14px 0;
   }
@@ -3012,5 +3018,574 @@ footer {
     grid-column: 1;
     grid-row: 3;
     justify-self: start;
+  }
+}
+
+.analysisIntent {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 0 0 22px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.65);
+}
+.analysisIntent label {
+  flex: 1;
+  min-width: 0;
+}
+.analysisIntent p {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.forecastWorkspace {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.forecastWorkspace .panel {
+  margin: 0;
+  min-width: 0;
+}
+.forecastWorkspace h2 {
+  margin-bottom: 12px;
+}
+.forecastWorkspace p,
+.forecastWorkspace li {
+  line-height: 1.65;
+}
+.forecastWorkspace form {
+  margin-top: 20px;
+}
+.forecastFields,
+.auditFilters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
+  gap: 16px;
+  align-items: end;
+}
+.forecastFields label,
+.auditFilters label {
+  min-width: 0;
+}
+.forecastCoverage {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f5f8f1;
+  margin: 20px 0;
+}
+.forecastCoverage h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+.forecastWorkspace label.forecastCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 500;
+  margin: 18px 0;
+  line-height: 1.5;
+}
+.forecastWorkspace label.forecastCheck input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 3px 0 0;
+}
+.forecastWorkspace details {
+  margin: 18px 0;
+}
+.forecastWorkspace summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 8px 0;
+}
+.forecastWorkspace details[open] > summary {
+  margin-bottom: 12px;
+}
+.forecastPrerequisite {
+  padding: 18px;
+  border-left: 4px solid #ba8130;
+  background: #fff8e9;
+  border-radius: 8px;
+}
+.forecastActions,
+.forecastTeaser {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.forecastActions label {
+  flex: 1;
+  min-width: min(100%, 220px);
+}
+.forecastActions button {
+  flex-shrink: 0;
+}
+.forecastTeaser {
+  margin-top: 24px;
+  align-items: center;
+}
+.forecastTeaser > div {
+  flex: 1;
+  min-width: min(100%, 250px);
+}
+.forecastBadge {
+  color: #87520a;
+  border: 1px solid #e6d1b1;
+  background: #fff7e8;
+  border-radius: 30px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.forecastChart {
+  background: #f8faf6;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  margin: 20px 0;
+  min-width: 0;
+}
+.forecastChart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.forecastChart label {
+  max-width: 330px;
+}
+.forecastChart [role="status"] {
+  margin: 12px 0 0;
+  overflow-wrap: anywhere;
+}
+.forecastLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.8rem;
+}
+.forecastLegend span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.forecastLegend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
+}
+.forecastActual,
+.forecastLegend .actualKey {
+  fill: #1c6045;
+  background: #1c6045;
+}
+.forecastEstimate,
+.forecastLegend .estimateKey {
+  fill: #8054ac;
+  background: #8054ac;
+}
+.forecastBand,
+.forecastLegend .rangeKey {
+  fill: #decdef;
+  background: #decdef;
+}
+.forecastUncertainty {
+  padding: 14px 18px;
+  border-left: 3px solid #8054ac;
+  background: #f7f3fb;
+  font-size: 0.9rem;
+}
+.forecastAccuracy {
+  margin: 28px 0;
+}
+.forecastScoreGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.forecastScore {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-width: 0;
+}
+.forecastScore span {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+.forecastScore strong {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.forecastCommentary {
+  background: #eff6eb;
+  border: 1px solid #d8e8cb;
+  padding: 20px;
+  border-radius: 12px;
+}
+.forecastCommentary p:last-child {
+  margin-bottom: 0;
+}
+.forecastEvidence {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  overflow-wrap: anywhere;
+}
+.forecastEvidence dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.forecastEvidence dt {
+  text-transform: capitalize;
+  font-weight: 700;
+}
+.forecastEvidence dd {
+  margin: 5px 0;
+  color: var(--muted);
+}
+.forecastEvidence pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+.forecastComparisonList {
+  list-style: none;
+  padding: 0;
+}
+.forecastComparisonList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.auditPanel .auditFilters {
+  margin: 24px 0;
+}
+.auditPanel td {
+  vertical-align: top;
+  font-size: 0.82rem;
+}
+.auditPanel td small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+.auditPanel > button {
+  margin-top: 16px;
+}
+@media (max-width: 700px) {
+  .analysisIntent {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 16px;
+  }
+  .forecastScoreGrid,
+  .forecastEvidence dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .forecastCoverage,
+  .forecastChart {
+    padding: 14px;
+  }
+  .forecastComparisonList li {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .forecastWorkspace *,
+  .auditPanel * {
+    scroll-behavior: auto;
+  }
+}
+
+.adminConsole,
+.supportPanel,
+.productUsage,
+.adminWorkspaceDetail {
+  min-width: 0;
+}
+.operationsTabs,
+.operationsSearch {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.operationsTabs button[aria-pressed="true"] {
+  background: #e2f2ed;
+  border-color: #269b85;
+  color: #164c40;
+}
+.operationsSearch label {
+  flex: 1 1 220px;
+}
+.operationsFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.operationsFields label,
+.operationsSearch label {
+  min-width: 0;
+}
+.workbench form.operationsFields {
+  display: grid;
+}
+.workbench form.operationsSearch {
+  flex-direction: row;
+}
+.operationsPeriod {
+  max-width: 220px;
+}
+.operationsScope {
+  color: #59727c;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.operationsMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr));
+  gap: 12px;
+  margin: 22px 0;
+}
+.operationsMetrics > div {
+  border: 1px solid #dce8eb;
+  background: #f8fbfb;
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 0;
+}
+.operationsMetrics span {
+  display: block;
+  color: #526e79;
+  font-size: 12px;
+}
+.operationsMetrics strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+.operationsColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 20px 0;
+}
+.operationsColumns > section {
+  min-width: 0;
+}
+.operationsDefinitions {
+  margin: 16px 0;
+}
+.operationsDefinitions > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr);
+  border-bottom: 1px solid #e2eaed;
+  gap: 14px;
+  padding: 10px 0;
+}
+.operationsDefinitions dt {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.operationsDefinitions dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.operationsBadge {
+  display: inline-block;
+  border: 1px solid #cbdfe4;
+  border-radius: 24px;
+  background: #eef7f7;
+  padding: 6px 12px;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+.productUsage td,
+.productUsage th,
+.adminConsole td,
+.adminConsole th {
+  padding: 12px;
+  border-bottom: 1px solid #e3ebee;
+  text-align: left;
+}
+.productUsage table,
+.adminConsole table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.productUsage table {
+  min-width: 420px;
+}
+.productUsage th,
+.productUsage td {
+  overflow-wrap: normal;
+}
+.cohortTable th:first-child {
+  min-width: 120px;
+  white-space: nowrap;
+}
+.cohortTable th {
+  min-width: 75px;
+}
+.productUsage small,
+.adminConsole th > small,
+.adminConsole td > small {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #617984;
+}
+.cohortTable td {
+  min-width: 92px;
+}
+.cohortMature {
+  background: #edf6f2;
+}
+.cohortPending {
+  color: #687e88;
+  font-size: 12px;
+  background: #f5f7f8;
+}
+.supportCreate {
+  margin: 24px 0;
+  border: 1px solid #cde1df;
+  border-radius: 12px;
+  padding: 18px;
+  background: #f4faf7;
+}
+.supportCreate > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.supportFilters {
+  padding: 18px 0;
+  border-bottom: 1px solid #e0e9ec;
+}
+.supportLayout {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 2fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+.supportRequestList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.workbench .supportRequestList > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 7px;
+  padding: 15px;
+  background: #f8fbfb;
+  color: #264b55;
+  border-color: #d9e6e9;
+  overflow-wrap: anywhere;
+}
+.workbench .supportRequestList > button[aria-pressed="true"] {
+  border-color: #138574;
+  box-shadow: inset 3px 0 #138574;
+  background: #ecf7f2;
+}
+.supportRequestList small {
+  font-size: 11px;
+  max-width: 100%;
+}
+.supportDetail {
+  border: 1px solid #dce7ea;
+  border-radius: 12px;
+  padding: 22px;
+  min-width: 0;
+}
+.supportDetail h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.supportText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.supportTriage {
+  background: #f5f8fa;
+  border-radius: 9px;
+  padding: 16px;
+}
+.supportTriage h4 {
+  margin-top: 0;
+}
+.supportTimeline {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+.supportTimeline li {
+  border-left: 3px solid #a2c8bd;
+  padding: 8px 0 16px 16px;
+  margin-top: 10px;
+}
+.supportTimeline li > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  justify-content: space-between;
+}
+.supportTimeline time,
+.supportTimeline small {
+  font-size: 11px;
+  color: #526f79;
+}
+.supportTimeline p {
+  margin: 10px 0;
+}
+@media (max-width: 700px) {
+  .workbenchRail nav {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+  .operationsColumns,
+  .supportLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .supportDetail {
+    padding: 15px;
+  }
+  .adminConsole .sectionHeading,
+  .supportPanel .sectionHeading,
+  .productUsage .sectionHeading {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 520px) {
+  .workbenchRail nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+@media (max-width: 360px) {
+  .workbenchRail nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

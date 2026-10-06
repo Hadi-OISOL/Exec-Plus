@@ -10,6 +10,12 @@ walkthrough below retains attribution. A domain and public customer
 access are deferred. This is a private demo using expiring operator-issued sessions;
 it is not a production identity deployment. Existing production gates remain open.
 
+The October 6 deployment runs migration **0014**, adding private basic forecasts,
+later-actual comparisons, grounded commentary and authorized audit history. The
+[Phase 4C section](#phase-4c-and-audit-history--october-6) below gives the current
+walkthrough and rollback boundary. Historical release sections retain their original
+migration/checkpoint details.
+
 ## What is separate on the VPS
 
 Host: `173.208.151.137`. Inspection found Ubuntu 22.04, 32 logical CPU cores,
@@ -134,8 +140,10 @@ do not casually downgrade away newly saved definitions. The deployment keeps
 the same loopback-only ports and private session identity.
 
 The useful distinction is verifiable calculation, preserved source files, traceable
-answers and permission-aware citations. Do not describe this as independently
-validated customer accuracy, forecasting, or unrestricted autonomous analysis.
+answers and permission-aware citations. Basic forecasts now add explicitly labelled
+estimates with retained evaluation evidence. Do not describe the demo as independently
+validated customer accuracy, advanced predictive modelling or unrestricted autonomous
+analysis.
 
 ## Service operations
 
@@ -378,10 +386,149 @@ applies. Build, migration and activation logs use `ops/foundation-*`.
 Model settings, private environment files, other applications and existing network
 bindings are unchanged. See [job contracts](conversation-jobs.md) and
 [the acceptance ledger](verification-platform-foundation.md) for the final release
-checks and their limits. Phase 4C–4E and the eight production gates remain open.
+checks and their limits. That release left Phase 4C–4E open; the October 6 forecasting
+extension below advances 4C. All eight production gates remain blocked.
 
 The final eight-user browser rehearsal passed 56 receipt replays, 18 jobs and 32
 private job-access denials. Backup **20261004T113138Z** then verified the new writer
 stop/start sequence, followed by a successful fresh chat job. The initial local
 tunnel stall is retained in the ledger; direct VPS readiness stayed healthy. These
 checks do not replace sustained-load or off-server recovery acceptance.
+
+## Phase 4C and audit history — October 6
+
+The private API, web and conversation worker now run with migration **0014**.
+It adds private forecast/comparison records to the existing database. Migration
+preserved row counts and aggregate hashes for all **38 existing data tables**,
+including **2,909 query executions**. Four original Oct4 receipts, two profile-v1
+and two profile-v2, reproduced their independently checked typed result checksums.
+Existing conversation jobs, old receipts and source reconstruction remain supported.
+
+Refresh the browser after deployment. To try the new workflow:
+
+1. In **Data library → Try a fictional example**, choose **Try forecasting sample**.
+   It contains ninety fictional daily revenue/order records from January 1 through
+   March 30, 2024. It is separate from the unchanged older samples.
+2. Open **Forecasts**, or select **Predictive · basic forecasts** under **Analysis
+   focus**. Use **Review data meanings** to confirm the date column, row meaning
+   and metric units; revenue in this fictional sample is PKR.
+3. Select `date`, `revenue`, SUM and daily periods. Declare complete coverage from
+   January 1 through March 30, 2024 and choose a short horizon. Coverage confirmation
+   is the user's assertion; observed dates alone do not prove completeness.
+4. Create the forecast. Inspect observed history, saved estimates, heuristic ranges,
+   separate validation/test windows and the last-value benchmark. Dates are relative
+   to the source window: an old window produces dates that may also be historical
+   today. Chart positions are approximate; tables preserve server numeric strings.
+5. For later actuals, upload or activate a checked staged refresh in the same dataset.
+   Preserve the original meaning and units, select that source, reopen the saved
+   forecast and declare complete actual coverage. **Compare actual data** saves a
+   separate comparison. Unobserved periods stay pending; no automatic retraining or
+   rewrite occurs.
+6. Open **Audit history** to search actions/type/identifiers or filter dates. Each
+   account sees its own private activity plus currently permitted shared events.
+   Owners/admins cannot browse another person's private forecast or conversation
+   events through this screen.
+
+The runtime compares last-value, recent-mean and linear-trend baselines, with an
+optional declared seasonal baseline when enough training cycles exist. MAE and RMSE
+measure error in the metric's unit. WAPE and MAPE are error percentages, not an
+accuracy guarantee; MAPE is unavailable with any zero actual, and WAPE with all-zero
+actuals. A separate test window and last-value benchmark disclose weak results.
+Ranges are heuristic and have no calibrated coverage probability. Grounded commentary
+reports measured changes and errors without claiming their causes. Forecasting makes
+no DeepSeek/Qwen calls. ARIMA and Prophet remain isolated research candidates; read
+[the forecast contract and comparison](phase4-forecasting.md) before making claims.
+
+**Descriptive** and **All supported · explore and forecast** keep existing exploration available.
+Prescriptive analysis is visibly planned and cannot execute. Scheduled refresh still
+consumes deliberately staged files; it is not a live connector. Phase 4D exports,
+Phase 4E connectors, frozen Phase 6 advanced methods and all eight production gates
+remain outside this release. See [audit visibility](audit-history.md) and
+[the release ledger](verification-phase4c.md) for exact acceptance evidence.
+
+The preceding source is retained at `releases/pre-phase4c-20261006/source`, API/web
+images use tag `pre-phase4c-20261006`, and checksummed pre-release backup
+**20261006T063824Z** preserves the prior database/object pair. Keep the new 0014
+forecast/comparison metadata before any rollback. Restoring the old backup over
+current data loses new saved work; an older image does not provide forecast access.
+Preserve 0013 jobs/turn relationships and profile-v2 compatibility as well. Continue
+using the maintenance lock, and stop both API and jobs before object storage during
+backups. No listening port, model setting or production gate changed.
+
+Phase 4C is complete for the approved local/test and private-demo scope. Local
+release checks passed **816 backend/architecture cases**, **20 real-service browser
+journeys** and **nine frontend tests**, plus static checks and clean-image computation.
+All **eight deployed browsers** created private forecasts, saved actual comparisons
+after the owner activated a staged refresh, and verified that originals were unchanged. The
+rehearsal also passed sixteen saved-result reopenings, forty-eight exact receipt
+replays, sixteen cross-user access denials, sixteen private-audit checks and eight
+audit searches, with desktop and 390/320-pixel layouts.
+
+The live run finished in 55.048 seconds. This is a short functional rehearsal, not a
+sustained-load or speed benchmark. The initial attempt stopped at a test selector
+before creating forecasts; its failure is retained separately from the successful
+rerun. Refresh completed successfully and both refresh/backup timers are active.
+Post-release backup **20261006T065810Z** stopped API/jobs before object storage,
+verified the database dump and object-archive checksums, then restarted storage,
+API and jobs with healthy API readiness. Evidence remains private under
+`data/vps-private/phase4c/`; no production gate is cleared by these checks.
+
+## October 6 operations release
+
+The bounded operations slice uses migration **0015** for separate internal staff
+access, private support requests, immutable ticket events and privileged access
+audit. Read [the operations contract](operations-console-support.md) and
+[verification ledger](verification-operations.md) for release acceptance and limits.
+
+Staff grants are operator-managed and separate from workspace ownership. Grant an
+existing account only after deciding who will handle intentionally shared support
+requests and operational metadata:
+
+```bash
+cd /sdb-disk/OISOL_ExecPLUS/source
+sudo docker compose -f deploy/vps/compose.yaml run --rm -T operator \
+  python -m execplus.manage grant-staff --email staff@example.test --role admin
+sudo docker compose -f deploy/vps/compose.yaml run --rm -T operator \
+  python -m execplus.manage revoke-staff --email staff@example.test
+```
+
+An internal `support` grant can handle requests without the admin directory or
+product-report privileges. Neither grant gives access to ordinary private customer
+analyses or sources. Reopen the workspace after a grant to refresh the navigation.
+
+- **Support:** create a request and follow its replies/status. Requests are private
+  to their requester and explicit support staff; no source file is attached.
+- **Admin console:** inspect workspace metadata or handle the support queue. Assign,
+  prioritize, escalate and resolve requests; reload after an edit conflict.
+- **Usage & retention:** workspace owners/admins see aggregate deliberate product
+  activity, feature use and completed-week return cohorts. Incomplete weeks are
+  unavailable rather than zero. Admins can open the same report through the console.
+
+The prior source is preserved in `releases/pre-operations-20261006/source` and
+API/web images use `pre-operations-20261006`. Pre-release backup
+**20261006T080234Z** has verified database/object checksums. Preserve all new 0015
+staff/ticket/event/audit rows, 0014 forecasts and previous jobs/profile versions
+before any rollback. Restoring an older backup over new work would lose it.
+Previous images expect migration 0014 and cannot simply pass readiness on 0015.
+Prefer a forward fix; any rollback needs an explicit compatibility/data-preservation
+plan before changing the schema or replacing the live database.
+
+This slice does not configure billing, real outbound support email, public identity,
+external help desks or production support/privacy procedures. Model endpoints,
+network exposure and all eight production gates remain unchanged.
+
+Operations acceptance passes **869 backend/architecture cases**, **24 real-service
+browser journeys** and **nine frontend tests**, plus static checks and clean-image
+computation. Migration 0015 preserved all forty old data tables. Eight deployed
+users passed their support lifecycle, saved-history and aggregate-report checks,
+with 36 protected-access denials and successful authorized controls. Existing
+receipts and forecasts also replay/reopen unchanged. This is functional private-demo
+evidence, not sustained load or production acceptance.
+
+Only the existing first demo account has the internal admin grant; the other seven
+remain ordinary users. After refreshing, it sees **Admin console** in navigation.
+All workspace members see **Support** and managers see **Usage & retention**.
+Post-release backup **20261006T082942Z** passed database/object checksum verification
+and restarted storage/API/jobs with healthy readiness. Both maintenance-coordinated
+timers remain active. The release, its verification artifacts and checkpoints are
+recorded in [the operations ledger](verification-operations.md).

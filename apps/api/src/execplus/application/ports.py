@@ -4,7 +4,7 @@ What it does: Defines contracts for queries, models, retrieval, and readiness.
 """
 
 from datetime import datetime
-from typing import BinaryIO, Protocol
+from typing import Any, BinaryIO, Protocol
 from uuid import UUID
 
 from execplus.application.contracts import (
@@ -14,8 +14,10 @@ from execplus.application.contracts import (
     ModelResponse,
     RetrievalHit,
 )
+from execplus.application.reporting_ports import ReportingRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
 from execplus.domain.analysis_plan import AnalysisPlan
+from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.ingestion import (
     AuditEvent,
     Dataset,
@@ -31,6 +33,7 @@ from execplus.domain.jobs import EventStatus, Job, JobAttempt, JobEvent, JobStag
 from execplus.domain.join_paths import JoinPath
 from execplus.domain.knowledge import Document, DocumentChunk
 from execplus.domain.models import QueryExecution, QueryPlan, QueryResult, WorkspaceScope
+from execplus.domain.operations import StaffAudit, StaffGrant, SupportEvent, SupportTicket
 from execplus.domain.profiling import Revision, TableData, UsageEvent
 from execplus.domain.refresh import (
     AlertEvent,
@@ -149,7 +152,52 @@ class JobRepository(Protocol):
     ) -> tuple[JobEvent, ...]: ...
 
 
-class WorkspaceRepository(JobRepository, Protocol):
+class OperationsRepository(Protocol):
+    def staff_grant(self, user_id: UUID, *, lock: bool = False) -> StaffGrant | None: ...
+    def set_staff_grant(self, value: StaffGrant) -> None: ...
+    def staff_user(self, email: str) -> User: ...
+    def active_staff(self) -> tuple[dict[str, Any], ...]: ...
+    def add_staff_audit(self, value: StaffAudit) -> None: ...
+    def add_support_ticket(self, value: SupportTicket) -> None: ...
+    def support_ticket(
+        self, workspace_id: UUID, ticket_id: UUID, *, lock: bool = False
+    ) -> SupportTicket: ...
+    def support_tickets(
+        self,
+        *,
+        workspace_id: UUID | None,
+        requester_id: UUID | None,
+        before: tuple[datetime, UUID] | None,
+        status: str,
+        priority: str,
+        q: str,
+        limit: int,
+    ) -> tuple[SupportTicket, ...]: ...
+    def support_open_count(self, workspace_id: UUID, requester_id: UUID) -> int: ...
+    def set_support_ticket(self, value: SupportTicket, expected_version: int) -> None: ...
+    def add_support_event(self, value: SupportEvent) -> None: ...
+    def support_events(self, workspace_id: UUID, ticket_id: UUID) -> tuple[SupportEvent, ...]: ...
+    def support_feedback_owned(
+        self, workspace_id: UUID, feedback_id: UUID, requester_id: UUID
+    ) -> bool: ...
+    def admin_workspaces(
+        self, *, before: tuple[datetime, UUID] | None, q: str, limit: int
+    ) -> tuple[dict[str, Any], ...]: ...
+    def admin_workspace(self, workspace_id: UUID) -> dict[str, Any]: ...
+
+
+class WorkspaceRepository(JobRepository, OperationsRepository, ReportingRepository, Protocol):
+    def forecast_runs(
+        self, workspace_id: UUID, dataset_id: UUID, owner_id: UUID
+    ) -> tuple[ForecastRun, ...]: ...
+    def forecast_run(self, workspace_id: UUID, record_id: UUID, owner_id: UUID) -> ForecastRun: ...
+    def forecast_comparisons(
+        self, workspace_id: UUID, forecast_id: UUID, owner_id: UUID
+    ) -> tuple[ForecastComparison, ...]: ...
+    def forecast_comparison(
+        self, workspace_id: UUID, record_id: UUID, owner_id: UUID
+    ) -> ForecastComparison: ...
+
     def refresh_feed(self, workspace_id: UUID, record_id: UUID) -> RefreshFeed: ...
     def refresh_feeds(self, workspace_id: UUID, dataset_id: UUID) -> tuple[RefreshFeed, ...]: ...
     def set_refresh_feed(self, record: RefreshFeed) -> None: ...
@@ -244,6 +292,21 @@ class WorkspaceRepository(JobRepository, Protocol):
     def upload(self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID) -> "Upload": ...
 
     def audit_events(self, workspace_id: UUID) -> tuple["AuditEvent", ...]: ...
+
+    def visible_audit_events(
+        self,
+        workspace_id: UUID,
+        actor_id: UUID,
+        shared_actions: tuple[str, ...],
+        *,
+        limit: int | None = None,
+        before: tuple[datetime, UUID] | None = None,
+        q: str = "",
+        action: str = "",
+        resource_type: str = "",
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> tuple[AuditEvent, ...]: ...
 
     def revisions(
         self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
@@ -343,7 +406,9 @@ class WorkspaceRepository(JobRepository, Protocol):
         | Monitor
         | Observation
         | AlertRule
-        | AlertEvent,
+        | AlertEvent
+        | ForecastRun
+        | ForecastComparison,
     ) -> None: ...
 
 

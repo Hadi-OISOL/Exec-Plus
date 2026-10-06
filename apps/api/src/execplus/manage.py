@@ -54,6 +54,23 @@ def _jobs_command(args: argparse.Namespace) -> None:
     print(json.dumps(result))
 
 
+def _staff_command(args: argparse.Namespace) -> None:
+    try:
+        runtime = build_runtime(Settings())
+        try:
+            result = runtime.operations.change_staff(
+                args.email, args.role if args.action == "grant-staff" else None
+            )
+        finally:
+            runtime.engine.dispose()
+    except Exception:
+        print(
+            "operator action=staff-access outcome=failed code=staff_access_failure", file=sys.stderr
+        )
+        raise SystemExit(1) from None
+    print(json.dumps(result))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -64,13 +81,21 @@ def main() -> None:
             "deliver-reports",
             "process-refreshes",
             "process-jobs",
+            "grant-staff",
+            "revoke-staff",
         ],
     )
     parser.add_argument("--email")
+    parser.add_argument("--role", choices=["admin", "support"])
     parser.add_argument("--watch", action="store_true")
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--poll-seconds", type=float, default=0.5)
     args = parser.parse_args()
+    if args.action in {"grant-staff", "revoke-staff"}:
+        if not args.email or (args.action == "grant-staff" and not args.role):
+            parser.error("--email and a grant --role are required")
+        _staff_command(args)
+        return
     if args.action == "process-jobs":
         _jobs_command(args)
         return

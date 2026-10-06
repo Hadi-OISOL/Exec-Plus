@@ -36,6 +36,7 @@ _ALLOWED = {
     exp.Join,
     exp.Order,
     exp.Ordered,
+    exp.TimestampTrunc,
 }
 
 
@@ -49,6 +50,12 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
     query = statements[0]
     if any(type(node) not in _ALLOWED for node in query.walk()):
         raise UnsafeQueryError("The query contains an unsupported operation")
+    if any(
+        not isinstance(node.this, exp.Column)
+        or not isinstance(node.args.get("unit"), exp.Placeholder)
+        for node in query.find_all(exp.TimestampTrunc)
+    ):
+        raise UnsafeQueryError("Calendar grouping requires a source column and bound period")
     if len(list(query.find_all(exp.AggFunc))) > 1:
         raise UnsafeQueryError("Only one verified aggregation per query is supported")
     references = list(query.find_all(exp.Table))

@@ -153,6 +153,7 @@ def test_versioned_samples_have_fixed_shapes_and_reproducible_profiles(sample):
         "sales-v1": (3, "93.33"),
         "inventory-v1": (3, "100.00"),
         "cities-v1": (24, "100.00"),
+        "forecast-v1": (90, "100.00"),
     }
     assert (structure.row_count, result["quality_score"]) == expected[sample["id"]]
     assert result["column_count"] == (6 if sample["id"] == "cities-v1" else 4)

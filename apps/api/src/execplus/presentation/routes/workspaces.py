@@ -4,6 +4,7 @@ What it does: Maps transport data to application services and returns safe metad
 """
 
 from dataclasses import asdict
+from datetime import datetime
 from tempfile import TemporaryFile
 from typing import Annotated, BinaryIO, cast
 from uuid import UUID
@@ -215,6 +216,32 @@ def download(
 @router.get("/workspaces/{workspace_id}/audit-events")
 def audit_events(workspace_id: UUID, actor: Actor, service: Service) -> object:
     return service.audit_events(actor, workspace_id)
+
+
+@router.get("/workspaces/{workspace_id}/audit-history")
+def audit_history(
+    workspace_id: UUID,
+    actor: Actor,
+    service: Service,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    cursor: Annotated[str | None, Query(max_length=200)] = None,
+    q: Annotated[str, Query(max_length=80)] = "",
+    action: Annotated[str, Query(max_length=50)] = "",
+    resource_type: Annotated[str, Query(max_length=30)] = "",
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> object:
+    return service.audit_history(
+        actor,
+        workspace_id,
+        limit=limit,
+        cursor=cursor,
+        q=q,
+        action=action,
+        resource_type=resource_type,
+        since=since,
+        until=until,
+    )
 
 
 class CleaningInput(BaseModel):

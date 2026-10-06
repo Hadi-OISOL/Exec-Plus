@@ -3,25 +3,77 @@ What it does: Connects uploads, verified insights, conversations, preparation an
 
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { FormEvent } from "react";
 
-import { ActivationPanel } from "./activation-panel";
-import { KnowledgePanel } from "./knowledge-panel";
 import type { ChatHandle } from "./ask-panel";
 import { CatalogPanel } from "./catalog-panel";
 import { DatasetMap, Icon } from "./explore-components";
 import { AskPanel } from "./ask-panel";
-import { DashboardPanel } from "./dashboard-panel";
-import { SavedPanel } from "./saved-panel";
-import { ProfilePanel } from "./profile-panel";
 import { UnderstandingPanel, domains } from "./understanding-panel";
-import { RefreshPanel } from "./refresh-panel";
-import { StudiesPanel } from "./studies-panel";
-import { OrganizationPanel } from "./organization-panel";
 import { DiscoveryPanel } from "./discovery-panel";
-import { SourceDetails } from "./source-details";
+import type { StaffRole } from "./support-panel";
+
+const loadingView = () => <p role="status">Loading this view…</p>;
+const ActivationPanel = dynamic(
+  () => import("./activation-panel").then((module) => module.ActivationPanel),
+  { loading: loadingView },
+);
+const KnowledgePanel = dynamic(
+  () => import("./knowledge-panel").then((module) => module.KnowledgePanel),
+  { loading: loadingView },
+);
+const DashboardPanel = dynamic(
+  () => import("./dashboard-panel").then((module) => module.DashboardPanel),
+  { loading: loadingView },
+);
+const SavedPanel = dynamic(
+  () => import("./saved-panel").then((module) => module.SavedPanel),
+  { loading: loadingView },
+);
+const ProfilePanel = dynamic(
+  () => import("./profile-panel").then((module) => module.ProfilePanel),
+  { loading: loadingView },
+);
+const RefreshPanel = dynamic(
+  () => import("./refresh-panel").then((module) => module.RefreshPanel),
+  { loading: loadingView },
+);
+const StudiesPanel = dynamic(
+  () => import("./studies-panel").then((module) => module.StudiesPanel),
+  { loading: loadingView },
+);
+const OrganizationPanel = dynamic(
+  () =>
+    import("./organization-panel").then((module) => module.OrganizationPanel),
+  { loading: loadingView },
+);
+const SourceDetails = dynamic(
+  () => import("./source-details").then((module) => module.SourceDetails),
+  { loading: loadingView },
+);
+const ForecastPanel = dynamic(
+  () => import("./forecast-panel").then((module) => module.ForecastPanel),
+  { loading: loadingView },
+);
+const AuditPanel = dynamic(
+  () => import("./audit-panel").then((module) => module.AuditPanel),
+  { loading: loadingView },
+);
+const AdminPanel = dynamic(
+  () => import("./admin-panel").then((module) => module.AdminPanel),
+  { loading: loadingView },
+);
+const SupportPanel = dynamic(
+  () => import("./support-panel").then((module) => module.SupportPanel),
+  { loading: loadingView },
+);
+const ProductUsagePanel = dynamic(
+  () => import("./product-usage").then((module) => module.ProductUsagePanel),
+  { loading: loadingView },
+);
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 type Workspace = { id: string; name: string; seat_limit: number };
@@ -52,12 +104,14 @@ export default function WorkspacePage() {
   const [revisionTick, setRevisionTick] = useState(0);
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
+  const [staffRole, setStaffRole] = useState<StaffRole>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [dataset, setDataset] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [invitationError, setInvitationError] = useState("");
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [profileUpload, setProfileUpload] = useState("");
   const [usage, setUsage] = useState<{
@@ -74,6 +128,7 @@ export default function WorkspacePage() {
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
   const [expert, setExpert] = useState(false);
+  const [analysisIntent, setAnalysisIntent] = useState("descriptive");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(0);
@@ -106,7 +161,14 @@ export default function WorkspacePage() {
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        if (response.status === 401) setUser(null);
+        if (response.status === 401) {
+          setUser(null);
+          setWorkspace(null);
+          setWorkspaces([]);
+          setMembers([]);
+          setStaffRole(null);
+          setSection("data");
+        }
         throw Object.assign(
           new Error(
             body.error?.message ?? "The request failed. Please try again.",
@@ -145,7 +207,30 @@ export default function WorkspacePage() {
     }
   }
 
-  async function selectWorkspace(selected: Workspace, actorId = user?.id) {
+  useEffect(() => {
+    if (!workspace || !manager || section !== "team") return;
+    const controller = new AbortController();
+    Promise.resolve()
+      .then(() =>
+        request<Invitation[]>(`/workspaces/${workspace.id}/invitations`, {
+          signal: controller.signal,
+        }),
+      )
+      .then((items) => {
+        if (!controller.signal.aborted) setInvitations(items);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted)
+          setInvitationError(
+            cause instanceof Error
+              ? cause.message
+              : "Invitations could not be loaded.",
+          );
+      });
+    return () => controller.abort();
+  }, [workspace, manager, section, request]);
+
+  async function selectWorkspace(selected: Workspace) {
     setUploadTarget("new");
     setUploadDomain("auto");
     setUploadGoal("");
@@ -157,6 +242,7 @@ export default function WorkspacePage() {
     setUploads([]);
     setMembers([]);
     setInvitations([]);
+    setInvitationError("");
     setFile(null);
     const prefix = `/workspaces/${selected.id}`;
     const [nextDatasets, nextMembers] = await Promise.all([
@@ -168,15 +254,10 @@ export default function WorkspacePage() {
     if (nextDatasets.length) {
       await selectDataset(selected.id, nextDatasets[0].id);
     } else setSection("data");
-    const nextRole = nextMembers.find(
-      (member) => member.user_id === actorId,
-    )?.role;
-    if (nextRole === "owner" || nextRole === "admin") {
-      setInvitations(await request<Invitation[]>(`${prefix}/invitations`));
-    }
   }
 
   async function selectDataset(workspaceId: string, datasetId: string) {
+    setAnalysisIntent("descriptive");
     setReviewOpen(false);
     setDashboardOpen(false);
     setStarterQuestions([]);
@@ -197,14 +278,18 @@ export default function WorkspacePage() {
     await run(async () => {
       const current = await request<User>("/auth/me");
       setUser(current);
-      const available = await request<Workspace[]>("/workspaces");
+      const [available, access] = await Promise.all([
+        request<Workspace[]>("/workspaces"),
+        request<{ role: StaffRole }>("/admin/access"),
+      ]);
+      setStaffRole(access.role);
       setWorkspaces(available);
       const params = new URLSearchParams(window.location.search);
       const selected =
         available.find((item) => item.id === params.get("workspace")) ??
         available[0];
       if (selected) {
-        await selectWorkspace(selected, current.id);
+        await selectWorkspace(selected);
         if (params.get("saved")) {
           const item = await request<{ dataset_id: string; upload_id: string }>(
             `/workspaces/${selected.id}/saved-items/${encodeURIComponent(params.get("saved")!)}`,
@@ -333,6 +418,7 @@ export default function WorkspacePage() {
       setDashboardOpen(false);
       setStarterQuestions([]);
       setUploadTarget("new");
+      setAnalysisIntent("descriptive");
       setSection("overview");
       setMessage(
         `${stored.filename} uploaded successfully. Your first findings are being prepared below.`,
@@ -414,8 +500,13 @@ export default function WorkspacePage() {
     { id: "documents", name: "Documents" },
     { id: "saved", name: "Saved work" },
     { id: "studies", name: "Studies & dashboards" },
+    { id: "forecasts", name: "Forecasts" },
     { id: "refresh", name: "Refresh & alerts" },
+    { id: "audit", name: "Audit history" },
     { id: "team", name: "Team & settings" },
+    ...(manager ? [{ id: "usage", name: "Usage & retention" }] : []),
+    { id: "support", name: "Support" },
+    ...(staffRole ? [{ id: "admin", name: "Admin console" }] : []),
   ];
   return (
     <main
@@ -436,9 +527,16 @@ export default function WorkspacePage() {
             <button
               type="button"
               key={item.id}
+              title={item.name}
               disabled={!user || busy}
               aria-current={section === item.id ? "page" : undefined}
-              onClick={() => setSection(item.id)}
+              onClick={() => {
+                setSection(item.id);
+                setMessage("");
+                setError("");
+                if (item.id === "forecasts") setAnalysisIntent("predictive");
+                if (item.id === "overview") setAnalysisIntent("descriptive");
+              }}
             >
               <Icon name={item.id} />
               <span>{item.name}</span>
@@ -484,6 +582,7 @@ export default function WorkspacePage() {
                     setDatasets([]);
                     setDataset("");
                     setMembers([]);
+                    setStaffRole(null);
                     setInvitations([]);
                     setUploads([]);
                     setFile(null);
@@ -560,7 +659,7 @@ export default function WorkspacePage() {
             </section>
           ) : (
             <>
-              {workspace && (
+              {workspace && section !== "admin" && (
                 <section className="datasetToolbar" aria-label="Selected data">
                   <label>
                     Current workspace
@@ -808,41 +907,48 @@ export default function WorkspacePage() {
                       <details className="sampleChoices">
                         <summary>Try a fictional example</summary>
                         <p>Explore a sample in its own dataset.</p>
-                        {["cities", "finance", "sales", "inventory"].map(
-                          (kind) => (
-                            <button
-                              key={kind}
-                              disabled={busy}
-                              onClick={() =>
-                                void run(async () => {
-                                  const stored = await request<
-                                    Upload & { dataset_id: string }
-                                  >(
-                                    `/workspaces/${workspace.id}/samples/${kind}-v1`,
-                                    { method: "POST" },
-                                  );
-                                  setDatasets(
-                                    await request<Dataset[]>(
-                                      `/workspaces/${workspace.id}/datasets`,
-                                    ),
-                                  );
-                                  setDataset(stored.dataset_id);
-                                  setUploads([stored]);
-                                  setProfileUpload(stored.id);
-                                  setReviewOpen(false);
-                                  setDashboardOpen(false);
-                                  setStarterQuestions([]);
-                                  setSection("overview");
-                                  setMessage(
-                                    "Sample ready. Explore its findings or ask a question.",
-                                  );
-                                })
-                              }
-                            >
-                              Try {kind} sample
-                            </button>
-                          ),
-                        )}
+                        {[
+                          "cities",
+                          "finance",
+                          "sales",
+                          "inventory",
+                          "forecast",
+                        ].map((kind) => (
+                          <button
+                            key={kind}
+                            disabled={busy}
+                            onClick={() =>
+                              void run(async () => {
+                                const stored = await request<
+                                  Upload & { dataset_id: string }
+                                >(
+                                  `/workspaces/${workspace.id}/samples/${kind}-v1`,
+                                  { method: "POST" },
+                                );
+                                setDatasets(
+                                  await request<Dataset[]>(
+                                    `/workspaces/${workspace.id}/datasets`,
+                                  ),
+                                );
+                                setDataset(stored.dataset_id);
+                                setUploads([stored]);
+                                setProfileUpload(stored.id);
+                                setReviewOpen(false);
+                                setDashboardOpen(false);
+                                setStarterQuestions([]);
+                                setAnalysisIntent("descriptive");
+                                setSection("overview");
+                                setMessage(
+                                  "Sample ready. Explore its findings or ask a question.",
+                                );
+                              })
+                            }
+                          >
+                            {kind === "forecast"
+                              ? "Try forecasting sample"
+                              : `Try ${kind} sample`}
+                          </button>
+                        ))}
                       </details>
                       <details className="manualDataset">
                         <summary>Create a named dataset manually</summary>
@@ -1036,6 +1142,9 @@ export default function WorkspacePage() {
                           <button disabled={busy}>Create invitation</button>
                         </form>
                         <h3>Invitations</h3>
+                        {invitationError && (
+                          <p role="alert">{invitationError}</p>
+                        )}
                         {invitations.length ? (
                           <ul className="memberList">
                             {invitations.map((item) => (
@@ -1120,8 +1229,71 @@ export default function WorkspacePage() {
                   }}
                 />
               )}
+              {workspace && section === "audit" && (
+                <AuditPanel
+                  key={workspace.id}
+                  workspaceId={workspace.id}
+                  request={request}
+                />
+              )}
+              {section === "support" && (
+                <SupportPanel
+                  key={workspace?.id ?? "no-workspace"}
+                  workspaceId={workspace?.id}
+                  request={request}
+                />
+              )}
+              {workspace && manager && section === "usage" && (
+                <ProductUsagePanel
+                  key={workspace.id}
+                  path={`/workspaces/${workspace.id}/product-usage`}
+                  request={request}
+                />
+              )}
+              {staffRole && section === "admin" && (
+                <AdminPanel
+                  key={staffRole}
+                  role={staffRole}
+                  request={request}
+                />
+              )}
               {root ? (
                 <>
+                  {["overview", "forecasts"].includes(section) && (
+                    <div className="analysisIntent">
+                      <label>
+                        Analysis focus
+                        <select
+                          value={analysisIntent}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setAnalysisIntent(value);
+                            setSection(
+                              value === "predictive" ? "forecasts" : "overview",
+                            );
+                          }}
+                        >
+                          <option value="descriptive">
+                            Descriptive · understand actual data
+                          </option>
+                          <option value="predictive">
+                            Predictive · basic forecasts
+                          </option>
+                          <option value="all">
+                            All supported · explore and forecast
+                          </option>
+                          <option value="prescriptive" disabled>
+                            Prescriptive · planned, unavailable
+                          </option>
+                        </select>
+                      </label>
+                      <p>
+                        {analysisIntent === "predictive"
+                          ? "Basic daily or monthly forecasting requires reviewed meanings and complete periods."
+                          : "Start with observed facts. Forecasting is optional; prescriptive recommendations remain planned."}
+                      </p>
+                    </div>
+                  )}
                   <div hidden={section !== "overview"}>
                     <div className="analysisViewControls">
                       <div>
@@ -1183,6 +1355,30 @@ export default function WorkspacePage() {
                         root={root}
                         request={request}
                       />
+                    )}
+                    {analysisIntent === "all" && (
+                      <section
+                        className="panel forecastTeaser"
+                        aria-label="Explore forecasting"
+                      >
+                        <div>
+                          <h2>Ready to look ahead?</h2>
+                          <p>
+                            Check whether your file supports a basic time-series
+                            forecast. Review past error and uncertainty before
+                            using an estimate.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAnalysisIntent("predictive");
+                            setSection("forecasts");
+                          }}
+                        >
+                          Explore basic forecasts
+                        </button>
+                      </section>
                     )}
                     <details
                       className="workspaceDisclosure"
@@ -1292,9 +1488,26 @@ export default function WorkspacePage() {
                       onReview={reviewUnderstanding}
                     />
                   )}
+                  {section === "forecasts" && (
+                    <ForecastPanel
+                      key={`forecasts-${root}-${revisionTick}`}
+                      root={root}
+                      filename={selectedUpload?.filename ?? "Selected upload"}
+                      request={request}
+                      onReview={reviewUnderstanding}
+                      onRefresh={() => setSection("refresh")}
+                    />
+                  )}
                 </>
               ) : (
-                !["team", "data"].includes(section) && (
+                ![
+                  "team",
+                  "data",
+                  "audit",
+                  "support",
+                  "admin",
+                  "usage",
+                ].includes(section) && (
                   <section className="emptyWorkspace">
                     <div className="emptyOrbit">
                       <Icon name="data" size={44} />

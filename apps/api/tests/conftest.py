@@ -89,6 +89,10 @@ def integration():
     runtime.artifacts.uow = SQLUnitOfWork(engine)
     runtime.studies.uow = SQLUnitOfWork(engine)
     runtime.studies.analytics = runtime.analytics
+    runtime.operations.uow = SQLUnitOfWork(engine)
+    runtime.product_usage.uow = SQLUnitOfWork(engine)
+    runtime.forecasts.uow = SQLUnitOfWork(engine)
+    runtime.forecasts.analytics = runtime.analytics
     runtime.organizations.uow = SQLUnitOfWork(engine)
     runtime.refresh.uow = SQLUnitOfWork(engine)
     runtime.refresh.uploads = runtime.service

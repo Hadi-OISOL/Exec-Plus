@@ -43,7 +43,7 @@ async def test_eight_demo_users_share_fictional_data_without_duplicate_seeding(
             len(integration.client.get(f"/workspaces/{wid}/members", headers=headers).json()) == 8
         )
         assert (
-            len(integration.client.get(f"/workspaces/{wid}/datasets", headers=headers).json()) == 4
+            len(integration.client.get(f"/workspaces/{wid}/datasets", headers=headers).json()) == 5
         )
         documents = integration.client.get(
             f"/workspaces/{wid}/datasets/{did}/documents", headers=headers

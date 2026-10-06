@@ -7,17 +7,40 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
+The October 6 operations update adds **Support** for private requests and replies,
+**Usage & retention** for workspace owners/admins, and an **Admin console** for
+explicitly granted internal staff. Staff can inspect operational metadata and handle
+support requests without acquiring access to private customer analyses. Usage reports
+show deliberate activity and completed-week return cohorts with their definitions.
+See the [operations contract](docs/operations-console-support.md) and
+[verification ledger](docs/verification-operations.md). Run migration **0015** after
+pulling. Staff grants are operator-only; ordinary workspace ownership does not grant
+platform administration. Billing and public production readiness remain unfinished.
+
+Phase 4C is complete for the approved local/test and private-demo scope as of
+October 6, and is deployed to the VPS. Open
+**Forecasts** to estimate complete daily or monthly periods, inspect historical
+test errors and compare later actual data with a saved forecast. Source actuals
+remain exact; estimates and heuristic ranges are clearly labelled. Grounded
+commentary explains measured differences without claiming their cause. **Audit
+history** now exposes searchable activity under each person's current permissions.
+The forecasting slice introduced migration **0014**. See the
+[forecasting contract and model trial](docs/phase4-forecasting.md),
+[audit visibility contract](docs/audit-history.md) and
+[release verification](docs/verification-phase4c.md) for acceptance evidence,
+including the successful eight-user functional rehearsal.
+
 The October 4 foundation extension is verified locally and deployed to the private
 VPS demo. It adds durable private
 chat requests with recorded execution activity, cancellation and resume; optional
 Expert views expose existing evidence plus authorized artifact and quality
-descriptions. Run migration **0013** and `make jobs` alongside the API/web app.
+descriptions. It introduced migration 0013; keep `make jobs` alongside the API/web app.
 See the [implementation plan](docs/platform-foundation-plan.md),
 [conversation job contract](docs/conversation-jobs.md) and
 [bounded compute contract](docs/compute-broker.md),
 [artifact and quality contract](docs/platform-artifacts-quality.md) and
-[acceptance record](docs/verification-platform-foundation.md). This does not implement the
-remaining forecasts, exports, connectors or advanced research methods.
+[acceptance record](docs/verification-platform-foundation.md). These conversation
+and evidence contracts remain compatible with the forecasting extension.
 
 The October 2 workspace starts with a file: sign in, choose a CSV or single-sheet
 XLSX, and upload. First-time users get an automatic workspace and file-named dataset.
@@ -48,11 +71,27 @@ descriptive studies and immutable versions, ordered survey views, six-pin privat
 or shared dashboards, and separate department workspaces grouped by organization.
 The private demo now also includes **Refresh & alerts**: validated staged-file
 replacement/append/merge, schedules, replayable observations, exact segment drivers
-and private KPI notifications. That slice introduced migration 0012; the foundation
-extension above now requires **0013**. See the
+and private KPI notifications. That slice introduced migration 0012; the current
+application requires **0014**. See the
 [4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
 [4B verification](docs/verification-phase4b.md). Schedules process files staged in
-ExecPlus; live connectors, forecasts and exports remain later Phase 4 slices.
+ExecPlus. Forecast comparisons can use an accepted refresh without changing the
+original forecast. Exports remain Phase 4D and live connectors remain Phase 4E.
+All eight production gates remain blocked; private-demo evidence does not clear them.
+
+For a guided trial, choose **Try forecasting sample** in Data library, review its
+date/measure meanings and units, then choose **Predictive · basic forecasts** under Analysis
+focus or open **Forecasts**. Confirm the complete daily coverage before creating
+a forecast. The fictional sample contains ninety days; older samples are unchanged.
+Descriptive and all-supported views remain available. Prescriptive analysis is
+labelled planned and cannot execute.
+
+Forecasting compares last-value, recent-mean and linear-trend methods, with an
+optional declared seasonal baseline. Separate validation and test windows expose
+MAE, RMSE, WAPE and MAPE, including zero-value limitations and a last-value test
+benchmark. Ranges are heuristic, not calibrated confidence intervals. This path
+does not call language models or automatically retrain. ARIMA and Prophet were
+evaluated separately and are not runtime dependencies.
 
 Use `/workspace` for the application. See [Phase 2 contracts](docs/phase2-analytics.md),
 [the interactive explorer and hybrid chat](docs/conversational-explorer.md),
@@ -127,7 +166,7 @@ The command runs backend linting, type checks, tests, and frontend checks. Indiv
 ## Product invariants
 
 - Every request is scoped to an authenticated workspace.
-- Numerical values reach users only after successful execution against the selected dataset.
+- Observed numerical values come from successful execution against authorized data; statistical estimates are labelled separately and retain their source evidence.
 - Generated SQL is read-only, bounded, validated, and recorded before execution.
 - Ambiguous metrics trigger clarification rather than a guessed query.
 - Every answer includes lineage and an audit event.

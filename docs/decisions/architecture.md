@@ -13,8 +13,8 @@ The deployable units are:
 - `apps/api`: FastAPI control plane, durable conversation submission and compatible synchronous request orchestration.
 - Conversation worker: PostgreSQL-backed private jobs, fenced attempts, cancellation and recorded activity; Foundation A is verified locally and deployed to the private demo.
 - Bounded operator worker: scheduled staged-file activation, observation queries and in-app alerts. Asynchronous ingestion/export responsibilities remain future work.
-- PostgreSQL: identity references, workspaces, permissions, metadata, threads, lineage, and audit records.
-- Object storage: original uploads, normalized artifacts, and generated exports.
+- PostgreSQL: identity references, workspaces, permissions, metadata, threads, lineage, private forecasts/comparisons and audit records.
+- Object storage: original uploads, documents and retained derived snapshots. Generated exports remain planned.
 - DuckDB: exact analytical execution over a workspace-authorized dataset snapshot.
 - Configurable models: local or hosted language-model providers behind one port.
 - Configurable retrieval: an optional embedding store behind one port; no vendor is selected in Phase 0.
@@ -50,7 +50,11 @@ flowchart TD
     M --> A
 ```
 
-Models may propose an intent, SQL plan, wording, or chart specification. Only the execution adapter supplies numerical values. Answer assembly rejects numerical claims without a matching result and lineage reference.
+Models may propose an intent, query plan or supported presentation choice. The
+execution adapter supplies source actuals; deterministic domain methods calculate
+explicitly labelled forecast estimates and errors from those actuals. Models never
+calculate either. Answer assembly retains the executed evidence and separates
+observed values from statistical estimates.
 
 ## Module boundaries
 
@@ -141,12 +145,15 @@ not change existing result-checksum serialization. New receipts retain matching
 counts and verify them on replay. Migration 0008 records the added conversation kinds
 and composed model route without replacing earlier turns.
 
-## Planned data-partner extension (2026-09-30)
+## Data-partner delivery boundaries
 
 The revised [roadmap](../../ROADMAP.md) is authoritative for scope, order and
 acceptance. Slices 3A–3B and catalog discovery are implemented; 3C–3D candidate
 assessments are complete with no runtime optimization/judge adoption. Phase 4A
-studies and adaptive dashboards and 4B refresh/monitoring are implemented; 4C–4E remain planned. No production vector vendor is selected.
+studies and adaptive dashboards, 4B refresh/monitoring and 4C basic forecasting are
+implemented for the private demo. Searchable authorized audit history was brought
+forward from 4D; 4D exports and 4E connectors remain planned. No production vector
+vendor is selected, and all eight production gates remain blocked.
 
 | Responsibility | Boundary | Phase |
 | --- | --- | --- |
@@ -156,6 +163,7 @@ studies and adaptive dashboards and 4B refresh/monitoring are implemented; 4C–
 | Evidence discovery | Permission-filtered catalog and lexical/learned search candidates behind existing ports; embeddings locate evidence, not business totals | 3C |
 | Advisory review | Offline/shadow checks against labeled cases; no authority over permissions, arithmetic or release approval | 3D |
 | Studies and observations | Versioned questions, methods and results; bounded recomputation after an accepted refresh | 4A–4C |
+| Basic forecasts | Governed calendar actuals, separate validation/test windows, immutable estimates and explicit later-actual comparisons | 4C |
 | Evidence export | Permission-checked renderers over authorized executed results and saved study versions | 4D |
 | Source adapters | Discovery, read-only extraction, checkpoints and lifecycle through provider-neutral ports; initial Sheets/PostgreSQL integrations | 4E |
 
@@ -255,6 +263,76 @@ current authorization, definition, freshness and coverage checks. Notifications 
 in-app and private to the subscribing member. The VPS systemd timer and backup share
 a host maintenance lock. No new listening port, external email or source connector
 is added. See [the refresh contract](../phase4-refresh-monitoring.md).
+
+## Basic forecasts and authorized audit history (2026-10-06)
+
+Migration **0014** adds immutable private forecast runs and comparisons to the
+existing control plane. Composite foreign keys bind workspace, dataset, upload,
+revision and confirmed meaning; comparisons also retain their forecast owner.
+Existing 0013 jobs, receipts and profile-v1/v2 reconstruction remain intact. The
+current application requires 0014; rollback must preserve its new metadata.
+
+`ForecastService` reuses authorized snapshot reconstruction, the compute broker and
+execution receipts. Three bounded calendar queries calculate each period's measure,
+present-value count and record count. Coverage is explicitly declared; daily or
+whole-month boundaries, missing dates, missing measures and duplicate evidence
+periods are validated. Missing history is never imputed as zero. Source reads and
+parsing run off the event loop, cancellation waits for reader cleanup, and current
+permissions/source meaning are checked again before publication.
+
+The standard-library `domain.forecasting` module compares last-value, recent-mean,
+linear-trend and eligible declared seasonal baselines. A chronological validation
+window selects the method; a separate test window measures MAE, RMSE, WAPE and MAPE
+and compares a last-value benchmark. Actuals retain exact decimal values. Estimates
+and summary error metrics are rounded to eighteen significant digits; zero-value
+percentage limitations are explicit. RMSE-based ranges are heuristic, not calibrated
+confidence intervals or guaranteed coverage. The ARIMA/Prophet trial remains
+isolated research and adds no runtime dependency or model call.
+
+Reopening reconstructs the saved forecast from its original evidence. The three
+distinct receipt IDs must match the expected SQL, typed parameters, source, actor,
+dataset and result checksums. Method/version and saved results are verified too.
+An explicit comparison can use an accepted refresh in the same dataset while
+preserving metric, aggregation, filters, frequency and meaning. Unobserved periods
+remain pending; the original forecast is never silently retrained or rewritten.
+Commentary is rendered from these results, with measured differences separated
+from causal explanations. See [forecast contracts and research](../phase4-forecasting.md)
+and [release evidence](../verification-phase4c.md).
+
+The additive audit-history API applies current membership, own-event visibility
+and explicit shared-action/resource rules in SQL before bounded pagination. An
+admin role does not expose another person's private conversation, forecast, query,
+report or preference events. Search covers action/type/identifiers, not source
+values, names or prompts. Unsharing changes the next read's visibility. This is
+an operational history view, not tamper-evident retention or production security
+acceptance. See [the visibility contract](../audit-history.md).
+
+The browser's analysis focus chooses descriptive, basic predictive or all-supported
+views; prescriptive analysis remains unavailable. The fictional forecasting sample
+is additive. Forecast requests use explicit forms, not arbitrary predictive chat
+execution. Phase 4D exports, 4E connectors and frozen Phase 6 advanced methods remain
+separate work.
+
+## Internal operations and product reporting (2026-10-06)
+
+Migration 0015 adds revocable staff grants, staff audit, private support tickets and
+immutable ticket events. Staff roles are independent of workspace membership and
+never bypass existing source, conversation or numerical-evidence permissions.
+The operations service exposes bounded metadata projections and purpose-specific
+support conversations. Ticket writes check expected versions and serialize under
+workspace/ticket locks; staff requests hold a grant lock through audited publication.
+CLI grants/revocation are explicit. [ADR 0009](0009-internal-operations.md) records
+the authority boundary and production limitations.
+
+The reporting repository aggregates audit/usage records in PostgreSQL without
+returning individual history to the application. The domain renders versioned
+weekly activity, mature cohorts and disclosed inactivity rules from those aggregates.
+Workspace managers see only their workspace's report; internal admins use separately
+audited projections. Background operations do not independently establish human
+retention. Legacy overview shapes retain their original definitions, while the new
+view uses `usage-v1`. No telemetry provider, persistent cache or model call is added.
+See [contracts](../operations-console-support.md) and
+[measured release evidence](../verification-operations.md).
 
 ## Dataset explanations in chat
 

@@ -7,6 +7,100 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+- October 6 internal operations slice is Complete for local/test and the private
+  demo: separate operator-managed staff grants, metadata-only admin console, private
+  support lifecycle and aggregate product usage/cohorts. Phase 5 remains In progress;
+  this delivery does not complete commercial readiness or broader performance work.
+  Read `docs/operations-gap-audit.md`, `docs/operations-console-support.md`,
+  `docs/verification-operations.md` and ADR 0009 before extending.
+- Current readiness is **0015**. Staff grants never imply workspace membership or
+  source/analysis access. Support tickets belong to their requester and active staff;
+  ordinary workspace owners cannot read another member's private requests. Status,
+  replies and assignment use bounded immutable events and optimistic versions.
+  No external support message/email is sent. CLI grant/revoke and staff operations
+  retain identifier/outcome audit; support text stays out of general logs/audit.
+- Usage-v1 reports use one PostgreSQL statement snapshot, explicit deliberate-action
+  definitions, UTC weeks, historical cohort denominators and current-member cards.
+  Incomplete weeks stay null; inactivity is a rule, not predicted churn. Large
+  integers remain exact strings at HTTP boundaries. Old usage/onboarding response
+  shapes remain compatible; the legacy usage-event list is still unbounded.
+- Operations checks pass **869 backend/architecture cases** (53 new), nine frontend
+  tests, 24 real-service browser journeys, Ruff/mypy (148 files), types/lint/build,
+  clean-image computations and six old receipt/forecast compatibility checks.
+  All eight deployed users passed support history and reports, 36 protected-access
+  denials with 36 authorized controls, and desktop/mobile checks in 114.171 seconds.
+  This is a functional rehearsal, not sustained-load or production acceptance.
+- Measured local 100k-event overview median improves 1,934.907 to 241.882 ms with
+  independent result parity; resource-total queries fall from 26 to one. The new
+  report remains one snapshot under eight concurrent calls. Initial compressed
+  browser JavaScript is 7.64% smaller. Timings exclude HTTP/network/browser overhead;
+  representative alpha performance remains open. No unproven index/cache was added.
+- Migration 0015 preserved all forty existing data tables' hashes/counts. Source and
+  image checkpoint is `pre-operations-20261006`; checked pre-release backup is
+  `20261006T080234Z`. Checked post-release backup `20261006T082942Z` stopped API/jobs
+  before storage, then restarted with healthy readiness. Preserve all new staff,
+  ticket, event and audit data plus forecasts/jobs/profile versions before rollback;
+  old images expect 0014. Only the first existing demo account received admin staff
+  access. Models, network exposure and all eight production gates are unchanged.
+- October 6 forecast/audit and operations work remain uncommitted on `phase2` at
+  baseline `9c2445d`; this delivery did not push or merge. Phase 4D/4E remain unfinished,
+  and Phase 6 remains Frozen. Refresh and backup timers remain active.
+- The user requested ongoing DOCX upkeep after verified deliveries. Maintain the
+  original 64 feature IDs in `docs/product-feature-audit.json` and use
+  `scripts/build_feature_report.py` to regenerate the Desktop report with backups.
+  Current report includes Phase 4C and operations: **36 Done / 13 Partial / 15 Not yet**.
+  Performance remains Partial pending representative alpha acceptance. Both Desktop
+  DOCX filenames and the October 6 PDF are updated; all 64 original feature IDs,
+  ten-page layout and October 5 competitor review are retained. Previous reports
+  are backed up under ignored `data/reports/2026-10-06/`. Optional `python-docx`
+  tooling lives in `data/report-tools`; it is not an application dependency.
+- October 6 VC priorities 34–39 implement basic forecasting, error measurement,
+  actual comparisons, grounded commentary and searchable audit history, reusing
+  existing scheduled staged-file refresh. Phase 4C is Complete for local/test and
+  the private demo; all eight deployed browsers pass. Read `docs/phase4c-gap-audit.md`,
+  `docs/phase4-forecasting.md`, `docs/audit-history.md` and
+  `docs/verification-phase4c.md` before extending.
+- Phase 4C introduced migration **0014**, with private immutable forecast and
+  comparison records. Daily/monthly series require confirmed meaning, explicit units
+  and declared complete periods. Three exact source receipts reconstruct each series;
+  reopening verifies source bytes, method, parameters, result and current permissions.
+  Preserved actuals remain Decimal strings; forecasts are labelled estimates.
+- Runtime methods are bounded standard-library last value, recent mean, linear trend
+  and explicitly eligible seasonal naive. Selection uses validation MAE before the
+  untouched test window. Errors, naive benchmark and heuristic ranges are disclosed;
+  ranges are not calibrated confidence intervals. ARIMA/Prophet were researched in
+  isolation and are not runtime dependencies. Forecasts/commentary never ask an LLM
+  to calculate. Missing later actuals remain pending; refresh does not auto-retrain.
+- The upload flow offers descriptive, basic predictive and all-supported analysis;
+  prescriptive remains planned. Forecasts and Audit history have dedicated views;
+  a fifth fictional sample is `forecast-v1`. Existing sample bytes remain frozen.
+  Audit visibility runs before bounded pagination and retains others' private events
+  as private, including for workspace managers. New actions default to actor-only.
+- October 6 checks: **816 backend/architecture cases** (118 new), nine frontend tests,
+  20 real-service browser journeys, Ruff/mypy (136 files), web lint/types/build pass.
+  The clean non-root image passes eight concurrent exact/calendar/forecast journeys
+  without optional scientific libraries or network access. Four old profile-v1/v2
+  live receipts pass independent typed-checksum replay. Production gates stay blocked.
+- Eight deployed browsers created eight forecasts and eight actual comparisons,
+  preserved all originals, reopened sixteen saved results and replayed 48 exact
+  source receipts. Sixteen cross-user denials, sixteen private-audit probes, eight
+  audit searches and 1440/390/320-pixel layouts pass. Total rehearsal was 55.048s;
+  this is functional evidence, not sustained load or customer accuracy acceptance.
+  The first run's form-selector timeout submitted no forecasts and is retained;
+  corrected combobox-role selectors required no runtime change. Sessions remain
+  private in ignored `data/vps-private/sessions.json`; model/network settings stayed
+  unchanged.
+- The 0014 migration preserved hashes/counts of all 38 existing data tables, including
+  2,909 query executions. Checkpoint source/images use `pre-phase4c-20261006` and
+  pre-release checked backup is `20261006T063824Z`. Preserve new forecast/comparison
+  metadata as well as 0013 jobs and profile-v2 compatibility during rollback.
+- Post-release backup `20261006T065810Z` stopped API/jobs before storage, verified
+  database/object checksums and restarted services successfully. Refresh and backup
+  timers remain active. New forecast metadata must survive any rollback.
+- Baseline `phase2` commit `9c2445d` now contains the September 30/October 2 repairs
+  and Foundation A. October 6 forecasting/audit changes remain uncommitted; this work
+  has not pushed or merged. Phase 4D exports and 4E connectors remain Planned,
+  Phase 6 Frozen and all eight production gates remain blocked.
 - October 4 Foundation A is Complete for local/test and the private demo: additive
   artifact/capability and quality projections, compatible bounded compute, durable
   private conversation jobs and real action activity with resume/cancellation.
@@ -45,10 +139,9 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   this is a short functional rehearsal, not a sustained-load or speed improvement
   claim. Sessions were renewed privately. Models, environment files, network
   exposure and production gates did not change.
-- All September 30/October 2 changes remain present and uncommitted on `phase2`,
-  together with Foundation A; no push or merge occurred. Preparation/statistics/
-  sandbox/ML/connector extensions remain mapped future work. Phase 4C–4E remain
-  Planned, Phase 6 Frozen and all eight production gates remain blocked.
+- At the October 4 checkpoint, September 30/October 2 changes and Foundation A
+  were uncommitted; baseline `9c2445d` now preserves them. Preparation, broader
+  statistics, sandbox, ML and connector extensions remain mapped future work.
 - Phase 0: Engineering Foundation remains complete; its four exit criteria were reverified on 2026-09-07.
 - The repository is a Python and TypeScript modular monorepo.
 - The API has liveness and dependency-aware readiness endpoints for migrated PostgreSQL and the configured object bucket.
@@ -67,7 +160,7 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 - Current Phase 4B evidence: 458 backend tests on isolated PostgreSQL/MinIO plus 46 final targeted hardening/foundation checks, 2 frontend tests, 10 real-service browser journeys including live mixed chat, plus a final refresh journey after declaring the upload parser. Ruff/mypy (109 files), TypeScript, lint and production builds pass. All 8/8 concurrent deployed refresh browsers passed exact activation, alerts, original evidence replay and mobile layout. See `docs/verification-phase4b.md`; this is not a sustained-load benchmark.
 - Phase 3 is Complete for the approved local/test and private-demo scope as of 2026-09-30; its approved fictional demo is verified: six documents, twenty known answers, 16/16 top-three retrieval and 20/20 live DeepSeek cases. Production evaluation work is deferred with mandatory gates.
 - Document passages live in object storage; metadata and immutable citation offsets live in PostgreSQL. The reference hybrid ranker is not a selected production vector provider.
-- Migration 0006 adds execution receipts; 0007 adds activation/document/report metadata; 0008 adds record/overview conversation kinds and model routes; 0009 adds immutable business meanings and private goals. Migration 0011 adds organizations/departments, study versions, six-pin boards and private view dismissals; migration 0012 adds staged refresh heads/candidates, monitoring jobs and private alerts. Foundation A advances readiness to deployed 0013 as described above. Legacy executions without receipts cannot be replayed reliably.
+- Migration 0006 adds execution receipts; 0007 adds activation/document/report metadata; 0008 adds record/overview conversation kinds and model routes; 0009 adds immutable business meanings and private goals. Migration 0011 adds organizations/departments, study versions, six-pin boards and private view dismissals; migration 0012 adds staged refresh heads/candidates, monitoring jobs and private alerts. Foundation A deployed 0013; October 6 advances readiness to 0014 as described above. Legacy executions without receipts cannot be replayed reliably.
 - Reports default to disabled email. `python3 -m execplus.manage deliver-reports` processes due slots; SMTP delivery needs explicit operator configuration. No real email was sent during verification.
 - Decimal results and integers outside JavaScript's safe range are JSON strings. Preserve this wire contract and frozen profile-v1 reconstruction.
 - Runtime model summaries select server-rendered evidence statements; never restore free-form prose guarded only by a number regex.
@@ -83,7 +176,7 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 - Representative-customer, learned embedding/vector-provider, local/hosted comparison and operational production reviews were explicitly deferred to Phase 5, before any external customer deployment. Track them in `docs/production-readiness.json`.
 - `make production-preflight` and production runtime construction require reviewed evidence with intact artifact checksums. Demo completion must never clear those production gates.
 - No product feature should be represented as implemented unless tests prove it.
-- On 2026-09-30 the user requested a roadmap revision for a persistent data partner and then authorized starting Phase 3. Slice 3A is now Complete for the private demo; 3B–3C are verified locally and deployed, 3D is complete as a reviewed rejection of the optional judge, and Phase 4A (adaptive dashboards/studies) and 4B (refresh/alerts) are Complete for the private demo; 4C–4E (basic forecasts, exports, first connectors) remain Planned.
+- On 2026-09-30 the user requested a roadmap revision for a persistent data partner and then authorized starting Phase 3. Slice 3A is Complete for the private demo; 3B–3C are verified locally and deployed, 3D is complete as a reviewed rejection of the optional judge, and Phase 4A (adaptive dashboards/studies) and 4B (refresh/alerts) are Complete for the private demo. The October 6 entry governs subsequent 4C forecasting; exports and first connectors remain Planned.
 - Google Sheets and a read-only PostgreSQL source are now planned in Phase 4E after semantic and refresh foundations. Broader connectors, new file formats and advanced research/decision methods remain Frozen in Phase 6. No new connector, production learned search provider, runtime judge or Parquet serving optimization is selected. Unified document/data chat is now implemented in 3B.
 - Phase 3A implements optional domain/goal prompts, inferred row/column meaning, focused confirmation, versioned workspace definitions, reviewed declared relationships and inspectable history. Only the dataset creator or owner/admin edits shared meaning; goals remain private. Saved unconfirmed/stale definitions block new calculations. Sources without saved meaning retain their legacy inferred behavior. Read `docs/phase3-data-understanding.md` before extending.
 - Confirmed roles, metric aggregation/required filters and unit rules apply to planners, dashboards and joins. Receipts retain understanding IDs; replay uses original definitions. Changed definitions during planning clarify before execution. Joined right-side measures require unique left keys as well as the existing right-key guard. No automatic conversion, join discovery or scheduled refresh is implied. Phase 4A now adds goal-aware recommendations in the separate Studies & dashboards view.
@@ -120,9 +213,8 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   `releases/pre-phase4b-source` preserve 0011. Eight private sessions were renewed after
   expiry. Fictional refresh walkthrough workspaces show an exact 0.30 to 0.50 PKR update.
   All eight production gates remain blocked, and model/network settings did not change.
-- Next Phase 4 slice: 4C basic forecasting, then 4D exports and 4E first connectors.
-  None is implemented by 4B. The prior delivery is now captured in `phase2` baseline
-  `c9560af`; the September 30 query repair below remains uncommitted.
+- The 4B release did not implement forecasts, exports or connectors. Its baseline
+  was `c9560af`; the subsequent repairs are now retained in `9c2445d`.
 - September 30 spreadsheet repair is verified and deployed: per-column decimal
   scale expands from twelve only when needed, within 38 digits; query projection
   includes filter/group/join dependencies and preserves column-free sample counts.
@@ -185,7 +277,8 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   `pre-partner-20261002`, backup `20261002T035155Z`. Readiness stays on 0012. Older
   v1-only images cannot read new v2 revisions: preserve new metadata and account for
   compatibility before rollback. Models, network exposure and all eight production
-  gates are unchanged. Phase 4C–4E remain planned; Phase 6 remains frozen.
+  gates were unchanged. At that checkpoint Phase 4C–4E remained planned;
+  the October 6 entry records subsequent work. Phase 6 remains frozen.
 
 ## Non-negotiable engineering rules
 
@@ -202,6 +295,9 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 11. Put a file-level use-case and responsibility header at the top of every new file.
 12. Do not add inline explanatory comments; prefer clear names, small functions, tests, and architecture documents.
 13. Next.js can regenerate `next-env.d.ts`; restore its required file-purpose header before committing.
+14. After each verified feature delivery, update the maintained 64-item VC audit and
+    DOCX report together. Preserve prior report copies, evidence and the competitor
+    review date; do not promote statuses from intent or clear production gates.
 
 ## Dependency direction
 
@@ -240,9 +336,9 @@ make down
 
 The user authorized auditing the teammate's Phase 2 branch and proceeding into
 Phase 3, followed by the private explorer and the September 30 roadmap revision.
-Work is on local branch `phase2`; local and tracked `origin/phase2` now contain
-baseline `c9560af`, preserving the teammate's original `7d70cd7`. The query and chat
-guidance repairs are deployed but uncommitted; they did not push or merge into main.
+Work is on local branch `phase2`, with baseline `9c2445d` preserving earlier work,
+including the teammate's original `7d70cd7` and the later query/guidance repairs.
+October 6 changes are uncommitted; this task did not push or merge into main.
 Keep `.env` and customer documents out of version control.
 
 Phase 2 acceptance is verified for local/test operation. Current Phase 3 work uses
@@ -281,20 +377,42 @@ The user's “start 4b?” instruction authorized the completed 4B slice. Read
 browser journeys verify its private-demo scope. The first clean API startup found
 an undeclared multipart package; it was corrected, clean-import checked and all
 release checks passed. Do not repeat that partial release as the final state.
-Next is 4C when instructed; 4B did not implement forecasts, exports or connectors.
+The October 6 instruction authorized 4C; 4B itself did not implement forecasts,
+exports or connectors.
 Preserve the 0011 source/image/database checkpoint and all new 0012 user metadata.
 
 The October 2 user request reprioritized an upload-first, useful private data partner
 and authorized public real-data validation. That usability repair is now deployed;
 it does not implement the remaining forecasts, exports, connectors or advanced
 methods. Read its audit/verification before extending. The September 30 repairs and
-October 2 release remain uncommitted on `phase2`; this work did not push or merge
-into main. Preserve both sets of changes and exclude private/generated artifacts.
+October 2 release are now retained in baseline `9c2445d`. Preserve both sets of
+changes and exclude private/generated artifacts.
 
 The October 4 request authorized incorporating the supplied platform proposal
 without replacing verified primitives. The published A–H audit led to the now
 verified Foundation A slice; it did not implement the entire advanced platform.
 Read `docs/conversation-jobs.md`, `docs/platform-artifacts-quality.md`,
 `docs/compute-broker.md` and ADR 0008 for its contracts. Keep Preparation B through
-Integration F aligned with the existing Phase 4/5/6 gates. This release remains
-uncommitted together with prior repairs; never stage private sessions, logs or data.
+Integration F aligned with the existing Phase 4/5/6 gates. Baseline `9c2445d` now
+retains this release; never stage private sessions, logs or data.
+
+The October 6 request prioritizes VC items 34–36, then existing refresh (37),
+management commentary (38) and audit history (39). This authorizes bounded basic
+forecasting, its evaluations/comparisons and the private-demo deployment. It does
+not unfreeze prescriptive analysis or clear production gates. Read the 4C contract
+and verification ledger before continuing. The remaining Phase 4 work is exports
+and first controlled connectors; each retains its own acceptance requirements.
+
+The subsequent October 6 instruction explicitly prioritizes admin/support,
+performance and usage/retention reporting before continuing exports/connectors.
+Deliver this private-demo operations slice with a distinct staff permission boundary,
+measured improvements, verified support lifecycle and updated DOCX. It does not
+authorize public deployment, source-data impersonation or Phase 6 activation.
+
+The October 6 follow-up explicitly prioritized internal administration, support,
+measured performance and product usage/retention from Phase 5. That private-demo
+slice is now verified and deployed on 0015; read its operations audit/contracts and
+verification before extending. Keep the VC report current after verified deliveries.
+Do not infer commercial readiness from the admin/support screens: billing, external
+support delivery, representative performance and all eight production gates remain
+open. No instruction to start frozen Phase 6 or push these changes was given.

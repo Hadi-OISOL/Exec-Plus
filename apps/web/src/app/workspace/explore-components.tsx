@@ -11,6 +11,12 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     prepare: "M4 7h16 M4 17h16 M8 4v6 M16 14v6",
     documents: "M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 16h5",
     saved: "M6 3h12v18l-6-4-6 4z",
+    forecasts: "M3 20V4 M3 20h18 M5 16l5-6 4 3 7-9 M17 4h4v4",
+    audit: "M6 3h12v18H6z M9 7h6 M9 11h6 M9 15h3",
+    support:
+      "M4 13v-1a8 8 0 0 1 16 0v5h-4v-6h4 M4 11h4v6H4z M20 17a4 4 0 0 1-4 4h-4",
+    admin: "M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6z M9 12l2 2 4-4",
+    usage: "M3 20h18 M6 17v-5 M12 17V4 M18 17V8",
     team: "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2 M16 4a4 4 0 0 1 0 8 M21 21v-2a4 4 0 0 0-3-4 M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
     chat: "M21 11a9 9 0 0 1-9 9H4l-2 2V11a9 9 0 0 1 19 0 M7 10h10 M7 14h6",
     upload: "M12 16V3 M7 8l5-5 5 5 M4 15v6h16v-6",
@@ -44,7 +50,13 @@ export type Records = {
   matched_records?: number | null;
 };
 
-export function RecordTable({ data }: { data: Records }) {
+export function RecordTable({
+  data,
+  countLabel = "source records",
+}: {
+  data: Records;
+  countLabel?: string;
+}) {
   const [page, setPage] = useState(0);
   const start = page * 10;
   const visible = data.rows.slice(start, start + 10);
@@ -90,7 +102,7 @@ export function RecordTable({ data }: { data: Records }) {
           of {data.rows.length.toLocaleString()} returned ·{" "}
           {(data.matched_records ?? data.records_analyzed).toLocaleString()}{" "}
           {data.matched_records === undefined || data.matched_records === null
-            ? "source records"
+            ? countLabel
             : "matching"}
         </span>
         {data.rows.length > 10 && (

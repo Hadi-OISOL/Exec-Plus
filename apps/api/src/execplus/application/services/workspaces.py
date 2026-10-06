@@ -15,6 +15,7 @@ from typing import BinaryIO
 from uuid import UUID, uuid4
 
 from execplus.application.ports import FileParser, ObjectStorage, WorkspaceRepository
+from execplus.domain.audit import MANAGER_ACTIONS, SHARED_ACTIONS, audit_cursor, parse_audit_cursor
 from execplus.domain.ingestion import (
     AuditEvent,
     Dataset,
@@ -444,7 +445,59 @@ class WorkspaceService:
     def audit_events(self, actor: User, workspace_id: UUID) -> tuple[AuditEvent, ...]:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id, manager=True)
-            return repo.audit_events(workspace_id)
+            return repo.visible_audit_events(
+                workspace_id, actor.id, SHARED_ACTIONS + MANAGER_ACTIONS
+            )
+
+    def audit_history(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        *,
+        limit: int = 50,
+        cursor: str | None = None,
+        q: str = "",
+        action: str = "",
+        resource_type: str = "",
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> dict[str, object]:
+        before = parse_audit_cursor(cursor)
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise IngestionError("invalid_audit_filter", "Choose a page size from 1 to 100.", 422)
+        if any(
+            len(value) > bound or any(ord(char) < 32 for char in value)
+            for value, bound in ((q, 80), (action, 50), (resource_type, 30))
+        ):
+            raise IngestionError("invalid_audit_filter", "Use short audit metadata filters.", 422)
+        if any(value is not None and value.tzinfo is None for value in (since, until)):
+            raise IngestionError(
+                "invalid_audit_filter", "Use dates with an explicit timezone.", 422
+            )
+        if since is not None and until is not None and since > until:
+            raise IngestionError(
+                "invalid_audit_filter", "The end date must follow the start date.", 422
+            )
+        with self.uow() as repo:
+            member = self._authorize(repo, actor, workspace_id)
+            shared = SHARED_ACTIONS + (MANAGER_ACTIONS if member.role in {"owner", "admin"} else ())
+            records = repo.visible_audit_events(
+                workspace_id,
+                actor.id,
+                shared,
+                limit=limit + 1,
+                before=before,
+                q=q.strip(),
+                action=action.strip(),
+                resource_type=resource_type.strip(),
+                since=since,
+                until=until,
+            )
+        page = records[:limit]
+        next_cursor = (
+            audit_cursor(page[-1].created_at, page[-1].id) if len(records) > limit else None
+        )
+        return {"events": page, "next_cursor": next_cursor, "limit": limit}
 
     def _make_revision(
         self,
@@ -610,18 +663,7 @@ class WorkspaceService:
     def usage(self, actor: User, workspace_id: UUID) -> dict[str, object]:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id, manager=True)
-            workspace = repo.workspace(workspace_id)
-            uploads = [
-                upload
-                for dataset in repo.datasets(workspace_id)
-                for upload in repo.uploads(workspace_id, dataset.id)
-            ]
             return {
-                "active_seats": len(repo.members(workspace_id)),
-                "reserved_seats": self._occupied(repo, workspace_id)
-                - len(repo.members(workspace_id)),
-                "seat_limit": workspace.seat_limit,
-                "uploads": len(uploads),
-                "storage_bytes": sum(upload.size for upload in uploads),
+                **repo.usage_totals(workspace_id, datetime.now(timezone.utc)),
                 "events": repo.usage_events(workspace_id),
             }

@@ -18,12 +18,15 @@ from execplus.application.services.artifacts import ArtifactService
 from execplus.application.services.catalog import CatalogService
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
 from execplus.application.services.document_answers import DocumentAnswerService
+from execplus.application.services.forecasts import ForecastService
 from execplus.application.services.health import HealthService
 from execplus.application.services.intent_router import IntentRouterService
 from execplus.application.services.jobs import JobService
 from execplus.application.services.joins import JoinService
 from execplus.application.services.knowledge import KnowledgeService
 from execplus.application.services.monitoring import MonitoringService
+from execplus.application.services.operations import OperationsService
+from execplus.application.services.product_usage import ProductUsageService
 from execplus.application.services.refresh import RefreshService
 from execplus.application.services.reports import ReportService
 from execplus.application.services.saved_items import SavedItemService
@@ -130,6 +133,7 @@ def build_runtime(settings: Settings) -> "Runtime":
     uploads = WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes)
     refresh = RefreshService(SQLUnitOfWork(engine), uploads, analytics)
     threads = ThreadService(SQLUnitOfWork(engine), intent_router)
+    operations = OperationsService(SQLUnitOfWork(engine))
     return Runtime(
         uploads,
         identity,
@@ -172,6 +176,9 @@ def build_runtime(settings: Settings) -> "Runtime":
             timeout_seconds=settings.jobs_timeout_seconds,
             queue_limit=settings.jobs_queue_limit,
         ),
+        ForecastService(SQLUnitOfWork(engine), analytics),
+        operations,
+        ProductUsageService(SQLUnitOfWork(engine), operations),
     )
 
 
@@ -198,3 +205,6 @@ class Runtime:
     monitoring: MonitoringService
     artifacts: ArtifactService
     jobs: JobService
+    forecasts: ForecastService
+    operations: OperationsService
+    product_usage: ProductUsageService

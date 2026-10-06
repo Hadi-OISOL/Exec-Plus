@@ -3,7 +3,6 @@
 What it does: Authorizes observations, comparisons, checklists and aggregate usage signals.
 """
 
-from collections import Counter
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
@@ -82,48 +81,4 @@ class ActivationService:
             membership = repo.membership(wid, actor.id)
             if manager:
                 require_manager(membership.role)
-            workspace = repo.workspace(wid)
-            members = repo.members(wid)
-            datasets = repo.datasets(wid)
-            usage = repo.usage_events(wid)
-            events = repo.audit_events(wid)
-            feedback = repo.feedback(wid) if manager else ()
-        kinds = Counter(event.action for event in events)
-        quantities = Counter[str]()
-        for event in usage:
-            quantities[event.kind] += event.quantity
-        completed = {
-            "workspace": True,
-            "invite_teammate": len(members) > 1,
-            "upload": quantities["upload"] > 0 or kinds["upload.stored"] > 0,
-            "explore_dashboard_or_question": kinds["query.executed"] > 0,
-            "save_analysis": kinds["saved_item.created"] > 0,
-        }
-        weeks: dict[str, set[UUID]] = {}
-        for activity in events:
-            iso = activity.created_at.isocalendar()
-            weeks.setdefault(f"{iso.year}-W{iso.week:02}", set()).add(activity.actor_id)
-        returning = set()
-        seen: set[UUID] = set()
-        for week in sorted(weeks):
-            returning.update(seen & weeks[week])
-            seen.update(weeks[week])
-        return {
-            "checklist": [{"id": key, "complete": value} for key, value in completed.items()],
-            "next_steps": [key for key, done in completed.items() if not done],
-            "datasets": len(datasets),
-            "seats": {"used": len(members), "limit": workspace.seat_limit},
-            "feature_adoption": dict(sorted(kinds.items())) if manager else {},
-            "weekly_active_users": {key: len(value) for key, value in sorted(weeks.items())}
-            if manager
-            else {},
-            "returning_users": len(returning) if manager else None,
-            "retention_definition": "An actor with activity in at least two ISO calendar weeks.",
-            "usage": dict(sorted(quantities.items())) if manager else {},
-            "support_signals": {
-                "negative_feedback": sum(item.rating <= 2 for item in feedback),
-                "failed_queries": kinds["query.failed"],
-            }
-            if manager
-            else {},
-        }
+            return repo.activation_overview(wid, manager=manager)

@@ -177,6 +177,14 @@ understandings = Table(
     Column("created_by", Uuid, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     UniqueConstraint("workspace_id", "dataset_id", "version"),
+    UniqueConstraint(
+        "workspace_id",
+        "dataset_id",
+        "upload_id",
+        "revision_id",
+        "id",
+        name="understandings_source_identity",
+    ),
     ForeignKeyConstraint(
         ["workspace_id", "dataset_id", "upload_id", "revision_id"],
         ["revisions.workspace_id", "revisions.dataset_id", "revisions.upload_id", "revisions.id"],
@@ -711,3 +719,184 @@ thread_turns.append_constraint(
 )
 Index("jobs_due", jobs.c.status, jobs.c.priority, jobs.c.created_at)
 Index("jobs_leases", jobs.c.status, jobs.c.lease_expires_at)
+
+forecast_runs = Table(
+    "forecast_runs",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("upload_id", Uuid, nullable=False),
+    Column("revision_id", Uuid, nullable=False),
+    Column("understanding_id", Uuid, nullable=False),
+    Column("method", String(40), nullable=False),
+    Column("method_version", String(40), nullable=False),
+    Column("request", JSON, nullable=False),
+    Column("evidence", JSON, nullable=False),
+    Column("result", JSON, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint(
+        "workspace_id", "dataset_id", "owner_id", "id", name="forecast_run_owner_identity"
+    ),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "upload_id", "revision_id"],
+        ["revisions.workspace_id", "revisions.dataset_id", "revisions.upload_id", "revisions.id"],
+        name="forecast_run_revision",
+    ),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "upload_id", "revision_id", "understanding_id"],
+        [
+            "understandings.workspace_id",
+            "understandings.dataset_id",
+            "understandings.upload_id",
+            "understandings.revision_id",
+            "understandings.id",
+        ],
+        name="forecast_run_understanding",
+    ),
+    Index("forecast_runs_owner", "workspace_id", "dataset_id", "owner_id", "created_at"),
+)
+forecast_comparisons = Table(
+    "forecast_comparisons",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("forecast_id", Uuid, nullable=False),
+    Column("upload_id", Uuid, nullable=False),
+    Column("revision_id", Uuid, nullable=False),
+    Column("understanding_id", Uuid, nullable=False),
+    Column("evidence", JSON, nullable=False),
+    Column("result", JSON, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "owner_id", "forecast_id"],
+        [
+            "forecast_runs.workspace_id",
+            "forecast_runs.dataset_id",
+            "forecast_runs.owner_id",
+            "forecast_runs.id",
+        ],
+        name="forecast_comparison_run",
+    ),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "upload_id", "revision_id"],
+        ["revisions.workspace_id", "revisions.dataset_id", "revisions.upload_id", "revisions.id"],
+        name="forecast_comparison_revision",
+    ),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "upload_id", "revision_id", "understanding_id"],
+        [
+            "understandings.workspace_id",
+            "understandings.dataset_id",
+            "understandings.upload_id",
+            "understandings.revision_id",
+            "understandings.id",
+        ],
+        name="forecast_comparison_understanding",
+    ),
+    Index("forecast_comparisons_owner", "workspace_id", "forecast_id", "owner_id", "created_at"),
+)
+
+feedback.append_constraint(
+    UniqueConstraint("workspace_id", "actor_id", "id", name="feedback_support_owner")
+)
+jobs.append_constraint(
+    UniqueConstraint("workspace_id", "owner_id", "id", name="jobs_support_owner")
+)
+
+staff_grants = Table(
+    "staff_grants",
+    metadata,
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("role", String(10), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("role IN ('admin','support')", name="staff_role"),
+)
+staff_audit = Table(
+    "staff_audit",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("actor_id", Uuid, ForeignKey("users.id"), nullable=True),
+    Column("action", String(64), nullable=False),
+    Column("origin", String(20), nullable=False),
+    Column("outcome", String(10), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=True),
+    Column("resource_id", Uuid, nullable=True),
+    CheckConstraint("origin IN ('api','operator_cli')", name="staff_audit_origin"),
+    CheckConstraint("outcome IN ('success','denied')", name="staff_audit_outcome"),
+    Index("staff_audit_time", "created_at", "id"),
+)
+support_tickets = Table(
+    "support_tickets",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("requester_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("subject", String(120), nullable=False),
+    Column("description", String(4000), nullable=False),
+    Column("feature", String(40), nullable=False),
+    Column("category", String(40), nullable=False),
+    Column("status", String(24), nullable=False),
+    Column("priority", String(10), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("assignee_id", Uuid, ForeignKey("staff_grants.user_id"), nullable=True),
+    Column("feedback_id", Uuid, nullable=True),
+    Column("job_id", Uuid, nullable=True),
+    Column("resolved_at", DateTime(timezone=True), nullable=True),
+    UniqueConstraint("workspace_id", "id", name="support_ticket_tenant"),
+    ForeignKeyConstraint(
+        ["workspace_id", "requester_id", "feedback_id"],
+        ["feedback.workspace_id", "feedback.actor_id", "feedback.id"],
+        name="support_feedback_owner",
+    ),
+    ForeignKeyConstraint(
+        ["workspace_id", "requester_id", "job_id"],
+        ["jobs.workspace_id", "jobs.owner_id", "jobs.id"],
+        name="support_job_owner",
+    ),
+    CheckConstraint(
+        "status IN ('open','triaged','in_progress','waiting_on_customer','escalated','resolved')",
+        name="support_status",
+    ),
+    CheckConstraint("priority IN ('normal','high')", name="support_priority"),
+    CheckConstraint("version BETWEEN 1 AND 200", name="support_version"),
+    CheckConstraint("(status = 'resolved') = (resolved_at IS NOT NULL)", name="support_resolved"),
+    Index("support_requester_time", "workspace_id", "requester_id", "created_at", "id"),
+    Index("support_queue_time", "status", "created_at", "id"),
+)
+support_events = Table(
+    "support_events",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("ticket_id", Uuid, nullable=False),
+    Column("sequence", Integer, nullable=False),
+    Column("actor_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("actor_role", String(10), nullable=False),
+    Column("kind", String(15), nullable=False),
+    Column("body", String(4000), nullable=False),
+    Column("status", String(24), nullable=False),
+    Column("priority", String(10), nullable=False),
+    Column("assignee_id", Uuid, ForeignKey("staff_grants.user_id"), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "ticket_id"],
+        ["support_tickets.workspace_id", "support_tickets.id"],
+        name="support_event_tenant",
+    ),
+    UniqueConstraint("workspace_id", "ticket_id", "sequence", name="support_event_sequence"),
+    CheckConstraint("sequence BETWEEN 1 AND 200", name="support_event_bound"),
+    CheckConstraint("actor_role IN ('requester','staff')", name="support_event_role"),
+    CheckConstraint(
+        "kind IN ('created','message','updated','reopened')", name="support_event_kind"
+    ),
+)

@@ -3,9 +3,20 @@
 What it does: Generates finance, sales and inventory CSV bytes without external datasets.
 """
 
+from datetime import date, timedelta
+
 from execplus.domain.ingestion import IngestionError
 
 SAMPLES = (
+    {
+        "id": "forecast-v1",
+        "name": "Forecasting sample",
+        "version": 1,
+        "description": (
+            "Fictional daily revenue in PKR and order counts for 90 complete days in 2024. "
+            "Confirm the units and daily coverage before forecasting."
+        ),
+    },
     {
         "id": "cities-v1",
         "name": "City sales sample",
@@ -39,6 +50,16 @@ SAMPLES = (
 
 
 def sample_csv(sample_id: str) -> bytes:
+    if sample_id == "forecast-v1":
+        return (
+            "date,revenue,orders,city\n"
+            + "\n".join(
+                f"{date(2024, 1, 1) + timedelta(days=index)},"
+                f"{1000 + index * 8 + (index % 7) * 20}.25,{20 + index % 7},Karachi"
+                for index in range(90)
+            )
+            + "\n"
+        ).encode()
     if sample_id == "cities-v1":
         cities = ("Karachi", "Lahore", "Islamabad")
         channels = ("Direct", "Partner", "Online", "Direct")
