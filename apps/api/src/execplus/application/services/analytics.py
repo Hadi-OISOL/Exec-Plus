@@ -398,6 +398,8 @@ class AnalyticsService:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id)
             execution = repo.query_execution(workspace_id, query_id)
+            if execution.aggregation == "analysis" and execution.actor_id != actor.id:
+                raise IngestionError("not_found", "The private query is unavailable.", 404)
         return execution.lineage()
 
     async def get_view(
@@ -798,6 +800,10 @@ class AnalyticsService:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
             executions = [repo.query_execution(workspace_id, UUID(key)) for key in evidence_ids]
+            if any(item.aggregation == "analysis" for item in executions):
+                raise IngestionError(
+                    "unsupported_summary", "Review this evidence in Anomalies & decisions.", 422
+                )
             execution = executions[0]
             updated = dict(execution.receipt)
             narratives = updated.get("narratives", [])

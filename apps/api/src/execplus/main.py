@@ -27,6 +27,7 @@ from execplus.domain.ingestion import IngestionError
 from execplus.presentation.routes.activation import router as activation_router
 from execplus.presentation.routes.analytics import router as analytics_router
 from execplus.presentation.routes.artifacts import router as artifacts_router
+from execplus.presentation.routes.decision_analysis import router as decision_analysis_router
 from execplus.presentation.routes.forecasts import router as forecasts_router
 from execplus.presentation.routes.health import router as health_router
 from execplus.presentation.routes.jobs import router as jobs_router
@@ -90,6 +91,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.include_router(forecasts_router)
     application.include_router(operations_router)
     application.include_router(product_usage_router)
+    application.include_router(decision_analysis_router)
 
     @application.exception_handler(IngestionError)
     async def ingestion_error(request: Request, error: IngestionError) -> JSONResponse:

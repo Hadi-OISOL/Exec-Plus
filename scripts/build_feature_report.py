@@ -342,13 +342,13 @@ def build_report(audit_path: Path, output: Path) -> None:
     para(AUDIT["narrative"]["p26"])
     widths = [1.48, 5.48]
     t = table(
-        ["Evidence group", "Repository records and example implementation/test evidence"],
+        ["Evidence group", "Selected records; full references: docs/product-feature-audit.json"],
         widths,
         9.5,
     )
     for key, (label, paths) in GROUPS.items():
         assert all(repository_root.joinpath(path).exists() for path in paths), paths
-        chosen = paths[:3]
+        chosen = paths[:2]
         add_row(t, [key + " — " + label, "\n".join(chosen)], widths, 8.5)
     para("Counting rules", "Heading 2")
     bullets(

@@ -86,7 +86,7 @@ make migrate
 make init-storage
 ```
 
-Run `make migrate` after pulling changes; the current application requires migration **0015**. Existing data is retained.
+Run `make migrate` after pulling changes; the current application requires migration **0016**. Existing data is retained.
 
 If Docker needs sudo on Linux, use this instead of the first command:
 

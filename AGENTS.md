@@ -7,6 +7,47 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+- October 10: the user explicitly authorized the private-demo anomaly/recommendation
+  extension (VC 58–59 plus review dependency 60). The bounded slice is Complete for
+  local/test and the private demo on **0016**. Read `docs/decision-analysis-plan.md`,
+  `docs/decision-analysis.md`, `docs/verification-decision-analysis.md` and ADR 0010.
+  Broad VC 58/59 remain Partial; basic private recommendation review 60 is Done.
+- Weighted snapshot MAD/IQR findings preserve frequencies, materiality and explicit
+  degenerate-baseline handling. Scores are not probabilities or calibrated errors.
+  Allocation is an exact bounded single-budget integer model under declared fixed
+  costs/additive benefits, with infeasibility and do-nothing baseline. No causal
+  effect is inferred and no external action executes. Seasonal/multivariate/drift,
+  nonlinear/causal decision modules, conversational orchestration and automatic
+  refresh/analysis jobs remain future work.
+- Runs and optimistic append-only reviews are creator-private, including from
+  workspace/staff admins. Underlying `aggregation="analysis"` query receipts are
+  owner-private and excluded from ordinary saved-answer sharing and narrative
+  mutation. Opening reproduces full typed query evidence and method output; current
+  approval also requires the latest revision/meaning/accepted refresh source.
+- October 10 evidence: 922 full backend/architecture cases plus five subsequent
+  hardening cases (927 distinct; 58 new), 17 frontend tests, all 30 distinct browser
+  journeys, Ruff/mypy (154 files), types/lint and local/VPS builds pass. The initial
+  offline browser run had 28 passes, one model-dependent failure and one skipped
+  case; both passed with live DeepSeek. Two earlier new-case selector/fixture failures
+  are retained. Clean non-root image passes eight concurrent users/32 exact queries
+  without network or optional scientific libraries.
+- Eight deployed users created 16 runs and 16 reviews, reopened 16 immutable results,
+  replayed 16 exact source receipts, passed 448 cross-user denials and 24 layouts in
+  64.245 seconds with zero browser errors and unchanged source metadata. This is
+  functional rehearsal, not sustained load or customer calibration. Four old
+  profile-v1/v2 receipts and a retained forecast/comparison remain compatible.
+- Migration 0016 preserved all 44 prior data tables. Source/images checkpoint is
+  `pre-decisions-20261010`; checked pre-release backup is `20261010T175603Z`.
+  Preserve new analysis/review data and existing forecasts/jobs/profile versions
+  before rollback; old images require 0015. Sessions were renewed privately; no
+  model setting or network exposure changed. No commit/push/merge occurred here.
+  Phase 4D/4E remain unfinished, broader Phase 6 Frozen and all eight gates blocked.
+- Checked post-release backup `20261010T180215Z` retains the new analyses/reviews
+  and restarted API/jobs/storage with healthy readiness. Refresh/backup timers remain
+  active. The maintained 64-item report is now **37 Done / 15 Partial / 12 Not yet**;
+  the latest Desktop DOCX/PDF is dated October 10 and earlier report names are kept
+  synchronized with backups. Competitor review still refers to October 5 sources.
+
 - October 6 analytics interface redesign is Complete for local/test and the private
   demo. The public ThoughtSpot reference audit led to grouped navigation, question-led
   Home, dedicated chat, authorized data search/dashboard, reusable chart/table/expand

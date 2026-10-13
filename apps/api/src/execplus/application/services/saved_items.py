@@ -82,6 +82,12 @@ class SavedItemService:
                         "invalid_saved_item", "Choose an executed analysis.", 422
                     ) from None
                 execution = repo.query_execution(workspace_id, query_id)
+                if execution.aggregation == "analysis":
+                    raise IngestionError(
+                        "not_found",
+                        "Use the private decision-analysis history for this result.",
+                        404,
+                    )
                 sources = execution.receipt.get("sources", [])
                 if (
                     execution.receipt.get("outcome") != "executed"

@@ -13,7 +13,7 @@ explicitly granted internal staff. Staff can inspect operational metadata and ha
 support requests without acquiring access to private customer analyses. Usage reports
 show deliberate activity and completed-week return cohorts with their definitions.
 See the [operations contract](docs/operations-console-support.md) and
-[verification ledger](docs/verification-operations.md). Run migration **0015** after
+[verification ledger](docs/verification-operations.md). Run migration **0016** after
 pulling. Staff grants are operator-only; ordinary workspace ownership does not grant
 platform administration. Billing and public production readiness remain unfinished.
 
@@ -72,7 +72,7 @@ or shared dashboards, and separate department workspaces grouped by organization
 The private demo now also includes **Refresh & alerts**: validated staged-file
 replacement/append/merge, schedules, replayable observations, exact segment drivers
 and private KPI notifications. That slice introduced migration 0012; the current
-application requires **0015**. See the
+application requires **0016**. See the
 [4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
 [4B verification](docs/verification-phase4b.md). Schedules process files staged in
 ExecPlus. Forecast comparisons can use an accepted refresh without changing the
@@ -83,8 +83,10 @@ For a guided trial, choose **Try forecasting sample** in Data library, review it
 date/measure meanings and units, then choose **Predictive · basic forecasts** under Analysis
 focus or open **Forecasts**. Confirm the complete daily coverage before creating
 a forecast. The fictional sample contains ninety days; older samples are unchanged.
-Descriptive and all-supported views remain available. Prescriptive analysis is
-labelled planned and cannot execute.
+Descriptive and all-supported views remain available. **Anomalies & decisions**
+adds unusual-value checks and bounded budget allocation with explicit assumptions,
+private source replay and human approval. It does not execute external actions or
+provide full prescriptive analytics. See [the decision-analysis guide](docs/decision-analysis.md).
 
 Forecasting compares last-value, recent-mean and linear-trend methods, with an
 optional declared seasonal baseline. Separate validation and test windows expose

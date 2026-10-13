@@ -10,7 +10,21 @@ walkthrough below retains attribution. A domain and public customer
 access are deferred. This is a private demo using expiring operator-issued sessions;
 it is not a production identity deployment. Existing production gates remain open.
 
-The October 6 deployment runs migration **0015**, retaining private basic forecasts,
+The October 10 bounded anomaly/decision extension now runs migration **0016**.
+Hard-refresh `/workspace`, select **Decision walkthrough · fictional only** under
+Current workspace and open **Anomalies & decisions**. The shared fictional source
+has declared cost/benefit assumptions; each person's analyses and reviews stay private.
+See [the method guide](decision-analysis.md) and [release verification](verification-decision-analysis.md).
+No external action executes and broad production/advanced-analysis gates remain open.
+
+Source/images checkpoint: `pre-decisions-20261010`. Checked backups are
+`20261010T175603Z` before migration and `20261010T180215Z` after the sixteen
+demonstration runs/reviews. Migration preserved all 44 prior data tables. Eight
+deployed users passed 448 private-access denials and desktop/mobile layouts;
+this is a functional rehearsal, not sustained load. Preserve analysis/review,
+forecast/job and profile-version data before rollback; old images require 0015.
+
+The October 6 deployment introduced migration **0015**, retaining private basic forecasts,
 later-actual comparisons, grounded commentary and authorized audit history, and
 adding the verified internal operations/support slice. The subsequent analytics
 interface release changes only the web image. The

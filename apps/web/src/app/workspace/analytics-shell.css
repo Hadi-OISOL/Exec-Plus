@@ -315,3 +315,15 @@ What it does: Styles grouped navigation, question-led home, source context and d
 .analyticsShell .answerSaveActions label { flex-direction: row; align-items: center; display: flex; font-size: 11px; color: var(--muted); gap: 7px; }
 .analyticsShell .answerSaveActions button { font-size: 11px; background: #f1effd; color: #6150c8; border: 1px solid #e6e2fc; padding: 7px 10px; }
 .analyticsShell .nextQuestionNotice { padding: 10px 12px; font-size: 12px; color: #51478d; background: #f3f1ff; border-radius: 6px; }
+
+.analyticsShell .decisionPanel > section { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 20px; }
+.analyticsShell .decisionPanel .formGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; margin: 18px 0; }
+.analyticsShell .decisionPanel label { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.analyticsShell .decisionPanel .checkLabel { flex-direction: row; align-items: flex-start; }
+.analyticsShell .decisionPanel .checkLabel input { width: auto; flex: 0 0 auto; }
+.analyticsShell .decisionPanel .tableWrap { max-width: 100%; overflow-x: auto; margin: 16px 0; }
+.analyticsShell .decisionPanel .tableWrap table { min-width: 480px; }
+.analyticsShell .decisionPanel .checksum, .analyticsShell .decisionPanel dd { overflow-wrap: anywhere; }
+.analyticsShell .decisionPanel .buttonRow { display: flex; flex-wrap: wrap; gap: 10px; }
+.analyticsShell .decisionPanel li { margin: 10px 0; }
+.analyticsShell .decisionPanel { min-width: 0; }

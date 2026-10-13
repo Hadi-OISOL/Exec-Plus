@@ -11,9 +11,30 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - A capability listed in this roadmap is planned scope, not evidence that it is implemented, production-ready, or included in a customer plan.
 - Conversational analytics cannot begin until workspace isolation, upload validation, and deterministic profiling pass the Phase 1 acceptance criteria.
 - ExecPlus may describe verified descriptive analytics and, after slice 4C acceptance, limited basic time-series forecasting within its tested scope. It must not advertise full predictive or prescriptive analytics.
-- Advanced forecasting, scenario planning, anomaly detection, and prescriptive recommendations remain frozen until the core product, evaluation, security, and approval-workflow gates pass.
+- Broader advanced forecasting, scenarios, calibrated anomaly detection and prescriptive methods remain frozen until their gates pass. The explicitly authorized October 10 private-demo exception delivers only the bounded methods documented below.
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
+
+## October 10 — Anomaly and decision-analysis priority
+
+**Status:** Complete for the explicitly authorized bounded local/test and private-demo extension.
+The user requested implementation of anomaly detection (VC 58), prescriptive
+recommendations (59) and their human-review dependency (60), after opening the demo.
+The [gap audit and contracts](docs/decision-analysis-plan.md) sequence deterministic
+detection, source-bound allocation decisions, private review and verification.
+Weighted snapshot MAD/IQR findings, declared integer-budget allocation and private
+approve/reject/reopen history are implemented on migration **0016**. Reopening
+recalculates original source evidence; stale sources invalidate current approval.
+Human feedback does not retrain a method, and approval executes no external action.
+
+The [contract](docs/decision-analysis.md), [ADR 0010](docs/decisions/0010-bounded-decision-analysis.md)
+and [verification](docs/verification-decision-analysis.md) retain independent
+numerical tests, privacy/race checks, 927 distinct backend/architecture cases,
+30 distinct browser journeys, migration preservation and eight deployed users.
+VC 58/59 are Partial because calibrated seasonal/multivariate detection and broader
+decision modules remain absent; basic approval workflow 60 is Done for this scope.
+Remaining Phase 6 stays Frozen; Phase 4D/4E and Phase 5 remain unfinished and all
+eight production gates remain blocked.
 
 ## October 6 — Analytics interface priority
 
@@ -650,6 +671,11 @@ Exit criteria:
 ## Phase 6 — Broader integrations and advanced decision support
 
 **Status:** Frozen
+
+The October 10 user authorization creates a narrow private-demo exception for
+snapshot unusualness, declared budget allocation and owner-private reviews.
+That verified extension is recorded above; it does not satisfy this phase's
+calibration, advanced-method, external-action or commercial activation criteria.
 
 Phase 4E now owns the first Google Sheets and PostgreSQL source deliveries. This
 phase expands the connector catalog and analysis methods after Phase 5 acceptance;

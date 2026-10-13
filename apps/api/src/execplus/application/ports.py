@@ -17,6 +17,7 @@ from execplus.application.contracts import (
 from execplus.application.reporting_ports import ReportingRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
 from execplus.domain.analysis_plan import AnalysisPlan
+from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.ingestion import (
     AuditEvent,
@@ -187,6 +188,14 @@ class OperationsRepository(Protocol):
 
 
 class WorkspaceRepository(JobRepository, OperationsRepository, ReportingRepository, Protocol):
+    def analysis_runs(
+        self, workspace_id: UUID, dataset_id: UUID, owner_id: UUID
+    ) -> tuple[AnalysisRun, ...]: ...
+    def analysis_run(self, workspace_id: UUID, run_id: UUID, owner_id: UUID) -> AnalysisRun: ...
+    def analysis_reviews(
+        self, workspace_id: UUID, run_id: UUID, owner_id: UUID
+    ) -> tuple[AnalysisReview, ...]: ...
+
     def forecast_runs(
         self, workspace_id: UUID, dataset_id: UUID, owner_id: UUID
     ) -> tuple[ForecastRun, ...]: ...
@@ -408,7 +417,9 @@ class WorkspaceRepository(JobRepository, OperationsRepository, ReportingReposito
         | AlertRule
         | AlertEvent
         | ForecastRun
-        | ForecastComparison,
+        | ForecastComparison
+        | AnalysisRun
+        | AnalysisReview,
     ) -> None: ...
 
 

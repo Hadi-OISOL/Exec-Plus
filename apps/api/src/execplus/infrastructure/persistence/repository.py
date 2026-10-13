@@ -27,6 +27,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
+from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.ingestion import (
     AuditEvent,
@@ -101,12 +102,39 @@ Record = TypeVar(
     AlertEvent,
     ForecastRun,
     ForecastComparison,
+    AnalysisRun,
+    AnalysisReview,
 )
 
 
 class SQLWorkspaceRepository(SQLJobRepository, SQLOperationsRepository, SQLReportingRepository):
     def __init__(self, connection: Connection) -> None:
         self.connection = connection
+
+    def analysis_runs(
+        self, workspace_id: UUID, dataset_id: UUID, owner_id: UUID
+    ) -> tuple[AnalysisRun, ...]:
+        rows = self.connection.execute(
+            select(s.analysis_runs)
+            .filter_by(workspace_id=workspace_id, dataset_id=dataset_id, owner_id=owner_id)
+            .order_by(s.analysis_runs.c.created_at.desc(), s.analysis_runs.c.id.desc())
+        ).mappings()
+        return tuple(AnalysisRun(**row) for row in rows)
+
+    def analysis_run(self, workspace_id: UUID, run_id: UUID, owner_id: UUID) -> AnalysisRun:
+        return self._one(
+            AnalysisRun, s.analysis_runs, workspace_id=workspace_id, id=run_id, owner_id=owner_id
+        )
+
+    def analysis_reviews(
+        self, workspace_id: UUID, run_id: UUID, owner_id: UUID
+    ) -> tuple[AnalysisReview, ...]:
+        rows = self.connection.execute(
+            select(s.analysis_reviews)
+            .filter_by(workspace_id=workspace_id, run_id=run_id, owner_id=owner_id)
+            .order_by(s.analysis_reviews.c.sequence)
+        ).mappings()
+        return tuple(AnalysisReview(**row) for row in rows)
 
     def forecast_runs(
         self, workspace_id: UUID, dataset_id: UUID, owner_id: UUID
@@ -906,7 +934,9 @@ class SQLWorkspaceRepository(SQLJobRepository, SQLOperationsRepository, SQLRepor
         | AlertRule
         | AlertEvent
         | ForecastRun
-        | ForecastComparison,
+        | ForecastComparison
+        | AnalysisRun
+        | AnalysisReview,
     ) -> None:
         tables = {
             Workspace: s.workspaces,
@@ -941,6 +971,8 @@ class SQLWorkspaceRepository(SQLJobRepository, SQLOperationsRepository, SQLRepor
             AlertEvent: s.alert_events,
             ForecastRun: s.forecast_runs,
             ForecastComparison: s.forecast_comparisons,
+            AnalysisRun: s.analysis_runs,
+            AnalysisReview: s.analysis_reviews,
         }
         self.connection.execute(tables[type(record)].insert().values(**asdict(record)))
 

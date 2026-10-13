@@ -13,13 +13,20 @@ The deployable units are:
 - `apps/api`: FastAPI control plane, durable conversation submission and compatible synchronous request orchestration.
 - Conversation worker: PostgreSQL-backed private jobs, fenced attempts, cancellation and recorded activity; Foundation A is verified locally and deployed to the private demo.
 - Bounded operator worker: scheduled staged-file activation, observation queries and in-app alerts. Asynchronous ingestion/export responsibilities remain future work.
-- PostgreSQL: identity references, workspaces, permissions, metadata, threads, lineage, private forecasts/comparisons and audit records.
+- PostgreSQL: identity references, workspaces, permissions, metadata, threads, lineage, private forecasts/comparisons, decision analyses/reviews and audit records.
 - Object storage: original uploads, documents and retained derived snapshots. Generated exports remain planned.
 - DuckDB: exact analytical execution over a workspace-authorized dataset snapshot.
 - Configurable models: local or hosted language-model providers behind one port.
 - Configurable retrieval: an optional embedding store behind one port; no vendor is selected in Phase 0.
 
 ## Trust boundary
+
+The October 10 bounded decision extension uses registered standard-library methods,
+governed source queries and immutable creator-private runs/reviews. Reopening replays
+full typed receipts and recalculates method output. Source changes invalidate current
+approval; approval does not execute an external action. These are bounded HTTP
+analyses, not automatically scheduled conversation/refresh jobs. See
+[ADR 0010](0010-bounded-decision-analysis.md) and [the method contracts](../decision-analysis.md).
 
 All application data, model endpoints, query execution, logs, and retrieval stores belong inside the configured customer or managed-cloud environment. A hosted model can be enabled only by explicit deployment configuration and must receive the minimum required schema or authorized passages. Raw datasets are not sent to a model.
 

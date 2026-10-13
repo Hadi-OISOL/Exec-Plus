@@ -47,7 +47,7 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
                     for row in connection.execute(select(table)).mappings()
                 )
                 for name, table in s.metadata.tables.items()
-                if name not in added
+                if name not in added | {"analysis_runs", "analysis_reviews"}
             }
 
     before = snapshot()

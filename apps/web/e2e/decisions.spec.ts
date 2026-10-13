@@ -1,0 +1,81 @@
+/* Use case: Verifies anomaly findings and conditional allocations using real services.
+What it does: Covers source review, exact replay, private history, approvals and narrow layouts. */
+import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { expect, test } from "@playwright/test";
+test("private anomaly and allocation evidence survives replay and human review", async ({ page }) => {
+    test.setTimeout(150000);
+    const token = execFileSync("python3", ["-m", "execplus.manage", "provision-user", "--email", `decisions-${randomUUID()}@example.test`], { cwd: "../..", encoding: "utf8" }).trim();
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto("/workspace");
+    await page.getByLabel("Session token").fill(token);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page.getByText("Signed in as", { exact: false })).toBeVisible();
+    const csv = "city,amount,cost\n" + Array.from({ length: 8 }, (_, i) => `A${i},10.10,1.00\n`).join("") + "Z,100.10,1.00\n";
+    await page.getByLabel("CSV or Excel file").setInputFiles({ name: "decision-demo.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+    await page.getByRole("button", { name: "Upload file", exact: true }).click();
+    await expect(page.getByLabel("Analysis focus")).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Workspace navigation" });
+    await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+    const panel = page.getByRole("region", { name: "Anomalies and decisions", exact: true });
+    await panel.getByRole("button", { name: "Review data meanings", exact: true }).click();
+    const meanings = page.getByRole("region", { name: "Data understanding", exact: true });
+    await meanings.getByLabel("One row represents").selectOption("record");
+    for (const name of ["amount", "cost"]) {
+        await meanings.getByLabel("Column to review").selectOption(name);
+        await meanings.getByLabel("Currency code").fill("PKR");
+    }
+    await meanings.getByRole("button", { name: "Confirm business definitions", exact: true }).click();
+    await expect(meanings.getByText("confirmed", { exact: true })).toBeVisible();
+    await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+    await panel.getByRole("combobox", { name: "Measure to inspect", exact: true }).selectOption("amount");
+    await panel.getByLabel("Analysis name", { exact: true }).fill("Reviewed anomaly sample");
+    const savedResponse = page.waitForResponse((r) => r.url().endsWith("/decision-analysis/anomalies") && r.request().method() === "POST");
+    await panel.getByRole("button", { name: "Calculate and save privately", exact: true }).click();
+    const saved = await savedResponse;
+    expect(saved.status()).toBe(201);
+    const body = await saved.json();
+    const result = panel.getByRole("region", { name: "Saved analysis result", exact: true });
+    await expect(result).toContainText("1 of 9 records flagged");
+    await panel.getByRole("combobox", { name: "Finding to review", exact: true }).selectOption(body.run.result.findings[0].id);
+    await panel.getByLabel("Review note", { exact: true }).fill("Investigate the exceptional value with the data owner.");
+    await panel.getByRole("button", { name: "Save finding feedback", exact: true }).click();
+    await expect(result).toContainText("Investigate the exceptional value");
+    await nav.getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("combobox", { name: "Analysis focus", exact: true }).selectOption("prescriptive");
+    await expect(panel.getByRole("combobox", { name: "Analysis method", exact: true })).toHaveValue("allocations");
+    await panel.getByLabel("Analysis name", { exact: true }).fill("Reviewed allocation sample");
+    await panel.getByRole("combobox", { name: "Candidate identifier", exact: true }).selectOption("city");
+    await panel.getByRole("combobox", { name: "Per-unit cost", exact: true }).selectOption("cost");
+    await panel.getByRole("combobox", { name: "Per-unit benefit", exact: true }).selectOption("amount");
+    await panel.getByLabel("Total budget", { exact: true }).fill("2");
+    await panel.getByLabel("Budget quantum", { exact: true }).fill("1");
+    await panel.getByRole("checkbox", { name: "I confirm fixed per-unit costs", exact: false }).check();
+    await panel.getByRole("button", { name: "Calculate and save privately", exact: true }).click();
+    await expect(result).toContainText("110.200000000000");
+    await panel.getByLabel("Review note", { exact: true }).fill("Approved only under the stated linear benefit assumptions.");
+    await panel.getByRole("button", { name: "Approve recommendation", exact: true }).click();
+    await expect(result).toContainText("approval applies to the current source");
+    await panel.getByRole("button", { name: "Replay original evidence", exact: true }).click();
+    await expect(panel).toContainText("Original source query and analysis reproduced.");
+    await expect(result).toContainText("110.200000000000");
+    await panel.getByLabel("Review note", { exact: true }).fill("Reopened for additional discussion.");
+    await panel.getByRole("button", { name: "Reopen for review", exact: true }).click();
+    await expect(result).toContainText("no effective current approval");
+    await expect(result).toContainText("Approved only under the stated linear benefit assumptions.");
+    for (const width of [1440, 390, 320]) {
+        await page.setViewportSize({ width, height: 900 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        await expect(result).toBeVisible();
+    }
+    await page.reload();
+    await page.getByLabel("Session token").fill(token);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page.getByText("Signed in as", { exact: false })).toBeVisible();
+    await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+    await panel.getByRole("button", { name: "Reviewed allocation sample · Allocation", exact: true }).click();
+    await expect(result).toContainText("110.200000000000");
+    await expect(result).toContainText("Reopened for additional discussion.");
+    expect(errors).toEqual([]);
+});

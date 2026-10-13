@@ -60,6 +60,10 @@ const ForecastPanel = dynamic(
   () => import("./forecast-panel").then((module) => module.ForecastPanel),
   { loading: loadingView },
 );
+const DecisionPanel = dynamic(
+  () => import("./decision-panel").then((module) => module.DecisionPanel),
+  { loading: loadingView },
+);
 const AuditPanel = dynamic(
   () => import("./audit-panel").then((module) => module.AuditPanel),
   { loading: loadingView },
@@ -505,6 +509,7 @@ export default function WorkspacePage() {
     { id: "studies", name: "Studies & dashboards", group: "LIBRARY" },
     { id: "saved", name: "Saved work", group: "LIBRARY" },
     { id: "forecasts", name: "Forecasts", group: "ANALYSIS & ALERTS" },
+    { id: "decisions", name: "Anomalies & decisions", group: "ANALYSIS & ALERTS" },
     { id: "refresh", name: "Refresh & alerts", group: "ANALYSIS & ALERTS" },
     { id: "data", name: "Data library", group: "DATA WORKSPACE" },
     { id: "prepare", name: "Prepare data", group: "DATA WORKSPACE" },
@@ -521,6 +526,7 @@ export default function WorkspacePage() {
     setError("");
     setSavedSelection(null);
     if (next === "forecasts") setAnalysisIntent("predictive");
+    if (next === "decisions") setAnalysisIntent("descriptive");
     if (next === "overview") setAnalysisIntent("descriptive");
   }
   function askFromHome(text: string) {
@@ -1306,7 +1312,7 @@ export default function WorkspacePage() {
                             const value = event.target.value;
                             setAnalysisIntent(value);
                             setSection(
-                              value === "predictive" ? "forecasts" : "overview",
+                              value === "predictive" ? "forecasts" : value === "prescriptive" ? "decisions" : "overview",
                             );
                           }}
                         >
@@ -1319,15 +1325,15 @@ export default function WorkspacePage() {
                           <option value="all">
                             All supported · explore and forecast
                           </option>
-                          <option value="prescriptive" disabled>
-                            Prescriptive · planned, unavailable
+                          <option value="prescriptive">
+                            Prescriptive · bounded budget allocation
                           </option>
                         </select>
                       </label>
                       <p>
                         {analysisIntent === "predictive"
                           ? "Basic daily or monthly forecasting requires reviewed meanings and complete periods."
-                          : "Start with observed facts. Forecasting is optional; prescriptive recommendations remain planned."}
+                          : analysisIntent === "prescriptive" ? "Compare declared budget allocations with explicit per-unit costs, linear benefits and human review. No action runs automatically." : "Start with observed facts. Forecasting and unusual-value checks are optional; budget recommendations require declared assumptions."}
                       </p>
                     </div>
                   )}
@@ -1535,6 +1541,15 @@ export default function WorkspacePage() {
                       request={request}
                       onReview={reviewUnderstanding}
                       onRefresh={() => setSection("refresh")}
+                    />
+                  )}
+                  {section === "decisions" && (
+                    <DecisionPanel
+                      key={`decisions-${root}-${revisionTick}-${analysisIntent}`}
+                      root={root}
+                      request={request}
+                      initialMethod={analysisIntent === "prescriptive" ? "allocations" : "anomalies"}
+                      onReview={reviewUnderstanding}
                     />
                   )}
                 </>

@@ -89,7 +89,7 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
   await upload(page, 40);
   await expect(
     page.getByLabel("Analysis focus").locator('option[value="prescriptive"]'),
-  ).toHaveJSProperty("disabled", true);
+  ).toHaveJSProperty("disabled", false);
   await page.getByLabel("Analysis focus").selectOption("predictive");
   await expect(
     page.getByRole("heading", { name: "Review meanings before forecasting" }),

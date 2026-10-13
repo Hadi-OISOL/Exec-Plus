@@ -1,7 +1,7 @@
 {
   "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
-  "date": "2026-10-06",
+  "date": "2026-10-10",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
   "rows": [
     {
@@ -959,49 +959,51 @@
       "id": 58,
       "section": "Integration with other Solutions",
       "feature": "Anomaly detection",
-      "status": "missing",
-      "note": "Data-quality checks and threshold alerts exist. A tested anomaly detector that identifies unusual patterns is not implemented.",
+      "status": "partial",
+      "note": "Finds unusual numerical values with weighted MAD/IQR, exact source replay and private feedback. Seasonal, multivariate, drift and calibrated false-alarm methods remain future work.",
       "evidence": [
-        "ROADMAP.md",
-        "docs/phase4-refresh-monitoring.md",
-        "apps/api/src/execplus/domain/quality.py",
-        "apps/api/src/execplus/application/services/monitoring.py"
+        "docs/decision-analysis.md",
+        "docs/verification-decision-analysis.md",
+        "apps/api/tests/test_decision_analysis_integration.py",
+        "apps/web/e2e/decisions.spec.ts"
       ],
-      "roadmap": "Phase 6, Frozen",
+      "roadmap": "October 10 bounded private-demo exception; broader Phase 6 remains Frozen",
       "evidence_groups": [
-        "E8"
+        "E14"
       ]
     },
     {
       "id": 59,
       "section": "Integration with other Solutions",
       "feature": "Prescriptive recommendations",
-      "status": "missing",
-      "note": "The product suggests descriptive views and questions. It does not provide validated recommended business decisions or action plans.",
+      "status": "partial",
+      "note": "Computes bounded single-budget allocations from declared costs, linear benefits and quantity limits. Broader business decision models and causal validation remain unfinished; no action executes.",
       "evidence": [
-        "ROADMAP.md",
-        "apps/api/src/execplus/domain/studies.py",
-        "apps/api/src/execplus/domain/suggestions.py"
+        "docs/decision-analysis.md",
+        "docs/verification-decision-analysis.md",
+        "apps/api/tests/test_decision_analysis_integration.py",
+        "apps/web/e2e/decisions.spec.ts"
       ],
-      "roadmap": "Phase 6, Frozen",
+      "roadmap": "October 10 bounded private-demo exception; broader Phase 6 remains Frozen",
       "evidence_groups": [
-        "E8"
+        "E14"
       ]
     },
     {
       "id": 60,
       "section": "Integration with other Solutions",
       "feature": "Recommendation approval workflow",
-      "status": "missing",
-      "note": "Meaning confirmation and refresh review exist, but there is no workflow to approve, reject or execute prescriptive business recommendations.",
+      "status": "done",
+      "note": "Private recommendations support approve, reject and reopen with notes and immutable history. Stale evidence invalidates current approval. Team approval stages and external execution remain outside this basic workflow.",
       "evidence": [
-        "ROADMAP.md",
-        "apps/api/src/execplus/application/services/understanding.py",
-        "apps/api/src/execplus/application/services/refresh.py"
+        "docs/decision-analysis.md",
+        "docs/verification-decision-analysis.md",
+        "apps/api/tests/test_decision_analysis_integration.py",
+        "apps/web/e2e/decisions.spec.ts"
       ],
-      "roadmap": "Phase 6, Frozen",
+      "roadmap": "October 10 bounded private-demo exception; broader Phase 6 remains Frozen",
       "evidence_groups": [
-        "E8"
+        "E14"
       ]
     },
     {
@@ -1184,6 +1186,14 @@
         "docs/start-project.md",
         "apps/web/e2e/library-interface.spec.ts"
       ]
+    ],
+    "E14": [
+      "Bounded anomalies, recommendations and review",
+      [
+        "docs/verification-decision-analysis.md",
+        "docs/decision-analysis.md",
+        "docs/decisions/0010-bounded-decision-analysis.md"
+      ]
     ]
   },
   "section_intros": {
@@ -1191,7 +1201,7 @@
     "Improve activation": "The upload-first experience and aggregate usage-reporting screens are delivered. Verified live email delivery and billing/upgrades remain unfinished.",
     "Growth-plan features": "Basic forecasting, accuracy checks, later-actual comparisons, grounded commentary and searchable audit history now join the delivered team, dashboard, refresh and alert features. Proven root-cause analysis remains open.",
     "Commercial readiness": "The private-demo admin console, support workflow and usage/retention reporting are delivered. Broader performance, paid-plan operation and production launch requirements remain open.",
-    "Integration with other Solutions": "No live external source connector is delivered yet. The existing app API and access controls provide only part of the wider integration request."
+    "Integration with other Solutions": "Basic anomaly checks, declared budget recommendations and private approval now work. Broader analytics and live source connectors remain unfinished."
   },
   "comparison_sources": {
     "P1": [
@@ -1295,7 +1305,7 @@
   ],
   "narrative": {
     "p01": "A working private analytics demo exists. Commercial launch requirements and broader integrations still need substantial work.",
-    "p02": "CSV/Excel analysis, data checks and cleaning, dashboards, supported chat, saved work, team workspaces, staged refresh, KPI alerts, basic forecasts, actual comparisons, audit history, internal support and usage reporting.",
+    "p02": "CSV/Excel analysis, governed dashboards/chat, saved work, basic forecasts, refresh/alerts, audit, support/usage reports, unusual-value checks and bounded budget decisions with private human review.",
     "p03": "Customer self-signup and production login; PDF/Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
     "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
@@ -1310,15 +1320,15 @@
     "p14": "Basic forecasts and accuracy checks are delivered. Next, export verified results as PDF/Excel and preserve the evidence behind each output.",
     "p15": "Start with read-only Google Sheets and an approved PostgreSQL source. Add accounting systems and BigQuery only after safe connection/refresh behavior is verified.",
     "p16": "Internal administration, support and usage reporting are delivered for the private demo. Payments, plans, upgrades, plan-specific limits and real email delivery remain unfinished.",
-    "p17": "Complete representative AI checks, off-server recovery, error alerts, spending controls and sustained-load testing with realistic customer data.",
-    "p18": "Only after the earlier gates: advanced forecasts, scenarios, anomaly detection, business recommendations and approval workflows.",
+    "p17": "The October 10 exception delivers snapshot anomaly checks and declared single-budget recommendations. Both broader VC requests remain Partly done; basic private approval is Done.",
+    "p18": "Broader Phase 6 stays frozen: seasonal/multivariate calibration, more decision models, advanced scenarios, connectors and external execution need separate evaluations and production gates.",
     "p19": "PDF/Excel exports were placed in Phase 4D, while production account access, payments and paid-plan operation were placed in Phase 5. They remain unfinished against the VC’s Month 1 checklist even though earlier project phases are marked complete.",
     "p20": "Representative customer examples and labels; retrieval/citation quality; a tested production search provider; backup/restore proof; model quality/speed/cost comparison; hosted-provider privacy; real email delivery; and production identity/security. A successful demo does not close these checks. [E7]",
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
-    "p23": "Describe verified descriptive analytics and bounded basic daily/monthly forecasts with their accuracy checks and limitations. Full predictive or prescriptive analytics must not be advertised. This instruction is not counted as a 65th feature.",
-    "p24": "Phase2 769acea retains forecasts/operations; October 6 interface changes are uncommitted.",
-    "p25": "Interface checks: 17 frontend, 29 browser and 76 targeted backend; prior full suite: 869 backend. VPS: eight users passed saved replays, 56 privacy denials and 72 layouts. Local/VPS startup and token renewal steps are documented; eight renewed tokens passed live identity checks. No schema/API/model change. Private demo only; production and load gates remain open. [E11–E13]",
+    "p23": "Describe verified descriptive analytics, bounded basic forecasts, exploratory unusual-value checks and conditional budget allocation with limitations. Do not advertise full predictive or prescriptive analytics.",
+    "p24": "Work is on phase2 at ba11afb; October 10 decision-analysis changes are uncommitted. No push or merge occurred.",
+    "p25": "October 10: 927 distinct backend/architecture cases (922 suite plus five later cases), 17 frontend tests and 30 browser journeys pass. Eight VPS users pass 16 analyses/reviews, 16 exact replays, 448 privacy denials and 24 layouts. Migration 0016 preserves 44 old tables. Private demo only; production/calibration/load gates remain open. [E14]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

@@ -17,6 +17,7 @@ from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.artifacts import ArtifactService
 from execplus.application.services.catalog import CatalogService
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
+from execplus.application.services.decision_analysis import DecisionAnalysisService
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import ForecastService
 from execplus.application.services.health import HealthService
@@ -179,6 +180,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         ForecastService(SQLUnitOfWork(engine), analytics),
         operations,
         ProductUsageService(SQLUnitOfWork(engine), operations),
+        DecisionAnalysisService(SQLUnitOfWork(engine), analytics),
     )
 
 
@@ -208,3 +210,4 @@ class Runtime:
     forecasts: ForecastService
     operations: OperationsService
     product_usage: ProductUsageService
+    decision_analysis: DecisionAnalysisService

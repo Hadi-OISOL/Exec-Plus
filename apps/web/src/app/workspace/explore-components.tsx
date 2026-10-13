@@ -15,6 +15,7 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     documents: "M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 16h5",
     saved: "M6 3h12v18l-6-4-6 4z",
     forecasts: "M3 20V4 M3 20h18 M5 16l5-6 4 3 7-9 M17 4h4v4",
+    decisions: "M12 3v6 M12 9L5 15 M12 9l7 6 M3 15h4v6H3z M17 15h4v6h-4z",
     audit: "M6 3h12v18H6z M9 7h6 M9 11h6 M9 15h3",
     support:
       "M4 13v-1a8 8 0 0 1 16 0v5h-4v-6h4 M4 11h4v6H4z M20 17a4 4 0 0 1-4 4h-4",

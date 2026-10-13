@@ -241,6 +241,8 @@ class ArtifactService:
             )
         if kind == ArtifactKind.QUERY_RESULT:
             execution = repo.query_execution(wid, reference.id)
+            if execution.aggregation == "analysis" and execution.actor_id != actor.id:
+                raise IngestionError("not_found", "The artifact is unavailable.", 404)
             if execution.dataset_id != did:
                 raise IngestionError("not_found", "The artifact is unavailable.", 404)
             receipt = execution.receipt
@@ -263,7 +265,7 @@ class ArtifactService:
                 str(receipt.get("version", "legacy-unavailable")),
                 execution.actor_id,
                 execution.created_at,
-                "workspace",
+                "private" if execution.aggregation == "analysis" else "workspace",
                 (Capability.INSPECT, Capability.REPLAY) if replayable else (Capability.INSPECT,),
                 sources,
                 dict(
