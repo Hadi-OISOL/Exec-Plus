@@ -10,7 +10,14 @@ walkthrough below retains attribution. A domain and public customer
 access are deferred. This is a private demo using expiring operator-issued sessions;
 it is not a production identity deployment. Existing production gates remain open.
 
-The October 10 bounded anomaly/decision extension now runs migration **0016**.
+The October 13 scenario extension now runs migration **0017**, preserving the
+October 10 anomaly/decision methods. In **Anomalies & decisions**, choose
+**What-if · scenario comparison** to explore explicit aggregate assumptions.
+Read [scenario contracts](scenario-planning.md) and
+[release evidence](verification-scenario-planning.md). Checkpoint source/images:
+`pre-scenarios-20261013`. Checked backups: `20261013T042923Z` before release and
+`20261013T043834Z` afterward. Preserve new comparisons before rollback; downgrade
+refuses while they exist. Models, network exposure and production gates are unchanged.
 Hard-refresh `/workspace`, select **Decision walkthrough · fictional only** under
 Current workspace and open **Anomalies & decisions**. The shared fictional source
 has declared cost/benefit assumptions; each person's analyses and reviews stay private.
@@ -46,6 +53,20 @@ loopback ports are unchanged. A web rollback can retag that preserved image and
 run `docker compose -f deploy/vps/compose.yaml up -d --no-deps web` from the source
 directory. Restore the matching frontend source before a subsequent rebuild;
 do not downgrade database metadata for this presentation-only release.
+
+## October 13 guided onboarding release
+
+The private demo now includes optional guided review. Open the selected upload's
+overview and choose **Review this upload step by step**. Notes default private;
+shared corrections remain drafts until full confirmation. Schema **0017**, API/jobs
+images, models and ports are unchanged; only web was recreated. See
+[verification](verification-onboarding-merge.md).
+
+Rollback frontend source/image checkpoint: `pre-onboarding-20261013`. Restore matching
+web source and retag/recreate web under the maintenance lock; preserve all notes/drafts
+and do not downgrade or restore the database. Checked pre-release backup:
+`20261013T114537Z`; checked post-release backup `20261013T115029Z` preserves the new notes/drafts. The teammate `/home/administrator/abm/Exec-Plus` source is preserved.
+
 
 ## What is separate on the VPS
 

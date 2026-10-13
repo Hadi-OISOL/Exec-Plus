@@ -935,7 +935,10 @@ analysis_runs = Table(
         ],
         name="analysis_understanding",
     ),
-    CheckConstraint("kind IN ('robust_distribution','bounded_allocation')", name="analysis_kind"),
+    CheckConstraint(
+        "kind IN ('robust_distribution','bounded_allocation','scenario_comparison')",
+        name="analysis_kind",
+    ),
     Index("analysis_owner_time", "workspace_id", "dataset_id", "owner_id", "created_at"),
 )
 analysis_reviews = Table(

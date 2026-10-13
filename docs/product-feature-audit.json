@@ -1,7 +1,7 @@
 {
   "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
-  "date": "2026-10-10",
+  "date": "2026-10-13",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
   "rows": [
     {
@@ -294,14 +294,18 @@
       "section": "Improve activation",
       "feature": "Guided data-upload wizard",
       "status": "done",
-      "note": "A simplified guided upload flow validates files, creates a workspace and dataset when needed, and opens profiles and findings. Optional setup stays available.",
+      "note": "Upload validates files and creates workspace/dataset when needed. Optional step-by-step review previews corrections, saves private notes separately and leaves shared meanings as drafts until full confirmation.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/web/e2e/workspace.spec.ts",
-        "docs/verification-data-partner.md"
+        "docs/verification-data-partner.md",
+        "apps/web/src/app/workspace/guided-review.tsx",
+        "apps/web/e2e/guided-review.spec.ts",
+        "docs/verification-onboarding-merge.md"
       ],
       "evidence_groups": [
-        "E10"
+        "E10",
+        "E16"
       ]
     },
     {
@@ -789,16 +793,20 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "partial",
-      "note": "First upload creates a workspace and dataset; checklists and samples guide users. Account access is still operator-managed, without automatic paid-plan setup.",
+      "note": "Upload setup, samples and guided data review work. Notes default private; shared corrections require explicit drafts/full review. Customer signup and paid-plan onboarding remain absent.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
         "apps/api/src/execplus/infrastructure/identity.py",
-        "apps/web/e2e/workspace.spec.ts"
+        "apps/web/e2e/workspace.spec.ts",
+        "apps/web/src/app/workspace/guided-review.tsx",
+        "apps/web/e2e/guided-review.spec.ts",
+        "docs/verification-onboarding-merge.md"
       ],
       "roadmap": "Phase 5 commercial onboarding",
       "evidence_groups": [
-        "E10"
+        "E10",
+        "E16"
       ]
     },
     {
@@ -944,15 +952,17 @@
       "id": 57,
       "section": "Integration with other Solutions",
       "feature": "Scenario planning",
-      "status": "missing",
-      "note": "No what-if scenario models, saved assumptions or scenario-comparison engine are implemented. Existing comparisons use recorded source results.",
+      "status": "partial",
+      "note": "Private what-if comparisons change one confirmed total or average using declared replacements or percentages. Exact replay and immutable successors work. Multiple-driver models, demand response and scenario uncertainty remain future work.",
       "evidence": [
-        "ROADMAP.md",
-        "apps/api/src/execplus/application/services/studies.py"
+        "docs/scenario-planning.md",
+        "docs/verification-scenario-planning.md",
+        "apps/api/tests/test_scenarios_integration.py",
+        "apps/web/e2e/scenarios.spec.ts"
       ],
-      "roadmap": "Phase 6, Frozen",
+      "roadmap": "October 13 bounded private-demo extension; broader Phase 6 remains Frozen",
       "evidence_groups": [
-        "E8"
+        "E15"
       ]
     },
     {
@@ -1194,6 +1204,20 @@
         "docs/decision-analysis.md",
         "docs/decisions/0010-bounded-decision-analysis.md"
       ]
+    ],
+    "E15": [
+      "Conditional scenarios",
+      [
+        "docs/verification-scenario-planning.md",
+        "docs/scenario-planning.md"
+      ]
+    ],
+    "E16": [
+      "Guided onboarding integration",
+      [
+        "docs/verification-onboarding-merge.md",
+        "docs/onboarding-merge.md"
+      ]
     ]
   },
   "section_intros": {
@@ -1201,7 +1225,7 @@
     "Improve activation": "The upload-first experience and aggregate usage-reporting screens are delivered. Verified live email delivery and billing/upgrades remain unfinished.",
     "Growth-plan features": "Basic forecasting, accuracy checks, later-actual comparisons, grounded commentary and searchable audit history now join the delivered team, dashboard, refresh and alert features. Proven root-cause analysis remains open.",
     "Commercial readiness": "The private-demo admin console, support workflow and usage/retention reporting are delivered. Broader performance, paid-plan operation and production launch requirements remain open.",
-    "Integration with other Solutions": "Basic anomaly checks, declared budget recommendations and private approval now work. Broader analytics and live source connectors remain unfinished."
+    "Integration with other Solutions": "Basic what-if comparisons, anomaly checks, budget recommendations and private approval work. Broader analytics and live source connectors remain unfinished."
   },
   "comparison_sources": {
     "P1": [
@@ -1305,12 +1329,12 @@
   ],
   "narrative": {
     "p01": "A working private analytics demo exists. Commercial launch requirements and broader integrations still need substantial work.",
-    "p02": "CSV/Excel analysis, governed dashboards/chat, saved work, basic forecasts, refresh/alerts, audit, support/usage reports, unusual-value checks and bounded budget decisions with private human review.",
+    "p02": "Governed CSV/Excel analytics, dashboards/chat, saved work, basic forecasts, refresh/alerts, audit, support/usage, unusual-value checks, budget decisions and conditional what-if comparisons.",
     "p03": "Customer self-signup and production login; PDF/Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
     "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
     "p06": "“Company registration” means software account signup, not legal incorporation.",
-    "p07": "“Done” here includes a simplified guided upload flow and a small basic KPI library. It does not mean an unlimited library or full automated business understanding.",
+    "p07": "Guided upload and optional column-review cards are tested. Private notes and shared drafts save separately; this is not automatic complete business understanding.",
     "p08": "ExecPlus overlaps with parts of the upload → question → dashboard experience. It has not reached the connected-data breadth or commercial completeness of either target.",
     "p09": "This documents capabilities, not hands-on performance or percentage parity. Editions and setup differ. The comparison was reviewed on 5 October 2026; the separate October 6 interface-reference review is recorded in E13.",
     "p10": "Conversational analytics, AI dashboards and governed queries are shared capabilities, not proven unique advantages. Our strongest current demonstration is the combination of retained files, reviewed meanings, exact calculations, replayable answers, document citations and visible request activity. A shared evaluation would be needed to claim better quality or speed.",
@@ -1320,15 +1344,15 @@
     "p14": "Basic forecasts and accuracy checks are delivered. Next, export verified results as PDF/Excel and preserve the evidence behind each output.",
     "p15": "Start with read-only Google Sheets and an approved PostgreSQL source. Add accounting systems and BigQuery only after safe connection/refresh behavior is verified.",
     "p16": "Internal administration, support and usage reporting are delivered for the private demo. Payments, plans, upgrades, plan-specific limits and real email delivery remain unfinished.",
-    "p17": "The October 10 exception delivers snapshot anomaly checks and declared single-budget recommendations. Both broader VC requests remain Partly done; basic private approval is Done.",
-    "p18": "Broader Phase 6 stays frozen: seasonal/multivariate calibration, more decision models, advanced scenarios, connectors and external execution need separate evaluations and production gates.",
+    "p17": "Representative evaluations, identity/security, recovery and provider privacy must pass. Private-demo evidence does not clear production launch gates.",
+    "p18": "Advanced analytics and external embedding remain gated. Exports, connectors and commercial readiness are unfinished; public deployment still needs reviewed production evidence.",
     "p19": "PDF/Excel exports were placed in Phase 4D, while production account access, payments and paid-plan operation were placed in Phase 5. They remain unfinished against the VC’s Month 1 checklist even though earlier project phases are marked complete.",
     "p20": "Representative customer examples and labels; retrieval/citation quality; a tested production search provider; backup/restore proof; model quality/speed/cost comparison; hosted-provider privacy; real email delivery; and production identity/security. A successful demo does not close these checks. [E7]",
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
-    "p23": "Describe verified descriptive analytics, bounded basic forecasts, exploratory unusual-value checks and conditional budget allocation with limitations. Do not advertise full predictive or prescriptive analytics.",
-    "p24": "Work is on phase2 at ba11afb; October 10 decision-analysis changes are uncommitted. No push or merge occurred.",
-    "p25": "October 10: 927 distinct backend/architecture cases (922 suite plus five later cases), 17 frontend tests and 30 browser journeys pass. Eight VPS users pass 16 analyses/reviews, 16 exact replays, 448 privacy denials and 24 layouts. Migration 0016 preserves 44 old tables. Private demo only; production/calibration/load gates remain open. [E14]",
+    "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
+    "p24": "phase2 baseline: 639e28c. October 13 work is uncommitted; teammate onboarding integrated as files, no Git commit/push.",
+    "p25": "October 13: scenario evidence 968 backend cases; onboarding rechecks 67 cases, 17 frontend tests and 37 browser journeys. Eight VPS users pass private notes/drafts, 112 privacy checks and 24 layouts; four old receipts replay. Schema 0017. Demo only; gates blocked. [E15, E16]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

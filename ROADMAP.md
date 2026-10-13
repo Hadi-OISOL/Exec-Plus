@@ -15,6 +15,38 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 13 — Teammate guided onboarding integration
+
+**Status:** Complete for supported local/test and the private-demo frontend slice.
+Recovered guided review is optional, shows a final preview and saves private notes
+separately from explicit shared drafts. It never confirms an entire schema from a
+ten-column review. Full confirmation remains in the governed understanding editor.
+See the [audit](docs/onboarding-merge-gap-audit.md), [contract](docs/onboarding-merge.md)
+and [verification](docs/verification-onboarding-merge.md).
+
+Evidence: 67 targeted backend cases, six new browser tests, all 37 journeys, 17 frontend
+tests and successful local/VPS builds; eight deployed users pass 112 privacy checks
+and 24 layouts. API/jobs/schema 0017 are unchanged. VC 47 stays Partial; all production
+gates remain blocked. Remaining [Partial closure dependencies](docs/partial-feature-closure-plan.md)
+are separate from this release; broad Phase 6 remains Frozen.
+
+## October 13 — Conditional scenario priority
+
+**Status:** Complete for the authorized bounded local/test and private-demo slice.
+The [gap audit](docs/scenario-planning-gap-audit.md),
+[contract](docs/scenario-planning.md) and
+[verification](docs/verification-scenario-planning.md) record one confirmed aggregate,
+up to five explicit what-if alternatives, private immutable successor comparisons
+and three exact source receipts. Migration **0017** preserves all 46 existing data
+tables. Scenarios are conditional estimates; no source mutation or causal inference.
+
+Evidence includes 968 distinct backend/architecture cases, 17 frontend tests,
+31 distinct browser journeys, clean-image checks and an eight-user deployed
+rehearsal with 48 exact source replays and 784 private-access denials. VC 57 is
+Partial, with multiple-driver models and uncertainty remaining. The researched
+sequence continues with evaluated anomaly/decision extensions; broader Phase 6
+and public embedding retain Phase 5 prerequisites. All eight gates remain blocked.
+
 ## October 10 — Anomaly and decision-analysis priority
 
 **Status:** Complete for the explicitly authorized bounded local/test and private-demo extension.
@@ -671,6 +703,12 @@ Exit criteria:
 ## Phase 6 — Broader integrations and advanced decision support
 
 **Status:** Frozen
+
+October 13 researched planning for VC 57/58/59/63 is retained in
+[the advanced analytics and embedding plan](docs/advanced-analytics-research-plan.md).
+It sequences scenario contracts, evaluated detection, constrained decisions,
+governed jobs and secure embedding. This is planning evidence only: feature
+statuses, Phase 5 prerequisites and Phase 6 activation criteria are unchanged.
 
 The October 10 user authorization creates a narrow private-demo exception for
 snapshot unusualness, declared budget allocation and owner-private reviews.

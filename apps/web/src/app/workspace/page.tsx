@@ -19,6 +19,10 @@ import { AnalyticsHome } from "./analytics-home";
 import "./analytics-shell.css";
 
 const loadingView = () => <p role="status">Loading this view…</p>;
+const GuidedReview = dynamic(
+  () => import("./guided-review").then(module => module.GuidedReview),
+  { loading: loadingView },
+);
 const ActivationPanel = dynamic(
   () => import("./activation-panel").then((module) => module.ActivationPanel),
   { loading: loadingView },
@@ -109,6 +113,7 @@ export default function WorkspacePage() {
   const chat = useRef<ChatHandle>(null);
   const reviewDisclosure = useRef<HTMLDetailsElement>(null);
   const [revisionTick, setRevisionTick] = useState(0);
+  const [guidedFor, setGuidedFor] = useState("");
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [staffRole, setStaffRole] = useState<StaffRole>(null);
@@ -169,6 +174,7 @@ export default function WorkspacePage() {
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         if (response.status === 401) {
+          setGuidedFor("");
           setUser(null);
           setWorkspace(null);
           setWorkspaces([]);
@@ -239,6 +245,7 @@ export default function WorkspacePage() {
   }, [workspace, manager, section, request]);
 
   async function selectWorkspace(selected: Workspace) {
+    setGuidedFor("");
     setUploadTarget("new");
     setUploadDomain("auto");
     setUploadGoal("");
@@ -265,6 +272,7 @@ export default function WorkspacePage() {
   }
 
   async function selectDataset(workspaceId: string, datasetId: string) {
+    setGuidedFor("");
     setSavedSelection(null);
     setAnalysisIntent("descriptive");
     setReviewOpen(false);
@@ -423,6 +431,7 @@ export default function WorkspacePage() {
       );
       setUploads(await request<Upload[]>(prefix));
       setProfileUpload(stored.id);
+      setGuidedFor(stored.id);
       setReviewOpen(false);
       setDashboardOpen(false);
       setStarterQuestions([]);
@@ -1367,6 +1376,25 @@ export default function WorkspacePage() {
                         </label>
                       </fieldset>
                     </div>
+                    {root && section === "overview" && !reviewOpen && guidedFor !== profileUpload && (
+                      <button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button>
+                    )}
+                    {root && user && guidedFor === profileUpload && section === "overview" && !reviewOpen && (
+                      <GuidedReview
+                        key={`guided-${user.id}-${root}-${revisionTick}`}
+                        root={root}
+                        request={request}
+                        onClose={changed => {
+                          setGuidedFor("");
+                          if (changed) setRevisionTick(value => value + 1);
+                        }}
+                        onReview={() => {
+                          setGuidedFor("");
+                          setRevisionTick(value => value + 1);
+                          reviewUnderstanding();
+                        }}
+                      />
+                    )}
                     <div className="exploreLayout discoveryLayout">
                       <div className="insightCanvas" hidden={section === "ask"}>
                         <DiscoveryPanel

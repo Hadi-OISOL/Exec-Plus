@@ -7,13 +7,20 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
+October 13 adds optional **Guided data review** after upload and through **Review
+this upload step by step**. Preview your corrections, save notes privately or save
+shared meanings as a draft, then use the full editor for confirmation. This integrates
+the teammate onboarding with current source; it does not replace existing insights.
+See the [contract](docs/onboarding-merge.md), [verification](docs/verification-onboarding-merge.md)
+and [remaining Partial dependencies](docs/partial-feature-closure-plan.md).
+
 The October 6 operations update adds **Support** for private requests and replies,
 **Usage & retention** for workspace owners/admins, and an **Admin console** for
 explicitly granted internal staff. Staff can inspect operational metadata and handle
 support requests without acquiring access to private customer analyses. Usage reports
 show deliberate activity and completed-week return cohorts with their definitions.
 See the [operations contract](docs/operations-console-support.md) and
-[verification ledger](docs/verification-operations.md). Run migration **0016** after
+[verification ledger](docs/verification-operations.md). Run migration **0017** after
 pulling. Staff grants are operator-only; ordinary workspace ownership does not grant
 platform administration. Billing and public production readiness remain unfinished.
 
@@ -72,7 +79,7 @@ or shared dashboards, and separate department workspaces grouped by organization
 The private demo now also includes **Refresh & alerts**: validated staged-file
 replacement/append/merge, schedules, replayable observations, exact segment drivers
 and private KPI notifications. That slice introduced migration 0012; the current
-application requires **0016**. See the
+application requires **0017**. See the
 [4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
 [4B verification](docs/verification-phase4b.md). Schedules process files staged in
 ExecPlus. Forecast comparisons can use an accepted refresh without changing the

@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from execplus.domain.decision_analysis import METHODS, fail
 from execplus.domain.models import QueryPlan, WorkspaceScope
 from execplus.domain.profiling import TableData
+from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
 from execplus.domain.semantics import (
     DatasetView,
     MetricFilter,
@@ -16,7 +17,7 @@ from execplus.domain.semantics import (
     quote_identifier,
     validate_read_only,
 )
-from execplus.domain.studies import method_request, validated_method
+from execplus.domain.studies import count_plan, method_request, validated_method
 from execplus.domain.understanding import governed_request, preferred_aggregation
 
 
@@ -24,11 +25,11 @@ def analysis_plan(
     scope: WorkspaceScope, did: UUID, view: DatasetView, table: TableData, raw: dict[str, Any]
 ) -> tuple[QueryPlan, dict[str, str]]:
     kind = raw["kind"]
-    if kind not in METHODS:
+    if kind not in {**METHODS, "scenario_comparison": SCENARIO_METHOD}:
         fail("unsupported_analysis", "Choose a registered analysis method.")
     names = (
         [raw["metric"]]
-        if kind == "robust_distribution"
+        if kind in {"robust_distribution", "scenario_comparison"}
         else [raw["cost_column"], raw["benefit_column"]]
     )
     units = {}
@@ -38,7 +39,9 @@ def analysis_plan(
             dict(
                 kind="metric",
                 column=name,
-                aggregation=preferred_aggregation(view, name).value,
+                aggregation=raw["aggregation"]
+                if kind == "scenario_comparison"
+                else preferred_aggregation(view, name).value,
                 filters=raw["filters"],
                 group_by=[],
                 order=[],
@@ -56,7 +59,15 @@ def analysis_plan(
     if len(combined) > 20:
         fail("analysis_filter_limit", "Use at most 20 total governed filters.")
     where, parameters = build_where(view, combined)
-    if kind == "robust_distribution":
+    if kind == "scenario_comparison":
+        if raw["aggregation"] not in {"sum", "avg"}:
+            fail("invalid_scenario", "Scenarios support eligible sums and averages only.")
+        metric = quote_identifier(raw["metric"])
+        sql = f'SELECT {raw["aggregation"].upper()}({metric}) AS "__baseline" FROM "dataset"'
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " LIMIT 1"
+    elif kind == "robust_distribution":
         metric = quote_identifier(raw["metric"])
         sql = f'SELECT {metric}, COUNT(?) AS "__frequency" FROM "dataset"'
         if where:
@@ -85,3 +96,24 @@ def analysis_plan(
     return QueryPlan(
         uuid4(), scope.workspace_id, did, "Registered decision analysis", sql, tuple(parameters)
     ), units
+
+
+def scenario_coverage_plans(
+    scope: WorkspaceScope, did: UUID, view: DatasetView, table: TableData, raw: dict[str, Any]
+) -> list[QueryPlan]:
+    method = validated_method(
+        dict(
+            kind="metric",
+            column=raw["metric"],
+            aggregation=raw["aggregation"],
+            filters=raw["filters"],
+            group_by=[],
+            order=[],
+        ),
+        view,
+    )
+    request = governed_request(view, table, method_request(method))
+    return [
+        count_plan(scope, did, view, request, present_only=True),
+        count_plan(scope, did, view, request, present_only=False),
+    ]

@@ -3,6 +3,18 @@
 
 # ExecPlus Architecture
 
+## Conditional scenario comparisons
+
+The October 13 bounded extension reuses private analysis aggregates and immutable
+receipts rather than another evidence store. Migration 0017 permits a scenario
+kind without transforming data. A confirmed SUM/AVG and separate present/population
+counts share one reconstructed snapshot; existing SQL restrictions stay intact.
+Standard-library Decimal computation applies explicit hypothetical aggregate
+changes. Saved successors retain compatible meaning, units, grain and governed
+population. Reopening independently verifies all three query receipts and output.
+Private scenario evidence cannot use ordinary sharing or recommendation approval.
+See [contracts](../scenario-planning.md) and [acceptance](../verification-scenario-planning.md).
+
 ## Architectural style
 
 ExecPlus begins as a modular monolith with independently testable modules and explicit infrastructure ports. This preserves transaction simplicity and delivery speed while allowing workers or high-load compute paths to be extracted when measurements justify it.

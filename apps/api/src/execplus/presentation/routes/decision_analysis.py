@@ -72,6 +72,35 @@ class ReviewInput(Input):
     expected_version: int = Field(ge=0, le=200, strict=True)
 
 
+class ScenarioAlternative(Input):
+    name: str = Field(min_length=1, max_length=100)
+    operation: Literal["replace", "percent_change"]
+    value: str = Field(min_length=1, max_length=100)
+
+
+class ScenarioInput(SourceInput):
+    kind: Literal["scenario_comparison"] = "scenario_comparison"
+    metric: str = Field(min_length=1, max_length=200)
+    aggregation: Literal["sum", "avg"]
+    alternatives: list[ScenarioAlternative] = Field(min_length=1, max_length=5)
+    assumptions_confirmed: bool = Field(strict=True)
+    parent_run_id: UUID | None = None
+
+
+@router.post(SOURCE + "/scenarios", status_code=201)
+async def scenarios(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: ScenarioInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+    )
+
+
 @router.get(SOURCE + "/options")
 async def options(
     workspace_id: UUID, dataset_id: UUID, upload_id: UUID, actor: Actor, analyses: Service

@@ -411,6 +411,8 @@ test("manager reports mature cohorts and optional admin data stays off the first
       usageReads += 1;
   });
   await signIn(page, owner.token);
+  await expect(page.getByRole("combobox", { name: "Current workspace", exact: true })).toHaveValue(space.id);
+  await page.waitForLoadState("networkidle");
   await expect(
     page.getByRole("button", { name: "Admin console", exact: true }),
   ).toHaveCount(0);

@@ -13,7 +13,7 @@ from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.forecasts import ForecastService, read_complete
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
-from execplus.domain.analysis_queries import analysis_plan
+from execplus.domain.analysis_queries import analysis_plan, scenario_coverage_plans
 from execplus.domain.decision_analysis import (
     METHODS,
     AnalysisReview,
@@ -26,9 +26,15 @@ from execplus.domain.errors import AuthorizationError, ClarificationRequiredErro
 from execplus.domain.evidence import receipt
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult
+from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
+from execplus.domain.scenarios import alternatives, compare_scenarios
+
+REGISTERED_METHODS = {**METHODS, "scenario_comparison": SCENARIO_METHOD}
 
 
 def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
+    if raw["kind"] == "scenario_comparison":
+        return compare_scenarios(raw, value.rows)
     if raw["kind"] == "robust_distribution":
         return detect_distribution(
             [(row[0], row[1]) for row in value.rows], raw["threshold"], raw["materiality"]
@@ -75,7 +81,7 @@ class DecisionAnalysisService:
             understanding_id=source.get("understanding_id"),
             metrics=metrics,
             entities=[c["name"] for c in columns if c["role"] in {"dimension", "identifier"}],
-            methods=METHODS,
+            methods=REGISTERED_METHODS,
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
                 "Exploratory anomalies are not confirmed errors; "
@@ -121,6 +127,12 @@ class DecisionAnalysisService:
         self, actor: User, wid: UUID, did: UUID, uid: UUID, raw: dict[str, Any]
     ) -> dict[str, Any]:
         name = checked_name(raw["name"])
+        if raw["kind"] == "scenario_comparison":
+            alternatives(raw.get("alternatives"))
+            if raw.get("assumptions_confirmed") is not True:
+                raise IngestionError(
+                    "scenario_assumptions_required", "Confirm hypothetical assumptions.", 422
+                )
         self._current(actor, wid, did, uid, raw)
         with self.uow() as repo:
             if len(repo.analysis_runs(wid, did, actor.id)) >= 50:
@@ -136,6 +148,50 @@ class DecisionAnalysisService:
         ):
             raise ClarificationRequiredError("The source changed. Reload analysis options.")
         plan, units = analysis_plan(scope, did, view, table, raw)
+        if raw["kind"] == "scenario_comparison" and raw.get("parent_run_id"):
+            parent = self._owned(actor, wid, did, UUID(raw["parent_run_id"]))
+            await self.open(actor, wid, did, parent.id)
+            if (
+                parent.kind != "scenario_comparison"
+                or any(
+                    parent.request.get(key) != raw.get(key)
+                    for key in ("metric", "aggregation", "filters")
+                )
+                or parent.evidence["units"] != units
+                or (parent.evidence["definition"] or {}).get("grain")
+                != (view.definition or {}).get("grain")
+                or next(
+                    (
+                        c
+                        for c in (parent.evidence["definition"] or {}).get("columns", [])
+                        if c["name"] == raw["metric"]
+                    ),
+                    None,
+                )
+                != next(
+                    (
+                        c
+                        for c in (view.definition or {}).get("columns", [])
+                        if c["name"] == raw["metric"]
+                    ),
+                    None,
+                )
+                or [
+                    m
+                    for m in (parent.evidence["definition"] or {}).get("metrics", [])
+                    if m.get("column") == raw["metric"]
+                ]
+                != [
+                    m
+                    for m in (view.definition or {}).get("metrics", [])
+                    if m.get("column") == raw["metric"]
+                ]
+            ):
+                raise IngestionError(
+                    "scenario_parent_mismatch",
+                    "Use compatible measure, units and filters for a successor.",
+                    422,
+                )
         lineage = CalculationLineage(
             plan.query_id,
             wid,
@@ -147,7 +203,8 @@ class DecisionAnalysisService:
             (),
             (),
             plan.sql,
-            "deterministic:decision-analysis-v1",
+            "deterministic:"
+            + (SCENARIO_METHOD if raw["kind"] == "scenario_comparison" else "decision-analysis-v1"),
         )
         self._current(actor, wid, did, uid, raw)
         try:
@@ -160,11 +217,47 @@ class DecisionAnalysisService:
         self.analytics._persist(
             actor, replace(lineage, receipt=receipt(plan, view.sources, result))
         )
+        coverage_ids = []
+        if raw["kind"] == "scenario_comparison":
+            coverage_values = []
+            for coverage_plan in scenario_coverage_plans(scope, did, view, table, raw):
+                self._current(actor, wid, did, uid, raw)
+                coverage_lineage = replace(
+                    lineage, query_id=coverage_plan.query_id, sql=coverage_plan.sql
+                )
+                try:
+                    coverage_result = await self.analytics.executor.execute(
+                        coverage_plan, scope, table, view
+                    )
+                except (Exception, asyncio.CancelledError):
+                    self.analytics._persist(
+                        actor,
+                        replace(
+                            coverage_lineage, receipt=receipt(coverage_plan, view.sources, None)
+                        ),
+                    )
+                    raise
+                self.analytics._persist(
+                    actor,
+                    replace(
+                        coverage_lineage,
+                        receipt=receipt(coverage_plan, view.sources, coverage_result),
+                    ),
+                )
+                if len(coverage_result.rows) != 1 or len(coverage_result.rows[0]) != 1:
+                    raise IngestionError(
+                        "scenario_coverage", "Complete coverage evidence is required.", 422
+                    )
+                coverage_values.append(coverage_result.rows[0][0])
+                coverage_ids.append(str(coverage_plan.query_id))
+            if len(result.rows) != 1 or len(result.rows[0]) != 1:
+                raise IngestionError("scenario_coverage", "One complete baseline is required.", 422)
+            result = replace(result, rows=((result.rows[0][0], *coverage_values),))
         calculated = await read_complete(lambda: calculate(raw, result))
         await read_complete(
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
         )
-        evidence = dict(
+        evidence: dict[str, Any] = dict(
             query_id=str(plan.query_id),
             sources=list(view.sources),
             definition=view.definition,
@@ -172,6 +265,8 @@ class DecisionAnalysisService:
             request_checksum=checksum(raw),
             result_checksum=checksum(calculated),
         )
+        if raw["kind"] == "scenario_comparison":
+            evidence["coverage_query_ids"] = coverage_ids
         run = AnalysisRun(
             uuid4(),
             wid,
@@ -182,7 +277,7 @@ class DecisionAnalysisService:
             UUID(raw["understanding_id"]),
             name,
             raw["kind"],
-            METHODS[raw["kind"]],
+            REGISTERED_METHODS[raw["kind"]],
             raw,
             evidence,
             calculated,
@@ -227,7 +322,7 @@ class DecisionAnalysisService:
         try:
             if (
                 run.kind != run.request["kind"]
-                or run.method_version != METHODS[run.kind]
+                or run.method_version != REGISTERED_METHODS[run.kind]
                 or checksum(run.request) != run.evidence["request_checksum"]
             ):
                 raise invalid
@@ -269,6 +364,43 @@ class DecisionAnalysisService:
             result = await self.analytics.executor.execute(plan, scope, table, view)
             if receipt(plan, view.sources, result) != saved:
                 raise invalid
+            if run.kind == "scenario_comparison":
+                coverage_ids = run.evidence["coverage_query_ids"]
+                if len(coverage_ids) != 2 or len(set([str(qid), *coverage_ids])) != 3:
+                    raise invalid
+                coverage_values = []
+                for index, coverage_plan in enumerate(
+                    scenario_coverage_plans(scope, did, view, table, run.request)
+                ):
+                    coverage_plan = replace(coverage_plan, query_id=UUID(coverage_ids[index]))
+                    with self.uow() as repo:
+                        coverage_record = repo.query_execution(wid, coverage_plan.query_id)
+                    expected_coverage = receipt(coverage_plan, view.sources, None)
+                    if (
+                        coverage_record.actor_id != run.owner_id
+                        or coverage_record.dataset_id != did
+                        or coverage_record.sql != coverage_plan.sql
+                        or coverage_record.receipt.get("outcome") != "executed"
+                        or any(
+                            coverage_record.receipt.get(key) != expected_coverage[key]
+                            for key in ("version", "sources", "parameters")
+                        )
+                    ):
+                        raise invalid
+                    coverage_result = await self.analytics.executor.execute(
+                        coverage_plan, scope, table, view
+                    )
+                    if (
+                        receipt(coverage_plan, view.sources, coverage_result)
+                        != coverage_record.receipt
+                        or len(coverage_result.rows) != 1
+                        or len(coverage_result.rows[0]) != 1
+                    ):
+                        raise invalid
+                    coverage_values.append(coverage_result.rows[0][0])
+                if len(result.rows) != 1 or len(result.rows[0]) != 1:
+                    raise invalid
+                result = replace(result, rows=((result.rows[0][0], *coverage_values),))
             rebuilt = await read_complete(lambda: calculate(run.request, result))
             if rebuilt != run.result or checksum(rebuilt) != run.evidence["result_checksum"]:
                 raise invalid
@@ -282,6 +414,12 @@ class DecisionAnalysisService:
     ) -> dict[str, Any]:
         body = await self.open(actor, wid, did, rid)
         run = self._owned(actor, wid, did, rid)
+        if run.kind == "scenario_comparison":
+            raise IngestionError(
+                "scenario_not_decision",
+                "A hypothetical comparison cannot be approved as a recommendation.",
+                422,
+            )
         target, status, note = raw["target"], raw["status"], raw["note"].strip()
         if run.kind == "bounded_allocation":
             if target != "decision" or status not in {"pending", "approved", "rejected"}:

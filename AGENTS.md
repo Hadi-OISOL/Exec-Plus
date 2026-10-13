@@ -7,6 +7,59 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+- October 13 teammate onboarding is integrated and verified for local/test and the
+  private demo on unchanged **0017**. Read `docs/onboarding-merge-gap-audit.md`,
+  `docs/onboarding-merge.md` and `docs/verification-onboarding-merge.md`. The original
+  `/home/administrator/abm/Exec-Plus` checkout remains untouched; its older page was
+  merged manually with current source. Separate private notes and explicit shared
+  drafts replace automatic schema confirmation; full meaning review stays required.
+- Onboarding checks: 67 targeted backend/architecture cases, six new browser cases,
+  all 37 browser journeys, 17 frontend tests, types/lint/build and Ruff/mypy pass.
+  Eight VPS users passed eight fictional uploads/notes/drafts, 112 privacy checks,
+  24 layouts and zero browser errors in 78.387 seconds. Four old profile-v1/v2
+  receipts replay exactly. This is functional demo evidence, not sustained load.
+- Only web changed; API/jobs IDs/images, models, network and schema remain intact.
+  Checkpoint `pre-onboarding-20261013`; pre-release checked backup `20261013T114537Z`.
+  Checked post-release backup `20261013T115029Z` preserves the new notes/drafts and restarts
+  writers/storage successfully. Preserve new notes/drafts when rolling back. Sessions were renewed privately.
+  No commit/push occurred. VC report stays 37 Done /16 Partial /11 Not yet; 47 stays
+  Partial and all eight gates stay blocked. `docs/partial-feature-closure-plan.md`
+  lists remaining dependencies. Broader Phase 6 stays Frozen.
+
+- October 13 scenario slice is Complete for local/test and the private demo on
+  **0017**. Read `docs/scenario-planning-gap-audit.md`, `docs/scenario-planning.md`
+  and `docs/verification-scenario-planning.md`. VC 57 is now Partial: one confirmed
+  aggregate, five explicit alternatives, immutable private successors and three
+  exact source receipts. No demand response, causal effects or external action.
+  Compatible successors also preserve grain, meaning and governed population.
+- Scenario evidence: 963 full backend/architecture cases plus five later hardening
+  cases (968 distinct; 41 new), 17 frontend tests, all 31 distinct browser journeys,
+  Ruff/mypy (156 files), types/lint and local/VPS builds pass. Full live browser run
+  had 30 passes/one fixture load-timing failure; the corrected focused case passed.
+  Initial query-validator and browser/build/selector failures remain in the ledger.
+- Eight deployed users pass 16 comparisons/reopens, 48 exact typed receipt replays,
+  784 cross-user denials and 24 layouts in 96.779 seconds with no browser errors or
+  source-metadata changes. Clean non-root image passes eight users/48 scenario
+  query executions without network/scientific packages; old methods also pass.
+  This is functional rehearsal, not sustained-load or customer acceptance.
+- Migration 0017 preserves all 46 prior tables. Checkpoint source/images use
+  `pre-scenarios-20261013`; checked backups are `20261013T042923Z` before release
+  and `20261013T043834Z` afterward. Downgrade refuses while scenarios exist;
+  preserve all saved work. Local services also run 0017. Models, ports and eight
+  production gates are unchanged; refresh/backup timers stay active.
+- Scenario work is uncommitted on `phase2` at `639e28c`; no push/merge occurred.
+  Maintained report now has 37 Done / 16 Partial / 11 Not yet, preserving all 64
+  original IDs and October 5 competitor review. Broader Phase 6 remains Frozen;
+  the next evaluated slice is anomaly-method expansion from the research plan.
+
+- October 13: requested research/planning for VC 57/58/59/63 is saved in
+  `docs/advanced-analytics-research-plan.md`, including method trials, evidence
+  contracts, acceptance and private release steps. The supplied DOCX has 64 IDs;
+  requested 69 remains unidentified. This request authorizes planning only; all
+  feature statuses and production gates are unchanged. Read this plan before a
+  separately authorized extension; preserve the teammate's unverified `abm`
+  guided-review checkout. The observed local baseline is now `639e28c` on `phase2`.
+
 - October 10: the user explicitly authorized the private-demo anomaly/recommendation
   extension (VC 58–59 plus review dependency 60). The bounded slice is Complete for
   local/test and the private demo on **0016**. Read `docs/decision-analysis-plan.md`,
