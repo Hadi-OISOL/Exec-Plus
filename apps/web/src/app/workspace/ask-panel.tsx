@@ -4,6 +4,7 @@ What it does: Keeps paired turns, renders exact results and record tables, and e
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
 import { Icon, RecordTable } from "./explore-components";
+import { displayMetric } from "./visualization-values";
 import { AnswerVisualization } from "./answer-visualization";
 import type { Cell } from "./explore-components";
 import { SaveControl } from "./saved-panel";
@@ -63,6 +64,7 @@ type Turn = {
   job?: ConversationJob;
   events?: JobEvent[];
   unavailable?: boolean;
+  clarification?: { choices: string[] } | null;
 };
 type History = { id: string; created_at: string };
 type SavedTurn = {
@@ -73,6 +75,7 @@ type SavedTurn = {
   request_id: string | null;
   status: string;
   job_id?: string | null;
+  clarification?: { choices: string[] } | null;
 };
 type JobResult = { turn: SavedTurn; answer: Answer | null };
 const flatten = (answer: Answer | null): Answer | null =>
@@ -206,6 +209,7 @@ export function AskPanel({
             ...turn,
             serverId: result.turn.id,
             status: result.turn.status,
+            clarification: result.turn.clarification,
             answer: flatten(result.answer),
             message: result.turn.message ?? "",
             failed: ["failed", "expired"].includes(job.status),
@@ -303,6 +307,7 @@ export function AskPanel({
       const savedTurns: Turn[] = result.turns.map((turn) => ({
         id: turn.id,
         serverId: turn.id,
+        clarification: turn.clarification,
         requestId: turn.request_id ?? undefined,
         status: turn.status,
         jobId: turn.job_id ?? undefined,
@@ -610,10 +615,6 @@ export function AskPanel({
             means, find specific records, or explore one of the findings
             alongside this conversation.
           </p>
-          <p className="chatHint">
-            You don’t need to know the right query. Start with what you want to
-            understand.
-          </p>
         </div>
         {!turns.length && (
           <div className="suggestionChips">
@@ -708,14 +709,18 @@ export function AskPanel({
                   </p>
                 )
               )}
+              {!!turn.clarification?.choices.length && (
+                <div className="suggestionChips" role="group" aria-label="Clarify your request">
+                  {turn.clarification.choices.map(choice => (
+                    <button key={choice} type="button" disabled={busy} onClick={() => void ask(choice)}>{choice}</button>
+                  ))}
+                </div>
+              )}
               {turn.answer?.value !== undefined && (
                 <div className="answerCard">
                   <span className="kpiLabel">{turn.answer.label}</span>
-                  <strong className="kpiValue">
-                    {String(turn.answer.value).replace(
-                      /(\.\d*?[1-9])0+$|\.0+$/,
-                      "$1",
-                    )}
+                  <strong className="kpiValue" data-long-value={displayMetric(turn.answer.value).length > 24} title={String(turn.answer.value)}>
+                    {displayMetric(turn.answer.value)}
                   </strong>
                 </div>
               )}

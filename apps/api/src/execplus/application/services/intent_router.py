@@ -29,9 +29,11 @@ from execplus.domain.errors import (
 from execplus.domain.guidance import (
     DescriptionContext,
     explain_dataset,
+    goal_choices,
     guidance_focus,
     guidance_selection,
     mentioned_columns,
+    needs_goal_clarification,
     words,
 )
 from execplus.domain.ingestion import IngestionError, User
@@ -61,6 +63,7 @@ class ClarificationContext:
     question: str
     message: str
     sources: tuple[dict[str, str], ...]
+    choices: tuple[str, ...] = ()
 
 
 class PlanningClarification(ClarificationRequiredError):
@@ -91,7 +94,10 @@ _SYSTEM_PROMPT = (
     "Use rows for show/list/find records, not an aggregation. Empty columns means all columns. "
     "Use a limit between 1 and 1000, default 100; 'all' means the bounded first 1000. "
     "Use ieq for case-insensitive matching of text such as cities, unless case matters. "
-    "Use overview for greetings, help, data understanding and column-meaning questions. "
+    "Use overview for explicit greetings, help, data understanding and column-meaning questions. "
+    "Do not use overview as a fallback for an unclear goal or failed calculation plan. "
+    "Ask one focused clarification identifying the missing measure, operation or filter. "
+    "Once those are clear, propose the executable plan instead of repeating a capabilities menu. "
     "For an explanation of a column, select its exact name in columns (up to three); "
     "for a whole-dataset orientation, use an empty columns array. "
     "A question about what a dataset field means is overview, not a document search. "
@@ -267,6 +273,13 @@ class IntentRouterService:
         prior_clarification: ClarificationContext | None = None,
     ) -> ConversationAnswer:
         description = await self._describe(actor, workspace_id, dataset_id, upload_id)
+        if prior_clarification and prior_clarification.sources != description.view.sources:
+            raise ClarificationRequiredError(
+                "The file or definitions changed while clarifying. Ask the complete question "
+                "again so I can use the current version."
+            )
+        if needs_goal_clarification(question, prior_guide.columns if prior_guide else ()):
+            self._clarify_goal(description, question, prior_clarification)
         try:
             selected = guidance_selection(
                 question, description.view, prior_guide.columns if prior_guide else ()
@@ -336,11 +349,6 @@ class IntentRouterService:
                 focus=focus,
             )
         view = description.view
-        if prior_clarification and prior_clarification.sources != view.sources:
-            raise ClarificationRequiredError(
-                "The file or definitions changed while clarifying. Ask the complete question "
-                "again so I can use the current version."
-            )
         tokens = set(words(question).split())
         for tag in sorted({tag for column in view.columns for tag in column.tags}):
             candidates = [column.name for column in view.columns if tag in column.tags]
@@ -485,6 +493,20 @@ class IntentRouterService:
             )
 
         if routed.kind == QuestionKind.OVERVIEW:
+            if (not routed.guide_columns and routed.guide_focus == "orientation") or (
+                set(words(question).split())
+                & {
+                    "total",
+                    "sum",
+                    "average",
+                    "calculate",
+                    "compute",
+                    "records",
+                    "filter",
+                    "compare",
+                }
+            ):
+                self._clarify_goal(description, question, prior_clarification)
             current_description = await self._describe(actor, workspace_id, dataset_id, upload_id)
             if current_description.view.sources != description.view.sources:
                 raise ClarificationRequiredError(
@@ -504,9 +526,62 @@ class IntentRouterService:
                     prior_clarification.question if prior_clarification else question,
                     f"{routed.message}{options}",
                     view.sources,
+                    tuple(
+                        dict.fromkeys(option for option in routed.options if view.column(option))
+                    )[:6],
                 )
             )
         raise UnsupportedQuestionError(routed.message)
+
+    def _clarify_goal(
+        self,
+        context: DescriptionContext,
+        question: str,
+        prior: ClarificationContext | None = None,
+    ) -> None:
+        choices = goal_choices(context)
+        message = (
+            f"What would you like to find in {context.name}? "
+            "Choose a specific measure or records, explain a column, or check data quality. "
+            "For a calculation, name the measure and any category, location or period you want."
+        )
+        if set(words(question).split()) & {
+            "total",
+            "sum",
+            "average",
+            "calculate",
+            "compute",
+            "minimum",
+            "maximum",
+        }:
+            named = tuple(
+                name
+                for name in mentioned_columns(question, context.view)
+                if name in context.view.metrics
+            )
+            measures = tuple(
+                column.name
+                for column in context.view.columns
+                if column.name in context.view.metrics
+                and "identifier" not in column.tags
+                and not set(words(column.name).split()) & {"id", "code", "sku", "postal", "zip"}
+            )
+            choices = (named or measures)[:6]
+            message = (
+                "I couldn't confirm the requested calculation. Which measure should I use? "
+                "Your original question, including any filters, is retained."
+            )
+            if not choices:
+                choices = goal_choices(context)
+                message = (
+                    "This file has no eligible numeric measure for that calculation. "
+                    "Would you like to inspect records, explain a column or check data quality?"
+                )
+        raise PlanningClarification(
+            ClarificationContext(
+                prior.question if prior else question, message, context.view.sources, choices
+            )
+        )
 
     def _guide(
         self,

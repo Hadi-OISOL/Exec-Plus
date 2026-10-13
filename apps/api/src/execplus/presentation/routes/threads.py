@@ -45,6 +45,13 @@ def _thread_body(thread: Thread) -> dict[str, object]:
 
 
 def _turn_body(turn: ThreadTurn) -> dict[str, object]:
+    clarification = turn.evidence.get("clarification")
+    raw_choices = clarification.get("choices", []) if isinstance(clarification, dict) else []
+    choices = (
+        [choice for choice in raw_choices if isinstance(choice, str) and 0 < len(choice) <= 500][:6]
+        if isinstance(raw_choices, list)
+        else []
+    )
     return {
         "id": str(turn.id),
         "question": turn.question,
@@ -56,6 +63,9 @@ def _turn_body(turn: ThreadTurn) -> dict[str, object]:
         "status": turn.status,
         "job_id": str(turn.job_id) if turn.job_id else None,
         "request_id": str(turn.request_id) if turn.request_id else None,
+        "clarification": {"choices": choices}
+        if turn.kind == "ambiguous" and isinstance(clarification, dict)
+        else None,
     }
 
 

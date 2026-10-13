@@ -37,7 +37,7 @@ const stages: Record<string, string> = {
 };
 
 export function stageLabel(stage: string | null): string {
-  return (stage && stages[stage]) || "Waiting for a recorded activity update";
+  return stage && Object.hasOwn(stages, stage) ? stages[stage] : "Waiting for a recorded activity update";
 }
 
 export function isTerminalJob(job: ConversationJob): boolean {
@@ -99,4 +99,20 @@ export function pollPause(
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) abort();
   });
+}
+
+/** Summarize actual events only; retries replace the stage status without inventing work. */
+export function activityStages(events: JobEvent[]): JobEvent[] {
+  const ordered = [...events].sort((a, b) => a.sequence - b.sequence);
+  const latest = new Map<string, JobEvent>();
+  for (const event of ordered) {
+    if (Object.hasOwn(stages, event.stage) && ["started", "completed", "failed", "cancelled"].includes(event.status))
+      latest.set(event.stage, event);
+  }
+  return [...latest.values()];
+}
+
+export function eventStatusLabel(status: string): string {
+  const labels: Record<string, string> = { started: "Started", completed: "Done", failed: "Failed", cancelled: "Cancelled" };
+  return Object.hasOwn(labels, status) ? labels[status] : "Status unavailable";
 }

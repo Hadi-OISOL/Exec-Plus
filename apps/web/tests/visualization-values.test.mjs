@@ -18,6 +18,7 @@ const javascript = ts.transpileModule(source, {
 }).outputText;
 const {
   exactCell,
+  displayMetric,
   plotNumber,
   chartEligible,
   plotPoints,
@@ -190,4 +191,16 @@ test("ranking categories compares decimal values exactly instead of rounding thr
   ]);
   assert.equal(compareExactNumeric("-0", "0"), 0);
   assert.equal(compareExactNumeric("0.00000000000000000000000000001", "0"), 1);
+});
+
+test("readable KPI grouping never rounds unsafe integers or invents missing values", () => {
+  for (const [source, expected] of [
+    ["9007199254740993.000001000", "9,007,199,254,740,993.000001"],
+    ["-123456789012345678901234567890.00000001", "-123,456,789,012,345,678,901,234,567,890.00000001"],
+    ["-0.000", "-0"], ["+1234.0500", "+1,234.05"], [0, "0"],
+    [null, "Missing"], [false, "false"], ["1e30", "1e30"], ["Revenue.00", "Revenue.00"],
+  ]) {
+    assert.equal(displayMetric(source), expected);
+    assert.equal(exactCell(source), source === null ? "Missing" : String(source));
+  }
 });

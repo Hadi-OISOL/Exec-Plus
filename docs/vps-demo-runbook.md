@@ -54,6 +54,21 @@ run `docker compose -f deploy/vps/compose.yaml up -d --no-deps web` from the sou
 directory. Restore the matching frontend source before a subsequent rebuild;
 do not downgrade database metadata for this presentation-only release.
 
+## October 13 dashboard and conversation refinement
+
+API/jobs/web now run the verified refinement on unchanged **0017**. Refresh the
+browser after deployment. Chart controls appear before the conversation; Simple
+progress shows real stages and Expert exposes recorded actions. **Find patterns**
+asks a source-specific follow-up; choosing a task continues the same private thread.
+No model, secret configuration, public port or production gate changed.
+
+Checkpoint: `releases/pre-polish-20261013/source`, API/web tags `pre-polish-20261013`.
+Checked backups: `20261013T121947Z` before release and `20261013T125517Z` afterward.
+Roll back matching source/images
+under the maintenance lock, keeping all new turns/choices/jobs/receipts; no database
+restore/downgrade is needed. See [verification](verification-interface-polish.md).
+
+
 ## October 13 guided onboarding release
 
 The private demo now includes optional guided review. Open the selected upload's

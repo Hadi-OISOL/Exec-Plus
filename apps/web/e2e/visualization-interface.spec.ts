@@ -40,6 +40,11 @@ test("chart and table exploration preserve exact values, gaps, source filters an
   await expect(discovery.locator(".discoveryValue").first()).toContainText(
     "-1.25",
   );
+  expect(await page.evaluate(() => {
+    const controls = [...document.querySelectorAll('summary')].find(e => e.textContent?.includes('Charts & dashboard controls'));
+    const chat = document.querySelector('.askPanel');
+    return Boolean(controls && chat && (controls.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING));
+  })).toBe(true);
   await page
     .locator("summary")
     .filter({ hasText: "Charts & dashboard controls" })
@@ -51,9 +56,17 @@ test("chart and table exploration preserve exact values, gaps, source filters an
   const trend = dashboard.locator('[data-visualization="Date trend"]');
   await expect(dashboard.locator('[data-visualization="Amount by Region"] .barButton').first()).toHaveCSS("display", "grid");
   await expect(trend.locator(".chartPoint")).toHaveCount(3);
+  await expect(discovery.locator('.discoveryValue').filter({ hasText: '9,007,199,254,740,993' }).first()).toBeVisible();
+  expect(await page.locator('.analyticsShell').evaluate(element => getComputedStyle(element).fontFamily.toLowerCase())).toContain('manrope');
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const fill = dashboard.locator('[class*="barFill"]').first();
+  expect(await fill.evaluate(element => getComputedStyle(element).animationName)).not.toBe('none');
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(fill).toHaveCSS('animation-name', 'none');
   await expect(trend.locator("polyline")).toHaveCount(2);
   await expect(trend).not.toContainText("__value");
   await expect(trend).toContainText("Missing values remain gaps");
+  await page.screenshot({ path: "../../data/interface-polish-20261013/local-charts.png", fullPage: true });
   await trend.getByRole("button", { name: "Table", exact: true }).click();
   const exact = trend.getByRole("region", {
     name: "Exact values for Date trend",

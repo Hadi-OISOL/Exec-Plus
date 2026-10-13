@@ -2,20 +2,20 @@
 What it does: Styles grouped navigation, question-led home, source context and data surfaces across screen sizes. */
 
 .analyticsShell.workbench {
-  --ink: #222b3d;
-  --muted: #667085;
-  --paper: #f6f7fb;
+  --ink: #16283f;
+  --muted: #62748a;
+  --paper: #f3f6fa;
   --surface: #ffffff;
   --line: #e4e7ef;
-  --green: #5147d9;
+  --green: #087f8c;
   --orange: #a65f17;
   grid-template-columns: 210px minmax(0, 1fr);
   background: var(--paper);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-product), system-ui, sans-serif;
   font-size: 14px;
 }
 .analyticsShell .workbenchRail {
-  background: #202b40;
+  background: #16283f;
   color: #c3cbda;
   padding: 0 0 20px;
   height: 100vh;
@@ -25,7 +25,7 @@ What it does: Styles grouped navigation, question-led home, source context and d
   height: 56px;
   min-height: 56px;
   padding: 0 18px;
-  background: #182133;
+  background: #112238;
   border-bottom: 1px solid #344056;
   font-size: 19px;
   letter-spacing: -.04em;
@@ -33,8 +33,8 @@ What it does: Styles grouped navigation, question-led home, source context and d
 .analyticsShell .workbenchRail .brandMark {
   width: 29px;
   height: 29px;
-  background: #b6b2ff;
-  color: #252060;
+  background: #8fe0d8;
+  color: #163e47;
   border-radius: 8px;
   font-size: 21px;
 }
@@ -60,7 +60,7 @@ What it does: Styles grouped navigation, question-led home, source context and d
 .analyticsShell .workbenchRail nav button svg { flex-shrink: 0; width: 17px; height: 17px; }
 .analyticsShell .workbenchRail nav button > span:first-of-type { display: inline; position: static; width: auto; height: auto; clip-path: none; overflow: visible; white-space: nowrap; }
 .analyticsShell .workbenchRail .brand > span:last-child { display: inline; }
-.analyticsShell .workbenchRail nav button[aria-current] { background: #344163; color: #c8c5ff; box-shadow: inset 3px 0 #a49dff; }
+.analyticsShell .workbenchRail nav button[aria-current] { background: #254252; color: #d1faf1; box-shadow: inset 3px 0 #63c7bd; }
 .analyticsShell .workbenchRail nav button:hover:not(:disabled) { background: #2c3954; filter: none; }
 .analyticsShell .railNote { margin: 24px 17px 0; padding: 16px 0 0; border-color: #3c4960; font-size: 10px; }
 .analyticsShell .railNote > svg { display: none; }
@@ -71,7 +71,7 @@ What it does: Styles grouped navigation, question-led home, source context and d
   min-width: 0;
   padding: 0 24px;
   color: #dbe0eb;
-  background: #182133;
+  background: #112238;
   border-bottom: 1px solid #344056;
   gap: 16px;
 }
@@ -93,20 +93,20 @@ What it does: Styles grouped navigation, question-led home, source context and d
 .analyticsShell .sessionBar { flex-wrap: nowrap; color: #ccd5e5; font-size: 10px; min-width: 0; }
 .analyticsShell .userIdentity { min-width: 0; gap: 7px; }
 .analyticsShell .userIdentity > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
-.analyticsShell .userAvatar { background: #5147d9; color: #fff; width: 26px; height: 26px; flex-shrink: 0; }
+.analyticsShell .userAvatar { background: #087f8c; color: #fff; width: 26px; height: 26px; flex-shrink: 0; }
 .analyticsShell .sessionBar button { color: #dbe0eb; white-space: nowrap; }
 .analyticsShell .workbenchContent { padding: 24px 28px 0; max-width: 1700px; }
 .analyticsShell .workspaceHeader { padding: 0 0 18px; gap: 16px; }
 .analyticsShell .workspaceHeader h1 { font-size: 24px; letter-spacing: -.04em; margin-bottom: 5px; }
 .analyticsShell .workspaceHeader .eyebrow { font-size: 9px; color: var(--muted); margin-bottom: 5px; }
 .analyticsShell .workspaceHeader p:last-child { font-size: 12px; }
-.analyticsShell .uploadShortcut { box-shadow: none; background: #5147d9; padding: 9px 13px; font-size: 12px; }
+.analyticsShell .uploadShortcut { box-shadow: none; background: #087f8c; padding: 9px 13px; font-size: 12px; }
 .analyticsShell button { border-radius: 6px; }
 .analyticsShell button:focus-visible,
 .analyticsShell input:focus-visible,
 .analyticsShell select:focus-visible,
 .analyticsShell textarea:focus-visible,
-.analyticsShell summary:focus-visible { outline: 3px solid #9390f6; outline-offset: 3px; }
+.analyticsShell summary:focus-visible { outline: 3px solid #087f8c; outline-offset: 3px; }
 .analyticsShell .datasetToolbar {
   border-radius: 7px;
   padding: 10px 15px;
@@ -146,10 +146,10 @@ What it does: Styles grouped navigation, question-led home, source context and d
 .analyticsShell .searchDataWorkspace .dashboardPanel > p { margin-top: 4px; }
 .analyticsShell .analyticsHome { margin: 0 0 28px; }
 .analyticsShell .homeWelcome { text-align: center; padding: 25px 10px 16px; background: radial-gradient(ellipse at center, #ededff80, transparent 68%); }
-.analyticsShell .homeAssistantMark { display: inline-grid; place-items: center; background: #e7e4ff; color: #6353c9; width: 44px; height: 44px; border-radius: 15px; margin-bottom: 13px; }
+.analyticsShell .homeAssistantMark { display: inline-grid; place-items: center; background: #e1f3f1; color: #087f8c; width: 44px; height: 44px; border-radius: 15px; margin-bottom: 13px; }
 .analyticsShell .homeWelcome h2 { font-size: clamp(21px, 2.3vw, 30px); letter-spacing: -.035em; font-weight: 600; margin: 0 0 8px; color: #30374c; }
 .analyticsShell .homeWelcome p { font-size: 12px; color: var(--muted); margin: 0; }
-.analyticsShell .homeComposer { width: min(690px, 100%); margin: 8px auto 0; padding: 14px 15px 10px; background: white; border: 1px solid #9990f5; border-radius: 12px; box-shadow: 0 4px 20px #7163db10; }
+.analyticsShell .homeComposer { width: min(690px, 100%); margin: 8px auto 0; padding: 14px 15px 10px; background: white; border: 1px solid #93bdbd; border-radius: 12px; box-shadow: 0 4px 20px #7163db10; }
 .analyticsShell .homeComposer > input { width: 100%; border: 0; padding: 8px 2px 18px; background: transparent; font-size: 14px; box-shadow: none; }
 .analyticsShell .homeComposer > input:focus { outline-offset: 1px; }
 .analyticsShell .homeComposerFooter { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -187,12 +187,12 @@ What it does: Styles grouped navigation, question-led home, source context and d
 .analyticsShell .discoveryValue { font-size: clamp(23px, 2.4vw, 35px); color: #253049; font-variant-numeric: tabular-nums; }
 .analyticsShell .discoveryChecks { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 16px; }
 .analyticsShell .discoveryBars .discoveryBarTrack span { background: #7564e0; }
-.analyticsShell .findingQuestion { color: #6554c9; }
+.analyticsShell .findingQuestion { color: #087f8c; }
 .analyticsShell .askPanel { position: static; padding: 0; border-radius: 9px; background: white; border: 1px solid var(--line); box-shadow: none; }
 .analyticsShell .chatHeader { padding: 17px 22px; border-bottom: 1px solid var(--line); }
 .analyticsShell .chatHeader h2 { font-size: 16px; }
 .analyticsShell .chatHeader > div > span { font-size: 11px; }
-.analyticsShell .assistantAvatar { color: #6554c9; background: #edeaff; border-radius: 50%; width: 34px; height: 34px; }
+.analyticsShell .assistantAvatar { color: #087f8c; background: #e1f3f1; border-radius: 50%; width: 34px; height: 34px; }
 .analyticsShell .chatHeader .quietButton { font-size: 11px; max-width: none; padding: 7px 9px; border: 1px solid var(--line); color: #637086; }
 .analyticsShell .chatSource { background: #fafbfe; padding: 10px 22px; font-size: 11px; }
 .analyticsShell .conversationLog { height: 560px; padding: 26px 26px; }
@@ -211,9 +211,9 @@ What it does: Styles grouped navigation, question-led home, source context and d
 .analyticsShell .askPanel .suggestionChips { flex-direction: row; flex-wrap: wrap; gap: 8px; }
 .analyticsShell .askPanel .suggestionChips button { font-size: 11px; padding: 9px 12px; border-color: var(--line); background: #fafbfe; color: #5e6384; }
 .analyticsShell .chatComposer { background: #fff; padding: 16px 22px; border-top: 1px solid var(--line); }
-.analyticsShell .chatComposer form { border-color: #a19ae8; border-radius: 10px; box-shadow: 0 3px 14px #6d56d70c; padding: 12px; }
+.analyticsShell .chatComposer form { border-color: #93bdbd; border-radius: 10px; box-shadow: 0 3px 14px #6d56d70c; padding: 12px; }
 .analyticsShell .chatComposer textarea { font-size: 13px; min-height: 44px; }
-.analyticsShell .chatComposer form button { background: #6250d5; border-radius: 50%; }
+.analyticsShell .chatComposer form button { background: #087f8c; border-radius: 50%; }
 .analyticsShell .chatComposer > small { font-size: 10px; color: var(--muted); }
 .analyticsShell .chatComposer .summaryAction { color: #716692; font-size: 11px; }
 .analyticsShell .answerCard { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 22px; }

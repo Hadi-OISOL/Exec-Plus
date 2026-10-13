@@ -15,6 +15,24 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 13 — Dashboard polish and focused conversation harness
+
+**Status:** Complete for the bounded local/test and private-demo refinement.
+Self-hosted typography, coherent palette, early chart controls, precise readable KPIs,
+finite/reduced-motion animation and real-stage progress retain calculation evidence.
+Broad goals ask a source-specific follow-up; choices continue the same private thread
+and stale source context blocks continuation. A calculation misrouted to overview asks
+for its actual measure while keeping the original request/filters. No model arithmetic
+or arbitrary agent program is added. See [audit](docs/interface-polish-gap-audit.md),
+[contract](docs/interface-polish.md) and [verification](docs/verification-interface-polish.md).
+
+Evidence: 979 distinct backend/architecture cases (978 full plus later recheck),
+19 frontend tests, all 38 browser journeys and successful builds. Eight deployed users
+pass 16 exact answers/replays, 56 private-thread denials and 24 layouts. Ordinary query
+receipts retain workspace-scoped access. API/jobs/web changed on unchanged 0017,
+with all data tables preserved. This does not complete Phase 4D/4E or commercial
+readiness; broad Phase 6 and all eight production gates stay unchanged.
+
 ## October 13 — Teammate guided onboarding integration
 
 **Status:** Complete for supported local/test and the private-demo frontend slice.

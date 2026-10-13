@@ -3,6 +3,7 @@ What it does: Renders deterministic KPI cards, a trend line, and a clickable cat
 breakdown that drills down into the underlying rows, each traceable to its lineage. */
 
 import { useEffect, useRef, useState } from "react";
+import { displayMetric } from "./visualization-values";
 import { AnswerVisualization } from "./answer-visualization";
 import styles from "./dashboard-presentation.module.css";
 import { Icon } from "./explore-components";
@@ -58,11 +59,6 @@ function label(name: string): string {
   return name.replaceAll("_", " ").replace(/^./, (char) => char.toUpperCase());
 }
 
-function formatValue(value: Cell): string {
-  return value === null
-    ? "No data"
-    : String(value).replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1");
-}
 
 function KpiCard({
   card,
@@ -77,7 +73,7 @@ function KpiCard({
   return (
     <article className="kpiCard">
       <span className="kpiLabel">{card.kpi?.name ?? label(card.metric)}</span>
-      <strong className="kpiValue">{formatValue(value)}</strong>
+      <strong className="kpiValue" data-long-value={displayMetric(value).length > 24} title={String(value ?? "Missing")}>{displayMetric(value)}</strong>
       <span className="kpiFootnote">
         {card.lineage.aggregation} · verified from{" "}
         {card.records_analyzed.toLocaleString()} records

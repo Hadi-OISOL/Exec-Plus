@@ -3,7 +3,15 @@ What it does: Applies global styling, metadata, and the root HTML structure. */
 
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import localFont from "next/font/local";
 import "./globals.css";
+
+const manrope = localFont({
+  src: "./fonts/Manrope-Variable.ttf",
+  variable: "--font-product",
+  weight: "200 800",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "ExecPlus",
@@ -16,7 +24,7 @@ type RootLayoutProps = Readonly<{
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en">
+    <html lang="en" className={manrope.variable}>
       <body>{children}</body>
     </html>
   );

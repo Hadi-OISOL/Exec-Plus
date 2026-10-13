@@ -424,6 +424,7 @@ class ThreadService:
                             "question": error.context.question,
                             "message": error.context.message[:1000],
                             "sources": list(error.context.sources),
+                            "choices": list(error.context.choices),
                         }
                     },
                 )

@@ -7,6 +7,13 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
+October 13 refines dashboard fonts, colours, chart controls, readable precise KPIs
+and conversation progress. Ask **Find patterns** for a focused follow-up, then choose
+a supported task from your actual file. Clear requests execute through the existing
+verified query engine; private thread context and source/version checks remain in force.
+See [the presentation/conversation contract](docs/interface-polish.md) and
+[verification](docs/verification-interface-polish.md). The private VPS is updated on 0017.
+
 October 13 adds optional **Guided data review** after upload and through **Review
 this upload step by step**. Preview your corrections, save notes privately or save
 shared meanings as a draft, then use the full editor for confirmation. This integrates

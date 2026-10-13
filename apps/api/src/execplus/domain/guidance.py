@@ -70,6 +70,38 @@ def guidance_focus(question: str) -> str:
     return "orientation"
 
 
+def needs_goal_clarification(question: str, previous_columns: tuple[str, ...] = ()) -> bool:
+    normalized = words(question)
+    broad = {
+        "analyze my data",
+        "analyse my data",
+        "analyze this dataset",
+        "analyse this dataset",
+        "analyze this",
+        "analyse this",
+        "show me insights",
+        "give me insights",
+        "help me explore",
+        "do analysis",
+        "do the analysis",
+        "analyze it",
+        "analyse it",
+        "find patterns",
+        "what do you notice",
+        "what can you tell me about this data",
+    }
+    unclear = {"", "what", "what do you mean", "i don t understand", "i dont understand"}
+    return normalized in broad or (normalized in unclear and not previous_columns)
+
+
+def goal_choices(context: DescriptionContext) -> tuple[str, ...]:
+    choices = list(suggested_exploration(context))
+    choices.append("Check data quality")
+    if context.view.columns:
+        choices.append(f"What does {context.view.columns[0].name} mean?")
+    return tuple(dict.fromkeys(choices))[:4]
+
+
 def guidance_selection(
     question: str, view: DatasetView, previous_columns: tuple[str, ...] = ()
 ) -> tuple[str, ...] | None:

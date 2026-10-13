@@ -7,6 +7,31 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+- October 13 dashboard/conversation refinement is Complete for local/test and the
+  private demo on unchanged **0017**. Read `docs/interface-polish-gap-audit.md`,
+  `docs/interface-polish.md` and `docs/verification-interface-polish.md`. Self-hosted
+  Manrope, navy/teal surfaces, grouped exact-value KPI presentation, early chart tools,
+  finite/reduced-motion animation and concise real-stage progress replace mixed styling
+  and duplicate event logs. Exact chart/table/source strings remain intact.
+- Broad goals now ask source-specific follow-ups. Persisted bounded choices continue
+  the same private thread; calculation fallback asks for a real measure while retaining
+  original operation/filters. Stale clarification blocks even deterministic choices.
+  No arbitrary agent code, auto-confirmation, model arithmetic or provider change.
+- Checks: 978 full backend cases plus final 102-case rechecks/one additional regression
+  give 979 distinct (eleven new); 19 frontend tests, all 38 browser journeys, Ruff/mypy,
+  types/lint and local/VPS builds pass. Eight users pass 16 exact numeric answers,
+  16 typed replays, 56 private-thread denials, 224 authorized ordinary-query controls,
+  24 layouts and zero browser errors in 85.161 seconds. Four old v1/v2 receipts replay.
+  This is functional evidence, not sustained load or production acceptance.
+- API/jobs/web changed, but all 46 prior data tables and migration metadata retain
+  hashes/counts. Checkpoint `pre-polish-20261013`; checked pre-backup `20261013T121947Z`.
+  Checked post-release backup `20261013T125517Z` retains new work with healthy restarts;
+  refresh/backup timers remain active. Ordinary query receipts remain workspace-scoped;
+  private threads and analysis
+  receipts retain their respective owner-only boundaries. Preserve all new saved work
+  on rollback. Current baseline is `4efb6da` on phase2; this turn made no commit/push.
+  Feature counts remain 37 Done /16 Partial /11 Not yet; all eight gates stay blocked.
+
 - October 13 teammate onboarding is integrated and verified for local/test and the
   private demo on unchanged **0017**. Read `docs/onboarding-merge-gap-audit.md`,
   `docs/onboarding-merge.md` and `docs/verification-onboarding-merge.md`. The original

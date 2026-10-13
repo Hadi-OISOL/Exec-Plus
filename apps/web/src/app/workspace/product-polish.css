@@ -1,0 +1,96 @@
+/* Use case: Refines the analytics canvas and truthful conversation progress.
+What it does: Applies shared type, palette, density and accessible finite motion across existing views. */
+.analyticsShell { -webkit-font-smoothing: antialiased; }
+.analyticsShell h1, .analyticsShell h2, .analyticsShell h3 { text-wrap: balance; }
+.analyticsShell button, .analyticsShell summary { touch-action: manipulation; }
+.analyticsShell button { transition: background-color 140ms, color 140ms, border-color 140ms; }
+.analyticsShell .workbenchContent { padding: 28px 32px 0; }
+.analyticsShell .workspaceHeader h1 { font-size: 27px; font-weight: 750; }
+.analyticsShell .railCaption { text-transform: none; letter-spacing: 0; font-size: 11px; color: #abbacb; }
+.analyticsShell .workbenchRail nav button { min-height: 40px; font-size: 12px; border-radius: 8px; }
+.analyticsShell .workbenchRail nav button[aria-current] { box-shadow: inset 3px 0 #63c7bd; }
+.analyticsShell .workbenchRail .brandMark { background: #9bddd5; }
+.analyticsShell .homeWelcome { background: none; }
+.analyticsShell .homeWelcome h2 { color: #16283f; font-weight: 750; }
+.analyticsShell .homeComposer { border-color: #93bdbd; box-shadow: 0 4px 18px #16283f08; }
+.analyticsShell .homeAssistantMark { background: #e1f3f1; color: #087f8c; }
+.analyticsShell .homeSourcePill { background: #eef3f6; color: #486276; }
+.analyticsShell .homeComposerFooter .homeSourceChange { color: #087f8c; }
+.analyticsShell .datasetToolbar { padding: 14px 18px; border-radius: 10px; }
+.analyticsShell .datasetToolbar label { font-size: 11px; }
+.analyticsShell .sourceStats { font-size: 11px; }
+.analyticsShell .sourceStats strong { font-size: 18px; color: #16283f; }
+.analyticsShell .panel, .analyticsShell .workspaceDisclosure { border-radius: 12px; }
+.analyticsShell .discoveryIntro { padding: 22px; background: white; border: 1px solid var(--line); border-radius: 12px; }
+.analyticsShell .discoveryTitle h2 { font-size: 21px; color: #16283f; margin: 0; }
+.analyticsShell .readingMark { color: #087f8c; background: #e1f3f1; }
+.analyticsShell .discoveryShape { margin: 16px 0; gap: 12px 28px; }
+.analyticsShell .discoveryShape strong { color: #16283f; font-size: 23px; }
+.analyticsShell .discoveryShape span { font-size: 12px; color: #62748a; }
+.analyticsShell .discoveryProvenance { margin-top: 14px; }
+.analyticsShell .discoveryProvenance summary { font-size: 12px; }
+.analyticsShell .discoveryMetricGroup { padding: 22px; border-radius: 12px; }
+.analyticsShell .discoveryMetricGroup h3 { color: #16283f; font-size: 18px; font-weight: 700; }
+.analyticsShell .findingEyebrow { color: #08736f; font-size: 11px; }
+.analyticsShell .discoveryMetricRange { gap: 20px; }
+.analyticsShell .discoveryMetric > span { font-size: 12px; color: #62748a; }
+.analyticsShell .discoveryValue, .analyticsShell .kpiValue { color: #16283f; font-weight: 750; font-size: clamp(22px, 2.4vw, 32px); line-height: 1.25; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+.analyticsShell .discoveryMetric { border-top: 1px solid #e8edf3; padding-top: 13px; }
+.analyticsShell .findingQuestion { color: #087f8c; font-size: 12px; }
+.analyticsShell .findingEvidence { font-size: 11px; }
+.analyticsShell .discoveryChatJump { background: #087f8c; }
+.analyticsShell .chatHeader { padding: 18px 22px; }
+.analyticsShell .assistantAvatar { color: #087f8c; background: #e1f3f1; }
+.analyticsShell .conversationLog { scrollbar-width: thin; scroll-behavior: smooth; }
+.analyticsShell .assistantMessage p { font-size: 14px; line-height: 1.65; max-width: 76ch; }
+.analyticsShell .userMessage { background: #edf3f6; }
+.analyticsShell .conversationTurn { padding-bottom: 22px; }
+.analyticsShell .messageAuthor { color: #344b62; font-size: 12px; }
+.analyticsShell .chatComposer form { border-color: #93bdbd; box-shadow: none; }
+.analyticsShell .chatComposer form:focus-within { border-color: #087f8c; outline: 2px solid #b7ddd9; }
+.analyticsShell .chatComposer .summaryAction { color: #087f8c; }
+.analyticsShell .askPanel .suggestionChips button { color: #35576b; background: #f5f8fa; font-size: 12px; }
+.analyticsShell .answerEvidence, .analyticsShell .saveQuestion { font-size: 12px; color: #62748a; }
+.analyticsShell .conversationActivity { background: #f4f9fa; border-color: #d6e9e9; padding: 14px 20px; font-size: 12px; }
+.analyticsShell .activityEyebrow { color: #62748a; font-size: 11px; }
+.analyticsShell .activityHeading p { font-size: 13px; font-weight: 650; color: #16283f; }
+.analyticsShell .activityIndicator { background: #087f8c; animation: activityPulse 1.5s ease-in-out 3; }
+@keyframes activityPulse { 50% { opacity: .35; transform: scale(.75); } }
+.activityStages { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 7px; }
+.activityStages li { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 8px; font-size: 12px; color: #486276; }
+.activityStageMark { display: grid; place-items: center; border-radius: 50%; background: #e1f3f1; color: #08736f; width: 20px; height: 20px; }
+.activityStages li[data-status="failed"] .activityStageMark { color: #924813; background: #fff0dc; }
+.activityStages .activityEventStatus { font-size: 11px; color: #62748a; }
+.analyticsShell .recordedActions summary { font-size: 11px; }
+.analyticsShell .homeWelcome { padding: 12px 10px; }
+.analyticsShell .homeQuickQuestions { margin-bottom: 18px; }
+.analyticsShell .homeLibraryEmpty { padding: 18px; }
+.analyticsShell .homeLibraryCard > header button { color: #087f8c; }
+.analyticsShell .homeItemIcon { color: #087f8c; background: #eaf3f3; }
+.analyticsShell .homeQuickQuestions button { font-size: 12px; color: #486276; }
+.analyticsShell .askPanel:not(:has(.conversationTurn)) .conversationLog { height: auto; min-height: 190px; max-height: 380px; }
+.analyticsShell .discoveryBars .discoveryBarTrack span { background: #087f8c; }
+.analyticsShell .discoveryBars .discoveryBarTrack span[class*="negative"] { background: #b86616; }
+@media (max-width: 700px) {
+ .analyticsShell .workbenchContent { padding: 18px 14px 0; }
+ .analyticsShell .discoveryIntro, .analyticsShell .discoveryMetricGroup { padding: 16px; }
+ .analyticsShell .workspaceHeader h1 { font-size: 22px; }
+ .analyticsShell .assistantMessage p { font-size: 13px; }
+ .analyticsShell .conversationActivity { padding: 12px 14px; }
+ .activityStages li { font-size: 11px; gap: 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .analyticsShell *, .analyticsShell *::before, .analyticsShell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+.analyticsShell .meaningState { display: inline-block; color: #62748a; font-size: 11px; margin-top: 8px; }
+.analyticsShell .discoveryMetricNote { color: #62748a; font-size: 11px; line-height: 1.6; margin: 14px 0 0; }
+.analyticsShell .discoveryMetricNote summary { cursor: pointer; }
+
+.analyticsShell .discoveryMetric[data-long-value="true"] { grid-column: 1 / -1; }
+.analyticsShell .discoveryMetric[data-long-value="true"] .discoveryValue,
+.analyticsShell .kpiValue[data-long-value="true"] { font-size: 19px; letter-spacing: -.015em; line-height: 1.45; }
+@media (max-width: 500px) {
+ .analyticsShell .discoveryMetric[data-long-value="true"] .discoveryValue,
+ .analyticsShell .kpiValue[data-long-value="true"] { font-size: 14px; }
+}

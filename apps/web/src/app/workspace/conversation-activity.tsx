@@ -1,7 +1,7 @@
 /* Use case: Makes real server work inspectable while a question is running.
 What it does: Displays recorded actions and confirmed states, with explicit cancellation and accessible updates. */
 
-import { jobHeadline, isTerminalJob, stageLabel } from "./conversation-job";
+import { jobHeadline, isTerminalJob, stageLabel, activityStages, eventStatusLabel } from "./conversation-job";
 import type { ConversationJob, JobEvent } from "./conversation-job";
 
 export function ConversationActivity({
@@ -20,6 +20,7 @@ export function ConversationActivity({
   onCancel?: () => void;
 }) {
   const terminal = isTerminalJob(job);
+  const stages = activityStages(events);
   const cancelling =
     cancelPending || job.cancel_requested || job.status === "cancelling";
   return (
@@ -61,13 +62,18 @@ export function ConversationActivity({
           {error}
         </p>
       )}
-      {!terminal && (
-        <p className="activityHint">
-          You can leave this view and resume from your private conversation
-          history.
-        </p>
+      {!expert && stages.length > 0 && (
+        <ol className="activityStages" aria-label="Recorded work stages">
+          {stages.slice(-4).map(event => (
+            <li key={event.stage} data-status={event.status}>
+              <span className="activityStageMark" aria-hidden="true">{event.status === "completed" ? "✓" : event.status === "failed" ? "!" : "•"}</span>
+              <span>{stageLabel(event.stage)}</span>
+              <span className="activityEventStatus">{eventStatusLabel(event.status)}</span>
+            </li>
+          ))}
+        </ol>
       )}
-      <details open={expert || !terminal} className="recordedActions">
+      <details open={expert} className="recordedActions">
         <summary>
           Recorded actions{events.length ? ` (${events.length})` : ""}
         </summary>
@@ -77,7 +83,7 @@ export function ConversationActivity({
             {events.map((event) => (
               <li key={event.sequence}>
                 <span>{stageLabel(event.stage)}</span>
-                <span className="activityEventStatus">{event.status}</span>
+                <span className="activityEventStatus">{eventStatusLabel(event.status)}</span>
                 <time dateTime={event.created_at}>
                   {new Date(event.created_at).toLocaleTimeString()}
                 </time>

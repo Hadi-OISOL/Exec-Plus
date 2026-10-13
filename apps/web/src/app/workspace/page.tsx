@@ -17,6 +17,7 @@ import { DiscoveryPanel } from "./discovery-panel";
 import type { StaffRole } from "./support-panel";
 import { AnalyticsHome } from "./analytics-home";
 import "./analytics-shell.css";
+import "./product-polish.css";
 
 const loadingView = () => <p role="status">Loading this view…</p>;
 const GuidedReview = dynamic(
@@ -1395,6 +1396,35 @@ export default function WorkspacePage() {
                         }}
                       />
                     )}
+                    <details
+                      className="workspaceDisclosure"
+                      hidden={section === "ask"}
+                      open={dashboardOpen}
+                      onToggle={(event) =>
+                        setDashboardOpen(event.currentTarget.open)
+                      }
+                    >
+                      <summary>
+                        <Icon name="overview" /> Charts & dashboard controls
+                        <span>
+                          Explore trends, filters, saved cards and next steps
+                        </span>
+                      </summary>
+                      {dashboardOpen && (
+                        <div className="expandedWorkspaceTools">
+                          <DashboardPanel
+                            key={`dashboard-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                          />
+                          <ActivationPanel
+                            key={`insights-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                          />
+                        </div>
+                      )}
+                    </details>
                     <div className="exploreLayout discoveryLayout">
                       <div className="insightCanvas" hidden={section === "ask"}>
                         <DiscoveryPanel
@@ -1451,35 +1481,6 @@ export default function WorkspacePage() {
                         </button>
                       </section>
                     )}
-                    <details
-                      className="workspaceDisclosure"
-                      hidden={section === "ask"}
-                      open={dashboardOpen}
-                      onToggle={(event) =>
-                        setDashboardOpen(event.currentTarget.open)
-                      }
-                    >
-                      <summary>
-                        <Icon name="overview" /> Charts & dashboard controls
-                        <span>
-                          Explore trends, filters, saved cards and next steps
-                        </span>
-                      </summary>
-                      {dashboardOpen && (
-                        <div className="expandedWorkspaceTools">
-                          <DashboardPanel
-                            key={`dashboard-${root}-${revisionTick}`}
-                            root={root}
-                            request={request}
-                          />
-                          <ActivationPanel
-                            key={`insights-${root}-${revisionTick}`}
-                            root={root}
-                            request={request}
-                          />
-                        </div>
-                      )}
-                    </details>
                     <details
                       ref={reviewDisclosure}
                       hidden={section === "ask"}

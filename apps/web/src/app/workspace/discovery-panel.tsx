@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { Icon } from "./explore-components";
 import { AnswerVisualization } from "./answer-visualization";
-import { compareExactNumeric } from "./visualization-values";
+import { compareExactNumeric, displayMetric } from "./visualization-values";
 import styles from "./dashboard-presentation.module.css";
 
 type Cell = string | number | boolean | null;
@@ -39,10 +39,6 @@ type Discovery = {
   limitations: string[];
 };
 
-function exact(value: Cell): string {
-  if (value === null) return "Missing";
-  return String(value).replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1");
-}
 
 function FindingEvidence({
   finding,
@@ -123,10 +119,10 @@ function MetricGroup({
       <h3>{findings[0].metric.replaceAll("_", " ")}</h3>
       <div className="discoveryMetricRange">
         {findings.map((finding) => (
-          <div className="discoveryMetric" key={finding.id}>
+          <div className="discoveryMetric" key={finding.id} data-long-value={displayMetric(finding.query.rows[0]?.[0] ?? null).length > 24}>
             <span>{labels[finding.aggregation] ?? finding.aggregation}</span>
-            <strong className="discoveryValue">
-              {exact(finding.query.rows[0]?.[0] ?? null)}
+            <strong className="discoveryValue" title={String(finding.query.rows[0]?.[0] ?? "Missing")}>
+              {displayMetric(finding.query.rows[0]?.[0] ?? null)}
             </strong>
             <button
               className="findingQuestion"
@@ -141,14 +137,11 @@ function MetricGroup({
           </div>
         ))}
       </div>
-      <p className="discoveryMetricNote">
-        {
-          (
-            findings.find((finding) => finding.aggregation === "avg") ??
-            findings[0]
-          ).text
-        }
-      </p>
+
+      <details className="discoveryMetricNote" open={expert}>
+        <summary>Metric notes & assumptions</summary>
+        <p>{(findings.find(finding => finding.aggregation === "avg") ?? findings[0]).text}</p>
+      </details>
     </article>
   );
 }
@@ -187,7 +180,6 @@ function FindingCard({
         chartLimit={8}
         chartClassName="discoveryBars"
       />
-      <p>{finding.text}</p>
       {rows.length > 8 && (
         <p>
           Top 8 of {rows.length} groups shown. All groups are available in the
@@ -326,11 +318,11 @@ export function DiscoveryPanel({
             <Icon name="sparkle" size={23} />
           </span>
           <div>
-            <p className="eyebrow">YOUR FIRST READING</p>
             <h2>Here’s what’s in your data</h2>
           </div>
         </div>
         <p className="discoveryFilename">{discovery.dataset_name}</p>
+        <span className="meaningState">{discovery.definition_state === "confirmed" ? "Confirmed meanings" : "Inferred meanings — not confirmed"}</span>
         <div className="discoveryShape" aria-label="File structure">
           <span>
             <strong>{discovery.shape.rows.toLocaleString()}</strong> rows
@@ -347,14 +339,12 @@ export function DiscoveryPanel({
             {discovery.shape.dimensions === 1 ? "category" : "categories"}
           </span>
         </div>
-        {discovery.summary.split("\n\n").map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
         <button className="discoveryChatJump" type="button" onClick={onChat}>
           <Icon name="chat" size={16} /> Ask about this file
         </button>
         <details className="discoveryProvenance" open={expert}>
           <summary>Source & interpretation</summary>
+          {discovery.summary.split("\n\n").map((paragraph, index) => <p key={index}>{paragraph}</p>)}
           <p>
             Structure comes from your file. Suggested business meanings remain
             tentative until reviewed.

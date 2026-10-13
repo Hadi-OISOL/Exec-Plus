@@ -362,3 +362,30 @@ test("switching files detaches old activity without cancelling or overwriting th
     await page.unroute(/\/jobs\/[^/?]+$/);
   }
 });
+
+
+test("a broad goal asks a source-specific follow-up and the chosen task executes in the same thread", async ({ page }) => {
+  await signIn(page, session());
+  await upload(page, "goal-example.csv");
+  const chat = page.getByRole("region", { name: "Ask a question", exact: true });
+  await chat.getByLabel("Your question", { exact: true }).fill("Find patterns");
+  await chat.getByRole("button", { name: "Ask", exact: true }).click();
+  const first = chat.locator(".conversationTurn").first();
+  const choices = first.getByRole("group", { name: "Clarify your request", exact: true });
+  await expect(choices).toBeVisible();
+  await expect(first).toContainText("What would you like to find");
+  await expect(first.locator(".verifiedBadge")).toHaveCount(0);
+  await expect(choices.getByRole("button", { name: "What is the total of amount?", exact: true })).toBeVisible();
+  await chat.getByLabel("Your question", { exact: true }).fill("??");
+  await chat.getByRole("button", { name: "Ask", exact: true }).click();
+  const second = chat.locator(".conversationTurn").nth(1);
+  await expect(second.getByRole("group", { name: "Clarify your request", exact: true })).toBeVisible();
+  await second.getByRole("button", { name: "What is the total of amount?", exact: true }).click();
+  await expect(chat.locator(".conversationTurn").last().locator(".kpiValue")).toHaveText("0.6");
+  await expect(chat.locator(".conversationTurn").last().locator(".verifiedBadge")).toBeVisible();
+  await expect(chat.locator(".conversationTurn")).toHaveCount(3);
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
+});

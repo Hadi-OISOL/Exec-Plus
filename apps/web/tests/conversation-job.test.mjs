@@ -23,6 +23,8 @@ const {
   pollPause,
   stageLabel,
   reconcileJob,
+  activityStages,
+  eventStatusLabel,
 } = await import(
   `data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`
 );
@@ -108,4 +110,23 @@ test("detaching immediately ends a pending poll delay without requesting server 
   await assert.rejects(pollPause(controller.signal, 60_000), {
     name: "AbortError",
   });
+});
+
+test("compact activity preserves retry outcomes without fabricating stages or leaking unknown text", () => {
+  const events = [
+    { sequence: 4, stage: "planning", status: "started" },
+    { sequence: 1, stage: "authorizing", status: "completed" },
+    { sequence: 2, stage: "planning", status: "started" },
+    { sequence: 3, stage: "planning", status: "failed" },
+    { sequence: 5, stage: "secret model reasoning", status: "completed" },
+    { sequence: 6, stage: "executing_query", status: "untrusted provider text" },
+  ];
+  assert.deepEqual(activityStages(events).map(e => [e.stage, e.status]), [["authorizing", "completed"], ["planning", "started"]]);
+  assert.deepEqual(activityStages([]), []);
+  assert.equal(events[0].sequence, 4);
+  assert.equal(eventStatusLabel("completed"), "Done");
+  assert.equal(eventStatusLabel("provider secret"), "Status unavailable");
+  assert.equal(eventStatusLabel("__proto__"), "Status unavailable");
+  assert.equal(stageLabel("toString"), "Waiting for a recorded activity update");
+  assert.equal(activityStages(events.slice(1,4)).at(-1).status, "failed");
 });

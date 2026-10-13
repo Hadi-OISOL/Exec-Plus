@@ -56,8 +56,8 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 .actions button:hover,
 .chartChoice button:hover,
 .pagination button:hover {
-  background: #edf2fb;
-  color: #254db5;
+  background: #e4f3f2;
+  color: #087f8c;
 }
 .segmented {
   display: flex;
@@ -70,7 +70,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 }
 .segmented button[aria-pressed="true"] {
   background: #fff;
-  color: #2455c8;
+  color: #087f8c;
   box-shadow: 0 1px 4px #172f5814;
 }
 .actions .expandButton {
@@ -85,8 +85,8 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   padding: 0 22px 4px;
 }
 .chartChoice button[aria-pressed="true"] {
-  color: #2455c8;
-  background: #edf3ff;
+  color: #087f8c;
+  background: #e4f3f2;
 }
 .plot {
   padding: 4px 22px 14px;
@@ -150,11 +150,13 @@ button.barRow:disabled {
   top: 0;
   height: 18px;
   border-radius: 0 3px 3px 0;
-  background: #507be6;
-  animation: none;
+  background: #087f8c;
+  transform-origin: left center;
+  animation: barReveal 420ms ease-out both;
 }
 .barTrack .negative {
-  background: #9d74d8;
+  transform-origin: right center;
+  background: #b86616;
   border-radius: 3px 0 0 3px;
 }
 .zeroLine {
@@ -187,13 +189,13 @@ button.barRow:disabled {
   stroke-width: 1;
 }
 .line {
-  stroke: #567ced;
+  stroke: #087f8c;
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .point {
-  fill: #567ced;
+  fill: #087f8c;
   stroke: white;
   stroke-width: 1.5;
 }
@@ -323,7 +325,7 @@ button.barRow:disabled {
 }
 .visualization button:focus-visible,
 .visualization [tabindex="0"]:focus-visible {
-  outline: 2px solid #365bca;
+  outline: 2px solid #087f8c;
   outline-offset: 3px;
 }
 .compact .header {
@@ -381,3 +383,11 @@ button.barRow:disabled {
   display: block;
   min-width: 0;
 }
+
+@keyframes barReveal { from { transform: scaleX(0); opacity: .3; } to { transform: scaleX(1); opacity: 1; } }
+.plot { animation: plotReveal 240ms ease-out; }
+@keyframes plotReveal { from { opacity: .25; } to { opacity: 1; } }
+.dialog { overscroll-behavior: contain; }
+.visualization button { touch-action: manipulation; }
+.header h3 { text-wrap: balance; }
+@media (prefers-reduced-motion: reduce) { .plot { animation: none; } }

@@ -105,7 +105,7 @@
       "section": "Month 1",
       "feature": "Descriptive dashboards",
       "status": "done",
-      "note": "Cards and charts offer table views, expansion and exact evidence. Saved dashboards retain their snapshots.",
+      "note": "Readable typography, chart/table/expand controls and finite motion retain exact evidence. Saved dashboards keep their snapshots.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/web/src/app/workspace/dashboard-panel.tsx",
@@ -113,11 +113,13 @@
         "apps/web/e2e/workspace.spec.ts",
         "apps/web/src/app/workspace/answer-visualization.tsx",
         "apps/web/e2e/visualization-interface.spec.ts",
-        "docs/verification-interface-redesign.md"
+        "docs/verification-interface-redesign.md",
+        "docs/verification-interface-polish.md"
       ],
       "evidence_groups": [
         "E2",
-        "E13"
+        "E13",
+        "E17"
       ]
     },
     {
@@ -125,15 +127,17 @@
       "section": "Month 1",
       "feature": "KPI cards and trend analysis",
       "status": "done",
-      "note": "Computes KPI cards and historical trends when matching columns exist. Basic forecasting is available separately.",
+      "note": "Precise grouped KPI display and observed trends use matching columns. Nulls/signs stay distinct; forecasting is separate.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/api/src/execplus/domain/semantics.py",
         "apps/api/tests/test_analytics_integration.py",
-        "apps/web/src/app/workspace/dashboard-panel.tsx"
+        "apps/web/src/app/workspace/dashboard-panel.tsx",
+        "docs/verification-interface-polish.md"
       ],
       "evidence_groups": [
-        "E2"
+        "E2",
+        "E17"
       ]
     },
     {
@@ -141,7 +145,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Ask-first chat handles totals, filters and follow-ups. Busy requests retain drafts; unclear questions are clarified.",
+      "note": "Clear questions execute validated queries. Broad goals ask source-specific follow-ups; choices retain context and source/version guards.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -149,11 +153,13 @@
         "docs/verification-data-partner.md",
         "apps/web/src/app/workspace/analytics-home.tsx",
         "apps/web/e2e/analytics-home.spec.ts",
-        "docs/verification-interface-redesign.md"
+        "docs/verification-interface-redesign.md",
+        "docs/verification-interface-polish.md"
       ],
       "evidence_groups": [
         "E2",
-        "E13"
+        "E13",
+        "E17"
       ]
     },
     {
@@ -1218,6 +1224,13 @@
         "docs/verification-onboarding-merge.md",
         "docs/onboarding-merge.md"
       ]
+    ],
+    "E17": [
+      "Presentation & conversation",
+      [
+        "docs/verification-interface-polish.md",
+        "docs/interface-polish.md"
+      ]
     ]
   },
   "section_intros": {
@@ -1351,8 +1364,8 @@
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "phase2 baseline: 639e28c. October 13 work is uncommitted; teammate onboarding integrated as files, no Git commit/push.",
-    "p25": "October 13: scenario evidence 968 backend cases; onboarding rechecks 67 cases, 17 frontend tests and 37 browser journeys. Eight VPS users pass private notes/drafts, 112 privacy checks and 24 layouts; four old receipts replay. Schema 0017. Demo only; gates blocked. [E15, E16]",
+    "p24": "phase2 baseline: 4efb6da. October 13 refinement is uncommitted; no commit/push.",
+    "p25": "October 13: 979 distinct backend cases (978 full + final rechecks), 19 frontend tests, 38 browser journeys. Eight VPS users: 16 exact answers/replays, 56 private-thread denials, 24 layouts. Schema 0017, demo only; gates blocked. [E17]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

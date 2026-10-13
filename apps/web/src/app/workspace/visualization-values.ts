@@ -13,6 +13,16 @@ export function exactCell(value: VisualizationCell | undefined): string {
   return value === null || value === undefined ? "Missing" : String(value);
 }
 
+/** Readable KPI presentation only; exactCell/table retain original scale and bytes. */
+export function displayMetric(value: VisualizationCell | undefined): string {
+  const raw = exactCell(value);
+  if (!/^[+-]?\d+(?:\.\d+)?$/.test(raw)) return raw;
+  const match = raw.match(/^([+-]?)(\d+)(?:\.(\d+))?$/)!;
+  const integer = match[2].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const fraction = (match[3] ?? "").replace(/0+$/, "");
+  return match[1] + integer + (fraction ? "." + fraction : "");
+}
+
 export function plotNumber(
   value: VisualizationCell | undefined,
 ): number | null {
