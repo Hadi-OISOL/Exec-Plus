@@ -23,6 +23,10 @@ const GuidedReview = dynamic(
   () => import("./guided-review").then(module => module.GuidedReview),
   { loading: loadingView },
 );
+const DataBriefReview = dynamic(
+  () => import("./data-brief-review").then(module => module.DataBriefReview),
+  { loading: loadingView },
+);
 const ActivationPanel = dynamic(
   () => import("./activation-panel").then((module) => module.ActivationPanel),
   { loading: loadingView },
@@ -114,6 +118,9 @@ export default function WorkspacePage() {
   const reviewDisclosure = useRef<HTMLDetailsElement>(null);
   const [revisionTick, setRevisionTick] = useState(0);
   const [guidedFor, setGuidedFor] = useState("");
+  const [briefFor, setBriefFor] = useState("");
+  const [briefManual, setBriefManual] = useState(false);
+  const skippedBriefs = useRef(new Set<string>());
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [staffRole, setStaffRole] = useState<StaffRole>(null);
@@ -219,6 +226,46 @@ export default function WorkspacePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  useEffect(() => {
+    if (!profileUpload || !user) return;
+    let seen = skippedBriefs.current.has(profileUpload);
+    try {
+      seen = seen || Boolean(window.localStorage.getItem(`execplus.brief.${profileUpload}`));
+    } catch {
+      seen = skippedBriefs.current.has(profileUpload);
+    }
+    if (seen) return;
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) setBriefFor(profileUpload);
+    });
+    return () => {
+      active = false;
+    };
+  }, [profileUpload, user]);
+
+  function closeBrief(changed: boolean, finished: boolean) {
+    if (finished) {
+      try {
+        window.localStorage.setItem(`execplus.brief.${profileUpload}`, "1");
+      } catch {
+        setGuidedFor("");
+      }
+    } else {
+      skippedBriefs.current.add(profileUpload);
+    }
+    setBriefFor("");
+    setBriefManual(false);
+    setGuidedFor("");
+    if (changed) setRevisionTick(value => value + 1);
+  }
+
+  function openBrief() {
+    setBriefManual(true);
+    setBriefFor(profileUpload);
+    setSection("overview");
   }
 
   useEffect(() => {
@@ -432,6 +479,7 @@ export default function WorkspacePage() {
       setUploads(await request<Upload[]>(prefix));
       setProfileUpload(stored.id);
       setGuidedFor(stored.id);
+      setBriefFor(stored.id);
       setReviewOpen(false);
       setDashboardOpen(false);
       setStarterQuestions([]);
@@ -511,6 +559,7 @@ export default function WorkspacePage() {
     workspace && dataset && profileUpload
       ? `/workspaces/${workspace.id}/datasets/${dataset}/uploads/${profileUpload}`
       : "";
+  const briefActive = Boolean(root && user && briefFor === profileUpload && !reviewOpen);
   const sections = [
     { id: "overview", name: "Overview", group: "INSIGHTS" },
     { id: "ask", name: "Ask ExecPlus", group: "INSIGHTS" },
@@ -1302,7 +1351,22 @@ export default function WorkspacePage() {
               </div>}
               {root ? (
                 <>
-                  {section === "overview" && <AnalyticsHome
+                  {["overview", "ask"].includes(section) && briefActive && user && (
+                    <DataBriefReview
+                      key={`brief-${user.id}-${root}`}
+                      root={root}
+                      request={request}
+                      manual={briefManual}
+                      onClose={closeBrief}
+                      onUnavailable={(reason) => {
+                        setBriefFor("");
+                        setBriefManual(false);
+                        if (reason || briefManual)
+                          setMessage(`${reason || "The data reading is unavailable right now."} The standard review is shown instead.`);
+                      }}
+                    />
+                  )}
+                  {section === "overview" && !briefActive && <AnalyticsHome
                     key={`home-${root}-${revisionTick}`}
                     root={root}
                     filename={selectedUpload?.filename ?? "Selected upload"}
@@ -1346,7 +1410,7 @@ export default function WorkspacePage() {
                       </p>
                     </div>
                   )}
-                  <div hidden={!["overview", "ask"].includes(section)} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
+                  <div hidden={!["overview", "ask"].includes(section) || briefActive} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
                     <div className="analysisViewControls">
                       <div>
                         <strong>Your data, your level of detail</strong>
@@ -1377,9 +1441,12 @@ export default function WorkspacePage() {
                       </fieldset>
                     </div>
                     {root && section === "overview" && !reviewOpen && guidedFor !== profileUpload && (
-                      <button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button>
+                      <>
+                        <button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button>
+                        <button type="button" disabled={busy} onClick={openBrief}>Check what ExecPlus understood</button>
+                      </>
                     )}
-                    {root && user && guidedFor === profileUpload && section === "overview" && !reviewOpen && (
+                    {root && user && guidedFor === profileUpload && briefFor !== profileUpload && section === "overview" && !reviewOpen && (
                       <GuidedReview
                         key={`guided-${user.id}-${root}-${revisionTick}`}
                         root={root}
@@ -1527,6 +1594,7 @@ export default function WorkspacePage() {
                       key={root}
                       root={root}
                       request={request}
+                      onUnderstand={openBrief}
                     />
                   )}
                   {section === "documents" && (

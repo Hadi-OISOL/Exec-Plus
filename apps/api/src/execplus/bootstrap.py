@@ -17,6 +17,7 @@ from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.artifacts import ArtifactService
 from execplus.application.services.catalog import CatalogService
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
+from execplus.application.services.data_brief import DataBriefService
 from execplus.application.services.decision_analysis import DecisionAnalysisService
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import ForecastService
@@ -51,7 +52,9 @@ from execplus.infrastructure.readiness import DatabaseProbe, StorageProbe
 from execplus.infrastructure.release_gate import require_production_evidence
 
 
-def build_language_model(settings: Settings) -> LanguageModel:
+def build_language_model(
+    settings: Settings, max_output_tokens: int | None = None, timeout_seconds: float = 60.0
+) -> LanguageModel:
     if settings.llm_mode == "disabled":
         return DisabledLanguageModel()
     return OpenAICompatibleLanguageModel(
@@ -60,7 +63,8 @@ def build_language_model(settings: Settings) -> LanguageModel:
         small_model=settings.llm_small_model,
         large_model=settings.llm_large_model,
         provider_name=settings.llm_mode,
-        max_output_tokens=settings.llm_max_output_tokens,
+        timeout_seconds=timeout_seconds,
+        max_output_tokens=max_output_tokens or settings.llm_max_output_tokens,
         reasoning_effort=settings.llm_reasoning_effort,
         json_mode=settings.llm_json_mode,
     )
@@ -181,6 +185,14 @@ def build_runtime(settings: Settings) -> "Runtime":
         operations,
         ProductUsageService(SQLUnitOfWork(engine), operations),
         DecisionAnalysisService(SQLUnitOfWork(engine), analytics),
+        DataBriefService(
+            SQLUnitOfWork(engine),
+            build_language_model(settings, settings.data_brief_max_output_tokens, 120.0),
+            storage,
+            parser,
+            settings.data_brief_sample_values,
+            settings.llm_mode != "disabled",
+        ),
     )
 
 
@@ -211,3 +223,4 @@ class Runtime:
     operations: OperationsService
     product_usage: ProductUsageService
     decision_analysis: DecisionAnalysisService
+    data_brief: DataBriefService

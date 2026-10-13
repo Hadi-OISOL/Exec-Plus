@@ -61,10 +61,12 @@ export function ProfilePanel({
   root,
   request,
   onRevisionChange,
+  onUnderstand,
 }: {
   root: string;
   request: ApiRequest;
   onRevisionChange?: () => void;
+  onUnderstand?: () => void;
 }) {
   const [active, setActive] = useState<Revision | null>(null);
   const [history, setHistory] = useState<Revision[]>([]);
@@ -140,6 +142,13 @@ export function ProfilePanel({
               columns
             </strong>
           </p>
+          {onUnderstand && (
+            <p>
+              <button type="button" onClick={onUnderstand}>
+                Check what ExecPlus understood about this data
+              </button>
+            </p>
+          )}
           <p className="qualityScore">
             Quality score: <strong>{active.profile.quality_score}/100</strong>
           </p>
