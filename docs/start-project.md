@@ -55,7 +55,37 @@ Use your assigned account's email. Copy the printed token directly into the app.
 
 **If the tunnel says “Address already in use”:** first try the app URL; your earlier tunnel may still be open. If it is not working, close your earlier tunnel with **Ctrl + C**, then run step 2 again. Do not stop an unrelated service using that port.
 
-Server maintenance/startup commands are in the [VPS runbook](vps-demo-runbook.md).
+### 5. Operator: start or restart all app services
+
+From your computer, connect once:
+
+```bash
+ssh administrator@173.208.151.137
+```
+
+Now run these inside the VPS terminal:
+
+```bash
+cd /sdb-disk/OISOL_ExecPLUS/source
+sudo flock /run/lock/execplus-maintenance.lock bash -c '
+  systemctl start execplus-model.service execplus-refresh.timer execplus-backup.timer &&
+  docker compose -f deploy/vps/compose.yaml stop api web jobs &&
+  docker compose -f deploy/vps/compose.yaml up -d postgres storage api web jobs
+'
+curl --retry 10 --retry-delay 2 --retry-connrefused -fsS \
+  http://127.0.0.1:18401/health/ready
+sudo docker compose -f deploy/vps/compose.yaml ps
+```
+
+`status: ready` and running API/web/jobs mean startup completed. This keeps the
+existing database/files and deployed images. The maintenance lock coordinates with
+backups/refresh. Current requests may be interrupted by an explicit restart.
+Do not run the SSH login again once you are already inside the VPS.
+
+Back on your own computer, open the connection from step 2 and visit the URL in
+step 3. To run the tunnel in the background instead, add `-f` to that SSH command.
+If the old tunnel still works, keep using it. Detailed server maintenance is in the
+[VPS runbook](vps-demo-runbook.md).
 
 ## B. Run on your own computer
 
