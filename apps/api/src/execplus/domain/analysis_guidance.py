@@ -5,7 +5,7 @@ What it does: Explains eligibility and offers setup actions without inventing in
 
 import re
 
-from execplus.domain.analysis_readiness import forecast_options
+from execplus.domain.analysis_readiness import fixed_unit_columns, forecast_options
 from execplus.domain.guidance import DescriptionContext, mentioned_columns, words
 
 
@@ -69,6 +69,16 @@ def analysis_guidance(
     named = [
         name for name in mentioned_columns(question, context.view) if name in context.view.metrics
     ]
+    eligible = {column["name"] for column in fixed_unit_columns(context)}
+    missing_units = [name for name in named if name not in eligible]
+    if missing_units or not eligible:
+        measure = ", ".join(missing_units) if missing_units else "a numeric measure"
+        return (
+            "Your saved meanings are in use. "
+            f"Confirm a fixed unit for {measure} before this analysis. "
+            "Other saved answers do not need to be repeated.",
+            (dict(tool="prepare", label="Complete missing details"),),
+        )
     action = dict(tool=tool, label=label)
     if len(named) == 1:
         action["metric"] = named[0]

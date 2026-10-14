@@ -190,3 +190,16 @@ def test_changed_upload_schema_keeps_existing_answers_but_requires_review(integr
     columns = {column["name"]: column for column in body["definition"]["columns"]}
     assert set(columns) == {"attock_erp", "new_measure"}
     assert columns["attock_erp"]["meaning"] == "Reviewed attock_erp"
+
+
+def test_named_measure_without_unit_does_not_fall_back_to_another_measure(integration):
+    env = integration
+    owner, _, root, path, model = setup(env)
+    definition = saved(env, owner, root)
+    current = context(env, owner, root)
+    definition["columns"][-1]["unit"] = ""
+    assert confirm(env, owner, root, current, definition).status_code == 201
+    result = ask(env, owner, path, "Find anomalies in attock_erp_value")["answer"]
+    assert "fixed unit for attock_erp_value" in result["message"]
+    assert result["guidance"]["actions"][0]["tool"] == "prepare"
+    assert not model.requests

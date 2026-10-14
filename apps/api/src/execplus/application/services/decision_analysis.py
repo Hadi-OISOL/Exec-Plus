@@ -20,6 +20,7 @@ from execplus.domain.analysis_extensions import (
     detect_segments,
 )
 from execplus.domain.analysis_queries import analysis_plan, scenario_coverage_plans
+from execplus.domain.analysis_readiness import fixed_unit_columns
 from execplus.domain.decision_analysis import (
     METHODS,
     AnalysisReview,
@@ -104,10 +105,7 @@ class DecisionAnalysisService:
         columns = definition.get("columns", [])
         metrics = [
             dict(name=c["name"], unit=c["currency"] or c["unit"])
-            for c in columns
-            if c["name"] in context.view.metrics
-            and (c["currency"] or c["unit"])
-            and not c["unit_column"]
+            for c in fixed_unit_columns(context)
         ]
         return dict(
             state="ready" if context.state == "confirmed" and metrics else "needs_review",

@@ -8,17 +8,22 @@ from typing import Any
 from execplus.domain.guidance import DescriptionContext
 
 
+def fixed_unit_columns(context: DescriptionContext) -> list[dict[str, Any]]:
+    return [
+        column
+        for column in (context.view.definition or {}).get("columns", [])
+        if column["name"] in context.view.metrics
+        and (column["currency"] or column["unit"])
+        and not column["unit_column"]
+    ]
+
+
 def forecast_options(context: DescriptionContext) -> dict[str, Any]:
     view = context.view
-    definitions = (view.definition or {}).get("columns", [])
     dates = [c.name for c in view.columns if c.type == "date" and c.name in view.dimensions]
     metrics = []
-    for column in definitions:
-        if column["name"] not in view.metrics:
-            continue
+    for column in fixed_unit_columns(context):
         unit = column["currency"] or column["unit"]
-        if not unit:
-            continue
         governed = next(
             (
                 m
