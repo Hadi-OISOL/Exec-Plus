@@ -1377,6 +1377,7 @@ export default function WorkspacePage() {
                     onAsk={askFromHome}
                     onSaved={(id) => { setSavedSelection({ root, id }); setSection("saved"); }}
                     onNavigate={navigate}
+                    onReview={reviewUnderstanding}
                   />}
                   {["overview", "forecasts"].includes(section) && (
                     <div className="analysisIntent">

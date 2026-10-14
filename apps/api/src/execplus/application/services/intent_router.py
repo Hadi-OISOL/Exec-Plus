@@ -20,12 +20,19 @@ from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.domain.analysis_guidance import analysis_guidance
 from execplus.domain.analysis_plan import conversation_plan
+from execplus.domain.dataset_reading import (
+    READING_PROMPT,
+    parse_reading,
+    reading_input,
+    render_reading,
+)
 from execplus.domain.errors import (
     ClarificationRequiredError,
     ProviderUnavailableError,
     QueryDataError,
     UnsafeQueryError,
     UnsupportedQuestionError,
+    UnverifiedAnswerError,
 )
 from execplus.domain.guidance import (
     DescriptionContext,
@@ -203,11 +210,82 @@ class IntentRouterService:
         analytics: AnalyticsService,
         selector: LanguageModel | None = None,
         documents: DocumentAnswerService | None = None,
+        interpretation_enabled: bool = False,
     ) -> None:
         self.model = model
         self.analytics = analytics
         self.selector = selector
         self.documents = documents
+        self.interpretation_enabled = interpretation_enabled
+
+    async def _reading_notes(
+        self, actor: User, wid: UUID, did: UUID, uid: UUID
+    ) -> list[dict[str, object]]:
+        if self.documents is None:
+            return []
+        try:
+            return await self.documents.knowledge.reading_context(actor, wid, did, uid)
+        except IngestionError as error:
+            raise ProviderUnavailableError(
+                "Saved reading notes could not be verified. Please retry."
+            ) from error
+
+    async def _interpret(
+        self,
+        actor: User,
+        wid: UUID,
+        did: UUID,
+        uid: UUID,
+        context: DescriptionContext,
+        question: str,
+    ) -> DatasetGuide:
+        notes = await self._reading_notes(actor, wid, did, uid)
+        await activity(JobStage.PLANNING, EventStatus.STARTED)
+        route = "deterministic:dataset-guidance-v1"
+        try:
+            await model_call()
+            response = await asyncio.wait_for(
+                self.model.complete(
+                    ModelRequest(
+                        messages=(
+                            ModelMessage("system", READING_PROMPT),
+                            ModelMessage("user", reading_input(context, notes, question)),
+                        ),
+                        tier=ModelTier.LARGE,
+                    )
+                ),
+                timeout=40,
+            )
+            reading = parse_reading(response.content, context)
+            message, suggestions = render_reading(context, reading, notes)
+            route = f"{response.provider}:{response.model}:dataset-reading-v1"
+        except (ProviderUnavailableError, UnverifiedAnswerError, TimeoutError, ValueError):
+            message, suggestions = explain_dataset(context, ())
+            message = (
+                "A fuller explanation is unavailable right now. "
+                "Here is the saved file information.\n\n" + message
+            )
+        await activity(JobStage.PLANNING, EventStatus.COMPLETED)
+        current = await self._describe(actor, wid, did, uid)
+        if (
+            current.view.sources != context.view.sources
+            or current.private_goal != context.private_goal
+            or await self._reading_notes(actor, wid, did, uid) != notes
+        ):
+            raise ClarificationRequiredError(
+                "Your file, saved meanings or notes changed while I was reading. Please ask again."
+            )
+        await asyncio.to_thread(
+            self.analytics.recheck_description, actor, wid, did, uid, context.view.sources
+        )
+        actions = (
+            ({"tool": "prepare", "label": "Complete missing details"},)
+            if "One thing to clarify\n" in message
+            else ()
+        )
+        return DatasetGuide(
+            message, route, (), suggestions, context.view.sources, context.state, actions=actions
+        )
 
     async def _describe(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> DescriptionContext:
         reading = asyncio.create_task(
@@ -376,6 +454,10 @@ class IntentRouterService:
                     description.view.sources,
                 )
             )
+            if self.interpretation_enabled and not selected and focus == "orientation":
+                return await self._interpret(
+                    actor, workspace_id, dataset_id, upload_id, description, question
+                )
             return self._guide(
                 description,
                 selected,

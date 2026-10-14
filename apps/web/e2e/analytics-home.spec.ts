@@ -33,6 +33,43 @@ async function navigate(page: Page, name: string) {
     .getByRole("button", { name, exact: true }).click();
 }
 
+test("analytics home shows saved meaning and a private goal with clear review and exploration actions", async ({ page }) => {
+  const { root, headers } = await start(page);
+  const original = await (await page.request.get(`${api}${root}/understanding`, { headers })).json();
+  const saved = await page.request.post(`${api}${root}/understanding`, {
+    headers,
+    data: {
+      revision_id: original.revision_id, expected_version: original.version, state: "confirmed",
+      definition: { ...original.definition, description: "Recorded sales by city, ready for regional comparisons.", grain: "record" },
+    },
+  });
+  expect(saved.ok()).toBe(true);
+  expect((await page.request.post(`${api}${root.split("/uploads/")[0]}/preferences`, {
+    headers, data: { domain_hint: "sales", goal: "Compare the amount recorded for each city." },
+  })).ok()).toBe(true);
+  await navigate(page, "Saved work");
+  await navigate(page, "Overview");
+  const context = page.getByRole("region", { name: "Saved context for this data", exact: true });
+  await expect(context.getByRole("heading", { name: "regional-sales.csv", exact: true })).toBeVisible();
+  await expect(context).toContainText("Recorded sales by city, ready for regional comparisons.");
+  await expect(context).toContainText("Definitions confirmed");
+  await expect(context).toContainText("Your goal · Private");
+  await expect(context).toContainText("Compare the amount recorded for each city.");
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(context.getByRole("button", { name: "Explore my goal", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
+  await context.getByRole("button", { name: "Review saved details", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main")).toHaveAttribute("data-section", "overview");
+  await expect(page.getByRole("region", { name: "Data understanding", exact: true })).toContainText("confirmed");
+  await navigate(page, "Overview");
+  await context.getByRole("button", { name: "Explore my goal", exact: true }).click();
+  await expect(page.locator("main")).toHaveAttribute("data-section", "ask");
+  await expect(page.locator(".userMessage").last()).toContainText("Analyze my data");
+});
+
 test("analytics home opens real saved evidence and mobile search preserves its selected source", async ({ page }) => {
   const { root, headers } = await start(page);
   const calculated = await page.request.post(`${api}${root}/query`, {

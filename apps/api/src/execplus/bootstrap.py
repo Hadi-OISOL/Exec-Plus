@@ -133,7 +133,11 @@ def build_runtime(settings: Settings) -> "Runtime":
     selector = build_selection_model(settings)
     knowledge = KnowledgeService(SQLUnitOfWork(engine), storage, ReferenceHybridRanker())
     intent_router = IntentRouterService(
-        model, analytics, selector, DocumentAnswerService(knowledge, model)
+        model,
+        analytics,
+        selector,
+        DocumentAnswerService(knowledge, model),
+        interpretation_enabled=settings.llm_mode != "disabled",
     )
     uploads = WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes)
     refresh = RefreshService(SQLUnitOfWork(engine), uploads, analytics)

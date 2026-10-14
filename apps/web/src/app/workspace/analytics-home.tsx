@@ -6,9 +6,14 @@ import { Icon } from "./explore-components";
 import type { ApiRequest } from "./profile-panel";
 
 type SavedItem = { id: string; name: string; kind: string; shared: boolean };
+type DataContext = {
+  state: string;
+  definition: { description: string };
+  preference: { goal: string };
+};
 
 export function AnalyticsHome({
-  root, filename, request, onAsk, onSaved, onNavigate,
+  root, filename, request, onAsk, onSaved, onNavigate, onReview,
 }: {
   root: string;
   filename: string;
@@ -16,11 +21,32 @@ export function AnalyticsHome({
   onAsk: (question: string) => void;
   onSaved: (id: string) => void;
   onNavigate: (section: string) => void;
+  onReview: () => void;
 }) {
   const [question, setQuestion] = useState("");
   const [items, setItems] = useState<SavedItem[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [context, setContext] = useState<{ root: string; value: DataContext } | null>(null);
+  const [contextError, setContextError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    request<DataContext>(`${root}/understanding`, { signal: controller.signal })
+      .then(value => {
+        if (!controller.signal.aborted) {
+          setContext({ root, value });
+          setContextError("");
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setContext(null);
+          setContextError("Your saved data context could not be loaded. Open Review & refine data understanding to try again.");
+        }
+      });
+    return () => controller.abort();
+  }, [root, request]);
+  const meaning = context?.root === root ? context.value : null;
   useEffect(() => {
     let controller: AbortController;
     function refresh() {
@@ -75,6 +101,21 @@ export function AnalyticsHome({
         </button>)}
         <button type="button" onClick={() => onNavigate("forecasts")}><Icon name="forecasts" size={14} />Explore forecasts</button>
       </div>
+      {meaning && (meaning.definition.description || meaning.preference.goal) ?
+        <section className="homeDataContext" aria-label="Saved context for this data">
+          <header>
+            <div><span className="homeContextEyebrow">Your data, in context</span><h3>{filename}</h3></div>
+            <span className="homeContextStatus">{meaning.state === "confirmed" ? "Definitions confirmed" : "Definitions need review"}</span>
+          </header>
+          {meaning.definition.description && <p className="homeContextDescription">{meaning.definition.description}</p>}
+          {meaning.state !== "confirmed" && <p className="homeContextNotice">This saved description is a draft. Review it before relying on it.</p>}
+          {meaning.preference.goal && <div className="homeContextGoal"><span>Your goal · Private</span><p>{meaning.preference.goal}</p></div>}
+          <div className="homeContextActions">
+            <button type="button" onClick={() => onAsk("Help me understand my data")}>Explain this data <Icon name="arrow" size={14} /></button>
+            {meaning.preference.goal && <button type="button" onClick={() => onAsk("Analyze my data")}>Explore my goal</button>}
+            <button type="button" onClick={onReview}>Review saved details</button>
+          </div>
+        </section> : contextError ? <p className="homeContextNotice" role="status">{contextError}</p> : null}
       <div className="homeLibraryGrid">
         <section className="homeLibraryCard" aria-label="Saved for this data">
           <header><h3>Saved for this data</h3><button type="button" onClick={() => onNavigate("saved")}>View all <Icon name="arrow" size={14} /></button></header>

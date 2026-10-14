@@ -162,6 +162,11 @@ def guidance_selection(
         "help me explore",
         "show me insights",
         "what is the structure of my data",
+        "what is this data about",
+        "what is my data about",
+        "what is this dataset about",
+        "read this data",
+        "read my data",
         "what issues are in my data",
         "are there any data quality issues",
     }:

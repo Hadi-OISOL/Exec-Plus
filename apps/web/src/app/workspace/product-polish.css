@@ -68,6 +68,30 @@ What it does: Applies shared type, palette, density and accessible finite motion
 .analyticsShell .homeLibraryCard > header button { color: #087f8c; }
 .analyticsShell .homeItemIcon { color: #087f8c; background: #eaf3f3; }
 .analyticsShell .homeQuickQuestions button { font-size: 12px; color: #486276; }
+.analyticsShell .homeDataContext { max-width: 1000px; margin: 0 auto 18px; padding: 22px; border: 1px solid #cde1e0; border-radius: 12px; background: linear-gradient(120deg, #f2faf9, #fff 65%); min-width: 0; }
+.analyticsShell .homeDataContext header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.analyticsShell .homeContextEyebrow { font-size: 11px; font-weight: 650; color: #08736f; }
+.analyticsShell .homeDataContext h3 { font-size: 18px; margin: 5px 0 0; color: #16283f; overflow-wrap: anywhere; }
+.analyticsShell .homeContextStatus { flex-shrink: 0; font-size: 11px; color: #486276; padding: 5px 8px; background: #eaf3f3; border-radius: 6px; }
+.analyticsShell .homeContextDescription { font-size: 14px; line-height: 1.7; color: #344b62; margin: 15px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.analyticsShell .homeContextNotice { color: #62748a; font-size: 12px; line-height: 1.6; }
+.analyticsShell .homeContextGoal { border-left: 2px solid #92c5c0; padding: 3px 0 3px 13px; margin: 16px 0; }
+.analyticsShell .homeContextGoal > span { color: #486276; font-size: 11px; font-weight: 650; }
+.analyticsShell .homeContextGoal p { color: #344b62; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0 0; }
+.analyticsShell .homeContextActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.analyticsShell .homeContextActions button { background: #fff; border: 1px solid #cde1e0; color: #08736f; font-size: 12px; padding: 9px 12px; }
+.analyticsShell .homeContextActions button:first-child { background: #087f8c; color: #fff; border-color: #087f8c; }
+.analyticsShell .dataExplanation { display: grid; gap: 12px; margin: 12px 0 16px; min-width: 0; }
+.analyticsShell .explanationCard { padding: 15px 18px; border: 1px solid #e1e9ee; border-radius: 10px; background: #fff; min-width: 0; }
+.analyticsShell .explanationCard[data-kind="meaning"] { background: #f1f9f8; border-color: #cde1e0; }
+.analyticsShell .explanationCard[data-kind="clarify"] { background: #fffbf3; border-color: #ead8b8; }
+.analyticsShell .explanationCard h3 { font-size: 13px; font-weight: 750; color: #344b62; margin: 0 0 7px; }
+.analyticsShell .explanationCard[data-kind="meaning"] h3 { color: #08736f; }
+.analyticsShell .explanationCard[data-kind="clarify"] h3 { color: #825318; }
+.analyticsShell .explanationCard p, .analyticsShell .explanationPlain, .analyticsShell .explanationContext p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.analyticsShell .explanationContext { color: #62748a; font-size: 12px; padding: 3px 0; }
+.analyticsShell .explanationContext summary { cursor: pointer; }
+.analyticsShell .explanationContext p { font-size: 12px; margin-top: 10px; }
 .analyticsShell .askPanel:not(:has(.conversationTurn)) .conversationLog { height: auto; min-height: 190px; max-height: 380px; }
 .analyticsShell .discoveryBars .discoveryBarTrack span { background: #087f8c; }
 .analyticsShell .discoveryBars .discoveryBarTrack span[class*="negative"] { background: #b86616; }
@@ -77,6 +101,9 @@ What it does: Applies shared type, palette, density and accessible finite motion
  .analyticsShell .workspaceHeader h1 { font-size: 22px; }
  .analyticsShell .assistantMessage p { font-size: 13px; }
  .analyticsShell .conversationActivity { padding: 12px 14px; }
+ .analyticsShell .homeDataContext { padding: 16px; }
+ .analyticsShell .homeDataContext header { flex-direction: column; gap: 10px; }
+ .analyticsShell .explanationCard { padding: 13px; }
  .activityStages li { font-size: 11px; gap: 5px; }
 }
 @media (prefers-reduced-motion: reduce) {

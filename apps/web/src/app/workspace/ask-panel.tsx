@@ -12,6 +12,7 @@ import type { ApiRequest } from "./profile-panel";
 import { ConversationEvidence } from "./conversation-evidence";
 import type { Citation } from "./conversation-evidence";
 import { ConversationActivity } from "./conversation-activity";
+import { DataExplanation } from "./data-explanation";
 import {
   isTerminalJob,
   mergeJobEvents,
@@ -410,8 +411,15 @@ export function AskPanel({
   }
 
   useEffect(() => {
-    if (conversation.current)
-      conversation.current.scrollTop = conversation.current.scrollHeight;
+    const log = conversation.current;
+    if (!log) return;
+    const reading = log.querySelector('.conversationTurn:last-of-type .explanationCard[data-kind="meaning"]');
+    if (reading && !pending) {
+      log.scrollTo({
+        top: Math.max(0, log.scrollTop + reading.getBoundingClientRect().top - log.getBoundingClientRect().top - 16),
+        behavior: "instant",
+      });
+    } else log.scrollTop = log.scrollHeight;
   }, [turns, pending]);
 
   async function ask(text: string, retry?: Turn) {
@@ -657,11 +665,7 @@ export function AskPanel({
               </span>
               {turn.answer?.guidance ? (
                 <div className="datasetGuidance" aria-label="Data explanation">
-                  {turn.answer.message
-                    ?.split("\n\n")
-                    .map((paragraph, index) => (
-                      <p key={index}>{paragraph}</p>
-                    ))}
+                  <DataExplanation message={turn.answer.message ?? ""} />
                   <div
                     className="suggestionChips"
                     aria-label="Explore this explanation"
