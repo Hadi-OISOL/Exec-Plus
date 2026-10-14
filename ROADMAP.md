@@ -15,6 +15,28 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 14 — Saved-context and meaning-first enhancement
+
+**Status:** Complete for the bounded local/test and private-demo enhancement.
+Reading now covers all fields and resumes missing details while preserving saved
+answers. Chat and analysis setup reuse current definitions, private goals and
+current-upload notes. Orientation explains purpose and conceptual field groups,
+with explicit uncertainty, supported follow-ups and no model calculations. Home
+shows saved context and private goals; explanation cards keep source details
+accessible. This improves existing features, not overall competitor parity.
+
+Release `e663a50` follows context repair `d40bc6d` on unchanged 0017. The repair has
+1,060 distinct backend passes across its full/final runs; the follow-on has 93
+selected backend/architecture passes, nine final reading rechecks, 22 frontend
+tests, four selected browser journeys and successful static/build checks. Two live
+hosted readings, including the reported farm file, pass private reopening and
+three layouts with unchanged source metadata. Interpretations remain fallible;
+one separate onboarding fixture safely falls back when the model derives a number.
+See [context evidence](docs/verification-context-reuse.md),
+[reading contract](docs/meaning-first-reading.md) and
+[live verification](docs/verification-meaning-first.md). Counts stay 37/16/11;
+all eight production gates remain blocked.
+
 ## October 14 — Authorized Partial analytics extension and branch integration
 
 **Status:** Complete for the bounded local/test and private-demo slice.

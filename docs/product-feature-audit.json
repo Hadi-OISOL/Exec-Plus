@@ -105,7 +105,7 @@
       "section": "Month 1",
       "feature": "Descriptive dashboards",
       "status": "done",
-      "note": "Readable typography, chart/table/expand controls and finite motion retain exact evidence. Saved dashboards keep their snapshots.",
+      "note": "Readable charts retain exact values. Home shows saved dataset purpose and the private goal; meaning-first explanations use short cards and accessible context details.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/web/src/app/workspace/dashboard-panel.tsx",
@@ -114,12 +114,15 @@
         "apps/web/src/app/workspace/answer-visualization.tsx",
         "apps/web/e2e/visualization-interface.spec.ts",
         "docs/verification-interface-redesign.md",
-        "docs/verification-interface-polish.md"
+        "docs/verification-interface-polish.md",
+        "docs/verification-context-reuse.md",
+        "docs/verification-meaning-first.md"
       ],
       "evidence_groups": [
         "E2",
         "E13",
-        "E17"
+        "E17",
+        "E19"
       ]
     },
     {
@@ -145,7 +148,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Clear questions execute validated queries. Broad goals ask source-specific follow-ups; choices retain context and source/version guards.",
+      "note": "Saved definitions, private goals and upload notes guide questions and qualitative explanations. Calculations still use validated queries; missing inputs and uncertain interpretation stay explicit.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -154,12 +157,15 @@
         "apps/web/src/app/workspace/analytics-home.tsx",
         "apps/web/e2e/analytics-home.spec.ts",
         "docs/verification-interface-redesign.md",
-        "docs/verification-interface-polish.md"
+        "docs/verification-interface-polish.md",
+        "docs/verification-context-reuse.md",
+        "docs/verification-meaning-first.md"
       ],
       "evidence_groups": [
         "E2",
         "E13",
-        "E17"
+        "E17",
+        "E19"
       ]
     },
     {
@@ -799,7 +805,7 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "partial",
-      "note": "Upload setup, samples and guided data review work. Notes default private; shared corrections require explicit drafts/full review. Customer signup and paid-plan onboarding remain absent.",
+      "note": "Guided reading covers all fields and resumes missing details without overwriting answers. Explicit confirmation is required; customer signup and paid-plan onboarding remain absent.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
@@ -807,12 +813,15 @@
         "apps/web/e2e/workspace.spec.ts",
         "apps/web/src/app/workspace/guided-review.tsx",
         "apps/web/e2e/guided-review.spec.ts",
-        "docs/verification-onboarding-merge.md"
+        "docs/verification-onboarding-merge.md",
+        "docs/verification-context-reuse.md",
+        "docs/verification-meaning-first.md"
       ],
       "roadmap": "Phase 5 commercial onboarding",
       "evidence_groups": [
         "E10",
-        "E16"
+        "E16",
+        "E19"
       ]
     },
     {
@@ -1253,6 +1262,14 @@
         "docs/verification-analysis-extensions.md",
         "docs/analysis-extensions.md"
       ]
+    ],
+    "E19": [
+      "Context reuse and meaning-first guidance",
+      [
+        "docs/verification-context-reuse.md",
+        "docs/verification-meaning-first.md",
+        "docs/meaning-first-reading.md"
+      ]
     ]
   },
   "section_intros": {
@@ -1369,7 +1386,7 @@
     "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
     "p06": "“Company registration” means software account signup, not legal incorporation.",
-    "p07": "Guided upload and optional column-review cards are tested. Private notes and shared drafts save separately; this is not automatic complete business understanding.",
+    "p07": "Guided reading preserves saved answers and asks for missing details. AI explanations reuse authorized context but remain fallible interpretations; calculations keep exact source evidence. Commercial signup is still unfinished.",
     "p08": "ExecPlus overlaps with parts of the upload → question → dashboard experience. It has not reached the connected-data breadth or commercial completeness of either target.",
     "p09": "This documents capabilities, not hands-on performance or percentage parity. Editions and setup differ. The comparison was reviewed on 5 October 2026; the separate October 6 interface-reference review is recorded in E13.",
     "p10": "Conversational analytics, AI dashboards and governed queries are shared capabilities, not proven unique advantages. Our strongest current demonstration is the combination of retained files, reviewed meanings, exact calculations, replayable answers, document citations and visible request activity. A shared evaluation would be needed to claim better quality or speed.",

@@ -78,6 +78,14 @@ library corrected the test. All failed logs/screenshots remain in the evidence
 folder. Live model reading of that twenty-column fixture is **not verified**;
 the local twenty-column review regression remains valid separately.
 
+A subsequent isolated, metadata-only reproduction identified a concrete rejection:
+the model described “18 integer factors”, deriving a column-group count that was
+not supplied as an allowed value. JSON and length were valid and the provider
+responded normally. The numeric guard correctly rejected that summary. This
+explains the reproduced fallback, although the earlier unretained replies cannot
+be proven identical. The guard was not weakened and no row data or source meanings
+were changed. Improving recovery from an invalid onboarding reply remains open.
+
 A clearer, fictional three-column daily fixture passed the live browser journey
 in **44.8 seconds** with hosted `deepseek-v4-pro`: reviewed every field, saved
 confirmed meanings with no remaining questions, and added a private current-upload

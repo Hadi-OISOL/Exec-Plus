@@ -3,6 +3,22 @@
 
 # ExecPlus Architecture
 
+## October 14 context reuse and meaning-first guidance
+
+Dataset orientation can use the configured primary model for a bounded qualitative
+reading of current definitions, field metadata, the actor's private goal and checked
+current-upload reading notes. Known-field/shape/text validation and current-context
+rechecks surround the call. This is interpretation, not numerical evidence or a
+semantic truth guarantee. Missing inputs lead to the existing explicit review;
+the model never mutates definitions or runs calculations. Unavailable or invalid
+output visibly falls back to saved information. Private conversation history retains
+the response and model route. See [contracts](../meaning-first-reading.md).
+
+The context repair also shares fixed-unit eligibility between chat and analysis
+setup, preserves selected measures, and resumes only missing review details.
+Home and explanation cards display existing context without new persistence or
+schema changes. Migration remains 0017; provider and network settings are unchanged.
+
 ## October 14 bounded analysis extensions
 
 Explicit optional inputs select new versions of grouped distribution checks,

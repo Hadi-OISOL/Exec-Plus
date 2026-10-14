@@ -36,6 +36,41 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 14 — Context reuse and meaning-first explanation
+
+- Personal `phase2` application commit `e663a50` is pushed and deployed on unchanged
+  0017, following `d40bc6d`. Read `docs/meaning-first-reading.md`,
+  `docs/verification-meaning-first.md`, `docs/verification-context-reuse.md` and
+  `docs/meaning-first-reference-audit.md` before extending. REA inspected public
+  ThoughtSpot examples/docs; no authenticated tenant or private backend was accessed.
+- Saved definitions, actor-private goals and checked current-upload notes feed
+  interpretation and planning. Missing review resumes without overwriting answers;
+  all columns are covered. A model reading is qualitative, fallible and source-bound,
+  never numerical evidence or an automatic shared definition. Missing units/dates
+  remain explicit. Complete missing details opens the existing review.
+- Home exposes saved purpose/private goal; short explanation cards keep context
+  accessible. The user's farm file now receives a soil/weather/crop/irrigation
+  explanation, an eligible rainfall question and a missing soil-moisture-unit
+  question. Its source metadata/answers are unchanged. Old saved replies remain
+  immutable: refresh and ask again to receive the enhanced reading.
+- Repair evidence: 1,060 distinct backend cases across full/final runs, 19 frontend
+  and nine selected browser journeys. Follow-on: 93 selected backend/architecture
+  cases plus nine final reading rechecks, 22 frontend tests, four browser journeys,
+  types/lint/Ruff/mypy (163 files)/builds. Two live hosted readings pass API/UI reopening,
+  1440/390/320 layouts and zero page errors in 60 seconds. These are functional checks, not
+  representative model-quality or sustained-load acceptance. A separate generic
+  onboarding fixture's derived-number reply is rejected and falls back safely.
+- All 47 control-plane fingerprint entries/config are preserved. Checkpoint
+  `pre-e663a50-20261014`; checked backups `20261014T121820Z` before and
+  `20261014T122102Z` after release. Services/model/timers healthy, zero application-container
+  restarts and six loopback listeners. Preserve new private turns and all saved
+  work on rollback. Providers/network/schema and production gates are unchanged.
+- Feature counts remain 37 Done / 16 Partial / 11 Not yet. Remaining work retains
+  exports/connectors, commercial identity/billing, operational acceptance and broader
+  methods. General model associations are suggestions, not measured causal effects
+  or more specific row-grain confirmation. No full ThoughtSpot parity is claimed.
+
+
 ### October 14 — Branch merge, bounded analytics extensions and working demo access
 
 - The user authorized starting Partial anomaly/scenario/recommendation work and
