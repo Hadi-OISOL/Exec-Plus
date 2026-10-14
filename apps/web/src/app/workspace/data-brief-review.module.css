@@ -1,0 +1,184 @@
+/* Use case: Styles the one-question-at-a-time reading of a new upload.
+What it does: Reuses the workspace colour tokens so the cards match the surrounding analytics interface. */
+
+.brief {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0 0 22px;
+  padding: 22px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px #1a234205;
+}
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.header h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.header p {
+  margin: 0;
+  color: var(--muted, #667085);
+  font-size: 13px;
+}
+.notice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--paper, #f6f7fb);
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 6px;
+  color: var(--muted, #667085);
+  font-size: 12px;
+}
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: var(--muted, #667085);
+  font-size: 12px;
+  font-weight: 600;
+}
+.track {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  background: var(--line, #e4e7ef);
+  border-radius: 99px;
+}
+.fill {
+  height: 100%;
+  background: var(--green, #5147d9);
+  border-radius: 99px;
+  transition: width 0.25s;
+}
+.question {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink, #222b3d);
+}
+.quote {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  background: var(--paper, #f6f7fb);
+  border-left: 3px solid var(--green, #5147d9);
+  border-radius: 4px;
+  color: var(--ink, #222b3d);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.caption {
+  margin: 8px 0 0;
+  color: var(--muted, #667085);
+  font-size: 11px;
+}
+.peek {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.peek li {
+  padding: 6px 10px;
+  background: var(--paper, #f6f7fb);
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 6px;
+  color: var(--muted, #667085);
+  font-size: 12px;
+}
+.choices,
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.nav {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line, #e4e7ef);
+}
+.spacer {
+  flex: 1;
+}
+.brief button.secondary {
+  background: #fff;
+  color: var(--ink, #222b3d);
+  border: 1px solid var(--line, #e4e7ef);
+}
+.brief button.link {
+  background: transparent;
+  color: var(--muted, #667085);
+  border: 0;
+  padding-inline: 8px;
+}
+.explain {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--paper, #f6f7fb);
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 8px;
+}
+.explain label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink, #222b3d);
+  font-size: 12px;
+  font-weight: 600;
+}
+.explain textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+.explain label.share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  color: var(--muted, #667085);
+}
+.summaryList {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink, #222b3d);
+  font-size: 13px;
+}
+.error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 13px;
+}
+.brief input,
+.brief select,
+.brief textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}
+@media (max-width: 640px) {
+  .brief {
+    padding: 18px;
+  }
+  .header {
+    flex-direction: column;
+  }
+}

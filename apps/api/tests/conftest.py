@@ -85,6 +85,7 @@ def integration():
     runtime.activation.analytics = runtime.analytics
     runtime.knowledge.uow = SQLUnitOfWork(engine)
     runtime.understanding.uow = SQLUnitOfWork(engine)
+    runtime.data_brief.uow = SQLUnitOfWork(engine)
     runtime.catalog.uow = SQLUnitOfWork(engine)
     runtime.artifacts.uow = SQLUnitOfWork(engine)
     runtime.studies.uow = SQLUnitOfWork(engine)
