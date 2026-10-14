@@ -3,6 +3,29 @@
 
 # ExecPlus Architecture
 
+## October 14 measured pattern exploration
+
+The existing private conversation pipeline supports a registered `explore_patterns`
+step backed by one governed projection receipt. `PatternService` applies confirmed
+roles/units and required filters, bounds complete populations to 10,000 rows, then
+uses a `PatternStatistics` port for pinned SciPy/NumPy coefficients. The domain
+retains Decimal normalization, ranks, group summaries, coverage and presentation
+rules. No model-written code, causal claims or inferred time order is permitted.
+Strong and weak descriptive comparisons are shown separately, with no forced
+finding. The source/engine/request/result are verified on private reopening.
+
+Current-source and accepted-refresh checks run before publication under the
+workspace lock. Failed publication clears unpublished thread evidence, and jobs
+retain the source-change failure reason. Pattern receipts remain owner-private
+and cannot become ordinary shared answers or aggregate follow-up context.
+
+Date-free forecasts offer measured patterns or explicit daily assumptions.
+`constant-daily-scenarios-v1` extends existing private scenarios with exact
+`baseline + daily_change * days` checkpoints, not a learned forecast. Existing
+method versions and schema 0017 remain compatible. See
+[contracts](../measured-patterns.md) and
+[reference/library evidence](../pattern-exploration-reference-audit.md).
+
 ## October 14 context reuse and meaning-first guidance
 
 Dataset orientation can use the configured primary model for a bounded qualitative

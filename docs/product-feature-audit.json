@@ -105,7 +105,7 @@
       "section": "Month 1",
       "feature": "Descriptive dashboards",
       "status": "done",
-      "note": "Readable charts retain exact values. Home shows saved dataset purpose and the private goal; meaning-first explanations use short cards and accessible context details.",
+      "note": "Readable charts and measured pattern cards show relationships, group differences and weak results with coverage/source details. Home retains saved purpose and private goals.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/web/src/app/workspace/dashboard-panel.tsx",
@@ -116,13 +116,16 @@
         "docs/verification-interface-redesign.md",
         "docs/verification-interface-polish.md",
         "docs/verification-context-reuse.md",
-        "docs/verification-meaning-first.md"
+        "docs/verification-meaning-first.md",
+        "docs/measured-patterns.md",
+        "docs/verification-measured-patterns.md"
       ],
       "evidence_groups": [
         "E2",
         "E13",
         "E17",
-        "E19"
+        "E19",
+        "E20"
       ]
     },
     {
@@ -148,7 +151,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Saved definitions, private goals and upload notes guide questions and qualitative explanations. Calculations still use validated queries; missing inputs and uncertain interpretation stay explicit.",
+      "note": "Saved meanings and private goals guide questions. Pattern requests run bounded measured comparisons with private replay; missing inputs and uncertain interpretation stay explicit.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -159,13 +162,16 @@
         "docs/verification-interface-redesign.md",
         "docs/verification-interface-polish.md",
         "docs/verification-context-reuse.md",
-        "docs/verification-meaning-first.md"
+        "docs/verification-meaning-first.md",
+        "docs/measured-patterns.md",
+        "docs/verification-measured-patterns.md"
       ],
       "evidence_groups": [
         "E2",
         "E13",
         "E17",
-        "E19"
+        "E19",
+        "E20"
       ]
     },
     {
@@ -566,18 +572,21 @@
       "section": "Growth-plan features",
       "feature": "Basic time-series forecasting",
       "status": "done",
-      "note": "Basic daily/monthly forecasts compare simple methods using complete history. Future values are estimates with heuristic error ranges; advanced predictive and prescriptive analytics remain unavailable.",
+      "note": "Daily/monthly forecasts use complete dated history. Without dates, users can inspect measured patterns or supply a daily assumption; a what-if is not a learned forecast.",
       "evidence": [
         "docs/verification-phase4c.md",
         "docs/phase4-forecasting.md",
         "apps/api/src/execplus/domain/forecasting.py",
         "apps/api/tests/test_forecasting.py",
         "apps/api/tests/test_forecast_integration.py",
-        "apps/web/e2e/forecasts.spec.ts"
+        "apps/web/e2e/forecasts.spec.ts",
+        "docs/measured-patterns.md",
+        "docs/verification-measured-patterns.md"
       ],
       "roadmap": "Phase 4C complete for verified local/test and private-demo scope",
       "evidence_groups": [
-        "E11"
+        "E11",
+        "E20"
       ]
     },
     {
@@ -968,7 +977,7 @@
       "section": "Integration with other Solutions",
       "feature": "Scenario planning",
       "status": "partial",
-      "note": "Private demo: up to three named percentage drivers combine against one governed baseline, with private replay and successors. Source-derived multi-measure models, demand response and uncertainty remain unfinished.",
+      "note": "Private scenarios combine explicit percentage drivers or a declared daily change over bounded days, with exact checkpoints, replay and successors. Learned dynamics, demand response and uncertainty remain unfinished.",
       "evidence": [
         "docs/scenario-planning.md",
         "docs/verification-scenario-planning.md",
@@ -977,12 +986,15 @@
         "docs/analysis-extensions.md",
         "docs/verification-analysis-extensions.md",
         "apps/api/tests/test_analysis_extensions_integration.py",
-        "apps/web/e2e/analysis-extensions.spec.ts"
+        "apps/web/e2e/analysis-extensions.spec.ts",
+        "docs/measured-patterns.md",
+        "docs/verification-measured-patterns.md"
       ],
       "roadmap": "October 14 bounded local/test and private-demo extension verified; broader Phase 6 remains Frozen",
       "evidence_groups": [
         "E15",
-        "E18"
+        "E18",
+        "E20"
       ]
     },
     {
@@ -1270,6 +1282,14 @@
         "docs/verification-meaning-first.md",
         "docs/meaning-first-reading.md"
       ]
+    ],
+    "E20": [
+      "Measured patterns and explicit daily assumptions",
+      [
+        "docs/verification-measured-patterns.md",
+        "docs/measured-patterns.md",
+        "docs/pattern-exploration-reference-audit.md"
+      ]
     ]
   },
   "section_intros": {
@@ -1381,12 +1401,12 @@
   ],
   "narrative": {
     "p01": "A working private analytics demo exists. Commercial launch requirements and broader integrations still need substantial work.",
-    "p02": "Governed CSV/Excel analytics, dashboards/chat, saved work, basic forecasts, refresh/alerts, audit, support/usage, unusual-value checks, budget decisions and conditional what-if comparisons.",
+    "p02": "Governed files, dashboards/chat, measured relationships, saved work, basic forecasts, refresh/alerts, audit, support/usage, unusual-value checks, budget decisions and explicit what-if comparisons.",
     "p03": "Customer self-signup and production login; PDF/Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
     "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
     "p06": "“Company registration” means software account signup, not legal incorporation.",
-    "p07": "Guided reading preserves saved answers and asks for missing details. AI explanations reuse authorized context but remain fallible interpretations; calculations keep exact source evidence. Commercial signup is still unfinished.",
+    "p07": "Guided reading preserves answers. Pattern requests calculate measured associations and show weak evidence honestly. AI explanations remain fallible; daily assumptions are not learned forecasts.",
     "p08": "ExecPlus overlaps with parts of the upload → question → dashboard experience. It has not reached the connected-data breadth or commercial completeness of either target.",
     "p09": "This documents capabilities, not hands-on performance or percentage parity. Editions and setup differ. The comparison was reviewed on 5 October 2026; the separate October 6 interface-reference review is recorded in E13.",
     "p10": "Conversational analytics, AI dashboards and governed queries are shared capabilities, not proven unique advantages. Our strongest current demonstration is the combination of retained files, reviewed meanings, exact calculations, replayable answers, document citations and visible request activity. A shared evaluation would be needed to claim better quality or speed.",

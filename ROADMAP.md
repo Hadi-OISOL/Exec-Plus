@@ -15,6 +15,25 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 14 — Measured pattern exploration and daily assumptions
+
+**Status:** Complete for the bounded local/test and private-demo enhancement.
+Pattern requests now compute supported numerical relationships, group differences
+and category associations, with readable charts, coverage, private evidence and
+separate weak comparisons. Saved goals/meanings are reused; missing units and
+unsupported row restrictions remain explicit. No-date forecasts offer these
+observations or a user-declared daily what-if with exact checkpoints.
+
+Application `e7e4b8c` runs on unchanged 0017. Evidence includes 1,152 distinct
+backend cases across full/final runs, 27 frontend tests, nine selected local
+browser journeys, three deployed journeys, static/build and clean-image checks.
+The actual farm file honestly reports no strong finding and two weak comparisons;
+old forecasts/scenarios still replay. See [contracts](docs/measured-patterns.md),
+[REA/library research](docs/pattern-exploration-reference-audit.md) and
+[verification](docs/verification-measured-patterns.md). These are bounded
+associations and assumptions, not learned predictive or causal models. Counts
+remain 37/16/11 and all eight production gates stay blocked.
+
 ## October 14 — Saved-context and meaning-first enhancement
 
 **Status:** Complete for the bounded local/test and private-demo enhancement.

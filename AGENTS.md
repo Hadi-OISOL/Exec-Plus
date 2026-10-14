@@ -36,6 +36,49 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 14 — Measured patterns and meaningful no-date alternatives
+
+- Application `e7e4b8c` is deployed on unchanged **0017**. Read
+  `docs/measured-patterns.md`, `docs/verification-measured-patterns.md` and
+  `docs/pattern-exploration-reference-audit.md`. REA inspected five public ThoughtSpot
+  documentation illustrations in a separate browser; no private backend/tenant
+  access or competitor code copying occurred.
+- “Find patterns” now computes Pearson/Spearman relationships, governed group means
+  and category associations using pinned SciPy 1.15.3/NumPy 2.2.6 behind a port.
+  Stronger findings and up to two weak comparisons have separate cards, charts,
+  coverage and exact evidence tables. No forced finding, p-value, causal conclusion
+  or learned prediction is claimed. Explicit non-average measures cannot silently
+  become group means; confirmed roles override name heuristics.
+- One private projection receipt supports replay and durable jobs. Confirmed units,
+  matching required filters, complete-population limits (10,000 rows; eight measures;
+  four categories), source/accepted-refresh checks and owner privacy remain enforced.
+  Unrecognized row restrictions clarify instead of silently broadening. Broad
+  analysis can reuse a private pattern goal. Source-change/cancellation publication
+  races clear unpublished evidence and preserve the appropriate failure reason.
+- No-date forecasts offer patterns or an explicit daily what-if. The user supplies
+  the daily change and one to 3,650 days. Exact checkpoints compute baseline + rate
+  × days; negative paths warn without clipping. This is an assumption, not a
+  time-series forecast. Old scenario methods and saved results remain compatible.
+- Evidence: 1,140 full backend/architecture passes plus 114 final targeted checks
+  yield **1,152 distinct**; 27 frontend tests, nine selected local browser journeys,
+  Ruff/mypy (169 files), types/lint and production builds pass. Network-disabled
+  non-root images pass eight pattern/daily computations and prior compute checks.
+  Three live journeys pass source preservation, nine privacy denials, authorized
+  controls, saved replay, old forecast/scenario compatibility and three layouts.
+  Retained initial failures were test harness/fixture errors; see the ledger.
+- The reported farm file yields **no strong pattern** and separately displays weak
+  category associations. Detailed user measurements remain in ignored evidence.
+  Do not guess missing units, invent a relationship or infer time
+  from row order. Further prediction requires a target, suitable examples and
+  representative held-out evaluation. All original user definitions remain intact.
+- All 47 activation table fingerprints/config match. Checkpoint
+  `pre-e7e4b8c-20261014`; checked pre-release backup `20261014T125237Z`.
+  Checked post-release backup `20261014T130023Z` preserves the live saved work.
+  Final runtime details are in the verification ledger. Six listeners
+  stay loopback, models and timers unchanged. Report retains all 64 IDs and
+  **37 Done / 16 Partial / 11 Not yet**; all eight production gates remain blocked.
+  Broader Phase 6 remains Frozen outside separately authorized bounded slices.
+
 ### October 14 — Context reuse and meaning-first explanation
 
 - Personal `phase2` application commit `e663a50` is pushed and deployed on unchanged
