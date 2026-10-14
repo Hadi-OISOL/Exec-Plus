@@ -179,6 +179,7 @@ def numerical_answer_body(
                 "suggestions": answer.suggestions,
                 "definition_state": answer.definition_state,
                 "focus": answer.focus,
+                "actions": answer.actions,
             },
             "sources": answer.sources,
         }

@@ -17,6 +17,7 @@ from uuid import UUID, uuid4
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
+from execplus.domain.analysis_readiness import forecast_options
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt, result_evidence, scalar_record
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
@@ -100,65 +101,7 @@ class ForecastService:
 
     async def options(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> dict[str, Any]:
         context = await read_complete(lambda: self.analytics.describe(actor, wid, did, uid))
-        view = context.view
-        definitions = (view.definition or {}).get("columns", [])
-        dates = [c.name for c in view.columns if c.type == "date" and c.name in view.dimensions]
-        metrics = []
-        for column in definitions:
-            if column["name"] not in view.metrics:
-                continue
-            unit = column["currency"] or column["unit"]
-            if not unit:
-                continue
-            governed = next(
-                (
-                    m
-                    for m in (view.definition or {}).get("metrics", [])
-                    if m["column"] == column["name"]
-                ),
-                None,
-            )
-            metrics.append(
-                dict(
-                    name=column["name"],
-                    unit=unit,
-                    aggregations=[governed["aggregation"]]
-                    if governed
-                    else ["sum", "avg", "min", "max", "count"],
-                )
-            )
-        source = view.sources[0]
-        limitations = [
-            "Basic daily/monthly statistical forecasts; no prescriptive recommendations.",
-            "Confirm units and complete period coverage. "
-            "Missing periods are never filled with zero.",
-            "At least 28 daily or 12 monthly periods are needed; "
-            "longer horizons need more history.",
-        ]
-        ready = context.state == "confirmed" and bool(source.get("understanding_id"))
-        if not ready:
-            limitations.insert(0, "Review and confirm Data understanding and measure units first.")
-        if not dates:
-            limitations.append(
-                "A complete date column is required; year/month components alone are insufficient."
-            )
-        if not metrics:
-            limitations.append("A confirmed numeric measure with an explicit unit is required.")
-        date_profile: dict[str, Any] = next(
-            (c for c in context.profile["columns"] if c["name"] in dates), {}
-        )
-        return dict(
-            state="needs_review" if not ready else "ready" if dates and metrics else "unsupported",
-            revision_id=source["revision_id"],
-            understanding_id=source.get("understanding_id"),
-            date_columns=dates,
-            metrics=metrics,
-            limitations=limitations,
-            defaults=dict(
-                coverage_start=date_profile.get("date_min"),
-                coverage_end=date_profile.get("date_max"),
-            ),
-        )
+        return forecast_options(context)
 
     def _current(self, actor: User, wid: UUID, did: UUID, uid: UUID, raw: dict[str, Any]) -> None:
         with self.uow() as repo:

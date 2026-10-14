@@ -178,7 +178,17 @@ class AnalyticsService:
             if source and view.sources != (source,):
                 raise IngestionError("lineage_mismatch", "The explanation source changed.", 409)
             member = self._authorize(repo, actor, workspace_id)
-            context = DescriptionContext(dataset.name, revision.profile, view, definition, state)
+            preference = (
+                repo.data_preference(workspace_id, dataset_id, actor.id) if not source else None
+            )
+            context = DescriptionContext(
+                dataset.name,
+                revision.profile,
+                view,
+                definition,
+                state,
+                preference.goal if preference else "",
+            )
             scope = WorkspaceScope(
                 workspace_id, actor.id, frozenset({member.role}), frozenset({dataset_id})
             )

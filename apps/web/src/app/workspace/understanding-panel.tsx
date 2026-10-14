@@ -85,10 +85,12 @@ export function UnderstandingPanel({
   root,
   request,
   onChange,
+  onReviewMissing,
 }: {
   root: string;
   request: ApiRequest;
   onChange: () => void;
+  onReviewMissing?: () => void;
 }) {
   const [context, setContext] = useState<Understanding | null>(null);
   const [definition, setDefinition] = useState<Definition | null>(null);
@@ -213,8 +215,9 @@ export function UnderstandingPanel({
     >
       <h2>Data understanding</h2>
       <p>
-        Review what a row and each field mean. Confirmed definitions are shared
-        with your workspace; your personal goal stays private.
+        {context?.state === "confirmed"
+          ? "Your saved answers are in use. Edit them only when something changes; missing details are listed separately."
+          : "Review what a row and each field mean. Confirmed definitions are shared with your workspace; your personal goal stays private."}
       </p>
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
@@ -237,17 +240,18 @@ export function UnderstandingPanel({
           {!!context.questions.length && (
             <details>
               <summary>
-                Questions worth reviewing ({context.questions.length})
+                Missing details ({context.questions.filter(question => question.trim()).length})
               </summary>
               <ul>
-                {context.questions.map((question) => (
+                {context.questions.filter(question => question.trim()).map((question) => (
                   <li key={question}>{question}</li>
                 ))}
               </ul>
             </details>
           )}
+          {context.state === "confirmed" && onReviewMissing && <button type="button" onClick={onReviewMissing}>Complete missing details</button>}
           <details open={context.state !== "confirmed"}>
-            <summary>Review business definitions</summary>
+            <summary>{context.state === "confirmed" ? "Edit saved definitions" : "Review business definitions"}</summary>
             <form
               onSubmit={(event) => {
                 event.preventDefault();

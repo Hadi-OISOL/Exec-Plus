@@ -190,6 +190,7 @@ class ThreadService:
             tuple(cast(list[dict[str, str]], turn.evidence["sources"])),
             str(body["definition_state"]),
             str(body.get("focus", "orientation")),
+            tuple(body.get("actions", ())),
         )
 
     def claim(
@@ -387,6 +388,7 @@ class ThreadService:
                         suggestions=list(answer.suggestions),
                         definition_state=answer.definition_state,
                         focus=answer.focus,
+                        actions=list(answer.actions),
                     ),
                     sources=list(answer.sources),
                 )

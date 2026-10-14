@@ -16,9 +16,10 @@ the planner already receives them as saved definitions on later questions.
    canvas are hidden, so the owner confirms meaning before asking questions. Skip for now
    always releases them. If the reading cannot load, nothing is hidden.
 2. Cards ask, in order: what the data is about, what one row represents, each column the model
-   was unsure about, other columns it described (ten at most), and up to three whole-data
+   was unsure about, every remaining source column, and up to three whole-data
    questions. Each card offers Yes, edit, Skip and Back.
-3. The review step saves on request. **Save as context** writes the confirmed definition
+3. The review step saves on request. A new review with skipped fields or unknown row meaning
+   stays a draft; reviewing a subset cannot confirm the entire file. **Save as context** writes the confirmed definition
    through `POST .../understanding`. Free-text answers are kept as one private Markdown
    note through `POST .../documents`; sharing the note is an explicit checkbox.
 4. **Skip for now** hides it only until the page is reloaded or the owner signs in again; it
@@ -26,7 +27,8 @@ the planner already receives them as saved definitions on later questions.
    reloaded. Finishing the review (Continue to my insights) stores a per-browser marker so it
    is not shown again for that upload. A confirmed upload never opens it automatically.
 5. **Check what ExecPlus understood** reopens it at any time, from Overview and from the
-   Prepare data panel. For an already confirmed upload it says so instead of asking again.
+   Prepare data panel. For an already confirmed upload it asks only about missing meanings or units, retaining
+   all other answers. A complete definition says it is already confirmed.
 
 If the model is disabled, unavailable or returns an unverifiable reply, or the request fails,
 the reading does not open and the existing **Guided data review** opens exactly as before.
@@ -36,7 +38,8 @@ the reading does not open and the existing **Guided data review** opens exactly 
 `POST /workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/data-brief`
 
 Authenticated members only. The call saves nothing except a private audit event
-`data_brief.drafted`. The response carries `source` (`model` or `profile`), `summary`,
+`data_brief.drafted`. `?review_missing=true` resumes missing details from saved definitions without another
+model call when the saved version belongs to this revision. The response carries `source` (`model` or `profile`), `summary`,
 `grain`, `columns` (name, type, role, meaning, unit, `uncertain`, `question`), `questions`,
 `model_route`, `notice`, and the current `revision_id`, `version`, `state`, `can_edit` and
 `definition` needed to save through the existing understanding endpoint.
@@ -73,8 +76,15 @@ configured model still fails, the screen says why and the standard guided review
 
 - Only the dataset creator or a workspace owner/admin can change the shared meaning; other
   members keep their answers as private notes.
-- Saving confirms the definition, which also makes it the active meaning for new calculations
-  and requires a known row meaning. Without one, only notes are saved.
+- Saving a fully reviewed definition confirms it for new calculations. Incomplete reviews
+  remain drafts with their answers retained. Unknown units remain explicit gaps; they do not
+  become invented units. Previously confirmed definitions stay editable.
 - One model call is made per unconfirmed upload when it is first shown, with the large tier
   and the configured output limit. Reading time depends on the provider.
-- No migration. Existing endpoints, receipts and the existing guided review are unchanged.
+- Planning now receives up to three integrity-checked passages from accessible reading
+  notes for the selected upload, newest first, plus the caller's private saved goal.
+  These are untrusted context and cannot override confirmed definitions or permissions.
+  Other supporting documents continue through explicit evidence retrieval.
+- Chat explains confirmed descriptions and can open forecast, anomaly, scenario or allocation
+  setup with an explicitly named measure. Setup still requires any missing user declarations.
+- No migration; existing exact receipts and the guided-review fallback remain supported.

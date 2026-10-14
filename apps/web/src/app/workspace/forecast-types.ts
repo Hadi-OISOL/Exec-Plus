@@ -121,6 +121,8 @@ export type ComparisonSummary = Pick<
   "id" | "forecast_id" | "created_at" | "upload_id"
 >;
 export type ForecastOptions = {
+  meaning_state?: string;
+  blockers?: { code: string; message: string }[];
   state: "ready" | "needs_review" | "unsupported";
   revision_id: string;
   understanding_id: string | null;

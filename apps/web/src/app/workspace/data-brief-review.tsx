@@ -32,6 +32,7 @@ type Brief = {
   grain: string;
   columns: BriefColumn[];
   questions: string[];
+  state: string;
   revision_id: string;
   version: number;
   can_edit: boolean;
@@ -41,6 +42,7 @@ type Brief = {
   notice: string;
   sampled: boolean;
   model_enabled: boolean;
+  review_mode?: "missing";
 };
 type Card = {
   id: string;
@@ -76,7 +78,6 @@ const grainNames: Record<string, string> = {
   survey_response: "A survey response",
   other: "Something else",
 };
-const maxColumnCards = 10;
 const maxRetries = 6;
 
 const post = (body: object): RequestInit => ({
@@ -90,7 +91,7 @@ function wait(milliseconds: number) {
 }
 
 function buildCards(brief: Brief): Card[] {
-  const cards: Card[] = [
+  const cards: Card[] = brief.review_mode === "missing" ? [] : [
     {
       id: "summary",
       kind: "summary",
@@ -111,11 +112,19 @@ function buildCards(brief: Brief): Card[] {
       openByDefault: brief.grain === "unknown",
     },
   ];
-  for (const column of brief.columns.slice(0, maxColumnCards)) {
+  if (brief.review_mode === "missing" && brief.grain === "unknown") cards.push({
+    id: "grain", kind: "grain", title: "What does one row in this file represent?",
+    facts: [], quote: "", openByDefault: true,
+  });
+  for (const column of brief.columns) {
+    const saved = brief.definition.columns.find(item => item.name === column.name);
+    const missingUnit = column.role === "metric" && !(column.unit || saved?.currency || saved?.unit_column);
     cards.push({
       id: `column:${column.name}`,
       kind: "column",
-      title: column.uncertain
+      title: missingUnit
+        ? `${column.question || `What unit does "${column.name}" use?`} Use "unitless" if it has no unit.`
+        : column.uncertain
         ? `I am not sure about "${column.name}". ${column.question}`
         : `I understood "${column.name}" as ${column.meaning || "a column I could not describe"}. Is that right?`,
       facts: [
@@ -125,7 +134,7 @@ function buildCards(brief: Brief): Card[] {
       ],
       quote: "",
       column,
-      openByDefault: column.uncertain || !column.meaning,
+      openByDefault: missingUnit || column.uncertain || !column.meaning,
     });
   }
   brief.questions.forEach((question, position) =>
@@ -210,7 +219,7 @@ export function DataBriefReview({
       let lastError = "Your file is still being prepared.";
       for (let attempt = 0; attempt < maxRetries; attempt += 1) {
         try {
-          const value = await request<Brief>(`${root}/data-brief`, {
+          const value = await request<Brief>(`${root}/data-brief${manual ? "?review_missing=true" : ""}`, {
             method: "POST",
             signal: controller.signal,
           });
@@ -220,16 +229,18 @@ export function DataBriefReview({
             else closeRef.current(false, true);
             return;
           }
-          if (value.source !== "model") {
+          if (value.source !== "model" && value.review_mode !== "missing") {
             unavailableRef.current(value.model_enabled ? value.notice : "");
             return;
           }
           const built = buildCards(value);
           setBrief(value);
           setCards(built);
-          setDraft(suggestion(value, built[0]));
-          setEditing(built[0].openByDefault);
-          setPhase("asking");
+          if (built.length) {
+            setDraft(suggestion(value, built[0]));
+            setEditing(built[0].openByDefault);
+          }
+          setPhase(built.length ? "asking" : "review");
           return;
         } catch (cause) {
           if (controller.signal.aborted) return;
@@ -274,12 +285,12 @@ export function DataBriefReview({
     const grainAnswer = answers.grain;
     const nextGrain = grainAnswer ? grainAnswer.grain : brief.definition.grain;
     const answered = Object.keys(answers).length;
-    if (answered && brief.can_edit) {
-      if (nextGrain === "unknown") {
-        done.push(
-          "Row meaning was not set, so the shared meaning was left unchanged. You can set it under Data understanding.",
-        );
-      } else {
+    const fullyReviewed = nextGrain !== "unknown" && (
+      brief.state === "confirmed" || (brief.review_mode === "missing"
+        ? brief.columns.every(column => Boolean(answers[`column:${column.name}`]))
+        : brief.definition.columns.every(column => Boolean(answers[`column:${column.name}`])))
+    );
+    if ((answered || brief.review_mode === "missing") && brief.can_edit) {
         const definition: Definition = {
           ...brief.definition,
           description: summaryAnswer?.text.trim()
@@ -292,7 +303,7 @@ export function DataBriefReview({
             return {
               ...column,
               role: reply.role || column.role,
-              unit: reply.unit.trim() || column.unit,
+              unit: reply.unit.trim(),
               meaning: reply.text.trim().slice(0, 200) || column.meaning,
             };
           }),
@@ -303,20 +314,21 @@ export function DataBriefReview({
             post({
               revision_id: brief.revision_id,
               expected_version: brief.version,
-              state: "confirmed",
+              state: fullyReviewed ? "confirmed" : "needs_review",
               definition,
             }),
           );
           didChange = true;
           done.push(
-            "Saved. This reading is now context for answers about this data.",
+            fullyReviewed
+              ? "Saved. This reading is now context for answers about this data."
+              : "Your answers are saved as a draft. Finish the skipped fields before confirming the whole dataset.",
           );
         } catch (cause) {
           done.push(
             `The shared meaning was not changed: ${cause instanceof Error ? cause.message : "the save failed."}`,
           );
         }
-      }
     } else if (answered) {
       done.push(
         "Only the dataset creator or a workspace owner/admin can change the shared meaning, so your answers were kept as notes.",
@@ -394,8 +406,8 @@ export function DataBriefReview({
     return (
       <section className={styles.brief} aria-label="Data reading">
         {heading(
-          "Thanks, that helps",
-          "Answers about this data will use what you confirmed.",
+          "Review save results",
+          "Check what was saved below, including anything that still needs review.",
         )}
         <ul className={styles.summaryList}>
           {results.map((item) => (
@@ -420,7 +432,7 @@ export function DataBriefReview({
         {heading(
           "Review before saving",
           brief.can_edit
-            ? "Saving confirms this reading as the shared meaning of this data and keeps your notes."
+            ? "Reviewed fields become shared meaning. Skipped fields keep a new review as a draft; your notes stay private unless you choose to share."
             : "You can save your notes. Only an owner or admin can change the shared meaning.",
         )}
         <ul className={styles.summaryList}>
@@ -478,9 +490,9 @@ export function DataBriefReview({
   );
   const canUse =
     card.kind === "grain"
-      ? true
+      ? draft.grain !== "unknown"
       : card.kind === "column"
-        ? Boolean(draft.text.trim() || draft.role !== card.column?.role || draft.unit.trim())
+        ? Boolean(draft.text.trim() || draft.role === "ignored")
         : Boolean(draft.text.trim());
 
   return (
@@ -519,7 +531,9 @@ export function DataBriefReview({
       {card.quote && <p className={styles.quote}>{card.quote}</p>}
       {card.kind !== "general" && (
         <p className={styles.caption}>
-          {brief.sampled
+          {brief.review_mode === "missing"
+            ? "Your previous answers are saved. Only missing meanings or units are shown here."
+            : brief.sampled
             ? "Suggested by the language model from your file's structure and a small sample of its values. Identifiers and personal columns are withheld."
             : "Suggested by the language model from your file's structure. It has not seen your row values."}
         </p>

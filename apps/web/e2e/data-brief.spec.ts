@@ -23,7 +23,7 @@ async function signIn(page: Page, person: ReturnType<typeof account>) {
 }
 
 async function modelReading(page: Page) {
-  await page.route("**/data-brief", async route => {
+  await page.route("**/data-brief*", async route => {
     const real = await (await route.fetch()).json();
     const meanings: Record<string, { meaning: string; question?: string }> = {
       order_id: { meaning: "Order number" },
@@ -42,8 +42,8 @@ async function modelReading(page: Page) {
   });
 }
 
-async function upload(page: Page, person: ReturnType<typeof account>) {
-  await page.getByLabel("CSV or Excel file").setInputFiles(file);
+async function upload(page: Page, person: ReturnType<typeof account>, source = file) {
+  await page.getByLabel("CSV or Excel file").setInputFiles(source);
   const created = page.waitForResponse(r => r.url().includes("/uploads?filename=") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   expect((await created).status()).toBe(201);
@@ -134,3 +134,60 @@ test("a skipped data reading can be reopened from the Prepare data panel", async
   await expect(panel.getByText("Question 1 of", { exact: false })).toBeVisible();
   await expect(page.locator("#chat-question")).toBeHidden();
 });
+
+for (const partial of [false, true]) {
+  test(`wide reading ${partial ? "retains skipped fields as a draft" : "saves every reviewed column and explains forecast limits"}`, async ({ page }) => {
+    test.setTimeout(180000);
+    const person = account();
+    const names = Array.from({ length: 20 }, (_, index) => `measure_${index}`);
+    await page.route("**/data-brief*", async route => {
+      const real = await (await route.fetch()).json();
+      if (real.already_confirmed || real.review_mode === "missing") return route.fulfill({ json: real });
+      await route.fulfill({ json: { ...real, source: "model", model_route: "test:canned", summary: "Reviewed fictional field observations.", grain: "record", questions: [], columns: real.columns.map((column: { name: string }) => ({ ...column, meaning: `Reviewed ${column.name}`, unit: "mm", uncertain: false, question: "" })) } });
+    });
+    await signIn(page, person);
+    const { get, root } = await upload(page, person, { name: "wide-fields.csv", mimeType: "text/csv", buffer: Buffer.from(names.join(",") + "\n" + names.map((_, i) => i + 1).join(",") + "\n") });
+    const reading = page.getByRole("region", { name: "Data reading", exact: true });
+    await expect(reading).toContainText("Question 1 of 22");
+    for (let i = 0; i < 22; i++) {
+      await reading.getByRole("button", { name: partial && i === 21 ? "Skip this question →" : "Yes, that's right", exact: true }).click();
+    }
+    await reading.getByRole("button", { name: "Save as context for this data", exact: true }).click();
+    await expect(reading.getByRole("button", { name: "Continue to my insights" })).toBeVisible();
+    const saved = await get(root + "/understanding");
+    expect(saved.state).toBe(partial ? "needs_review" : "confirmed");
+    expect(saved.definition.columns[18].meaning).toBe("Reviewed measure_18");
+    expect(saved.definition.columns[19].meaning).toBe(partial ? "" : "Reviewed measure_19");
+    await reading.getByRole("button", { name: "Continue to my insights" }).click();
+    if (partial) return;
+    await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Forecasts", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "This file has no timeline to forecast" })).toBeVisible();
+    await expect(page.getByText("Your saved data meanings are in use.", { exact: false })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review missing meanings or units" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Explore observed data", exact: true }).click();
+    await page.getByRole("button", { name: "Check what ExecPlus understood", exact: true }).click();
+    await expect(reading).toContainText("already confirmed");
+    await reading.getByRole("button", { name: "Close", exact: true }).click();
+    await page.locator("#chat-question").fill("Find anomalies in measure_19");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await page.getByRole("button", { name: "Inspect unusual values", exact: true }).click();
+    await expect(page.getByRole("combobox", { name: "Measure to inspect", exact: true })).toHaveValue("measure_19");
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Overview", exact: true }).click();
+    const definition = saved.definition;
+    definition.columns[19].unit = "";
+    expect((await page.request.post(api + root + "/understanding", { headers: person.headers, data: { revision_id: saved.revision_id, expected_version: saved.version, state: "confirmed", definition } })).status()).toBe(201);
+    await page.getByRole("button", { name: "Check what ExecPlus understood", exact: true }).click();
+    await expect(reading).toContainText("Question 1 of 1");
+    await expect(reading.getByRole("textbox", { name: "What does this column mean?", exact: true })).toHaveValue("Reviewed measure_19");
+    await reading.getByLabel("Unit, if you know it", { exact: true }).fill("mm");
+    await reading.getByRole("button", { name: "Use my answer", exact: true }).click();
+    await reading.getByRole("button", { name: "Save as context for this data", exact: true }).click();
+    await expect(reading.getByRole("button", { name: "Continue to my insights" })).toBeVisible();
+    expect((await get(root + "/understanding")).questions).toEqual([]);
+  });
+}

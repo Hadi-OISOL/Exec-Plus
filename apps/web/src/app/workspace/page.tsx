@@ -145,6 +145,7 @@ export default function WorkspacePage() {
   const [uploadDomain, setUploadDomain] = useState("auto");
   const [uploadGoal, setUploadGoal] = useState("");
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [toolSelection, setToolSelection] = useState<{root: string; tool: string; metric?: string} | null>(null);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
   const [expert, setExpert] = useState(false);
@@ -580,6 +581,7 @@ export default function WorkspacePage() {
     ...(staffRole ? [{ id: "admin", name: "Admin console", group: "MANAGE" }] : []),
   ];
   function navigate(next: string) {
+    setToolSelection(null);
     setSection(next);
     setMessage("");
     setError("");
@@ -1514,6 +1516,13 @@ export default function WorkspacePage() {
                         request={request}
                         filename={selectedUpload?.filename ?? "Selected upload"}
                         starterQuestions={starterQuestions}
+                        onTool={action => {
+                          setToolSelection({root, ...action});
+                          if (action.tool === "forecasts") setSection("forecasts");
+                          else if (["anomalies", "allocations", "scenarios"].includes(action.tool)) setSection("decisions");
+                          else if (action.tool === "prepare") openBrief();
+                          else if (action.tool === "overview") setSection("overview");
+                        }}
                         expert={expert}
                       />
                     </div>
@@ -1570,6 +1579,7 @@ export default function WorkspacePage() {
                             key={`understanding-${root}-${revisionTick}`}
                             root={root}
                             request={request}
+                            onReviewMissing={openBrief}
                             onChange={() =>
                               setRevisionTick((value) => value + 1)
                             }
@@ -1632,20 +1642,23 @@ export default function WorkspacePage() {
                   )}
                   {section === "forecasts" && (
                     <ForecastPanel
-                      key={`forecasts-${root}-${revisionTick}`}
+                      key={`forecasts-${root}-${revisionTick}-${toolSelection?.metric}`}
                       root={root}
                       filename={selectedUpload?.filename ?? "Selected upload"}
                       request={request}
                       onReview={reviewUnderstanding}
+                      initialMetric={toolSelection?.root === root ? toolSelection.metric : ""}
+                      onExplore={() => setSection("overview")}
                       onRefresh={() => setSection("refresh")}
                     />
                   )}
                   {section === "decisions" && (
                     <DecisionPanel
-                      key={`decisions-${root}-${revisionTick}-${analysisIntent}`}
+                      key={`decisions-${root}-${revisionTick}-${analysisIntent}-${toolSelection?.tool}-${toolSelection?.metric}`}
                       root={root}
                       request={request}
-                      initialMethod={analysisIntent === "prescriptive" ? "allocations" : "anomalies"}
+                      initialMethod={toolSelection?.root === root && ["anomalies", "allocations", "scenarios"].includes(toolSelection.tool) ? toolSelection.tool as "anomalies" | "allocations" | "scenarios" : analysisIntent === "prescriptive" ? "allocations" : "anomalies"}
+                      initialMetric={toolSelection?.root === root ? toolSelection.metric : ""}
                       onReview={reviewUnderstanding}
                     />
                   )}

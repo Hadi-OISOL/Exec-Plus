@@ -66,11 +66,20 @@ class DataBriefService:
             proposal = infer_definition(
                 revision.profile, preference.domain_hint if preference else "auto"
             )
+            definition = saved.definition if saved else proposal
+            if saved and saved.revision_id != revision.id:
+                previous = {column["name"]: column for column in saved.definition["columns"]}
+                definition = {
+                    **saved.definition,
+                    "columns": [
+                        previous.get(column["name"], column) for column in proposal["columns"]
+                    ],
+                }
             return dict(
                 upload=upload,
                 revision=revision,
                 saved=saved,
-                definition=saved.definition if saved else proposal,
+                definition=definition,
                 can_edit=member.role in {"owner", "admin"} or dataset.created_by == actor.id,
             )
 
@@ -90,14 +99,23 @@ class DataBriefService:
         return sample_values(table, definition, self.sample_limit)
 
     async def draft(
-        self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        review_missing: bool = False,
     ) -> dict[str, Any]:
         context = self._context(actor, workspace_id, dataset_id, upload_id)
         saved, revision = context["saved"], context["revision"]
         result: dict[str, Any] = dict(
             revision_id=str(revision.id),
             version=saved.version if saved else 0,
-            state=saved.state if saved else "inferred",
+            state="needs_review"
+            if saved and saved.revision_id != revision.id
+            else saved.state
+            if saved
+            else "inferred",
             can_edit=context["can_edit"],
             definition=context["definition"],
             already_confirmed=bool(
@@ -108,8 +126,28 @@ class DataBriefService:
             sampled=False,
             model_enabled=self.model_enabled,
         )
-        if result["already_confirmed"]:
+        if result["already_confirmed"] and not review_missing:
             return result
+        if review_missing and saved and saved.revision_id == revision.id:
+            definition = context["definition"]
+            missing = {
+                column["name"]
+                for column in definition["columns"]
+                if column["role"] != "ignored"
+                and (
+                    not column["meaning"]
+                    or (
+                        column["role"] == "metric"
+                        and not (column["unit"] or column["currency"] or column["unit_column"])
+                    )
+                )
+            }
+            if not missing and result["already_confirmed"]:
+                return result
+            brief = fallback_brief(revision.profile, definition)
+            brief["columns"] = [column for column in brief["columns"] if column["name"] in missing]
+            brief["questions"] = []
+            return {**result, **brief, "already_confirmed": False, "review_mode": "missing"}
         profile, definition = revision.profile, context["definition"]
         samples = await asyncio.to_thread(self._sample, context["upload"], revision, definition)
         try:

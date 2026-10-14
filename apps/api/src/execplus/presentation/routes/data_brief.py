@@ -24,6 +24,11 @@ Service = Annotated[DataBriefService, Depends(service)]
 
 @router.post("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/data-brief")
 async def draft(
-    workspace_id: UUID, dataset_id: UUID, upload_id: UUID, actor: Actor, service: Service
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    actor: Actor,
+    service: Service,
+    review_missing: bool = False,
 ) -> object:
-    return await service.draft(actor, workspace_id, dataset_id, upload_id)
+    return await service.draft(actor, workspace_id, dataset_id, upload_id, review_missing)

@@ -25,12 +25,16 @@ export function ForecastPanel({
   request,
   onReview,
   onRefresh,
+  onExplore,
+  initialMetric = "",
 }: {
   root: string;
   filename: string;
   request: ApiRequest;
   onReview: () => void;
   onRefresh: () => void;
+  onExplore?: () => void;
+  initialMetric?: string;
 }) {
   const datasetRoot = root.split("/uploads/")[0];
   const uploadId = root.split("/uploads/")[1];
@@ -48,7 +52,7 @@ export function ForecastPanel({
   const [pending, setPending] = useState("");
   const [name, setName] = useState("");
   const [time, setTime] = useState("");
-  const [metric, setMetric] = useState("");
+  const [metric, setMetric] = useState(initialMetric);
   const [aggregation, setAggregation] = useState("");
   const [frequency, setFrequency] = useState<"daily" | "monthly">("monthly");
   const [horizon, setHorizon] = useState(3);
@@ -221,7 +225,8 @@ export function ForecastPanel({
         {loading && <p role="status">Checking forecast eligibility…</p>}
         {options && (
           <>
-            {options.limitations.length > 0 && (
+            {options.meaning_state === "confirmed" && <p role="status">Your saved data meanings are in use. You do not need to answer the same questions again.</p>}
+            {ready && options.limitations.length > 0 && (
               <ul className="studyLimitations">
                 {options.limitations.map((text) => (
                   <li key={text}>{text}</li>
@@ -233,16 +238,16 @@ export function ForecastPanel({
                 <h3>
                   {options.state === "needs_review"
                     ? "Review meanings before forecasting"
-                    : "This source is not ready for a time-series forecast"}
+                    : options.date_columns.length === 0 ? "This file has no timeline to forecast" : "A forecast needs a measure with a confirmed unit"}
                 </h3>
-                <p>
-                  Forecasts need a confirmed date column, an eligible metric
-                  with a declared unit and enough consecutive complete periods.
-                  Descriptive exploration remains available.
-                </p>
-                <button type="button" onClick={onReview}>
-                  Review data meanings
-                </button>
+                <ul>
+                  {(options.blockers ?? [{ code: "legacy", message: "Confirm a date column and a measure with a fixed unit before forecasting." }]).map(item => <li key={item.code}>{item.message}</li>)}
+                </ul>
+                {onExplore && <button type="button" onClick={onExplore}>Explore observed data</button>}
+                {(options.state === "needs_review" || options.blockers?.some(item => item.code === "metric")) && <button type="button" onClick={onReview}>
+                  {options.state === "needs_review" ? "Review data meanings" : "Review missing meanings or units"}
+                </button>}
+
               </div>
             )}
             {ready && (

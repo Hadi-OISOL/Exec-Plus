@@ -48,6 +48,7 @@ type Answer = {
     columns: string[];
     suggestions: string[];
     definition_state: string;
+    actions?: { tool: string; label: string; metric?: string }[];
   };
   sources?: { revision_id: string; understanding_id?: string }[];
 };
@@ -108,6 +109,7 @@ export function AskPanel({
   filename,
   starterQuestions = [],
   expert = false,
+  onTool,
   ref,
 }: {
   root: string;
@@ -115,6 +117,7 @@ export function AskPanel({
   filename: string;
   starterQuestions?: string[];
   expert?: boolean;
+  onTool?: (action: { tool: string; metric?: string }) => void;
   ref?: Ref<ChatHandle>;
 }) {
   const [threadId, setThreadId] = useState("");
@@ -663,6 +666,7 @@ export function AskPanel({
                     className="suggestionChips"
                     aria-label="Explore this explanation"
                   >
+                    {onTool && turn.answer.guidance.actions?.map(action => <button key={action.tool} type="button" disabled={busy} onClick={() => onTool(action)}>{action.label}</button>)}
                     {turn.answer.guidance.suggestions.map((suggestion) => (
                       <button
                         key={suggestion}

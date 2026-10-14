@@ -186,7 +186,7 @@ def _column_rows(
                 name=name,
                 type=column["type"],
                 role=role,
-                meaning=reply.get("meaning", ""),
+                meaning=reply.get("meaning", inferred[name]["meaning"]),
                 unit=reply.get("unit") or inferred[name]["unit"],
                 uncertain=bool(reply.get("uncertain")),
                 question=reply.get("question", ""),

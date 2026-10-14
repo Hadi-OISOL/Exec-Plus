@@ -29,6 +29,7 @@ class DescriptionContext:
     view: DatasetView
     definition: dict[str, Any] | None
     state: str
+    private_goal: str = ""
 
 
 def words(text: str) -> str:
@@ -368,6 +369,15 @@ def explain_dataset(
         f"Let's look at your selected file: {context.name}.",
         f"It contains {profile['row_count']} rows and {profile['column_count']} columns.",
     ]
+    if context.state == "confirmed" and context.definition:
+        paragraphs.append("Saved description: " + context.definition["description"])
+        known = [column for column in context.definition["columns"] if column["meaning"]]
+        if known:
+            paragraphs.append(
+                "Saved field meanings: "
+                + "; ".join(f"{column['name']}: {column['meaning']}" for column in known[:4])
+                + "."
+            )
     identifiers = [
         column.name
         for column in view.columns
@@ -388,8 +398,12 @@ def explain_dataset(
         paragraphs.append(
             "Possible record identifiers: "
             + ", ".join(identifiers[:3])
-            + ". Their names suggest identifiers; uniqueness and what one row "
-            "represents still need review."
+            + (
+                ". I am using your saved row meaning."
+                if context.state == "confirmed"
+                else ". Their names suggest identifiers; uniqueness and what one row "
+                "represents still need review."
+            )
         )
     if dimensions:
         paragraphs.append(
@@ -407,7 +421,12 @@ def explain_dataset(
         paragraphs.append(
             "Numeric fields available to explore: "
             + ", ".join(metrics[:3])
-            + ". We should confirm what each measures before interpreting a total."
+            + (
+                ". New calculations use your confirmed field meanings; missing units "
+                "still need a specific answer."
+                if context.state == "confirmed"
+                else ". We should confirm what each measures before interpreting a total."
+            )
         )
     if context.state == "confirmed" and context.definition:
         paragraphs.append(

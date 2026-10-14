@@ -108,6 +108,25 @@ class KnowledgeService:
                 "source_created_at": document.created_at.isoformat(),
             }
 
+    async def reading_context(
+        self, actor: User, wid: UUID, did: UUID, uid: UUID
+    ) -> list[dict[str, object]]:
+        name = f"data-reading-{str(uid)[:8]}.md"
+        with self.uow() as repo:
+            repo.membership(wid, actor.id)
+            repo.upload(wid, did, uid)
+            documents = sorted(
+                (item for item in repo.documents(wid, did, actor.id) if item.name == name),
+                key=lambda item: item.created_at,
+                reverse=True,
+            )[:3]
+            refs = [
+                (document.id, chunk.id)
+                for document in documents
+                for chunk in repo.document_chunks(wid, document.id)
+            ][:3]
+        return [await self.citation(actor, wid, docid, chunkid) for docid, chunkid in refs]
+
     async def search(
         self, actor: User, wid: UUID, did: UUID, query: str, limit: int = 5
     ) -> list[dict[str, object]]:

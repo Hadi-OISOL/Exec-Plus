@@ -15,13 +15,13 @@ type ScenarioBody = {
   };
 };
 
-export function ScenarioPanel({ root, request, onReview }: { root: string; request: ApiRequest; onReview: () => void }) {
+export function ScenarioPanel({ root, request, onReview, initialMetric = "" }: { initialMetric?: string; root: string; request: ApiRequest; onReview: () => void }) {
   const runsRoot = `${root.split("/uploads/")[0]}/decision-analysis`;
   const [options, setOptions] = useState<AnalysisOptions | null>(null);
   const [history, setHistory] = useState<AnalysisSummary[]>([]);
   const [selected, setSelected] = useState<ScenarioBody | null>(null);
   const [name, setName] = useState("");
-  const [metric, setMetric] = useState("");
+  const [metric, setMetric] = useState(initialMetric);
   const [aggregation, setAggregation] = useState<"sum" | "avg">("sum");
   const [filter, setFilter] = useState("");
   const [filterValue, setFilterValue] = useState("");
