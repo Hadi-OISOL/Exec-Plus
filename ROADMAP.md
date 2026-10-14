@@ -17,7 +17,7 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 
 ## October 14 — Authorized Partial analytics extension and branch integration
 
-**Status:** Complete for the bounded local/test slice; private-demo deployment pending.
+**Status:** Complete for the bounded local/test and private-demo slice.
 Merged `phase3` commit `2a93080` into `phase2`, retaining the data-reading journey
 and current interface polish. Grouped MAD/IQR now reports separate baselines and
 excluded sparse/missing coverage. Scenarios support up to three explicit
@@ -27,8 +27,9 @@ resource limit. Method versions preserve old saved evidence and owner-only revie
 See the [contracts](docs/analysis-extensions.md) and
 [verification](docs/verification-analysis-extensions.md): 1,046 full backend cases
 plus final rechecks give 1,050 distinct passes; 19 frontend tests, seven selected
-browser journeys, static checks and the production web build pass. The VPS was
-started/checked and browser login verified, but these code changes are not deployed.
+browser journeys, static checks and the production web build pass. Private release
+`8ffdf5d` passes clean-image checks and a live-model browser journey covering data
+reading, all three extensions, approval/replay and mobile layouts.
 Migration remains 0017. Features 57–59 remain Partial, counts remain 37/16/11 and
 all eight production gates remain blocked. Larger models, calibration, uncertainty
 and business-specific decision modules retain their research/acceptance requirements.

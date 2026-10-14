@@ -41,7 +41,8 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 - The user authorized starting Partial anomaly/scenario/recommendation work and
   merging last night's branch. `origin/phase3` at `2a93080` was merged into `phase2`
   in `c846835`; it adds data reading before Ask ExecPlus. Existing polish and local
-  tools remain intact. The new extensions are complete for local/test, **not deployed**.
+  tools remain intact. The new extensions are complete for local/test and the
+  private demo at `8ffdf5d`.
 - Read `docs/analysis-extensions.md` and `docs/verification-analysis-extensions.md`.
   Grouped MAD/IQR uses separate baselines with explicit missing/sparse exclusions;
   compound scenarios multiply up to three named percentage assumptions; bounded
@@ -52,10 +53,19 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   include four additional cases, giving 1,050 distinct passes. Nineteen frontend
   tests, seven selected browser journeys, Ruff/mypy (160 files), types/lint and
   production web build pass. Initial fixture and browser-selector failures are in
-  the ledger. No live-model quality, sustained-load or clean-image release claim.
+  the ledger. Clean non-root image checks and a 51.5-second live-model browser
+  journey now pass; this is functional evidence, not model-quality or
+  sustained-load acceptance.
 - The user requested VPS startup. Existing containers were already running;
   Compose up and model/timer start completed under the maintenance lock. Readiness
-  and workspace HTTP 200 pass. No new source/images/migration were deployed.
+  and workspace HTTP 200 pass. A later report of old flows triggered deployment
+  of `8ffdf5d` API/jobs/web, with schema 0017 unchanged. All 47 table fingerprint
+  entries and environment-file checksum were preserved. Checkpoint source/images:
+  `pre-8ffdf5d-20261014`; checked backups: `20261014T110653Z` before release and
+  `20261014T111211Z` afterward. Archive checksums and restarted services pass.
+  Real hosted data reading, all three extensions, approval/replay/successors and
+  three layouts pass with a fictional account; no browser page errors. New or
+  unconfirmed data opens reading; confirmed data must be reopened from Prepare data.
   Use **http://localhost:18400/workspace**, exactly: the numeric 127.0.0.1 browser
   origin is rejected by the deployed CORS setting and causes Failed to fetch.
   Corrected real-browser sign-in passed. Preserve the configured allowed origin.
@@ -70,7 +80,7 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   update. Browser tests can set `EXECPLUS_BROWSER_EXECUTABLE=/usr/bin/google-chrome`.
 - The maintained report and October 14 Desktop DOCX retain all 64 IDs and counts
   **37 Done / 16 Partial / 11 Not yet**. All eight gates still block production.
-  Next: private release/rehearsal of this tested slice, then the remaining methods
+  Next: the remaining methods and representative acceptance work
   in `docs/advanced-analytics-research-plan.md`; do not claim broad feature closure.
 
 ### October 13 — Current checkout and VPS inspection handoff

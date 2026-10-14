@@ -1,5 +1,5 @@
 > **File use case:** Records evidence for the October 14 branch integration and analytics extensions.
-> **What it does:** Distinguishes local checks, failures, remaining validation and unchanged VPS scope.
+> **What it does:** Distinguishes local checks, private release evidence, failures and remaining validation.
 
 # October 14 analytics extension verification
 
@@ -11,11 +11,11 @@ polish, startup documentation and local agent tools. The user also authorized
 starting the Partial anomaly, scenario and recommendation work. The implemented
 contracts are in [analysis extensions](analysis-extensions.md).
 
-This is a local/test delivery. The existing VPS deployment was started/checked at
-the user's request and returned dependency-ready health and HTTP 200 for the
-workspace. No new application source, image or database migration was deployed.
-An owner session was issued and authenticated; its token and restricted tunnel
-key are saved only in ignored private local files. Existing sessions were not revoked.
+The initial delivery was local/test only; startup and browser sign-in were checked
+without deploying the new code. After the user reported the old flows, release
+`8ffdf5d` was built and deployed to the private VPS on October 14. Schema remains
+0017. The owner session and restricted tunnel key remain only in ignored private
+files; existing sessions were not revoked. Release evidence follows below.
 
 ## Verification ledger
 
@@ -72,12 +72,49 @@ The corrected `http://localhost:18400/workspace` link passed a real browser logi
 using the private session file. The startup guide and local memory now record
 that exact origin. No CORS relaxation or VPS configuration change was needed.
 
+## Private VPS release, October 14
+
+- A fresh fetch confirmed `origin/phase3` still points to `2a93080`; its changes
+  are already merged. The old UI was caused by the unchanged deployed snapshot.
+- Built API/jobs and web from committed source `8ffdf5d`, using candidate image
+  tags before activation. Clean non-root, read-only, network-disabled API checks
+  passed eight isolated exact/calendar computations and all three new methods.
+- Checked pre-release backup `20261014T110653Z`: database and object archives both
+  pass SHA256SUMS. Source and old images are retained as
+  `pre-8ffdf5d-20261014` under the private release directory and image tags.
+- Activation held the maintenance lock and stopped writers. All 47 control-plane
+  table fingerprint entries (including migration metadata) match before/after.
+  No migration ran; the environment-file checksum is unchanged. API/jobs/web were
+  recreated from candidate images and dependency readiness/workspace HTTP 200 pass.
+- A dedicated fictional account passed one live Chrome journey in 51.5 seconds
+  (52.7 seconds including runner startup). The actual data-brief response reports
+  `source=model`, `model_route=hosted:deepseek-v4-pro`, `sampled=false` and
+  `already_confirmed=false`. Data reading opens before the question composer;
+  skipping it leaves explicit meaning confirmation available.
+- The same journey explicitly confirms fictional meanings, verifies 9 evaluated
+  records/1 excluded/1 flagged, a second-resource recommendation with benefit 10,
+  private approval, a compound scenario result of 264.00, original evidence replay,
+  preserved successor inputs and 1440/390/320 layouts. No browser page errors.
+- Checked post-release backup `20261014T111211Z` includes the new fictional
+  analyses. Both archive checksums pass and API/jobs/storage restarted successfully.
+- The model service and refresh/backup timers remain active. All six application
+  listeners remain loopback-only; hosted/local model selection is unchanged.
+- Use `http://localhost:18400/workspace`. New or unconfirmed uploads open data
+  reading automatically. Already-confirmed data does not repeat the questionnaire;
+  use Prepare data → Check what ExecPlus understood about this data to reopen it.
+
+Detailed release logs, table fingerprints and the fictional browser screenshot
+are ignored under `data/verification/2026-10-14/release/`. The first operator
+provision attempt failed before execution because the administrator shell could
+not enter the protected source directory; using the absolute Compose path under
+sudo succeeded. No application change was needed.
+
 ## Limits and remaining work
 
-No live model-inference quality evaluation, clean non-root application-image
-rehearsal, sustained load test or new VPS release is claimed by this delivery.
-The data-reading browser test uses a disclosed canned response over the real
-governed API; it is not a live-provider result. Existing historical private-demo
+The local data-reading tests use disclosed canned responses; the private release
+also has the live-provider functional result above. This single fictional journey
+is not a representative model-quality evaluation, concurrency or sustained-load
+test. No restore rehearsal was performed. Existing historical private-demo
 evidence remains in its original ledgers.
 
 Features 57, 58 and 59 remain Partial; totals remain 37 Done / 16 Partial / 11 Not
