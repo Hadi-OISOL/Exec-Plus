@@ -1,7 +1,7 @@
 {
   "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
-  "date": "2026-10-13",
+  "date": "2026-10-14",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
   "rows": [
     {
@@ -959,16 +959,21 @@
       "section": "Integration with other Solutions",
       "feature": "Scenario planning",
       "status": "partial",
-      "note": "Private what-if comparisons change one confirmed total or average using declared replacements or percentages. Exact replay and immutable successors work. Multiple-driver models, demand response and scenario uncertainty remain future work.",
+      "note": "Local/test: up to three named percentage drivers combine against one governed baseline, with private replay and successors. Source-derived multi-measure models, demand response and uncertainty remain unfinished. New slice is not yet deployed.",
       "evidence": [
         "docs/scenario-planning.md",
         "docs/verification-scenario-planning.md",
         "apps/api/tests/test_scenarios_integration.py",
-        "apps/web/e2e/scenarios.spec.ts"
+        "apps/web/e2e/scenarios.spec.ts",
+        "docs/analysis-extensions.md",
+        "docs/verification-analysis-extensions.md",
+        "apps/api/tests/test_analysis_extensions_integration.py",
+        "apps/web/e2e/analysis-extensions.spec.ts"
       ],
-      "roadmap": "October 13 bounded private-demo extension; broader Phase 6 remains Frozen",
+      "roadmap": "October 14 authorized local/test extension; private-demo deployment pending; broader Phase 6 remains Frozen",
       "evidence_groups": [
-        "E15"
+        "E15",
+        "E18"
       ]
     },
     {
@@ -976,16 +981,21 @@
       "section": "Integration with other Solutions",
       "feature": "Anomaly detection",
       "status": "partial",
-      "note": "Finds unusual numerical values with weighted MAD/IQR, exact source replay and private feedback. Seasonal, multivariate, drift and calibrated false-alarm methods remain future work.",
+      "note": "Local/test: weighted MAD/IQR now supports separate group baselines and visible missing/sparse coverage. Seasonal, multivariate, drift and calibrated false-alarm methods remain unfinished. New slice is not yet deployed.",
       "evidence": [
         "docs/decision-analysis.md",
         "docs/verification-decision-analysis.md",
         "apps/api/tests/test_decision_analysis_integration.py",
-        "apps/web/e2e/decisions.spec.ts"
+        "apps/web/e2e/decisions.spec.ts",
+        "docs/analysis-extensions.md",
+        "docs/verification-analysis-extensions.md",
+        "apps/api/tests/test_analysis_extensions_integration.py",
+        "apps/web/e2e/analysis-extensions.spec.ts"
       ],
-      "roadmap": "October 10 bounded private-demo exception; broader Phase 6 remains Frozen",
+      "roadmap": "October 14 authorized local/test extension; private-demo deployment pending; broader Phase 6 remains Frozen",
       "evidence_groups": [
-        "E14"
+        "E14",
+        "E18"
       ]
     },
     {
@@ -993,16 +1003,21 @@
       "section": "Integration with other Solutions",
       "feature": "Prescriptive recommendations",
       "status": "partial",
-      "note": "Computes bounded single-budget allocations from declared costs, linear benefits and quantity limits. Broader business decision models and causal validation remain unfinished; no action executes.",
+      "note": "Local/test: exact bounded allocation can respect a second resource limit as well as budget and quantity bounds. Broader business modules, larger solvers and causal validation remain unfinished. No external action executes; new slice is not yet deployed.",
       "evidence": [
         "docs/decision-analysis.md",
         "docs/verification-decision-analysis.md",
         "apps/api/tests/test_decision_analysis_integration.py",
-        "apps/web/e2e/decisions.spec.ts"
+        "apps/web/e2e/decisions.spec.ts",
+        "docs/analysis-extensions.md",
+        "docs/verification-analysis-extensions.md",
+        "apps/api/tests/test_analysis_extensions_integration.py",
+        "apps/web/e2e/analysis-extensions.spec.ts"
       ],
-      "roadmap": "October 10 bounded private-demo exception; broader Phase 6 remains Frozen",
+      "roadmap": "October 14 authorized local/test extension; private-demo deployment pending; broader Phase 6 remains Frozen",
       "evidence_groups": [
-        "E14"
+        "E14",
+        "E18"
       ]
     },
     {
@@ -1231,6 +1246,13 @@
         "docs/verification-interface-polish.md",
         "docs/interface-polish.md"
       ]
+    ],
+    "E18": [
+      "Bounded analysis extensions (local/test)",
+      [
+        "docs/verification-analysis-extensions.md",
+        "docs/analysis-extensions.md"
+      ]
     ]
   },
   "section_intros": {
@@ -1238,7 +1260,7 @@
     "Improve activation": "The upload-first experience and aggregate usage-reporting screens are delivered. Verified live email delivery and billing/upgrades remain unfinished.",
     "Growth-plan features": "Basic forecasting, accuracy checks, later-actual comparisons, grounded commentary and searchable audit history now join the delivered team, dashboard, refresh and alert features. Proven root-cause analysis remains open.",
     "Commercial readiness": "The private-demo admin console, support workflow and usage/retention reporting are delivered. Broader performance, paid-plan operation and production launch requirements remain open.",
-    "Integration with other Solutions": "Basic what-if comparisons, anomaly checks, budget recommendations and private approval work. Broader analytics and live source connectors remain unfinished."
+    "Integration with other Solutions": "Private what-if comparisons, anomaly checks, budget recommendations and approval work. Local/test extensions add groups, compound assumptions and a second resource; deployment and broader analytics remain unfinished."
   },
   "comparison_sources": {
     "P1": [
@@ -1364,8 +1386,8 @@
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "phase2 baseline: 4efb6da. October 13 refinement is uncommitted; no commit/push.",
-    "p25": "October 13: 979 distinct backend cases (978 full + final rechecks), 19 frontend tests, 38 browser journeys. Eight VPS users: 16 exact answers/replays, 56 private-thread denials, 24 layouts. Schema 0017, demo only; gates blocked. [E17]",
+    "p24": "phase2 now includes phase3 data-reading commit 2a93080. October 14 adds local/test grouped anomalies, compound scenarios and a second allocation resource; VPS deployment remains unchanged.",
+    "p25": "October 14 local/test: 1,046 full backend cases plus rechecks give 1,050 distinct passes; 19 frontend tests, seven selected browser journeys, static checks and web build pass. New code is not deployed; eight production gates remain blocked. [E18]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

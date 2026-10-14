@@ -13,6 +13,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:3001",
     trace: "off",
     launchOptions: {
+      executablePath: process.env.EXECPLUS_BROWSER_EXECUTABLE,
       args: ["--host-resolver-rules=MAP execplus.test 127.0.0.1"],
     },
   },

@@ -13,6 +13,12 @@ from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.forecasts import ForecastService, read_complete
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
+from execplus.domain.analysis_extensions import (
+    RESOURCE_METHOD,
+    SEGMENT_METHOD,
+    allocate_resources,
+    detect_segments,
+)
 from execplus.domain.analysis_queries import analysis_plan, scenario_coverage_plans
 from execplus.domain.decision_analysis import (
     METHODS,
@@ -26,16 +32,35 @@ from execplus.domain.errors import AuthorizationError, ClarificationRequiredErro
 from execplus.domain.evidence import receipt
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult
+from execplus.domain.scenarios import COMPOUND_METHOD, alternatives, compare_scenarios
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
-from execplus.domain.scenarios import alternatives, compare_scenarios
 
 REGISTERED_METHODS = {**METHODS, "scenario_comparison": SCENARIO_METHOD}
+
+
+def method_version(raw: dict[str, Any]) -> str:
+    if raw["kind"] == "robust_distribution" and raw.get("segment_column"):
+        return SEGMENT_METHOD
+    if raw["kind"] == "bounded_allocation" and raw.get("resource_column"):
+        return RESOURCE_METHOD
+    if raw["kind"] == "scenario_comparison" and any(
+        item["operation"] == "compound_percent" for item in raw["alternatives"]
+    ):
+        return COMPOUND_METHOD
+    return REGISTERED_METHODS[raw["kind"]]
 
 
 def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
     if raw["kind"] == "scenario_comparison":
         return compare_scenarios(raw, value.rows)
     if raw["kind"] == "robust_distribution":
+        if raw.get("segment_column"):
+            return detect_segments(
+                [(None if row[0] is None else str(row[0]), row[1], row[2]) for row in value.rows],
+                raw["threshold"],
+                raw["materiality"],
+                raw["minimum_segment_size"],
+            )
         return detect_distribution(
             [(row[0], row[1]) for row in value.rows], raw["threshold"], raw["materiality"]
         )
@@ -55,6 +80,15 @@ def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
         )
     bounds = {row[0]: (0, raw["maximum_quantity"]) for row in candidates}
     bounds.update({item["candidate"]: (item["minimum"], item["maximum"]) for item in supplied})
+    if raw.get("resource_column"):
+        return allocate_resources(
+            [(str(row[0]), row[1], row[2], row[3]) for row in value.rows],
+            raw["budget"],
+            raw["quantum"],
+            bounds,
+            raw["assumptions_confirmed"],
+            raw["resource_capacity"],
+        )
     return allocate(candidates, raw["budget"], raw["quantum"], bounds, raw["assumptions_confirmed"])
 
 
@@ -82,6 +116,7 @@ class DecisionAnalysisService:
             metrics=metrics,
             entities=[c["name"] for c in columns if c["role"] in {"dimension", "identifier"}],
             methods=REGISTERED_METHODS,
+            extensions=[SEGMENT_METHOD, RESOURCE_METHOD, COMPOUND_METHOD],
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
                 "Exploratory anomalies are not confirmed errors; "
@@ -204,7 +239,13 @@ class DecisionAnalysisService:
             (),
             plan.sql,
             "deterministic:"
-            + (SCENARIO_METHOD if raw["kind"] == "scenario_comparison" else "decision-analysis-v1"),
+            + (
+                method_version(raw)
+                if method_version(raw) in {SEGMENT_METHOD, RESOURCE_METHOD, COMPOUND_METHOD}
+                else SCENARIO_METHOD
+                if raw["kind"] == "scenario_comparison"
+                else "decision-analysis-v1"
+            ),
         )
         self._current(actor, wid, did, uid, raw)
         try:
@@ -277,7 +318,7 @@ class DecisionAnalysisService:
             UUID(raw["understanding_id"]),
             name,
             raw["kind"],
-            REGISTERED_METHODS[raw["kind"]],
+            method_version(raw),
             raw,
             evidence,
             calculated,
@@ -322,7 +363,7 @@ class DecisionAnalysisService:
         try:
             if (
                 run.kind != run.request["kind"]
-                or run.method_version != REGISTERED_METHODS[run.kind]
+                or run.method_version != method_version(run.request)
                 or checksum(run.request) != run.evidence["request_checksum"]
             ):
                 raise invalid

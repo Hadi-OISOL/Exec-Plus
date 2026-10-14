@@ -15,6 +15,24 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 14 — Authorized Partial analytics extension and branch integration
+
+**Status:** Complete for the bounded local/test slice; private-demo deployment pending.
+Merged `phase3` commit `2a93080` into `phase2`, retaining the data-reading journey
+and current interface polish. Grouped MAD/IQR now reports separate baselines and
+excluded sparse/missing coverage. Scenarios support up to three explicit
+multiplicative percentage drivers. Exact bounded allocation supports a second
+resource limit. Method versions preserve old saved evidence and owner-only review.
+
+See the [contracts](docs/analysis-extensions.md) and
+[verification](docs/verification-analysis-extensions.md): 1,046 full backend cases
+plus final rechecks give 1,050 distinct passes; 19 frontend tests, seven selected
+browser journeys, static checks and the production web build pass. The VPS was
+started/checked and browser login verified, but these code changes are not deployed.
+Migration remains 0017. Features 57–59 remain Partial, counts remain 37/16/11 and
+all eight production gates remain blocked. Larger models, calibration, uncertainty
+and business-specific decision modules retain their research/acceptance requirements.
+
 ## October 13 — Dashboard polish and focused conversation harness
 
 **Status:** Complete for the bounded local/test and private-demo refinement.

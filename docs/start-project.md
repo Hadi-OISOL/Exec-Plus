@@ -36,6 +36,10 @@ A blank terminal is normal. Leave it open while using the demo. The application 
 
 Open **http://localhost:18400/workspace**.
 
+Use `localhost` exactly. Opening `http://127.0.0.1:18400` instead can show
+**Failed to fetch** at sign-in because the VPS API permits the `localhost` web
+origin. The SSH forwards still bind to loopback; this does not require public access.
+
 Open `data/vps-private/sessions.json` privately in your editor. Copy only your account's `token` value, without quotation marks, into **Session token**, then click **Sign in**. Do not share the file or paste tokens into chat.
 
 If the page still shows the old interface, press **Ctrl + Shift + R**; on macOS, **Cmd + Shift + R**. Refreshing requires signing in again.

@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from execplus.application.services.decision_analysis import DecisionAnalysisService
 from execplus.presentation.routes.analytics import FilterInput
@@ -43,6 +43,8 @@ class AnomalyInput(SourceInput):
     metric: str = Field(min_length=1, max_length=200)
     threshold: str = Field(default="3.5", min_length=1, max_length=50)
     materiality: str = Field(default="0", min_length=1, max_length=100)
+    segment_column: str | None = Field(default=None, min_length=1, max_length=200)
+    minimum_segment_size: int = Field(default=8, ge=8, le=1000, strict=True)
 
 
 class QuantityBound(Input):
@@ -61,6 +63,14 @@ class AllocationInput(SourceInput):
     maximum_quantity: int = Field(default=1, ge=0, le=10, strict=True)
     bounds: list[QuantityBound] = Field(default_factory=list, max_length=20)
     assumptions_confirmed: Literal[True]
+    resource_column: str | None = Field(default=None, min_length=1, max_length=200)
+    resource_capacity: str | None = Field(default=None, min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def paired_resource(self) -> "AllocationInput":
+        if (self.resource_column is None) != (self.resource_capacity is None):
+            raise ValueError("Declare both the resource column and its capacity.")
+        return self
 
 
 class ReviewInput(Input):
@@ -78,11 +88,24 @@ class ScenarioAlternative(Input):
     value: str = Field(min_length=1, max_length=100)
 
 
+class ScenarioDriver(Input):
+    name: str = Field(min_length=1, max_length=100)
+    percent_change: str = Field(min_length=1, max_length=100)
+
+
+class CompoundAlternative(Input):
+    name: str = Field(min_length=1, max_length=100)
+    operation: Literal["compound_percent"]
+    drivers: list[ScenarioDriver] = Field(min_length=1, max_length=3)
+
+
 class ScenarioInput(SourceInput):
     kind: Literal["scenario_comparison"] = "scenario_comparison"
     metric: str = Field(min_length=1, max_length=200)
     aggregation: Literal["sum", "avg"]
-    alternatives: list[ScenarioAlternative] = Field(min_length=1, max_length=5)
+    alternatives: list[
+        Annotated[ScenarioAlternative | CompoundAlternative, Field(discriminator="operation")]
+    ] = Field(min_length=1, max_length=5)
     assumptions_confirmed: bool = Field(strict=True)
     parent_run_id: UUID | None = None
 

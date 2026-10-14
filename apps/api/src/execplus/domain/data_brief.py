@@ -227,7 +227,7 @@ def parse_brief(
         if not isinstance(entry, dict) or not set(entry) <= COLUMN_KEYS:
             raise ValueError("The model reply had an unsupported column entry")
         name = entry.get("name")
-        if name not in known or name in replies:
+        if not isinstance(name, str) or name not in known or name in replies:
             raise ValueError("The model reply named an unknown or repeated column")
         role = entry.get("role")
         uncertain = bool(entry.get("uncertain"))

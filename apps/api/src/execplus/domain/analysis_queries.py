@@ -32,6 +32,8 @@ def analysis_plan(
         if kind in {"robust_distribution", "scenario_comparison"}
         else [raw["cost_column"], raw["benefit_column"]]
     )
+    if kind == "bounded_allocation" and raw.get("resource_column"):
+        names.append(raw["resource_column"])
     units = {}
     clauses: list[MetricFilter] = []
     for name in names:
@@ -69,10 +71,24 @@ def analysis_plan(
         sql += " LIMIT 1"
     elif kind == "robust_distribution":
         metric = quote_identifier(raw["metric"])
-        sql = f'SELECT {metric}, COUNT(?) AS "__frequency" FROM "dataset"'
+        fields = metric
+        if raw.get("segment_column"):
+            segment = raw["segment_column"]
+            meaning = next(
+                (c for c in (view.definition or {}).get("columns", []) if c["name"] == segment),
+                None,
+            )
+            if (
+                not meaning
+                or meaning["role"] not in {"dimension", "identifier"}
+                or segment == raw["metric"]
+            ):
+                fail("invalid_segment", "Choose a separate confirmed group or identifier column.")
+            fields = f"{quote_identifier(segment)}, {metric}"
+        sql = f'SELECT {fields}, COUNT(?) AS "__frequency" FROM "dataset"'
         if where:
             sql += " WHERE " + " AND ".join(where)
-        sql += f" GROUP BY {metric} ORDER BY {metric} LIMIT 1001"
+        sql += f" GROUP BY {fields} ORDER BY {fields} LIMIT 1001"
         parameters = [1, *parameters]
     else:
         entity = raw["entity_column"]
@@ -85,8 +101,11 @@ def analysis_plan(
                 "candidate_identity_required",
                 "Choose a confirmed candidate identifier or category.",
             )
-        if len(set([entity, *names])) != 3:
-            fail("distinct_columns_required", "Candidate, cost and benefit columns must differ.")
+        if len(set([entity, *names])) != len(names) + 1:
+            fail(
+                "distinct_columns_required",
+                "Candidate, cost, benefit and resource columns must differ.",
+            )
         fields = ", ".join(quote_identifier(name) for name in [entity, *names])
         sql = f'SELECT {fields} FROM "dataset"'
         if where:

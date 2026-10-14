@@ -1,3 +1,5 @@
+/* Use case: Supplies generated Next.js types to the web workspace.
+What it does: References framework and route declarations for TypeScript checks. */
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
 import "./.next/dev/types/routes.d.ts";

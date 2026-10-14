@@ -5,7 +5,139 @@
 
 Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changing the project.
 
+## User preferences and local working tools
+
+- Explain work in simple English with short, friendly bullets. Lead with what works,
+  what changed, what remains and the next step. Explain technical terms when needed;
+  report test failures, skipped checks and limitations honestly. Suggest concrete
+  improvements without claiming unobserved behavior or full competitor parity.
+- Start future sessions by reading `data/agent-memory/context.json` when present,
+  then run `python3 data/agent-tools/project.py status`. These ignored local files
+  hold compact context and reusable commands; this tracked handoff remains the fallback.
+- The user authorizes routine personal-repo pull/push needed for requested project
+  work. Use `phase2` and the repo-local Hadi-OISOL SSH identity. Preserve company
+  settings, unrelated changes and existing work; never force-push or publish private
+  tools, data, credentials, browser profiles or generated reports.
+- ThoughtSpot (`https://www.thoughtspot.com/`) is the named product reference.
+  Preparation is authorized now; wait for the user's implementation target/start
+  instruction before rebuilding a referenced experience. Map each requested feature
+  to observed UI/behavior, inferred design, unknown backend details, ExecPlus's
+  reusable components, achievable scope and external dependencies.
+- REA is installed locally under `data/agent-tools/rea/`; use
+  `data/agent-tools/bin/rea`, not a global install or unpinned npx download.
+  The project-only MCP registration is `.codex/config.toml`; matching instructions
+  are `.agents/skills/reverse-engineer-anything/SKILL.md`. Read that skill before use.
+  The CLI works without restarting this chat; MCP discovery depends on the client
+  reloading project configuration. Use a separate browser profile for captures.
+- Keep memory current after meaningful work. During implementation run relevant
+  tests, fix failures, compare supported behavior, and update the evidence/handoff.
+  Tool setup does not authorize exposing the private demo publicly, changing model
+  providers, clearing production gates or assuming private competitor source access.
+
 ## Current state
+
+### October 14 — Branch merge, bounded analytics extensions and working demo access
+
+- The user authorized starting Partial anomaly/scenario/recommendation work and
+  merging last night's branch. `origin/phase3` at `2a93080` was merged into `phase2`
+  in `c846835`; it adds data reading before Ask ExecPlus. Existing polish and local
+  tools remain intact. The new extensions are complete for local/test, **not deployed**.
+- Read `docs/analysis-extensions.md` and `docs/verification-analysis-extensions.md`.
+  Grouped MAD/IQR uses separate baselines with explicit missing/sparse exclusions;
+  compound scenarios multiply up to three named percentage assumptions; bounded
+  allocation supports a second resource limit with an exact 100,000-combination
+  cap. Old requests retain old results/methods. Private ownership and freshness
+  guards remain in force. Schema remains **0017**; all three broad features stay Partial.
+- Verification: 1,046 full backend/architecture passes plus 71 focused rechecks
+  include four additional cases, giving 1,050 distinct passes. Nineteen frontend
+  tests, seven selected browser journeys, Ruff/mypy (160 files), types/lint and
+  production web build pass. Initial fixture and browser-selector failures are in
+  the ledger. No live-model quality, sustained-load or clean-image release claim.
+- The user requested VPS startup. Existing containers were already running;
+  Compose up and model/timer start completed under the maintenance lock. Readiness
+  and workspace HTTP 200 pass. No new source/images/migration were deployed.
+  Use **http://localhost:18400/workspace**, exactly: the numeric 127.0.0.1 browser
+  origin is rejected by the deployed CORS setting and causes Failed to fetch.
+  Corrected real-browser sign-in passed. Preserve the configured allowed origin.
+- This checkout now has ignored, mode-0600 `data/vps-private/sessions.json` for
+  demo1 and `data/vps-private/tunnels/demo1`. The independent restricted tunnel
+  binds 18400/18401 to loopback. Sessions expire after eight hours; issue a single
+  replacement when needed without revoking teammates. Never copy tokens into notes.
+- `.venv` uses Python 3.12; project-only Node 22 is available through
+  `data/agent-tools/bin/with-node`. Local isolated test containers use the cached
+  images in ignored `data/agent-tools/test-compose.yaml`; no other app was changed.
+  SQLAlchemy is constrained to tested 2.0.x pending a separate 2.1 compatibility
+  update. Browser tests can set `EXECPLUS_BROWSER_EXECUTABLE=/usr/bin/google-chrome`.
+- The maintained report and October 14 Desktop DOCX retain all 64 IDs and counts
+  **37 Done / 16 Partial / 11 Not yet**. All eight gates still block production.
+  Next: private release/rehearsal of this tested slice, then the remaining methods
+  in `docs/advanced-analytics-research-plan.md`; do not claim broad feature closure.
+
+### October 13 — Current checkout and VPS inspection handoff
+
+- The user requested understanding and persistent project context, not a new feature
+  or deployment. This inspection made no VPS configuration/data changes or restarts.
+  Local checkout: `/home/hadiabbasisdev/Desktop/OISOL`, branch `phase2`, tracking
+  `origin/phase2` at `ff04c4b`. The branch name does not mean only Phase 2 is implemented.
+  Repo-local Git settings use the personal `Hadi-OISOL` identity and dedicated SSH
+  key; preserve the separate company Git configuration. Never record credentials here.
+- The user confirmed the VPS is `administrator@173.208.151.137`; the earlier
+  `172.208.151.137` was a typo. Password authentication succeeded. `/sdb-disk` is
+  `/dev/sdb1`, mounted ext4, with approximately 858 GiB available at inspection.
+  `/sdb-disk/OISOL_ExecPLUS/source` is a deployed source snapshot, not a Git checkout.
+  Its sibling directories are `postgres`, `objects`, `secrets`, `backups`, `ops`
+  and `releases`. Preserve other applications sharing this host.
+- Fresh read-only checks: `/workspace` on loopback port 18400 returns HTTP 200;
+  port 18401 `/health/ready` reports PostgreSQL and object storage healthy; the
+  database reports migration **0017**. API/jobs/web are running with zero recorded
+  container restarts. The model service and refresh/backup timers are active;
+  latest systemd refresh/backup results are successful. All six project listeners
+  (18400, 18401, 18432, 18490, 18491, 11450) bind only to 127.0.0.1.
+- Inspected configuration retains hosted `deepseek-v4-pro` for primary planning
+  and local `qwen3:4b` for advisory selection at `127.0.0.1:11450/v1`; the local
+  model catalog responds. No inference request or authenticated browser journey
+  was run during this inspection; readiness alone does not prove those workflows.
+- Latest observed backup is `20261013T181431Z`: `database.dump` and `objects.tar.gz`
+  both pass `SHA256SUMS`. This verifies archive integrity, not a latest-version
+  restore or off-server disaster recovery. Daily backup time is 08:00 Pakistan time.
+- Before this handoff edit, 408 of 411 tracked files matched the VPS source snapshot.
+  The VPS lacks `docs/analysis-journey-gap-audit.md`; its startup guide lacks the new
+  operator-restart section; `apps/web/next-env.d.ts` has generated browser-build paths.
+  All 136 checked backend-source/migration files in the running API container's
+  `/app` tree match this checkout. Do not infer a deployed Git commit from a snapshot.
+- Reviewed the supplied `ExecPlus_Latest_Changes_2026-10-13.pdf`, startup/runbook,
+  roadmap, architecture, latest verification, closure plan and feature ledger.
+  PDF and JSON agree: **37 Done / 16 Partial / 11 Not yet**, covering 64 original IDs.
+  Phases 0–3 and 4A–4C are complete within their recorded scope. Delivered private-demo
+  work includes governed uploads/meaning, exact analytics and receipts, data/document
+  chat, saved studies/dashboards, staged refresh/alerts, basic forecasts, audit,
+  admin/support/usage, bounded anomalies/allocation/scenarios, guided review and polish.
+  Historical 979 backend / 19 frontend / 38 browser results are recorded evidence,
+  not a newly rerun suite. Older baseline and uncommitted-work notes below are historical.
+- Remaining work: Phase 4D exports; 4E read-only Sheets/PostgreSQL connectors;
+  Phase 5 production signup/login, commercial metering/plans/payments, real email,
+  monitoring, current-version restore/off-server recovery and representative evaluation,
+  security/privacy and sustained performance. Broader causal, forecast, scenario,
+  anomaly and decision methods, accounting/BigQuery connectors, consolidation,
+  scoped customer APIs/webhooks, embedding and row/column permissions remain unfinished.
+  Read `docs/partial-feature-closure-plan.md` for all sixteen Partial items and
+  `docs/product-feature-audit.json` for all eleven Not yet items and exact limitations.
+- `ff04c4b` adds the **planned** intent → personal context → data review → results
+  journey audit and startup instructions, not its implementation. Read
+  `docs/analysis-journey-gap-audit.md` before that work. Keep its explicit forecast/
+  allocation inputs, private goals, full meaning confirmation and source-change guards.
+  Advanced method sequencing is in `docs/advanced-analytics-research-plan.md`;
+  broader Phase 6 remains Frozen except separately authorized bounded slices.
+- A fresh production-preflight check still blocks all eight gates: representative
+  corpus, retrieval quality, vector provider, backup/restore, model comparison,
+  provider privacy, report delivery and identity/security. No status was promoted.
+- Startup: use `docs/start-project.md` with this machine's actual checkout path.
+  VPS operation uses the source directory and `/run/lock/execplus-maintenance.lock`;
+  do not restart a healthy deployment merely to inspect it. Access stays through
+  loopback SSH forwarding. This new local checkout has no `data/vps-private/tunnels/demo1`
+  or `sessions.json`; the example tunnel requires a separately supplied assigned key.
+  Local development needs database/storage plus API, jobs and web, migration 0017
+  and its own operator-issued session; VPS and local sessions are separate.
 
 - October 13 dashboard/conversation refinement is Complete for local/test and the
   private demo on unchanged **0017**. Read `docs/interface-polish-gap-audit.md`,

@@ -3,6 +3,18 @@
 
 # ExecPlus Architecture
 
+## October 14 bounded analysis extensions
+
+Explicit optional inputs select new versions of grouped distribution checks,
+compound scenario assumptions and exact two-resource allocation. Existing kinds
+and schema 0017 remain unchanged; requests without extension fields retain their
+legacy query/result contracts. Domain computation remains standard-library-only.
+Group coverage is explicit, sparse groups have no global fallback, and the
+two-resource search refuses more than 100,000 quantity combinations. New methods
+reuse source permissions, private receipts, immutable results and current-source
+approval guards. See [contracts](../analysis-extensions.md). This local/test slice
+does not change the deployed private demo or production gates.
+
 ## Conditional scenario comparisons
 
 The October 13 bounded extension reuses private analysis aggregates and immutable

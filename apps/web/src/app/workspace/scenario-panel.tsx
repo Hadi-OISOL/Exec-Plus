@@ -5,7 +5,7 @@ import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import type { AnalysisOptions, AnalysisSummary } from "./decision-types";
 
-type Alternative = { name: string; operation: "replace" | "percent_change"; value: string };
+type Alternative = { name: string; operation: "replace" | "percent_change" | "compound_percent"; value?: string; drivers?: { name: string; percent_change: string }[] };
 type ScenarioBody = {
   current: boolean;
   run: AnalysisSummary & {
@@ -49,7 +49,7 @@ export function ScenarioPanel({ root, request, onReview }: { root: string; reque
   async function create(e: FormEvent) {
     e.preventDefault(); if (!options) return;
     await work(async signal => {
-      const body = { name: name.trim() || "What-if comparison", metric: metric || options.metrics[0]?.name, aggregation, revision_id: options.revision_id, understanding_id: options.understanding_id, filters: filter ? [{ column: filter, operator: "eq", value: filterValue }] : [], alternatives, assumptions_confirmed: confirmed, parent_run_id: parent };
+      const body = { name: name.trim() || "What-if comparison", metric: metric || options.metrics[0]?.name, aggregation, revision_id: options.revision_id, understanding_id: options.understanding_id, filters: filter ? [{ column: filter, operator: "eq", value: filterValue }] : [], alternatives: alternatives.map(a => a.operation === "compound_percent" ? { name: a.name, operation: a.operation, drivers: a.drivers } : { name: a.name, operation: a.operation, value: a.value }), assumptions_confirmed: confirmed, parent_run_id: parent };
       const value = await request<ScenarioBody>(`${root}/decision-analysis/scenarios`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
       const saved = await request<AnalysisSummary[]>(runsRoot, { signal });
       if (!signal.aborted) { setSelected(value); setHistory(saved.filter(r => r.kind === "scenario_comparison")); setParent(null); setMessage("Comparison saved privately. Original data is unchanged."); }
@@ -87,8 +87,16 @@ export function ScenarioPanel({ root, request, onReview }: { root: string; reque
       <fieldset disabled={busy}><legend>2. Declare up to five alternatives</legend>
         {alternatives.map((a, index) => <div className="formGrid" key={index}>
           <label>Alternative name {index + 1}<input required maxLength={100} value={a.name} onChange={e => edit(index, { name: e.target.value })} /></label>
-          <label>Change type {index + 1}<select value={a.operation} onChange={e => edit(index, { operation: e.target.value as Alternative["operation"] })}><option value="percent_change">Change baseline by percent</option><option value="replace">Replace hypothetical aggregate</option></select></label>
-          <label>Assumed value {index + 1}<input required inputMode="decimal" maxLength={100} value={a.value} onChange={e => edit(index, { value: e.target.value })} /></label>
+          <label>Change type {index + 1}<select value={a.operation} onChange={e => edit(index, { operation: e.target.value as Alternative["operation"], drivers: a.drivers || [{ name: "Driver 1", percent_change: "0" }, { name: "Driver 2", percent_change: "0" }] })}><option value="percent_change">Change baseline by percent</option><option value="replace">Replace hypothetical aggregate</option><option value="compound_percent">Combine percentage drivers</option></select></label>
+          {a.operation === "compound_percent" ? <fieldset><legend>Drivers for alternative {index + 1}</legend>
+            <p>Multiply the baseline by each declared factor: (1 + percentage / 100). Names describe your assumptions; relationships are not inferred from data.</p>
+            {(a.drivers || []).map((driver, j) => <div key={j} className="formGrid">
+              <label>Driver name {index + 1}.{j + 1}<input required maxLength={100} value={driver.name} onChange={e => edit(index, { drivers: a.drivers?.map((d, k) => k === j ? { ...d, name: e.target.value } : d) })} /></label>
+              <label>Driver percent {index + 1}.{j + 1}<input required inputMode="decimal" maxLength={100} value={driver.percent_change} onChange={e => edit(index, { drivers: a.drivers?.map((d, k) => k === j ? { ...d, percent_change: e.target.value } : d) })} /></label>
+              <button type="button" disabled={(a.drivers?.length || 0) <= 1} onClick={() => edit(index, { drivers: a.drivers?.filter((_, k) => k !== j) })}>Remove driver {index + 1}.{j + 1}</button>
+            </div>)}
+            <button type="button" disabled={(a.drivers?.length || 0) >= 3} onClick={() => edit(index, { drivers: [...(a.drivers || []), { name: `Driver ${(a.drivers?.length || 0) + 1}`, percent_change: "0" }] })}>Add driver to alternative {index + 1}</button>
+          </fieldset> : <label>Assumed value {index + 1}<input required inputMode="decimal" maxLength={100} value={a.value || ""} onChange={e => edit(index, { value: e.target.value })} /></label>}
           <button type="button" disabled={alternatives.length === 1} onClick={() => setAlternatives(items => items.filter((_, i) => i !== index))}>Remove alternative {index + 1}</button>
         </div>)}
         <button type="button" disabled={alternatives.length >= 5} onClick={() => setAlternatives([...alternatives, { name: `Alternative ${alternatives.length + 1}`, operation: "percent_change", value: "0" }])}>Add alternative</button>
@@ -107,7 +115,7 @@ export function ScenarioPanel({ root, request, onReview }: { root: string; reque
       {result.parent_run_id && <p>Successor of your saved comparison. <button disabled={busy} onClick={() => open(result.parent_run_id!)}>Open prior comparison</button></p>}
       <div className="tableWrap"><svg role="img" aria-label="Conditional scenario comparison plot with approximate coordinates" viewBox={`0 0 640 ${points.length * 48 + 30}`} style={{ width: "100%", minWidth: 640, maxWidth: 640 }}><line x1="400" x2="400" y1="0" y2={points.length * 48} stroke="currentColor" />{points.map((p, i) => <g key={i}><text x="0" y={i * 48 + 25} fill="currentColor">{p.name.slice(0, 20)}</text><circle cx={400 + Number(p.value) / maximum * 200} cy={i * 48 + 20} r="5" fill="currentColor" /></g>)}</svg></div>
       <p>Plot coordinates are approximate. The table preserves returned numerical strings.</p>
-      <div className="tableWrap"><table><thead><tr><th>Alternative</th><th>Declared assumption</th><th>Conditional value</th><th>Difference</th><th>Percent difference</th></tr></thead><tbody><tr><td>Observed baseline</td><td>Original source</td><td>{result.baseline}</td><td>0</td><td>{/^[-+]?0(?:\.0*)?$/.test(result.baseline) ? "Unavailable · zero baseline" : "0"}</td></tr>{result.alternatives.map(a => <tr key={a.name}><td>{a.name}</td><td>{a.operation === "replace" ? "Replacement" : "Percent change"}: {a.value}</td><td>{a.result}</td><td>{a.difference}</td><td>{a.percentage_difference ?? "Unavailable · zero baseline"}</td></tr>)}</tbody></table></div>
+      <div className="tableWrap"><table><thead><tr><th>Alternative</th><th>Declared assumption</th><th>Conditional value</th><th>Difference</th><th>Percent difference</th></tr></thead><tbody><tr><td>Observed baseline</td><td>Original source</td><td>{result.baseline}</td><td>0</td><td>{/^[-+]?0(?:\.0*)?$/.test(result.baseline) ? "Unavailable · zero baseline" : "0"}</td></tr>{result.alternatives.map(a => <tr key={a.name}><td>{a.name}</td><td>{a.operation === "compound_percent" ? a.drivers?.map(d => `${d.name}: ${d.percent_change}%`).join(" × ") : `${a.operation === "replace" ? "Replacement" : "Percent change"}: ${a.value}`}</td><td>{a.result}</td><td>{a.difference}</td><td>{a.percentage_difference ?? "Unavailable · zero baseline"}</td></tr>)}</tbody></table></div>
       <ul>{result.limitations.map(item => <li key={item}>{item}</li>)}</ul>
       <details><summary>Baseline and coverage evidence</summary><p>Three independently replayed source queries calculate the baseline, present measures and population count.</p><ul>{[selected.run.evidence.query_id, ...selected.run.evidence.coverage_query_ids].map(id => <li key={id}>{id}</li>)}</ul><p className="checksum">Result checksum: {selected.run.evidence.result_checksum}</p></details>
     </section>}

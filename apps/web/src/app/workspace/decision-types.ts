@@ -22,9 +22,13 @@ export type Finding = {
     count: number;
     absolute_difference: string;
     score: string | null;
+    segment?: string;
 };
 export type AnomalyResult = {
-    baseline: string;
+    baseline: string | null;
+    covered_records?: number;
+    excluded_records?: number;
+    groups?: { segment: string | null; status: string; sample_count: number; missing_records: number; baseline?: string; }[];
     sample_count: number;
     method: string;
     threshold: string;
@@ -40,6 +44,9 @@ export type AllocationResult = {
     cost: string | null;
     benefit: string | null;
     unused_budget?: string;
+    resource_capacity?: string;
+    resource_used?: string | null;
+    unused_resource?: string | null;
     reason?: string;
     baseline: {
         cost: string;
@@ -55,6 +62,7 @@ export type AllocationResult = {
         benefit: string;
         minimum: number;
         maximum: number;
+        resource?: string;
     }[];
     assumptions: string[];
     limitations: string[];

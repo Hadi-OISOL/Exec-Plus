@@ -83,6 +83,8 @@ def test_fenced_json_and_numbers_taken_from_metadata_are_accepted():
         lambda reply: reply.update(summary=""),
         lambda reply: reply.update(summary="x" * 300),
         lambda reply: reply.update(columns="amt"),
+        lambda reply: reply.update(columns=[dict(name=None)]),
+        lambda reply: reply.update(columns=[dict(name=["amt"])]),
         lambda reply: reply.update(columns=[dict(name="amt", meaning="Worth 999 each")]),
     ],
 )
