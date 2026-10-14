@@ -6,12 +6,13 @@ import type { ApiRequest } from "./profile-panel";
 import type { AllocationResult, AnalysisBody, AnalysisOptions, AnalysisSummary, AnomalyResult } from "./decision-types";
 import { ScenarioPanel } from "./scenario-panel";
 const post = (body: object): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-export function DecisionPanel({ root, request, onReview, initialMethod, initialMetric = "" }: {
+export function DecisionPanel({ root, request, onReview, initialMethod, initialMetric = "", initialOperation }: {
     root: string;
     request: ApiRequest;
     onReview: () => void;
     initialMethod: "anomalies" | "allocations" | "scenarios";
     initialMetric?: string;
+    initialOperation?: "daily_change";
 }) {
     const datasetRoot = root.split("/uploads/")[0];
     const runsRoot = `${datasetRoot}/decision-analysis`;
@@ -141,7 +142,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
     const anomaly = selected?.run.kind === "robust_distribution" ? selected.run.result as AnomalyResult : null;
     const allocation = selected?.run.kind === "bounded_allocation" ? selected.run.result as AllocationResult : null;
     const selector = (label: string, value: string, change: (value: string) => void, items: string[]) => <label>{label}<select value={value} onChange={(e) => change(e.target.value)} required>{items.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>;
-    if (kind === "scenarios") return <><label>Analysis method<select value={kind} onChange={e => setKind(e.target.value)}><option value="anomalies">Unusual values · snapshot distribution</option><option value="allocations">Recommendation · budget allocation</option><option value="scenarios">What-if · scenario comparison</option></select></label><ScenarioPanel initialMetric={initialMetric} root={root} request={request} onReview={onReview} /></>;
+    if (kind === "scenarios") return <><label>Analysis method<select value={kind} onChange={e => setKind(e.target.value)}><option value="anomalies">Unusual values · snapshot distribution</option><option value="allocations">Recommendation · budget allocation</option><option value="scenarios">What-if · scenario comparison</option></select></label><ScenarioPanel initialMetric={initialMetric} initialOperation={initialOperation} root={root} request={request} onReview={onReview} /></>;
     return <section className="panel decisionPanel" aria-label="Anomalies and decisions">
     <header><p className="eyebrow">PRIVATE EVIDENCE · HUMAN REVIEW</p><h2>Find unusual values. Compare a declared decision.</h2>
       <p>Statistical findings need your context. Allocation benefits are conditional estimates from your declared inputs, never proven effects.</p></header>

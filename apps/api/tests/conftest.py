@@ -17,6 +17,7 @@ from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.health import HealthService
 from execplus.application.services.intent_router import IntentRouterService
 from execplus.application.services.joins import JoinService
+from execplus.application.services.patterns import PatternService
 from execplus.application.services.saved_items import SavedItemService
 from execplus.application.services.summaries import SummaryService
 from execplus.application.services.threads import ThreadService
@@ -68,7 +69,13 @@ def integration():
         runtime.analytics.assembler,
         runtime.analytics.row_limit,
     )
-    runtime.intent_router = IntentRouterService(runtime.intent_router.model, runtime.analytics)
+    runtime.intent_router = IntentRouterService(
+        runtime.intent_router.model,
+        runtime.analytics,
+        patterns=PatternService(
+            SQLUnitOfWork(engine), runtime.analytics, runtime.intent_router.patterns.statistics
+        ),
+    )
     runtime.summaries = SummaryService(runtime.summaries.model)
     runtime.joins = JoinService(
         SQLUnitOfWork(engine),

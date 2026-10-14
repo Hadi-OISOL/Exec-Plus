@@ -17,6 +17,10 @@ def analysis_guidance(
         return None
     if re.search(r"\b(document|policy|according)\b", text):
         return None
+    daily = bool(re.search(r"\b(days?|daily|per day)\b", text))
+    named = [
+        name for name in mentioned_columns(question, context.view) if name in context.view.metrics
+    ]
     if re.search(r"\b(forecast|forecasts|forecasting|predict|prediction|predictions)\b", text):
         tool, label = "forecasts", "Set up a forecast"
         options = forecast_options(context)
@@ -24,6 +28,37 @@ def analysis_guidance(
             message = " ".join(item["message"] for item in options["blockers"])
             if context.state == "confirmed":
                 message = "I am using your saved data meanings. " + message
+            if context.state == "confirmed" and any(
+                item["code"] == "date" for item in options["blockers"]
+            ):
+                eligible = {column["name"] for column in fixed_unit_columns(context)}
+                missing = [name for name in named if name not in eligible]
+                if missing or not eligible:
+                    measure = ", ".join(missing) if missing else "a numeric measure"
+                    return (
+                        message
+                        + f" A daily what-if also needs a confirmed fixed unit for {measure}. "
+                        "Your other answers are saved. "
+                        "I can still check relationships among eligible fields.",
+                        (
+                            dict(tool="prepare", label="Complete missing units"),
+                            dict(tool="patterns", label="Find patterns in eligible fields"),
+                        ),
+                    )
+                scenario = dict(
+                    tool="scenarios", label="Try a daily what-if", scenario_mode="daily_change"
+                )
+                if len(named) == 1:
+                    scenario["metric"] = named[0]
+                return (
+                    message + " I can find relationships in the rows you have. Or choose a "
+                    "daily change and a number of days for a what-if calculation. That uses "
+                    "your assumption; it does not predict what will happen.",
+                    (
+                        dict(tool="patterns", label="Find patterns in this data"),
+                        scenario,
+                    ),
+                )
             return (
                 message
                 + " You can still compare observed measurements and inspect unusual values.",
@@ -44,13 +79,21 @@ def analysis_guidance(
             "within groups. Choose a measure and review the threshold; findings are "
             "not proof of an error."
         )
-    elif re.search(r"\b(scenarios?|what if)\b", text):
+    elif re.search(r"\b(scenarios?|what if)\b", text) or (
+        daily and re.search(r"\b(happen|happens|change|changes|after|over)\b", text)
+    ):
         tool, label = "scenarios", "Compare scenarios"
         message = (
             "Use a saved measure as the baseline, then declare the changes to "
             "compare. Scenario results depend on those assumptions; they do not "
             "establish causes."
         )
+        if daily:
+            message = (
+                "Choose a measure, the change you assume each day and how many days to apply it. "
+                "I can calculate those steps without dates. This is a constant-change what-if, "
+                "not a learned forecast or proof that one thing causes another."
+            )
     elif re.search(r"\b(allocat\w*|prescriptive)\b|budget recommendation", text):
         tool, label = "allocations", "Set up a recommendation"
         message = (
@@ -66,9 +109,6 @@ def analysis_guidance(
             "meanings before this analysis.",
             (dict(tool="prepare", label="Finish data review"),),
         )
-    named = [
-        name for name in mentioned_columns(question, context.view) if name in context.view.metrics
-    ]
     eligible = {column["name"] for column in fixed_unit_columns(context)}
     missing_units = [name for name in named if name not in eligible]
     if missing_units or not eligible:
@@ -80,6 +120,8 @@ def analysis_guidance(
             (dict(tool="prepare", label="Complete missing details"),),
         )
     action = dict(tool=tool, label=label)
+    if tool == "scenarios" and daily:
+        action["scenario_mode"] = "daily_change"
     if len(named) == 1:
         action["metric"] = named[0]
     return message, (action,)

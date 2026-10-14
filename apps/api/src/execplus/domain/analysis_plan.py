@@ -35,6 +35,7 @@ class AnalysisPlan:
 
     def __post_init__(self) -> None:
         policies = {
+            "explore_patterns": ("patterns", "analysis_receipt"),
             "inspect_profile": ("profile", "source_checksum"),
             "query": ("query_result", "execution_receipt"),
             "retrieve_documents": ("citations", "authorized_citation_checksum"),
@@ -84,6 +85,7 @@ class AnalysisPlan:
             ):
                 self._invalid()
             expected = {
+                "explore_patterns": {"columns"},
                 "inspect_profile": {"columns", "focus"},
                 "query": {"kind", "plan"},
                 "retrieve_documents": {"query"},
@@ -93,7 +95,10 @@ class AnalysisPlan:
                 self._invalid()
             self._parameters(step)
             seen.add(step.id)
-        if sum(s.operation == "query" for s in self.steps) > self.budget.max_queries:
+        if (
+            sum(s.operation in {"query", "explore_patterns"} for s in self.steps)
+            > self.budget.max_queries
+        ):
             self._invalid()
         if (
             sum(s.operation == "retrieve_documents" for s in self.steps)
@@ -107,7 +112,16 @@ class AnalysisPlan:
 
     def _parameters(self, step: AnalysisStep) -> None:
         values = step.parameters
-        if step.operation == "inspect_profile":
+        if step.operation == "explore_patterns":
+            columns = values["columns"]
+            if (
+                not isinstance(columns, list)
+                or len(columns) > 12
+                or not all(isinstance(name, str) and 0 < len(name) <= 200 for name in columns)
+                or len(set(columns)) != len(columns)
+            ):
+                self._invalid()
+        elif step.operation == "inspect_profile":
             if (
                 not isinstance(values["columns"], list)
                 or len(values["columns"]) > 3
@@ -235,3 +249,26 @@ def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...])
         )
     )
     return AnalysisPlan("conversation-plan-v1", sources, tuple(steps), ResourceBudget())
+
+
+def pattern_conversation_plan(
+    columns: tuple[str, ...], sources: tuple[dict[str, str], ...]
+) -> AnalysisPlan:
+    return AnalysisPlan(
+        "conversation-plan-v1",
+        sources,
+        (
+            AnalysisStep(
+                "patterns",
+                "explore_patterns",
+                (),
+                {"columns": list(columns)},
+                "patterns",
+                "analysis_receipt",
+            ),
+            AnalysisStep(
+                "answer", "assemble_evidence", ("patterns",), {}, "answer", "authorized_evidence"
+            ),
+        ),
+        ResourceBudget(),
+    )

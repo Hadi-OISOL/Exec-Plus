@@ -26,6 +26,8 @@ export function ForecastPanel({
   onReview,
   onRefresh,
   onExplore,
+  onPatterns,
+  onScenario,
   initialMetric = "",
 }: {
   root: string;
@@ -34,6 +36,8 @@ export function ForecastPanel({
   onReview: () => void;
   onRefresh: () => void;
   onExplore?: () => void;
+  onPatterns?: () => void;
+  onScenario?: () => void;
   initialMetric?: string;
 }) {
   const datasetRoot = root.split("/uploads/")[0];
@@ -243,6 +247,21 @@ export function ForecastPanel({
                 <ul>
                   {(options.blockers ?? [{ code: "legacy", message: "Confirm a date column and a measure with a fixed unit before forecasting." }]).map(item => <li key={item.code}>{item.message}</li>)}
                 </ul>
+                {options.date_columns.length === 0 && <div className="forecastAlternatives" aria-label="Explore without dates">
+                  <p className="forecastAlternativeIntro">We can still learn from this file. Choose what you want to explore.</p>
+                  {onPatterns && <article className="forecastAlternativeCard">
+                    <span className="analysisEyebrow">LEARN FROM YOUR ROWS</span>
+                    <h4>What changes together?</h4>
+                    <p>Compare groups and check which measurements move together in the recorded data.</p>
+                    <button type="button" onClick={onPatterns}>Find patterns <span aria-hidden="true">→</span></button>
+                  </article>}
+                  {onScenario && <article className="forecastAlternativeCard">
+                    <span className="analysisEyebrow">TRY YOUR OWN ASSUMPTION</span>
+                    <h4>What if this continues for several days?</h4>
+                    <p>You choose the change per day and how many days. We calculate the possible result. This is a what-if, not a learned forecast.</p>
+                    <button type="button" onClick={onScenario}>Try a daily what-if <span aria-hidden="true">→</span></button>
+                  </article>}
+                </div>}
                 {onExplore && <button type="button" onClick={onExplore}>Explore observed data</button>}
                 {(options.state === "needs_review" || options.blockers?.some(item => item.code === "metric")) && <button type="button" onClick={onReview}>
                   {options.state === "needs_review" ? "Review data meanings" : "Review missing meanings or units"}

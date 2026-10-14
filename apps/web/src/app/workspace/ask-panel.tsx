@@ -13,6 +13,8 @@ import { ConversationEvidence } from "./conversation-evidence";
 import type { Citation } from "./conversation-evidence";
 import { ConversationActivity } from "./conversation-activity";
 import { DataExplanation } from "./data-explanation";
+import { PatternResults } from "./pattern-results";
+import type { PatternResult, PatternEvidence } from "./pattern-results";
 import {
   isTerminalJob,
   mergeJobEvents,
@@ -45,11 +47,13 @@ type Answer = {
   citations?: Citation[];
   limitations?: string[];
   coverage?: string;
+  patterns?: PatternResult;
+  pattern_evidence?: PatternEvidence;
   guidance?: {
     columns: string[];
     suggestions: string[];
     definition_state: string;
-    actions?: { tool: string; label: string; metric?: string }[];
+    actions?: { tool: string; label: string; metric?: string; scenario_mode?: "daily_change" }[];
   };
   sources?: { revision_id: string; understanding_id?: string }[];
 };
@@ -118,7 +122,7 @@ export function AskPanel({
   filename: string;
   starterQuestions?: string[];
   expert?: boolean;
-  onTool?: (action: { tool: string; metric?: string }) => void;
+  onTool?: (action: { tool: string; metric?: string; scenario_mode?: "daily_change" }) => void;
   ref?: Ref<ChatHandle>;
 }) {
   const [threadId, setThreadId] = useState("");
@@ -413,7 +417,7 @@ export function AskPanel({
   useEffect(() => {
     const log = conversation.current;
     if (!log) return;
-    const reading = log.querySelector('.conversationTurn:last-of-type .explanationCard[data-kind="meaning"]');
+    const reading = log.querySelector('.conversationTurn:last-of-type .explanationCard[data-kind="meaning"], .conversationTurn:last-of-type .patternOverview');
     if (reading && !pending) {
       log.scrollTo({
         top: Math.max(0, log.scrollTop + reading.getBoundingClientRect().top - log.getBoundingClientRect().top - 16),
@@ -663,7 +667,9 @@ export function AskPanel({
                   </span>
                 )}
               </span>
-              {turn.answer?.guidance ? (
+              {turn.answer?.patterns ? (
+                <PatternResults result={turn.answer.patterns} evidence={turn.answer.pattern_evidence} sources={turn.answer.sources} />
+              ) : turn.answer?.guidance ? (
                 <div className="datasetGuidance" aria-label="Data explanation">
                   <DataExplanation message={turn.answer.message ?? ""} />
                   <div

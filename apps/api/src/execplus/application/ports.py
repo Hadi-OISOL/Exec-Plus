@@ -75,6 +75,21 @@ class QueryExecutor(Protocol):
     ) -> QueryResult: ...
 
 
+class PatternStatistics(Protocol):
+    @property
+    def engine_version(self) -> str: ...
+
+    def correlations(
+        self,
+        left: tuple[float, ...],
+        right: tuple[float, ...],
+        left_ranks: tuple[float, ...],
+        right_ranks: tuple[float, ...],
+    ) -> tuple[float | None, float] | None: ...
+
+    def categorical_association(self, counts: tuple[tuple[int, ...], ...]) -> float | None: ...
+
+
 class LanguageModel(Protocol):
     async def complete(self, request: ModelRequest) -> ModelResponse: ...
 

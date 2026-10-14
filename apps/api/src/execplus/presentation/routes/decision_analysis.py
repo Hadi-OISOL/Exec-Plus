@@ -99,12 +99,22 @@ class CompoundAlternative(Input):
     drivers: list[ScenarioDriver] = Field(min_length=1, max_length=3)
 
 
+class DailyAlternative(Input):
+    name: str = Field(min_length=1, max_length=100)
+    operation: Literal["daily_change"]
+    daily_change: str = Field(min_length=1, max_length=100)
+    days: int = Field(ge=1, le=3650, strict=True)
+
+
 class ScenarioInput(SourceInput):
     kind: Literal["scenario_comparison"] = "scenario_comparison"
     metric: str = Field(min_length=1, max_length=200)
     aggregation: Literal["sum", "avg"]
     alternatives: list[
-        Annotated[ScenarioAlternative | CompoundAlternative, Field(discriminator="operation")]
+        Annotated[
+            ScenarioAlternative | CompoundAlternative | DailyAlternative,
+            Field(discriminator="operation"),
+        ]
     ] = Field(min_length=1, max_length=5)
     assumptions_confirmed: bool = Field(strict=True)
     parent_run_id: UUID | None = None

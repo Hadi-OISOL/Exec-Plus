@@ -18,8 +18,9 @@ from execplus.application.ports import LanguageModel
 from execplus.application.progress import activity, model_call, planned
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.document_answers import DocumentAnswerService
+from execplus.application.services.patterns import PatternService
 from execplus.domain.analysis_guidance import analysis_guidance
-from execplus.domain.analysis_plan import conversation_plan
+from execplus.domain.analysis_plan import conversation_plan, pattern_conversation_plan
 from execplus.domain.dataset_reading import (
     READING_PROMPT,
     parse_reading,
@@ -52,6 +53,7 @@ from execplus.domain.models import (
     ModelTier,
     QuestionKind,
 )
+from execplus.domain.pattern_requests import pattern_filter_needs_clarification, wants_patterns
 from execplus.domain.semantics import DatasetView
 
 
@@ -68,6 +70,12 @@ class DatasetGuide:
 
 
 @dataclass(frozen=True, slots=True)
+class PatternAnswer:
+    evidence: dict[str, Any]
+    model_route: str = "deterministic:pattern-exploration-v1"
+
+
+@dataclass(frozen=True, slots=True)
 class ClarificationContext:
     question: str
     message: str
@@ -81,7 +89,7 @@ class PlanningClarification(ClarificationRequiredError):
         self.context = context
 
 
-ConversationAnswer = NumericalAnswer | DatasetGuide | EvidenceAnswer
+ConversationAnswer = NumericalAnswer | DatasetGuide | EvidenceAnswer | PatternAnswer
 
 _SYSTEM_PROMPT = (
     "You help someone explore one dataset. Classify their request and propose a "
@@ -211,12 +219,14 @@ class IntentRouterService:
         selector: LanguageModel | None = None,
         documents: DocumentAnswerService | None = None,
         interpretation_enabled: bool = False,
+        patterns: PatternService | None = None,
     ) -> None:
         self.model = model
         self.analytics = analytics
         self.selector = selector
         self.documents = documents
         self.interpretation_enabled = interpretation_enabled
+        self.patterns = patterns
 
     async def _reading_notes(
         self, actor: User, wid: UUID, did: UUID, uid: UUID
@@ -366,6 +376,38 @@ class IntentRouterService:
         goal_request = (
             description.private_goal if broad_goal and description.private_goal else question
         )
+        if self.patterns is not None and wants_patterns(goal_request):
+            columns = mentioned_columns(goal_request, description.view)
+            if pattern_filter_needs_clarification(goal_request, columns):
+                raise PlanningClarification(
+                    ClarificationContext(
+                        question,
+                        "This pattern scan uses the whole eligible file. Your question also limits "
+                        "which rows to use. Start with the whole file, "
+                        "or prepare a filtered source first.",
+                        description.view.sources,
+                        ("Find patterns across the whole file",),
+                    )
+                )
+            if description.state != "confirmed":
+                return DatasetGuide(
+                    "I can look for measured patterns after the current field meanings are "
+                    "confirmed. Your saved answers are retained.",
+                    "deterministic:pattern-readiness-v1",
+                    sources=description.view.sources,
+                    definition_state=description.state,
+                    actions=({"tool": "prepare", "label": "Finish data review"},),
+                )
+            await planned(pattern_conversation_plan(columns, description.view.sources))
+            evidence = await self.patterns.discover(
+                actor, workspace_id, dataset_id, upload_id, columns
+            )
+            if tuple(evidence["sources"]) != description.view.sources:
+                raise ClarificationRequiredError(
+                    "The file or definitions changed during the scan. "
+                    "Ask again to use the current version."
+                )
+            return PatternAnswer(evidence)
         advice = analysis_guidance(description, goal_request)
         if advice:
             await planned(

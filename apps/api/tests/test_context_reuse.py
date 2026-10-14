@@ -68,7 +68,8 @@ def test_chat_and_forecast_share_no_date_reason_and_preserve_history(integration
     result = ask(env, owner, path, "Forecast attock_erp")
     answer = result["answer"]
     assert options["blockers"][0]["message"] in answer["message"]
-    assert answer["guidance"]["actions"][0]["tool"] == "overview"
+    assert answer["guidance"]["actions"][0]["tool"] == "patterns"
+    assert answer["guidance"]["actions"][1]["scenario_mode"] == "daily_change"
     assert not model.requests
     turn_id = result["turn"]["id"]
     restored = env.client.get(path + f"/turns/{turn_id}/answer", headers=owner)

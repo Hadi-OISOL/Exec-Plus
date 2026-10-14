@@ -33,13 +33,17 @@ from execplus.domain.errors import AuthorizationError, ClarificationRequiredErro
 from execplus.domain.evidence import receipt
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult
-from execplus.domain.scenarios import COMPOUND_METHOD, alternatives, compare_scenarios
+from execplus.domain.scenarios import COMPOUND_METHOD, DAILY_METHOD, alternatives, compare_scenarios
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
 
 REGISTERED_METHODS = {**METHODS, "scenario_comparison": SCENARIO_METHOD}
 
 
 def method_version(raw: dict[str, Any]) -> str:
+    if raw["kind"] == "scenario_comparison" and any(
+        item["operation"] == "daily_change" for item in raw["alternatives"]
+    ):
+        return DAILY_METHOD
     if raw["kind"] == "robust_distribution" and raw.get("segment_column"):
         return SEGMENT_METHOD
     if raw["kind"] == "bounded_allocation" and raw.get("resource_column"):
@@ -114,7 +118,7 @@ class DecisionAnalysisService:
             metrics=metrics,
             entities=[c["name"] for c in columns if c["role"] in {"dimension", "identifier"}],
             methods=REGISTERED_METHODS,
-            extensions=[SEGMENT_METHOD, RESOURCE_METHOD, COMPOUND_METHOD],
+            extensions=[SEGMENT_METHOD, RESOURCE_METHOD, COMPOUND_METHOD, DAILY_METHOD],
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
                 "Exploratory anomalies are not confirmed errors; "
@@ -239,7 +243,8 @@ class DecisionAnalysisService:
             "deterministic:"
             + (
                 method_version(raw)
-                if method_version(raw) in {SEGMENT_METHOD, RESOURCE_METHOD, COMPOUND_METHOD}
+                if method_version(raw)
+                in {SEGMENT_METHOD, RESOURCE_METHOD, COMPOUND_METHOD, DAILY_METHOD}
                 else SCENARIO_METHOD
                 if raw["kind"] == "scenario_comparison"
                 else "decision-analysis-v1"

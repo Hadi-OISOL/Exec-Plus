@@ -145,7 +145,7 @@ export default function WorkspacePage() {
   const [uploadDomain, setUploadDomain] = useState("auto");
   const [uploadGoal, setUploadGoal] = useState("");
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [toolSelection, setToolSelection] = useState<{root: string; tool: string; metric?: string} | null>(null);
+  const [toolSelection, setToolSelection] = useState<{root: string; tool: string; metric?: string; scenario_mode?: "daily_change"} | null>(null);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
   const [expert, setExpert] = useState(false);
@@ -1523,6 +1523,7 @@ export default function WorkspacePage() {
                           else if (["anomalies", "allocations", "scenarios"].includes(action.tool)) setSection("decisions");
                           else if (action.tool === "prepare") openBrief();
                           else if (action.tool === "overview") setSection("overview");
+                          else if (action.tool === "patterns") askFromHome(action.metric ? `Find patterns related to ${action.metric}` : "Find patterns in my data");
                         }}
                         expert={expert}
                       />
@@ -1650,16 +1651,19 @@ export default function WorkspacePage() {
                       onReview={reviewUnderstanding}
                       initialMetric={toolSelection?.root === root ? toolSelection.metric : ""}
                       onExplore={() => setSection("overview")}
+                      onPatterns={() => askFromHome(toolSelection?.root === root && toolSelection.metric ? `Find patterns related to ${toolSelection.metric}` : "Find patterns in my data")}
+                      onScenario={() => { setToolSelection({ root, tool: "scenarios", scenario_mode: "daily_change", metric: toolSelection?.root === root ? toolSelection.metric : undefined }); setSection("decisions"); }}
                       onRefresh={() => setSection("refresh")}
                     />
                   )}
                   {section === "decisions" && (
                     <DecisionPanel
-                      key={`decisions-${root}-${revisionTick}-${analysisIntent}-${toolSelection?.tool}-${toolSelection?.metric}`}
+                      key={`decisions-${root}-${revisionTick}-${analysisIntent}-${toolSelection?.tool}-${toolSelection?.metric}-${toolSelection?.scenario_mode}`}
                       root={root}
                       request={request}
                       initialMethod={toolSelection?.root === root && ["anomalies", "allocations", "scenarios"].includes(toolSelection.tool) ? toolSelection.tool as "anomalies" | "allocations" | "scenarios" : analysisIntent === "prescriptive" ? "allocations" : "anomalies"}
                       initialMetric={toolSelection?.root === root ? toolSelection.metric : ""}
+                      initialOperation={toolSelection?.root === root ? toolSelection.scenario_mode : undefined}
                       onReview={reviewUnderstanding}
                     />
                   )}

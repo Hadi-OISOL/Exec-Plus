@@ -18,6 +18,7 @@ from execplus.application.services.intent_router import (
     ConversationAnswer,
     DatasetGuide,
     IntentRouterService,
+    PatternAnswer,
     PlanningClarification,
 )
 from execplus.domain.errors import (
@@ -124,6 +125,16 @@ class ThreadService:
             return None
         with self.uow() as repo:
             self._authorize_evidence(repo, actor, wid, turn.evidence)
+        if turn.evidence.get("patterns"):
+            patterns = self.intent_router.patterns
+            if patterns is None:
+                raise IngestionError(
+                    "evidence_unavailable", "Pattern analysis is unavailable.", 503
+                )
+            evidence = cast(dict[str, Any], turn.evidence["patterns"])
+            if str(turn.query_id) != evidence.get("query_id"):
+                raise IngestionError("lineage_mismatch", "The pattern source is inconsistent.", 409)
+            return PatternAnswer(await patterns.reopen(actor, wid, evidence))
         data: NumericalAnswer | None = None
         if turn.query_id:
             result, lineage = await self.intent_router.analytics.replay(actor, wid, turn.query_id)
@@ -252,6 +263,23 @@ class ThreadService:
         repo.workspace(wid, lock=True)
         self._thread(repo, actor, wid, turn.thread_id)
         self._authorize_evidence(repo, actor, wid, turn.evidence)
+        if turn.evidence.get("patterns"):
+            patterns = cast(dict[str, Any], turn.evidence["patterns"])
+            for source in patterns["sources"]:
+                _, current_sources = self.intent_router.analytics._current_description_source(
+                    repo, actor, wid, UUID(source["dataset_id"]), UUID(source["upload_id"])
+                )
+                if current_sources != (source,):
+                    raise IngestionError(
+                        "source_changed", "The file changed. Run a fresh pattern scan.", 409
+                    )
+                if any(
+                    str(feed.source["upload_id"]) != source["upload_id"]
+                    for feed in repo.refresh_feeds(wid, UUID(source["dataset_id"]))
+                ):
+                    raise IngestionError(
+                        "source_changed", "Use the current accepted file for new patterns.", 409
+                    )
         current = next(
             item for item in repo.thread_turns(wid, turn.thread_id) if item.id == turn.id
         )
@@ -288,6 +316,8 @@ class ThreadService:
             return await self.resolve(actor, workspace_id, thread_id, turn.id), turn
         try:
             answer, turn = await self.run_turn(actor, workspace_id, thread, turn)
+            with self.uow() as repo:
+                self.publish(repo, actor, workspace_id, turn)
         except (IngestionError, asyncio.CancelledError):
             with self.uow() as repo:
                 repo.workspace(workspace_id, lock=True)
@@ -300,16 +330,16 @@ class ThreadService:
                     repo.update_thread_turn(
                         workspace_id,
                         replace(
-                            turn,
+                            current,
                             status="failed",
+                            query_id=None,
+                            evidence={},
                             message=(
                                 "This request was interrupted or a required source is unavailable."
                             ),
                         ),
                     )
             raise
-        with self.uow() as repo:
-            self.publish(repo, actor, workspace_id, turn)
         return answer, turn
 
     async def run_turn(
@@ -328,7 +358,7 @@ class ThreadService:
                 if not prior_document_query and item.evidence.get("document_query"):
                     self._authorize_evidence(repo, actor, wid, item.evidence)
                     prior_document_query = str(item.evidence["document_query"])
-                if prior_lineage is None and item.query_id:
+                if prior_lineage is None and item.query_id and not item.evidence.get("patterns"):
                     prior_lineage = repo.query_execution(wid, item.query_id).lineage()
             if prior_turns and prior_turns[-1].evidence.get("guide"):
                 self._authorize_evidence(repo, actor, wid, prior_turns[-1].evidence)
@@ -361,7 +391,16 @@ class ThreadService:
             )
             evidence: dict[str, Any] = {}
             data = None
-            if isinstance(answer, EvidenceAnswer):
+            if isinstance(answer, PatternAnswer):
+                evidence = dict(patterns=answer.evidence, sources=answer.evidence["sources"])
+                turn = replace(
+                    turn,
+                    kind="numerical",
+                    query_id=UUID(answer.evidence["query_id"]),
+                    model_route=answer.model_route,
+                    status="complete",
+                )
+            elif isinstance(answer, EvidenceAnswer):
                 data = answer.data
                 evidence = dict(
                     document_query=answer.document_query,

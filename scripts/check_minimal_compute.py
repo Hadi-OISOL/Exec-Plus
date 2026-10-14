@@ -1,6 +1,6 @@
 """Use case: Rehearses exact concurrent computation in the clean production image.
 
-What it does: Checks isolated broker and calendar forecasts without optional data libraries.
+What it does: Checks isolated broker and calendar forecasts without dataframe dependencies.
 """
 
 import asyncio
@@ -92,7 +92,7 @@ async def run(index: int) -> tuple[UUID, ...]:
 
 
 async def main() -> None:
-    for name in ("numpy", "pandas", "pyarrow"):
+    for name in ("pandas", "pyarrow"):
         if importlib.util.find_spec(name) is not None:
             raise RuntimeError("Run this check in the minimal production image")
     for module in ("execplus.main", "execplus.manage"):

@@ -559,8 +559,17 @@ class JobService:
                     self._close(repo, current, JobState.FAILED, "timeout")
                     return
                 self._close(repo, current, JobState.SUCCEEDED, None, completed)
-            except IngestionError:
-                self._close(repo, current, JobState.FAILED, "unauthorized")
+            except IngestionError as error:
+                self._close(
+                    repo,
+                    current,
+                    JobState.FAILED,
+                    "source_changed"
+                    if error.code == "source_changed"
+                    else "unauthorized"
+                    if error.status == 404
+                    else "execution_failed",
+                )
 
     async def process(self, *, limit: int = 32, concurrency: int = 4) -> dict[str, int]:
         if (

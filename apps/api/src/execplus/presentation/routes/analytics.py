@@ -25,6 +25,7 @@ from execplus.application.services.intent_router import (
     ConversationAnswer,
     DatasetGuide,
     IntentRouterService,
+    PatternAnswer,
 )
 from execplus.application.services.summaries import SummaryService
 from execplus.domain.kpi_library import KpiMatch
@@ -158,6 +159,20 @@ def answer_body(answer: VerifiedMetricAnswer) -> dict[str, object]:
 def numerical_answer_body(
     answer: ConversationAnswer,
 ) -> dict[str, object]:
+    if isinstance(answer, PatternAnswer):
+        evidence = answer.evidence
+        return {
+            "kind": "patterns",
+            "patterns": evidence["result"],
+            "pattern_evidence": {
+                "query_id": evidence["query_id"],
+                "method_version": evidence["result"]["version"],
+                "engine_version": evidence["engine_version"],
+                "result_checksum": evidence["result_checksum"],
+            },
+            "sources": evidence["sources"],
+            "model_route": answer.model_route,
+        }
     if isinstance(answer, EvidenceAnswer):
         return {
             "kind": answer.kind,

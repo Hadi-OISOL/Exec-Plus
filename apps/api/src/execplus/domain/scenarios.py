@@ -10,6 +10,7 @@ from execplus.domain.decision_analysis import encoded, fail, number
 
 METHOD = "aggregate-scenarios-v1"
 COMPOUND_METHOD = "compound-scenarios-v1"
+DAILY_METHOD = "constant-daily-scenarios-v1"
 
 
 def drivers(raw: object) -> list[dict[str, str]]:
@@ -41,7 +42,13 @@ def alternatives(raw: object) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             fail("invalid_scenario", "Use named scenario alternatives.")
         compound = item.get("operation") == "compound_percent"
-        if set(item) != {"name", "operation", "drivers" if compound else "value"}:
+        daily = item.get("operation") == "daily_change"
+        keys = (
+            {"name", "operation", "daily_change", "days"}
+            if daily
+            else {"name", "operation", "drivers" if compound else "value"}
+        )
+        if set(item) != keys:
             fail("invalid_scenario", "Use a named replacement or percentage change.")
         name = item["name"]
         if not isinstance(name, str) or not name.strip() or len(name) > 100 or "\x00" in name:
@@ -52,6 +59,23 @@ def alternatives(raw: object) -> list[dict[str, Any]]:
                     name=name.strip(),
                     operation="compound_percent",
                     drivers=drivers(item["drivers"]),
+                )
+            )
+            continue
+        if daily:
+            if type(item["days"]) is not int or not 1 <= item["days"] <= 3650:
+                fail("invalid_daily_assumption", "Choose between one and 3,650 hypothetical days.")
+            if not isinstance(item["daily_change"], str):
+                fail(
+                    "invalid_daily_assumption", "Enter the assumed daily change as an exact value."
+                )
+            change = number(item["daily_change"])
+            result.append(
+                dict(
+                    name=name.strip(),
+                    operation="daily_change",
+                    daily_change=encoded(change),
+                    days=item["days"],
                 )
             )
             continue
@@ -78,6 +102,7 @@ def compare_scenarios(raw: dict[str, Any], rows: tuple[tuple[Any, ...], ...]) ->
         fail("invalid_scenario", "Scenarios support eligible sums and averages only.")
     declared = alternatives(raw.get("alternatives"))
     compound = any(item["operation"] == "compound_percent" for item in declared)
+    daily = any(item["operation"] == "daily_change" for item in declared)
     if len(rows) != 1 or len(rows[0]) != 3:
         fail("invalid_scenario_evidence", "A complete baseline and coverage counts are required.")
     baseline, present, count = rows[0]
@@ -95,6 +120,8 @@ def compare_scenarios(raw: dict[str, Any], rows: tuple[tuple[Any, ...], ...]) ->
                 value = base
                 for driver in item["drivers"]:
                     value *= 1 + number(driver["percent_change"]) / 100
+            elif item["operation"] == "daily_change":
+                value = base + number(item["daily_change"]) * item["days"]
             else:
                 amount = number(item["value"])
                 value = amount if item["operation"] == "replace" else base * (1 + amount / 100)
@@ -114,9 +141,28 @@ def compare_scenarios(raw: dict[str, Any], rows: tuple[tuple[Any, ...], ...]) ->
                     percentage_difference=encoded(percentage) if percentage is not None else None,
                 )
             )
+            if item["operation"] == "daily_change":
+                days = item["days"]
+                checkpoints = sorted({0, days // 4, days // 2, 3 * days // 4, days})
+                results[-1]["path"] = [
+                    dict(day=day, value=encoded(base + number(item["daily_change"]) * day))
+                    for day in checkpoints
+                ]
+                results[-1]["warnings"] = (
+                    [
+                        "This assumption crosses below zero. "
+                        "Check whether that is possible for this measure."
+                    ]
+                    if base >= 0 and value < 0
+                    else []
+                )
     return dict(
-        version="compound-scenario-comparison-v1" if compound else "scenario-comparison-v1",
-        method_version=COMPOUND_METHOD if compound else METHOD,
+        version="constant-daily-scenario-comparison-v1"
+        if daily
+        else "compound-scenario-comparison-v1"
+        if compound
+        else "scenario-comparison-v1",
+        method_version=DAILY_METHOD if daily else COMPOUND_METHOD if compound else METHOD,
         baseline=encoded(base),
         sample_count=count,
         metric=raw["metric"],
@@ -124,6 +170,15 @@ def compare_scenarios(raw: dict[str, Any], rows: tuple[tuple[Any, ...], ...]) ->
         alternatives=results,
         parent_run_id=raw.get("parent_run_id"),
         limitations=[
+            *(
+                [
+                    "Daily changes are your explicit assumptions, not rates learned from the file. "
+                    "The same change is applied each hypothetical day; no calendar history, "
+                    "physical limits, feedback effects or uncertainty are modeled."
+                ]
+                if daily
+                else []
+            ),
             "Hypothetical aggregate changes are conditional estimates, "
             "not forecasts or causal effects.",
             "Original records, source meaning and past comparisons remain unchanged.",

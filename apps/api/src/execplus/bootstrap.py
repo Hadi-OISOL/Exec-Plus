@@ -28,6 +28,7 @@ from execplus.application.services.joins import JoinService
 from execplus.application.services.knowledge import KnowledgeService
 from execplus.application.services.monitoring import MonitoringService
 from execplus.application.services.operations import OperationsService
+from execplus.application.services.patterns import PatternService
 from execplus.application.services.product_usage import ProductUsageService
 from execplus.application.services.refresh import RefreshService
 from execplus.application.services.reports import ReportService
@@ -50,6 +51,7 @@ from execplus.infrastructure.persistence.repository import SQLUnitOfWork
 from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 from execplus.infrastructure.readiness import DatabaseProbe, StorageProbe
 from execplus.infrastructure.release_gate import require_production_evidence
+from execplus.infrastructure.statistics.scipy_patterns import ScipyPatternStatistics
 
 
 def build_language_model(
@@ -138,6 +140,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         selector,
         DocumentAnswerService(knowledge, model),
         interpretation_enabled=settings.llm_mode != "disabled",
+        patterns=PatternService(SQLUnitOfWork(engine), analytics, ScipyPatternStatistics()),
     )
     uploads = WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes)
     refresh = RefreshService(SQLUnitOfWork(engine), uploads, analytics)

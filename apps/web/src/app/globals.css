@@ -3589,3 +3589,87 @@ footer {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+.analysisEyebrow { color: #276e70; font-size: .68rem; font-weight: 750; letter-spacing: .12em; }
+.patternResults { min-width: 0; margin-top: 14px; }
+.patternOverview { padding: 22px; border: 1px solid #d7e7e6; border-radius: 18px; background: linear-gradient(125deg, #f1f9f6, #f4f7fb); }
+.patternOverview h3 { margin: 8px 0; color: #152f41; font-size: 1.3rem; letter-spacing: -.025em; }
+.patternOverview p { max-width: 70ch; color: #4d616e; font-size: .86rem; line-height: 1.65; }
+.patternCoverage { display: flex; flex-wrap: wrap; gap: 16px 28px; margin: 20px 0 0; }
+.patternCoverage div { display: flex; flex-direction: column-reverse; gap: 4px; }
+.patternCoverage dt { color: #526773; font-size: .71rem; }
+.patternCoverage dd { margin: 0; color: #173c4a; font-size: 1.35rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+.patternFindings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; margin: 18px 0; }
+.patternFinding { min-width: 0; padding: 20px; border: 1px solid #dfe6ed; border-radius: 16px; background: #fff; box-shadow: 0 4px 16px #173c4a05; }
+.patternFindingTop { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.patternNumber { display: grid; place-items: center; width: 25px; height: 25px; background: #eaf5f2; border-radius: 8px; color: #216466; font-size: .75rem; font-weight: 700; }
+.patternType { color: #35576a; font-size: .71rem; font-weight: 700; }
+.patternSupport { margin-left: auto; color: #657783; font-size: .68rem; }
+.patternFinding h4 { margin: 15px 0 9px; color: #173442; font-size: 1rem; line-height: 1.5; overflow-wrap: anywhere; }
+.patternFinding .patternSummary { color: #506470; font-size: .8rem; line-height: 1.65; white-space: normal; }
+.patternFinding[data-strength="weak"] { border-color: #e0e3e7; background: #fdfdfd; }
+.patternFinding[data-strength="weak"] .patternType { color: #65707a; }
+.patternFinding[data-strength="weak"] .patternNumber { background: #edf0f2; color: #697582; }
+.patternFinding[data-strength="weak"] .patternScatter circle { fill: #78929c; }
+.patternExploratory > h4 { margin: 22px 0 8px; color: #455d6a; font-size: 1rem; }
+.patternExploratory > p { color: #65747e; font-size: .82rem; line-height: 1.6; }
+.patternStatistics { display: grid; gap: 8px; }
+.patternStatistics div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; }
+.patternStatistics dd { margin: 0; font-variant-numeric: tabular-nums; }
+.patternScatter { margin: 16px 0; border-radius: 12px; background: #f6f9fb; padding: 12px; }
+.patternScatter svg { display: block; width: 100%; height: auto; overflow: visible; }
+.patternScatter circle { fill: #2c8c88; opacity: .72; }
+.patternGridLine { stroke: #dde8ed; stroke-width: 1; }
+.patternScatter figcaption { display: flex; flex-direction: column; gap: 5px; color: #46616f; font-size: .72rem; overflow-wrap: anywhere; }
+.patternScatter figcaption small { color: #637b86; font-size: .64rem; }
+.patternBarChart, .patternCategoryChart { display: grid; gap: 13px; margin: 20px 0; }
+.patternBarLabel { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: #355563; font-size: .76rem; overflow-wrap: anywhere; }
+.patternBarLabel strong { font-variant-numeric: tabular-nums; }
+.patternBarTrack, .patternCountTrack { height: 8px; margin: 5px 0; border-radius: 5px; background: #edf2f5; overflow: hidden; }
+.patternBarTrack > span, .patternCountTrack > span { display: block; height: 100%; min-width: 0; border-radius: inherit; background: #4b9992; }
+.patternBarTrack > span[data-negative="true"] { background: #9c718b; }
+.patternBarTrack { position: relative; }
+.patternBarTrack > span { position: absolute; top: 0; }
+.patternBarTrack > i { position: absolute; height: 100%; width: 1px; background: #80929e; z-index: 1; }
+.patternBarRow small { color: #657985; font-size: .65rem; }
+.patternCategoryRow { display: grid; grid-template-columns: minmax(0, 1fr) 60px 35px; align-items: center; gap: 9px; color: #355563; font-size: .72rem; overflow-wrap: anywhere; }
+.patternCategoryRow strong { text-align: right; font-variant-numeric: tabular-nums; }
+.patternCoverageNote { margin: 12px 0; color: #657680; font-size: .72rem; line-height: 1.6; }
+.patternDetails, .patternEvidence { padding-top: 13px; border-top: 1px solid #e4eaef; color: #4e626f; font-size: .75rem; overflow-wrap: anywhere; }
+.patternDetails summary, .patternEvidence summary { cursor: pointer; color: #365f70; font-size: .75rem; font-weight: 650; }
+.patternDetails .tableWrap { max-height: 300px; overflow: auto; }
+.patternDetails table { font-size: .72rem; }
+.patternDetails caption { text-align: left; margin: 12px 0; }
+.patternDetails li, .patternEvidence li { margin-bottom: 7px; }
+.patternEvidence { padding: 17px 4px; }
+.forecastAlternatives { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 20px 0; }
+.forecastAlternativeIntro { grid-column: 1 / -1; margin: 0; font-weight: 650; color: #345363; }
+.forecastAlternativeCard { padding: 22px; border: 1px solid #dbe7e8; border-radius: 16px; background: #fff; }
+.forecastAlternativeCard h4 { margin: 10px 0; font-size: 1.05rem; color: #173b4b; }
+.forecastAlternativeCard p { font-size: .84rem; line-height: 1.65; color: #586d77; }
+.forecastAlternativeCard button { margin-top: 8px; display: inline-flex; align-items: center; justify-content: space-between; gap: 14px; background: #e9f4f2; color: #1b6768; border-color: #d0e7e2; }
+.dailyScenarioIntro { margin: 20px 0; padding: 20px; border: 1px solid #d6e5eb; border-radius: 15px; background: #f2f7fa; }
+.dailyScenarioIntro h3 { margin-top: 0; color: #244d61; }
+.dailyScenarioIntro p { color: #4e6876; font-size: .88rem; line-height: 1.6; }
+.dailyScenarioIntro > span { display: inline-block; border-radius: 8px; padding: 9px 12px; background: #e2eef3; color: #365b6c; font-size: .8rem; font-weight: 650; }
+.dailyScenarioFields { grid-column: 1 / -1; background: #f7fafb; }
+.dailyScenarioFields small { font-weight: 400; color: #657883; }
+.dailyScenarioResult { margin: 22px 0; padding: 22px; border: 1px solid #d3e3e7; border-radius: 16px; background: #f5f9fa; }
+.dailyScenarioResult > p { color: #506976; line-height: 1.7; }
+.dailyScenarioResult h4 { margin: 10px 0; font-size: 1.1rem; color: #254e60; }
+.dailyScenarioSteps { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; padding: 0; margin: 22px 0; }
+.dailyScenarioSteps li { flex: 1 1 115px; min-width: 0; display: flex; flex-direction: column; gap: 7px; padding: 14px; background: #fff; border: 1px solid #d9e6ea; border-radius: 10px; }
+.dailyScenarioSteps span, .dailyScenarioSteps small { font-size: .7rem; color: #617c88; }
+.dailyScenarioSteps strong { font-size: 1rem; color: #235c6b; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.dailyScenarioWarning { padding: 12px; background: #fff5e7; border: 1px solid #efdab7; border-radius: 9px; }
+@media (max-width: 1100px) {
+  .patternFindings { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .forecastAlternatives { grid-template-columns: minmax(0, 1fr); }
+  .patternOverview, .patternFinding, .forecastAlternativeCard, .dailyScenarioResult { padding: 15px; }
+  .patternCoverage { gap: 14px; }
+  .patternCoverage dd { font-size: 1.1rem; }
+  .patternCategoryRow { grid-template-columns: minmax(0, 1fr) 40px 25px; gap: 6px; }
+  .dailyScenarioSteps li { flex-basis: 100%; padding: 12px; }
+}

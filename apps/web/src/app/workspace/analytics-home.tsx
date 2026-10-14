@@ -95,6 +95,7 @@ export function AnalyticsHome({
       <div className="homeQuickQuestions" aria-label="Start exploring">
         {[
           ["Help me understand my data", "Understand this data"],
+          ["Find patterns in my data", "Find patterns"],
           ["Show the first 10 records", "Explore records"],
         ].map(([question, label]) => <button key={question} type="button" onClick={() => onAsk(question)}>
           <Icon name="sparkle" size={14} />{label}
