@@ -210,7 +210,7 @@ def test_endpoint_returns_a_validated_model_reading_without_sending_row_values(i
 def test_endpoint_falls_back_to_profile_questions_when_the_model_cannot_be_used(
     integration, outcome, notice
 ):
-    owner, _, root = uploaded(integration, BriefModel(outcome))
+    owner, _, root = uploaded(integration, BriefModel(outcome, outcome))
     response = integration.client.post(f"{root}/data-brief", headers=owner)
     assert response.status_code == 200, response.text
     body = response.json()

@@ -4,6 +4,7 @@ What it does: Shows source-backed discoveries, data checks and relevant question
 import { useEffect, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { Icon } from "./explore-components";
+import { WorkspaceLoading } from "./workspace-loading";
 import { AnswerVisualization } from "./answer-visualization";
 import { compareExactNumeric, displayMetric } from "./visualization-values";
 import styles from "./dashboard-presentation.module.css";
@@ -281,19 +282,7 @@ export function DiscoveryPanel({
         aria-label="First reading of your data"
         aria-busy="true"
       >
-        <span className="readingMark">
-          <Icon name="sparkle" size={28} />
-        </span>
-        <h2>Getting to know your data</h2>
-        <p>
-          Checking the columns, calculating useful starting points, and finding
-          questions worth asking.
-        </p>
-        <div className="readingProgress" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
+        <WorkspaceLoading title="Getting to know your data" detail="Checking columns and calculating useful starting points from your file." />
         <p className="readingHint">
           You can start a conversation while this loads.
         </p>

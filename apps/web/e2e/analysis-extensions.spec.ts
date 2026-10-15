@@ -1,6 +1,7 @@
 /* Use case: Exercises grouped findings, resource limits and compound scenarios in the browser.
 What it does: Verifies real calculations, replay, declared assumptions and mobile layouts. */
 import { execFileSync } from "node:child_process";
+import { finishInitialReview } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -17,6 +18,8 @@ test("extended analysis preserves group coverage, resource limits and compound e
   const csv = "city,segment,amount,cost,hours\n" + Array.from({ length: 8 }, (_, i) => `A${i},Regular,10,1,1\n`).join("") + "Z,Regular,100,1,3\nSparse,Small,20,1,2\n";
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "extension-demo.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await page.getByRole("radio", { name: "Expert", exact: true }).check();
   await expect(page.getByLabel("Analysis focus")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();

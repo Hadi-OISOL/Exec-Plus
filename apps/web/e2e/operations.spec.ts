@@ -2,6 +2,7 @@
 What it does: Exercises real requester/staff rights, optimistic support updates, cohort maturity and deferred workspace requests. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview, openFindings } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page, APIRequestContext } from "@playwright/test";
@@ -422,6 +423,8 @@ test("manager reports mature cohorts and optional admin data stays off the first
     buffer: Buffer.from("branch,amount\nNorth,0.10\nSouth,0.20\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await expect(page.locator(".discoveryValue")).toHaveText([
     "0.1",
     "0.2",

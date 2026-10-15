@@ -3,7 +3,6 @@
 What it does: Has the model read the file profile and a bounded sample, then checks its reply.
 """
 
-import asyncio
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import datetime, timezone
@@ -11,18 +10,24 @@ from io import BytesIO
 from typing import Any
 from uuid import UUID, uuid4
 
-from execplus.application.contracts import ModelMessage, ModelRequest
+from execplus.application.contracts import ModelMessage
 from execplus.application.ports import FileParser, LanguageModel, ObjectStorage, WorkspaceRepository
+from execplus.application.services.forecasts import read_complete
+from execplus.application.services.structured_reading import (
+    READING_TIMEOUT_SECONDS,
+    read_validated,
+)
 from execplus.domain.data_brief import (
     fallback_brief,
+    ground_brief,
     model_input,
+    next_question,
     parse_brief,
     sample_values,
     system_prompt,
 )
 from execplus.domain.errors import ProviderUnavailableError, UnverifiedAnswerError
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
-from execplus.domain.models import ModelTier
 from execplus.domain.profiling import Revision, reconstruct
 from execplus.domain.understanding import infer_definition
 
@@ -50,6 +55,7 @@ class DataBriefService:
         self.parser = parser
         self.sample_limit = sample_limit
         self.model_enabled = model_enabled
+        self.reading_timeout_seconds = READING_TIMEOUT_SECONDS
 
     def _context(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
@@ -82,6 +88,41 @@ class DataBriefService:
                 definition=definition,
                 can_edit=member.role in {"owner", "admin"} or dataset.created_by == actor.id,
             )
+
+    def _recheck(
+        self,
+        repo: WorkspaceRepository,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        context: dict[str, Any],
+    ) -> None:
+        repo.workspace(workspace_id, lock=True)
+        member = repo.membership(workspace_id, actor.id)
+        dataset = repo.dataset(workspace_id, dataset_id)
+        upload = repo.upload(workspace_id, dataset_id, upload_id)
+        revision = repo.active_revision(workspace_id, dataset_id, upload_id)
+        saved = repo.latest_understanding(workspace_id, dataset_id)
+        if (
+            revision != context["revision"]
+            or upload.checksum != context["upload"].checksum
+            or saved != context["saved"]
+            or (member.role in {"owner", "admin"} or dataset.created_by == actor.id)
+            != context["can_edit"]
+        ):
+            raise IngestionError(
+                "source_changed",
+                "Your file or saved answers changed while I was reading. "
+                "Please open the review again.",
+                409,
+            )
+
+    def _recheck_before_retry(
+        self, actor: User, wid: UUID, did: UUID, uid: UUID, context: dict[str, Any]
+    ) -> None:
+        with self.uow() as repo:
+            self._recheck(repo, actor, wid, did, uid, context)
 
     def _sample(
         self, upload: Any, revision: Revision, definition: dict[str, Any]
@@ -125,8 +166,10 @@ class DataBriefService:
             notice="",
             sampled=False,
             model_enabled=self.model_enabled,
+            next_question=next_question(context["definition"]),
         )
         if result["already_confirmed"] and not review_missing:
+            self._recheck_before_retry(actor, workspace_id, dataset_id, upload_id, context)
             return result
         if review_missing and saved and saved.revision_id == revision.id:
             definition = context["definition"]
@@ -143,33 +186,41 @@ class DataBriefService:
                 )
             }
             if not missing and result["already_confirmed"]:
+                self._recheck_before_retry(actor, workspace_id, dataset_id, upload_id, context)
                 return result
             brief = fallback_brief(revision.profile, definition)
             brief["columns"] = [column for column in brief["columns"] if column["name"] in missing]
             brief["questions"] = []
+            brief = ground_brief(brief, definition, preserve_saved=True)
+            self._recheck_before_retry(actor, workspace_id, dataset_id, upload_id, context)
             return {**result, **brief, "already_confirmed": False, "review_mode": "missing"}
         profile, definition = revision.profile, context["definition"]
-        samples = await asyncio.to_thread(self._sample, context["upload"], revision, definition)
+        samples = await read_complete(lambda: self._sample(context["upload"], revision, definition))
+        self._recheck_before_retry(actor, workspace_id, dataset_id, upload_id, context)
         try:
-            response = await self.model.complete(
-                ModelRequest(
-                    messages=(
-                        ModelMessage("system", system_prompt(samples)),
-                        ModelMessage("user", model_input(profile, definition, samples)),
-                    ),
-                    tier=ModelTier.LARGE,
-                )
+            brief, response, repaired = await read_validated(
+                self.model,
+                (
+                    ModelMessage("system", system_prompt(samples)),
+                    ModelMessage("user", model_input(profile, definition, samples)),
+                ),
+                lambda raw: parse_brief(raw, profile, definition, samples),
+                timeout_seconds=self.reading_timeout_seconds,
+                before_retry=lambda: self._recheck_before_retry(
+                    actor, workspace_id, dataset_id, upload_id, context
+                ),
             )
-            brief = parse_brief(response.content, profile, definition, samples)
             result["model_route"] = f"{response.provider}:{response.model}"
             result["sampled"] = samples is not None
-        except (ProviderUnavailableError, UnverifiedAnswerError):
+            result["repaired"] = repaired
+        except (ProviderUnavailableError, UnverifiedAnswerError, TimeoutError):
             brief = fallback_brief(profile, definition)
             result["notice"] = FALLBACK_NOTICES["unavailable"]
         except ValueError:
             brief = fallback_brief(profile, definition)
             result["notice"] = FALLBACK_NOTICES["unverified"]
         with self.uow() as repo:
+            self._recheck(repo, actor, workspace_id, dataset_id, upload_id, context)
             repo.add(
                 AuditEvent(
                     uuid4(),
@@ -181,4 +232,4 @@ class DataBriefService:
                     datetime.now(timezone.utc),
                 )
             )
-        return {**result, **brief}
+        return {**result, **ground_brief(brief, definition, preserve_saved=saved is not None)}

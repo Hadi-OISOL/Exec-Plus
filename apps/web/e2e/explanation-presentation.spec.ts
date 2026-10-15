@@ -2,6 +2,7 @@
 What it does: Uses an explicit response-text fixture to check card hierarchy, safe text, keyboard access and narrow layouts. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -16,6 +17,7 @@ test("structured explanation cards preserve text and accessible context at three
     name: "observations.csv", mimeType: "text/csv", buffer: Buffer.from("region,amount\nNorth,0.10\nSouth,0.20\nNorth,0.30\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
   await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
   const fixture = [
     "What this data is about\nRecorded observations across regions.",

@@ -1,7 +1,7 @@
 > **File use case:** Plans honest closure of the sixteen remaining Partial VC features.
 > **What it does:** Separates repository work from external setup and reviewed production evidence.
 
-# Partial-feature closure plan — October 14
+# Partial-feature closure plan — October 15
 
 The maintained report has 37 Done, 16 Partial and 11 Not yet items. These counts
 refer to bounded private-demo features, not production readiness. The teammate
@@ -20,13 +20,18 @@ and [production evidence](production-readiness.json).
 | 43 | Operational error monitoring | Central fixed-code collection, bounded retention, alert routing and incident drill without source values or credentials. An alert recipient/channel is required. |
 | 44 | Representative AI evaluation | Approved real examples and correct-answer labels, quality/speed/cost comparison, retrieval/citation review and hosted-provider privacy approval. Fictional demo scores cannot substitute. |
 | 50 | Representative performance acceptance | Agreed user/data workload, sustained rehearsal, latency/error/resource thresholds and current data parity. Eight-user functional tests are not sustained-load proof. |
-| 57 | Advanced scenarios | Local/test compound percentage drivers extend bounded what-if comparisons. Deploy and verify this slice; source-derived multi-measure models, uncertainty and broader constraints remain open. |
-| 58 | Broader anomaly detection | Local/test group baselines and explicit sparse/missing coverage are verified. Deploy and verify this slice; seasonal, multivariate/drift candidates and representative calibration remain open. |
-| 59 | Broader prescriptive recommendations | Local/test exact allocation supports two resources under bounded enumeration. Deploy and verify this slice; business modules, precedence/exclusions, larger solvers and validated assumptions remain open. |
+| 57 | Advanced scenarios | Compound percentage drivers and explicit daily-change assumptions are deployed and verified for the private demo. Source-derived multi-measure models, uncertainty and broader constraints remain open. |
+| 58 | Broader anomaly detection | Group baselines and explicit sparse/missing coverage are deployed and verified for the private demo. Seasonal, multivariate/drift candidates and representative calibration remain open. |
+| 59 | Broader prescriptive recommendations | Exact allocation supports two resources under bounded enumeration in the verified private demo. Business modules, precedence/exclusions, larger solvers and validated assumptions remain open. |
 | 62 | Customer APIs/webhooks | Scoped credentials, source permissions, signed events, retries/idempotency and delivery audit. Internal APIs alone do not complete this feature. |
 | 64 | Fine-grained permissions and audit | Policy design for row/column restrictions, consistent query/planner/replay/citation enforcement, migration compatibility and independent privacy tests. |
 
-Dependency order: finish onboarding release; extend tested internal analytics under
+The October 15 [four-phase improvement plan](clean-experience-plan.md) starts with
+focused screens and reliable reuse of saved definitions. It retains the remaining
+internal analytics and quality work for the next session; external dependencies
+are not silently counted as complete.
+
+Dependency order: improve the existing onboarding experience; extend tested internal analytics under
 the authorized research sequence; complete exports/first controlled connectors;
 implement selected commercial providers and operational controls; run reviewed
 production acceptance. Broader Phase 6 remains Frozen except explicitly authorized

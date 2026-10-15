@@ -4,6 +4,7 @@ What it does: Presents one question at a time, saves verified meaning through th
 import { useEffect, useRef, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import styles from "./data-brief-review.module.css";
+import { WorkspaceLoading } from "./workspace-loading";
 
 type Definition = {
   description: string;
@@ -43,6 +44,7 @@ type Brief = {
   sampled: boolean;
   model_enabled: boolean;
   review_mode?: "missing";
+  next_question?: { kind: "grain" | "meaning" | "unit"; column: string | null; text: string } | null;
 };
 type Card = {
   id: string;
@@ -199,9 +201,12 @@ export function DataBriefReview({
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [draft, setDraft] = useState<Answer | null>(null);
+  const drafts = useRef<Record<string, Answer>>({});
+  const savedParts = useRef({ meaning: false, notes: false });
+  const questionHeading = useRef<HTMLHeadingElement>(null);
   const [editing, setEditing] = useState(false);
   const [phase, setPhase] = useState<
-    "loading" | "asking" | "review" | "saving" | "done" | "confirmed"
+    "loading" | "asking" | "review" | "saving" | "done" | "confirmed" | "save_error"
   >("loading");
   const [share, setShare] = useState(false);
   const [results, setResults] = useState<string[]>([]);
@@ -229,7 +234,7 @@ export function DataBriefReview({
             else closeRef.current(false, true);
             return;
           }
-          if (value.source !== "model" && value.review_mode !== "missing") {
+          if (value.source !== "model" && !value.model_enabled && value.review_mode !== "missing") {
             unavailableRef.current(value.model_enabled ? value.notice : "");
             return;
           }
@@ -258,20 +263,24 @@ export function DataBriefReview({
 
   function goTo(position: number, next: Record<string, Answer>) {
     if (!brief) return;
+    if (draft && cards[index]) drafts.current[cards[index].id] = draft;
     if (position >= cards.length) {
       setPhase("review");
       return;
     }
     const card = cards[position];
+    setPhase("asking");
     setIndex(position);
-    setDraft(next[card.id] ?? suggestion(brief, card));
-    setEditing(card.openByDefault);
+    const restored = drafts.current[card.id] ?? next[card.id];
+    setDraft(restored ?? suggestion(brief, card));
+    setEditing(Boolean(restored?.edited) || card.openByDefault);
+    window.requestAnimationFrame(() => questionHeading.current?.focus({ preventScroll: true }));
   }
 
   function record(card: Card, answer: Answer | null) {
     const next = { ...answers };
-    if (answer) next[card.id] = answer;
-    else delete next[card.id];
+    if (answer) { next[card.id] = answer; drafts.current[card.id] = answer; }
+    else { delete next[card.id]; delete drafts.current[card.id]; }
     setAnswers(next);
     goTo(index + 1, next);
   }
@@ -280,7 +289,8 @@ export function DataBriefReview({
     if (!brief) return;
     setPhase("saving");
     const done: string[] = [];
-    let didChange = false;
+    let didChange = savedParts.current.meaning || savedParts.current.notes;
+    let failed = false;
     const summaryAnswer = answers.summary;
     const grainAnswer = answers.grain;
     const nextGrain = grainAnswer ? grainAnswer.grain : brief.definition.grain;
@@ -290,7 +300,9 @@ export function DataBriefReview({
         ? brief.columns.every(column => Boolean(answers[`column:${column.name}`]))
         : brief.definition.columns.every(column => Boolean(answers[`column:${column.name}`])))
     );
-    if ((answered || brief.review_mode === "missing") && brief.can_edit) {
+    if (savedParts.current.meaning) {
+      done.push("Your reviewed meaning is already saved.");
+    } else if ((answered || brief.review_mode === "missing") && brief.can_edit) {
         const definition: Definition = {
           ...brief.definition,
           description: summaryAnswer?.text.trim()
@@ -319,12 +331,14 @@ export function DataBriefReview({
             }),
           );
           didChange = true;
+          savedParts.current.meaning = true;
           done.push(
             fullyReviewed
               ? "Saved. This reading is now context for answers about this data."
               : "Your answers are saved as a draft. Finish the skipped fields before confirming the whole dataset.",
           );
         } catch (cause) {
+          failed = true;
           done.push(
             `The shared meaning was not changed: ${cause instanceof Error ? cause.message : "the save failed."}`,
           );
@@ -335,7 +349,9 @@ export function DataBriefReview({
       );
     }
     const lines = noteLines(cards, answers);
-    if (lines.length) {
+    if (savedParts.current.notes) {
+      done.push("Your notes are already saved.");
+    } else if (lines.length) {
       const dataset = root.replace(/\/uploads\/[^/]+$/, "");
       const name = `data-reading-${root.split("/").pop()?.slice(0, 8) ?? "upload"}.md`;
       const text = `# What the owner told ExecPlus about this data\n\n${lines.join("\n")}\n`;
@@ -345,10 +361,12 @@ export function DataBriefReview({
           { method: "POST", headers: { "Content-Type": "text/plain" }, body: text },
         );
         didChange = true;
+        savedParts.current.notes = true;
         done.push(
           `${lines.length} note${lines.length === 1 ? "" : "s"} added to your knowledge base${share ? " and shared with the workspace" : " (private to you)"}.`,
         );
       } catch (cause) {
+        failed = true;
         done.push(
           `The notes were not saved: ${cause instanceof Error ? cause.message : "the save failed."}`,
         );
@@ -357,7 +375,7 @@ export function DataBriefReview({
     if (!done.length) done.push("Nothing was changed.");
     setResults(done);
     setChanged(didChange);
-    setPhase("done");
+    setPhase(failed ? "save_error" : "done");
   }
 
   const heading = (title: string, text: string) => (
@@ -372,17 +390,14 @@ export function DataBriefReview({
   if (phase === "loading")
     return (
       <section className={styles.brief} aria-label="Data reading" aria-busy="true">
-        {heading(
-          "Reading your data",
-          "I am working out what this file is about so I can check it with you…",
-        )}
+        <WorkspaceLoading title="Reading your data" detail="Checking what this file means. We’ll ask about anything that is unclear." />
       </section>
     );
 
   if (phase === "saving")
     return (
       <section className={styles.brief} aria-label="Data reading" aria-busy="true">
-        {heading("Saving what you confirmed", "One moment…")}
+        <WorkspaceLoading title="Saving what you confirmed" detail="Keeping your answers and notes for later questions." />
       </section>
     );
 
@@ -402,28 +417,29 @@ export function DataBriefReview({
       </section>
     );
 
-  if (phase === "done")
+  if (phase === "done" || phase === "save_error")
     return (
       <section className={styles.brief} aria-label="Data reading">
         {heading(
-          "Review save results",
-          "Check what was saved below, including anything that still needs review.",
+          phase === "save_error" ? "Some answers still need saving" : "Review save results",
+          phase === "save_error" ? "Your answers are still here. Retry saves only the parts that failed." : "Your answers are ready to use. Anything that still needs review is listed below.",
         )}
-        <ul className={styles.summaryList}>
+        <ul className={styles.summaryList} role={phase === "save_error" ? "alert" : undefined}>
           {results.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
         <div className={styles.nav}>
           <span className={styles.spacer} />
-          <button type="button" onClick={() => onClose(changed, true)}>
+          {phase === "save_error" && <button type="button" onClick={save}>Retry saving</button>}
+          <button type="button" onClick={() => onClose(changed, phase !== "save_error")}>
             Continue to my insights
           </button>
         </div>
       </section>
     );
 
-  if (!brief || !draft) return null;
+  if (!brief) return null;
 
   if (phase === "review") {
     const lines = noteLines(cards, answers);
@@ -460,7 +476,8 @@ export function DataBriefReview({
           <button
             type="button"
             className={styles.link}
-            onClick={() => goTo(cards.length - 1, answers)}
+            onClick={() => goTo(index, answers)}
+            disabled={!cards.length}
           >
             ← Back
           </button>
@@ -480,6 +497,7 @@ export function DataBriefReview({
     );
   }
 
+  if (!draft) return null;
   const card = cards[index];
   const progress = Math.round((index / cards.length) * 100);
   const numeric = card.column
@@ -499,11 +517,9 @@ export function DataBriefReview({
     <section className={styles.brief} aria-label="Data reading">
       <div className={styles.header}>
         <div>
-          <h2>Let me check I understood your data</h2>
-          <p>
-            Confirm or correct what I read. What you confirm becomes context for
-            later answers.
-          </p>
+          <span className={styles.eyebrow}>LET’S UNDERSTAND YOUR FILE</span>
+          <h2>One small question at a time.</h2>
+          <p>Your answers help ExecPlus read this data properly.</p>
         </div>
         <button
           type="button"
@@ -523,16 +539,21 @@ export function DataBriefReview({
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={progress}
+          aria-label="Review position"
+          aria-valuetext={`Question ${index + 1} of ${cards.length}`}
         >
           <div className={styles.fill} style={{ width: `${progress}%` }} />
         </div>
       </div>
-      <p className={styles.question}>{card.title}</p>
+      <h3 ref={questionHeading} tabIndex={-1} className={styles.question} key={card.id}>{card.title}</h3>
       {card.quote && <p className={styles.quote}>{card.quote}</p>}
+      {brief.source === "profile" && <p className={styles.notice}>I can still check the file’s structure with you. This review uses your saved answers; a new AI reading is unavailable.</p>}
       {card.kind !== "general" && (
         <p className={styles.caption}>
           {brief.review_mode === "missing"
             ? "Your previous answers are saved. Only missing meanings or units are shown here."
+            : brief.source === "profile"
+            ? "Based on the file’s structure and your saved definitions. Please confirm anything still unclear."
             : brief.sampled
             ? "Suggested by the language model from your file's structure and a small sample of its values. Identifiers and personal columns are withheld."
             : "Suggested by the language model from your file's structure. It has not seen your row values."}
@@ -573,7 +594,7 @@ export function DataBriefReview({
               What does one row represent?
               <select
                 value={draft.grain}
-                onChange={(event) => setDraft({ ...draft, grain: event.target.value })}
+                onChange={(event) => setDraft({ ...draft, edited: true, grain: event.target.value })}
               >
                 {Object.entries(grainNames).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -589,7 +610,7 @@ export function DataBriefReview({
                 What is this column really?
                 <select
                   value={draft.role}
-                  onChange={(event) => setDraft({ ...draft, role: event.target.value })}
+                  onChange={(event) => setDraft({ ...draft, edited: true, role: event.target.value })}
                 >
                   {roles.map((value) => (
                     <option key={value} value={value}>
@@ -604,7 +625,7 @@ export function DataBriefReview({
                   <input
                     value={draft.unit}
                     maxLength={40}
-                    onChange={(event) => setDraft({ ...draft, unit: event.target.value })}
+                    onChange={(event) => setDraft({ ...draft, edited: true, unit: event.target.value })}
                   />
                 </label>
               )}
@@ -620,7 +641,7 @@ export function DataBriefReview({
               <textarea
                 value={draft.text}
                 maxLength={card.kind === "summary" ? 300 : 200}
-                onChange={(event) => setDraft({ ...draft, text: event.target.value })}
+                onChange={(event) => setDraft({ ...draft, edited: true, text: event.target.value })}
               />
             </label>
           )}
@@ -654,6 +675,7 @@ export function DataBriefReview({
           ← Back
         </button>
         <span className={styles.spacer} />
+        <button type="button" className={styles.link} onClick={() => { if (draft.edited && canUse) setAnswers({ ...answers, [card.id]: draft }); drafts.current[card.id] = draft; setPhase("review"); }}>Save my progress</button>
         <button type="button" className={styles.link} onClick={() => record(card, null)}>
           Skip this question →
         </button>

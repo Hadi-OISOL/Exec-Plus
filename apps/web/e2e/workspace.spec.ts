@@ -2,6 +2,7 @@
 What it does: Uses real authentication, invitations, storage, and parser errors without mocking the API. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview, openFindings, openConversation } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -42,6 +43,8 @@ test("first file needs no setup and opens sourced discoveries with useful conver
     buffer: Buffer.from("branch,revenue\nNorth,0.10\nSouth,0.20\nNorth,0.30\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await expect(page.getByLabel("Current workspace")).toHaveValue(/.+/);
   await expect(
     page.getByLabel("Dataset", { exact: true }).locator("option:checked"),
@@ -65,6 +68,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
     path: "../../data/vps-private/discovery-first-reading-mobile.png",
     fullPage: true,
   });
+  await openFindings(page);
   await discovery
     .getByRole("button", { name: "Ask about this file", exact: true })
     .click();
@@ -76,6 +80,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
   await expect(
     page.getByRole("region", { name: "Dataset dashboard" }),
   ).toHaveCount(0);
+  await openFindings(page);
   await discovery
     .getByText("How this was calculated", { exact: true })
     .first()
@@ -84,6 +89,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
   await expect(discovery).toContainText("0.100000000000");
   await discovery.getByText("Source & interpretation", { exact: true }).click();
   await expect(discovery).toContainText("Source revision:");
+  await openConversation(page);
   const chat = page.getByRole("region", {
     name: "Ask a question",
     exact: true,
@@ -107,6 +113,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
     { timeout: 90_000 },
   );
   const averageStarted = Date.now();
+  await openFindings(page);
   await discovery
     .getByRole("button", { name: "What is the average revenue?", exact: true })
     .first()
@@ -175,6 +182,8 @@ test("first file needs no setup and opens sourced discoveries with useful conver
     buffer: Buffer.from("item,quantity\nPart,4\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await expect(
     page.getByLabel("Dataset", { exact: true }).locator("option:checked"),
   ).toHaveText("new-inventory");
@@ -209,6 +218,8 @@ test("superseded discoveries are cancelled and rapid file selection only reads t
     response.url().endsWith("/discovery"),
   );
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   const originalUrl = (await originalResponse).url();
   await expect(discovery.locator(".discoveryValue")).toHaveText([
     "0.1",
@@ -223,6 +234,8 @@ test("superseded discoveries are cancelled and rapid file selection only reads t
     buffer: Buffer.from("amount\n0.90\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await expect(discovery.locator(".discoveryValue")).toHaveText([
     "0.9",
     "0.9",
@@ -292,6 +305,8 @@ test("automatic discoveries show leading categories and keep saved review gates 
     ),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   const discovery = page.getByRole("region", {
     name: "First reading of your data",
     exact: true,
@@ -315,9 +330,12 @@ test("automatic discoveries show leading categories and keep saved review gates 
   await meaning
     .getByRole("button", { name: "Save for review", exact: true })
     .click();
+  await page.getByRole("button", { name: "Back to overview", exact: true }).click();
+  await openFindings(page);
   await expect(discovery).toContainText("needs review before new calculations");
   await expect(discovery.locator(".discoveryValue")).toHaveCount(0);
   await reveal(page, "Review & refine data understanding");
+  await openFindings(page);
   await discovery
     .getByRole("button", {
       name: "Review saved business definitions",
@@ -347,7 +365,10 @@ test("column meanings use dataset evidence and retain understandable follow-ups"
     ),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   const explanations = page.locator(".datasetGuidance");
+  await openConversation(page);
   await page.getByLabel("Your question").fill("what is this attock erp means");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(explanations).toHaveCount(1);
@@ -356,6 +377,7 @@ test("column meanings use dataset evidence and retain understandable follow-ups"
   );
   await expect(explanations.last()).toContainText("Tentative interpretation");
   await expect(page.locator(".assistantMessage .verifiedBadge")).toHaveCount(0);
+  await openConversation(page);
   await page.getByLabel("Your question").fill("??");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(explanations).toHaveCount(2);
@@ -391,6 +413,7 @@ test("column meanings use dataset evidence and retain understandable follow-ups"
   ).toBe(true);
   await page.reload();
   await signIn(page, session);
+  await openConversation(page);
   await page.getByText("Private conversation history", { exact: true }).click();
   await page.getByLabel("Saved conversation").selectOption({ index: 1 });
   await page
@@ -433,6 +456,8 @@ test("combined data and document chat reopens private evidence after refresh", a
     buffer: Buffer.from("city,revenue\nKarachi,0.10\nLahore,0.20\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await reveal(page, "Charts & dashboard controls");
   await expect(
     page
@@ -456,7 +481,7 @@ test("combined data and document chat reopens private evidence after refresh", a
   await expect(
     knowledge.getByText("Document stored.", { exact: true }),
   ).toBeVisible();
-  await navigate(page, "Overview");
+  await openConversation(page);
   await page
     .getByLabel("Your question")
     .fill(
@@ -485,6 +510,7 @@ test("combined data and document chat reopens private evidence after refresh", a
   ).toContainText("Source revision:");
   await page.reload();
   await signIn(page, session);
+  await openConversation(page);
   await page.getByText("Private conversation history", { exact: true }).click();
   await expect(
     page.getByLabel("Saved conversation").locator("option"),
@@ -524,6 +550,7 @@ async function signIn(page: Page, session: string, configureWorkspace = true) {
 }
 
 async function reveal(page: Page, name: string) {
+  if (name !== "Review & refine data understanding" && await page.getByRole("button", { name: "Back to overview", exact: true }).isVisible()) await page.getByRole("button", { name: "Back to overview", exact: true }).click();
   const summary = page.locator("summary").filter({ hasText: name });
   if (
     !(await summary.evaluate(
@@ -575,6 +602,8 @@ test("adaptive studies retain versions and a private six-pin dashboard on mobile
     buffer: Buffer.from("city,amount\nKarachi,0.10\nLahore,0.20\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await reveal(page, "Review & refine data understanding");
   const meaning = page.getByRole("region", {
     name: "Data understanding",
@@ -725,6 +754,8 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
     buffer: Buffer.from("item,amount\nwidget,12\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await expect(page.locator('.notice[role="status"]')).toContainText("uploaded successfully");
   await navigate(page, "Data library");
   await page.getByText(/Retained uploads in the selected dataset/).click();
@@ -751,6 +782,8 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
     buffer: Buffer.from("a,b\n1,2,3\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await expect(
     page.getByRole("alert", { name: "Request error" }),
   ).toContainText("consistent columns");
@@ -891,11 +924,14 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
     buffer: Buffer.from("date,amount\n2026-01-01,12.50\n2026-01-02,15.25\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await navigate(page, "Prepare data");
   await expect(profile).toContainText("100.00/100");
   await expect(profile).toContainText("decimal / metric");
   await navigate(page, "Overview");
   await reveal(page, "Review & refine data understanding");
+  await page.getByText("Explore the column map", { exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Data journey" }),
   ).toContainText("my-data.csv");
@@ -939,6 +975,8 @@ test("verified filters, drill-down, shared replay, feedback, citations and unsub
     ),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await reveal(page, "Charts & dashboard controls");
   const dashboard = page.getByRole("region", { name: "Dataset dashboard" });
   await expect(dashboard.locator(".kpiValue").first()).toHaveText("0.15");
@@ -1044,6 +1082,8 @@ test("upload creates a dataset and opens an interactive responsive exploration",
     ),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await expect(
     page.getByRole("heading", { name: "A clearer picture." }),
   ).toBeVisible();
@@ -1128,6 +1168,8 @@ test("confirm business meaning and private goals without losing the source", asy
     ),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await reveal(page, "Review & refine data understanding");
   const meaning = page.getByRole("region", {
     name: "Data understanding",
@@ -1224,6 +1266,8 @@ test("refresh retains a safe baseline and delivers a private evidenced KPI alert
     buffer: Buffer.from("city,amount\nKarachi,0.10\nLahore,0.20\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await reveal(page, "Review & refine data understanding");
   const meaning = page.getByRole("region", {
     name: "Data understanding",

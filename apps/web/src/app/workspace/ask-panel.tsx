@@ -627,8 +627,7 @@ export function AskPanel({
           <h3>What would you like to discover?</h3>
           <p>
             You’re exploring <strong>{filename}</strong>. Ask what a column
-            means, find specific records, or explore one of the findings
-            alongside this conversation.
+            means, find patterns, or compare the values that matter to you.
           </p>
         </div>
         {!turns.length && (

@@ -1,7 +1,7 @@
 /* Use case: Makes basic forecasts and their limitations inspectable.
 What it does: Displays server-calculated estimates, holdout errors and comparison evidence without calculating business values in the browser. */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RecordTable } from "./explore-components";
 import {
   forecastRows,
@@ -72,6 +72,15 @@ function ForecastChart({
   rows: ForecastPoint[];
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(700);
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(200, Math.min(1000, entry.contentRect.width))));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const history = run.result.history.slice(-48);
   const points = [
     ...history.map((point) => ({
@@ -98,7 +107,7 @@ function ForecastChart({
   const maximum = Math.max(...all);
   const span = maximum - minimum || Math.max(Math.abs(maximum), 1);
   const x = (index: number) =>
-    26 + (index * 648) / Math.max(points.length - 1, 1);
+    26 + (index * (width - 52)) / Math.max(points.length - 1, 1);
   const y = (value: string) => 200 - ((Number(value) - minimum) / span) * 155;
   const forecastStart = history.length;
   const band = rows.every(
@@ -119,7 +128,7 @@ function ForecastChart({
     : "";
   const selectedPoint = points.find((point) => point.period === selected);
   return (
-    <div className="forecastChart">
+    <div className="forecastChart" ref={container}>
       <div className="forecastLegend">
         <span>
           <i className="actualKey" />
@@ -135,11 +144,12 @@ function ForecastChart({
         </span>
       </div>
       <svg
-        viewBox="0 0 700 235"
+        viewBox={`0 0 ${width} 250`}
         role="img"
         aria-label="Observed history and saved forecast with uncertainty range; exact values follow in the table"
       >
-        <path d="M26 210H674" stroke="currentColor" opacity="0.25" />
+        {[45, 96, 148, 200].map(level => <line key={level} x1="26" x2={width - 26} y1={level} y2={level} stroke="currentColor" opacity="0.09" />)}
+        <path d={`M26 210H${width - 26}`} stroke="currentColor" opacity="0.25" />
         {band && <polygon points={band} className="forecastBand" />}
         {points.map((point, index) => (
           <g key={point.period}>
@@ -172,14 +182,14 @@ function ForecastChart({
               )}
           </g>
         ))}
-        <text x="26" y="230" fontSize="10" fill="currentColor">
+        <text x="26" y="230" fontSize="12" fill="currentColor">
           {points[0]?.period}
         </text>
         <text
-          x="674"
+          x={width - 26}
           y="230"
           textAnchor="end"
-          fontSize="10"
+          fontSize="12"
           fill="currentColor"
         >
           {points.at(-1)?.period}

@@ -2,25 +2,28 @@
 What it does: Reuses the workspace colour tokens so the cards match the surrounding analytics interface. */
 
 .brief {
+  width: 100%;
+  max-width: 780px;
   min-width: 0;
   overflow-wrap: anywhere;
-  margin: 0 0 22px;
-  padding: 22px;
+  margin: 12px auto 28px;
+  padding: 32px;
   background: var(--surface, #fff);
   border: 1px solid var(--line, #e4e7ef);
-  border-radius: 8px;
-  box-shadow: 0 1px 3px #1a234205;
+  border-radius: 18px;
+  box-shadow: 0 12px 40px #16283f06;
 }
+.eyebrow { display: block; color: #08736f; font-size: 12px; font-weight: 700; letter-spacing: .08em; margin-bottom: 10px; }
 .header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 26px;
 }
 .header h2 {
   margin: 0 0 4px;
-  font-size: 18px;
+  font-size: 23px;
 }
 .header p {
   margin: 0;
@@ -40,7 +43,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 28px;
   color: var(--muted, #667085);
   font-size: 12px;
   font-weight: 600;
@@ -60,7 +63,9 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
 }
 .question {
   margin: 0 0 6px;
-  font-size: 17px;
+  font-size: 22px;
+  line-height: 1.45;
+  outline: none;
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--ink, #222b3d);
@@ -78,7 +83,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
 .caption {
   margin: 8px 0 0;
   color: var(--muted, #667085);
-  font-size: 11px;
+  font-size: 12px;
 }
 .peek {
   display: flex;
@@ -104,8 +109,8 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   gap: 10px;
 }
 .nav {
-  margin-top: 18px;
-  padding-top: 14px;
+  margin-top: 28px;
+  padding-top: 18px;
   border-top: 1px solid var(--line, #e4e7ef);
 }
 .spacer {
@@ -181,4 +186,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   .header {
     flex-direction: column;
   }
+  .header h2 { font-size: 21px; }
+  .question { font-size: 19px; }
+  .nav { gap: 8px; }
 }

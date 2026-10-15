@@ -16,10 +16,12 @@ import { UnderstandingPanel, domains } from "./understanding-panel";
 import { DiscoveryPanel } from "./discovery-panel";
 import type { StaffRole } from "./support-panel";
 import { AnalyticsHome } from "./analytics-home";
+import { WorkspaceLoading } from "./workspace-loading";
 import "./analytics-shell.css";
 import "./product-polish.css";
+import "./focused-workspace.css";
 
-const loadingView = () => <p role="status">Loading this view…</p>;
+const loadingView = () => <WorkspaceLoading />;
 const GuidedReview = dynamic(
   () => import("./guided-review").then(module => module.GuidedReview),
   { loading: loadingView },
@@ -147,6 +149,7 @@ export default function WorkspacePage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [toolSelection, setToolSelection] = useState<{root: string; tool: string; metric?: string; scenario_mode?: "daily_change"} | null>(null);
   const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [findingsOpen, setFindingsOpen] = useState(false);
   const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
   const [expert, setExpert] = useState(false);
   const [analysisIntent, setAnalysisIntent] = useState("descriptive");
@@ -159,6 +162,8 @@ export default function WorkspacePage() {
 
   function reviewUnderstanding() {
     setSection("overview");
+    setBriefFor("");
+    setGuidedFor("");
     setReviewOpen(true);
     window.requestAnimationFrame(() =>
       reviewDisclosure.current?.scrollIntoView({
@@ -266,6 +271,8 @@ export default function WorkspacePage() {
 
   function openBrief() {
     setBriefManual(true);
+    setReviewOpen(false);
+    setGuidedFor("");
     setBriefFor(profileUpload);
     setSection("overview");
   }
@@ -295,6 +302,10 @@ export default function WorkspacePage() {
 
   async function selectWorkspace(selected: Workspace) {
     setGuidedFor("");
+    setBriefFor("");
+    setBriefManual(false);
+    setReviewOpen(false);
+    setFindingsOpen(false);
     setUploadTarget("new");
     setUploadDomain("auto");
     setUploadGoal("");
@@ -322,6 +333,8 @@ export default function WorkspacePage() {
 
   async function selectDataset(workspaceId: string, datasetId: string) {
     setGuidedFor("");
+    setBriefFor("");
+    setBriefManual(false);
     setSavedSelection(null);
     setAnalysisIntent("descriptive");
     setReviewOpen(false);
@@ -489,7 +502,7 @@ export default function WorkspacePage() {
       setAnalysisIntent("descriptive");
       setSection("overview");
       setMessage(
-        `${stored.filename} uploaded successfully. Your first findings are being prepared below.`,
+        `${stored.filename} is ready. Let’s check what it means together.`,
       );
       setFile(null);
       form.reset();
@@ -562,6 +575,8 @@ export default function WorkspacePage() {
       ? `/workspaces/${workspace.id}/datasets/${dataset}/uploads/${profileUpload}`
       : "";
   const briefActive = Boolean(root && user && briefFor === profileUpload && !reviewOpen);
+  const guidedActive = Boolean(root && user && guidedFor === profileUpload && !briefActive && !reviewOpen);
+  const reviewing = ["overview", "ask"].includes(section) && (briefActive || guidedActive || reviewOpen);
   const sections = [
     { id: "overview", name: "Overview", group: "INSIGHTS" },
     { id: "ask", name: "Ask ExecPlus", group: "INSIGHTS" },
@@ -582,6 +597,7 @@ export default function WorkspacePage() {
   ];
   function navigate(next: string) {
     setToolSelection(null);
+    setReviewOpen(false);
     setSection(next);
     setMessage("");
     setError("");
@@ -591,6 +607,7 @@ export default function WorkspacePage() {
     if (next === "overview") setAnalysisIntent("descriptive");
   }
   function askFromHome(text: string) {
+    setReviewOpen(false);
     setSection("ask");
     window.requestAnimationFrame(() => chat.current?.ask(text));
   }
@@ -598,6 +615,7 @@ export default function WorkspacePage() {
     <main
       className={`workspaceApp workbench analyticsShell ${user ? "isSignedIn" : "isSignedOut"}`}
       data-section={section}
+      data-reviewing={reviewing}
     >
       <aside className="workbenchRail">
         <Link className="brand" href="/">
@@ -685,7 +703,7 @@ export default function WorkspacePage() {
           )}
         </header>
         <div className="workbenchContent">
-          <header className="workspaceHeader">
+          <header className="workspaceHeader" hidden={Boolean(user && reviewing && ["overview", "ask"].includes(section))}>
             <div>
               <p className="eyebrow">{sections.find((item) => item.id === section)?.group ?? "WELCOME"}</p>
               <h1>
@@ -840,10 +858,10 @@ export default function WorkspacePage() {
                     <Icon name="upload" size={28} />
                   </div>
                   <p className="eyebrow">START WITH YOUR DATA</p>
-                  <h2>Drop in a file. Find your first insight.</h2>
+                  <h2>Start with a file.</h2>
                   <p>
-                    We’ll read the columns, check the data, and show useful
-                    starting points. No setup questionnaire.
+                    We’ll read it with you, ask about anything unclear, and help
+                    you find useful answers.
                   </p>
                   <form onSubmit={uploadFile}>
                     <label className="fileDropzone">
@@ -1354,8 +1372,8 @@ export default function WorkspacePage() {
               </div>}
               {root ? (
                 <>
-                  {["overview", "ask"].includes(section) && briefActive && user && (
-                    <DataBriefReview
+                  {briefActive && user && (
+                    <div hidden={!["overview", "ask"].includes(section)}><DataBriefReview
                       key={`brief-${user.id}-${root}`}
                       root={root}
                       request={request}
@@ -1367,9 +1385,9 @@ export default function WorkspacePage() {
                         if (reason || briefManual)
                           setMessage(`${reason || "The data reading is unavailable right now."} The standard review is shown instead.`);
                       }}
-                    />
+                    /></div>
                   )}
-                  {section === "overview" && !briefActive && <AnalyticsHome
+                  {section === "overview" && !reviewing && <AnalyticsHome
                     key={`home-${root}-${revisionTick}`}
                     root={root}
                     filename={selectedUpload?.filename ?? "Selected upload"}
@@ -1379,7 +1397,7 @@ export default function WorkspacePage() {
                     onNavigate={navigate}
                     onReview={reviewUnderstanding}
                   />}
-                  {["overview", "forecasts"].includes(section) && (
+                  {["overview", "forecasts"].includes(section) && !reviewing && expert && (
                     <div className="analysisIntent">
                       <label>
                         Analysis focus
@@ -1415,12 +1433,9 @@ export default function WorkspacePage() {
                     </div>
                   )}
                   <div hidden={!["overview", "ask"].includes(section) || briefActive} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
-                    <div className="analysisViewControls">
+                    <div className="analysisViewControls" hidden={reviewing}>
                       <div>
-                        <strong>Your data, your level of detail</strong>
-                        <p>
-                          Both views use the same verified results and sources.
-                        </p>
+                        <strong>{section === "ask" ? "Your conversation" : "Explore further"}</strong>
                       </div>
                       <fieldset className="analysisViewChoice">
                         <legend className="srOnly">Analysis view</legend>
@@ -1445,12 +1460,12 @@ export default function WorkspacePage() {
                       </fieldset>
                     </div>
                     {root && section === "overview" && !reviewOpen && guidedFor !== profileUpload && (
-                      <>
-                        <button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button>
+                      <div className="reviewEntryActions">
                         <button type="button" disabled={busy} onClick={openBrief}>Check what ExecPlus understood</button>
-                      </>
+                        <details><summary>Other review options</summary><button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button></details>
+                      </div>
                     )}
-                    {root && user && guidedFor === profileUpload && briefFor !== profileUpload && section === "overview" && !reviewOpen && (
+                    {root && user && guidedFor === profileUpload && briefFor !== profileUpload && !reviewOpen && (
                       <GuidedReview
                         key={`guided-${user.id}-${root}-${revisionTick}`}
                         root={root}
@@ -1468,7 +1483,7 @@ export default function WorkspacePage() {
                     )}
                     <details
                       className="workspaceDisclosure"
-                      hidden={section === "ask"}
+                      hidden={section === "ask" || reviewing}
                       open={dashboardOpen}
                       onToggle={(event) =>
                         setDashboardOpen(event.currentTarget.open)
@@ -1496,20 +1511,24 @@ export default function WorkspacePage() {
                       )}
                     </details>
                     <div className="exploreLayout discoveryLayout">
-                      <div className="insightCanvas" hidden={section === "ask"}>
+                      <details className="workspaceDisclosure overviewFindings" hidden={section === "ask" || reviewing} open={findingsOpen} onToggle={event => setFindingsOpen(event.currentTarget.open)}>
+                        <summary><Icon name="overview" /> First findings from your file<span>Calculated ranges, groups and data checks</span></summary>
+                        <div className="insightCanvas">
                         <DiscoveryPanel
-                          enabled={!busy && section === "overview"}
+                          enabled={!busy && section === "overview" && !reviewing && findingsOpen}
                           key={`discovery-${root}-${revisionTick}`}
                           root={root}
                           request={request}
-                          onQuestion={(text) => chat.current?.ask(text)}
+                          onQuestion={askFromHome}
                           onReady={setStarterQuestions}
                           onPrepare={() => setSection("prepare")}
                           onReview={reviewUnderstanding}
-                          onChat={() => chat.current?.focus()}
+                          onChat={() => { setSection("ask"); window.requestAnimationFrame(() => chat.current?.focus()); }}
                           expert={expert}
                         />
                       </div>
+                      </details>
+                      <div className="conversationWorkspace" hidden={section !== "ask" || reviewing}>
                       <AskPanel
                         ref={chat}
                         key={`chat-${root}-${revisionTick}`}
@@ -1527,15 +1546,16 @@ export default function WorkspacePage() {
                         }}
                         expert={expert}
                       />
+                      </div>
                     </div>
-                    {expert && (
+                    {expert && !reviewing && (
                       <SourceDetails
                         key={`source-${root}-${revisionTick}`}
                         root={root}
                         request={request}
                       />
                     )}
-                    {analysisIntent === "all" && (
+                    {analysisIntent === "all" && !reviewing && (
                       <section
                         className="panel forecastTeaser"
                         aria-label="Explore forecasting"
@@ -1561,8 +1581,8 @@ export default function WorkspacePage() {
                     )}
                     <details
                       ref={reviewDisclosure}
-                      hidden={section === "ask"}
-                      className="workspaceDisclosure"
+                      hidden={section === "ask" || guidedActive}
+                      className={`workspaceDisclosure ${reviewOpen ? "focusedMeaningReview" : ""}`}
                       open={reviewOpen}
                       onToggle={(event) =>
                         setReviewOpen(event.currentTarget.open)
@@ -1577,6 +1597,7 @@ export default function WorkspacePage() {
                       </summary>
                       {reviewOpen && (
                         <div className="expandedWorkspaceTools">
+                          <button className="reviewDone" type="button" onClick={() => setReviewOpen(false)}>Back to overview</button>
                           <UnderstandingPanel
                             key={`understanding-${root}-${revisionTick}`}
                             root={root}
@@ -1586,15 +1607,15 @@ export default function WorkspacePage() {
                               setRevisionTick((value) => value + 1)
                             }
                           />
-                          <DatasetMap
+                          <details className="sourceMapDisclosure"><summary>Explore the column map</summary><DatasetMap
                             key={`map-${root}-${revisionTick}`}
                             root={root}
                             filename={
                               selectedUpload?.filename ?? "Selected upload"
                             }
                             request={request}
-                            onQuestion={(text) => chat.current?.ask(text)}
-                          />
+                            onQuestion={askFromHome}
+                          /></details>
                         </div>
                       )}
                     </details>

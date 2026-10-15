@@ -236,7 +236,7 @@ def _column_explanation(context: DescriptionContext, name: str, simplify: bool =
                 else ""
             )
             + "I should not call it stock or sales without confirmation.\n\n"
-            f"What does {name} measure in your export? Record that under Data understanding "
+            f"What does {name} describe in your export? Record that under Data understanding "
             "so we can use a reviewed meaning."
         )
     kind = {
@@ -310,12 +310,17 @@ def _column_explanation(context: DescriptionContext, name: str, simplify: bool =
                     if common
                     else f"The label reads “{words(name)}”. "
                 )
-                + "The file still needs a business definition, unit and calculation rule."
+                + "Please confirm what this field represents in your file."
             )
         paragraphs.append(
             f"Does {name} represent stock quantity, sales quantity, or something else?"
             if "erp" in tokens and not name.endswith("_value")
-            else f"What does {name} measure or describe, and what unit should it use?"
+            else f"What does {name} measure, and what unit should it use?"
+            if name in context.view.metrics
+            and not (
+                saved and (saved.get("unit") or saved.get("currency") or saved.get("unit_column"))
+            )
+            else f"What does {name} describe in your data?"
         )
     else:
         paragraphs.append(

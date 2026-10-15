@@ -2,6 +2,7 @@
 What it does: Covers review, coverage declarations, exact estimates, saved evidence, later actuals and narrow-screen access without mocked results. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -60,6 +61,8 @@ async function upload(page: Page, count: number, existing = false) {
     buffer: daily(count),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await page.getByRole("radio", { name: "Expert", exact: true }).check();
   await expect(page.getByLabel("Analysis focus")).toBeVisible();
 }
 async function review(page: Page) {
@@ -77,6 +80,7 @@ async function review(page: Page) {
     .getByRole("button", { name: "Confirm business definitions", exact: true })
     .click();
   await expect(meanings.getByText("confirmed", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back to overview", exact: true }).click();
   await page.getByLabel("Analysis focus").selectOption("predictive");
 }
 
@@ -265,7 +269,7 @@ test("analysis focus stays optional and insufficient history gives a useful refu
       forecasts += 1;
   });
   await page.getByLabel("Analysis focus").selectOption("all");
-  await expect(page.getByLabel("Your question")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: "Explore basic forecasts", exact: true })
     .click();
@@ -290,5 +294,5 @@ test("analysis focus stays optional and insufficient history gives a useful refu
   ).toHaveCount(0);
   expect(forecasts).toBe(1);
   await page.getByLabel("Analysis focus").selectOption("descriptive");
-  await expect(page.getByLabel("Your question")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
 });

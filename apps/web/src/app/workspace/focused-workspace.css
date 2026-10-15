@@ -1,0 +1,117 @@
+/* Use case: Keeps the analytics workspace focused on one task at a time.
+What it does: Gives questions, results and review room to breathe with responsive charts and finite accessible motion. */
+
+.analyticsShell { --line: #e1e9ef; }
+.analyticsShell .workbenchContent { max-width: 1540px; margin-inline: auto; padding: 26px 36px 0; }
+.analyticsShell .workspaceHeader { padding-bottom: 16px; }
+.analyticsShell .workspaceHeader .eyebrow { display: none; }
+.analyticsShell .workspaceHeader h1 { font-size: 23px; }
+.analyticsShell .workspaceHeader p:last-child { color: #6d7f90; }
+.analyticsShell .datasetToolbar { padding: 10px 16px; gap: 20px; background: #ffffffb8; box-shadow: none; margin-bottom: 24px; }
+.analyticsShell .datasetToolbar label { font-size: 12px; gap: 4px; }
+.analyticsShell .datasetToolbar select { font-size: 12px; }
+.analyticsShell .sourceStats strong { font-size: 15px; }
+.analyticsShell[data-reviewing="true"] .datasetToolbar { margin-bottom: 20px; }
+.analyticsShell .analyticsHome { max-width: 1000px; margin-inline: auto; animation: workspaceEnter 260ms ease-out both; }
+.analyticsShell .homeWelcome { padding: 14px 10px 20px; }
+.analyticsShell .homeWelcome h2 { font-size: clamp(24px, 3vw, 36px); letter-spacing: -.045em; margin-top: 14px; }
+.analyticsShell .homeWelcome p { max-width: 54ch; margin-inline: auto; line-height: 1.6; }
+.analyticsShell .homeAssistantMark { width: 44px; height: 44px; border-radius: 15px; }
+.analyticsShell .homeComposer { border-radius: 16px; padding: 18px 20px 12px; }
+.analyticsShell .homeComposer > input { font-size: 17px; }
+.analyticsShell .homeQuickQuestions { margin-block: 16px 28px; gap: 8px; }
+.analyticsShell .homeQuickQuestions button { padding: 9px 12px; border-radius: 20px; background: #fff; }
+.analyticsShell .homeDataContext { padding: 20px 22px; background: #fff; border-color: var(--line); }
+.analyticsShell .homeDataContext h3 { font-size: 15px; }
+.analyticsShell .homeContextDescription { margin-block: 12px; font-size: 13px; }
+.analyticsShell .homeContextGoal { margin-block: 12px; }
+.analyticsShell .homeLibraryGrid { gap: 16px; }
+.analyticsShell .homeLibraryCard { box-shadow: none; }
+.analyticsShell .homeLibraryCard > header h3 { font-size: 13px; }
+.analyticsShell .overviewConversation { max-width: 1000px; margin: 0 auto; }
+.analyticsShell .analysisViewControls { padding: 20px 0 12px; margin-top: 8px; }
+.analyticsShell .analysisViewControls strong { font-size: 12px; color: #62748a; font-weight: 600; }
+.analyticsShell .analysisViewChoice { background: #fff; }
+.analyticsShell .reviewEntryActions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.analyticsShell .reviewEntryActions > button { padding: 0; background: transparent; color: #087f8c; font-size: 12px; }
+.analyticsShell .reviewEntryActions > details { font-size: 12px; color: #62748a; }
+.analyticsShell .reviewEntryActions > details button { display: block; margin-top: 10px; background: #fff; border: 1px solid var(--line); color: #344b62; font-size: 12px; }
+.analyticsShell .discoveryLayout { display: block; }
+.analyticsShell .overviewFindings { margin-block: 12px; }
+.analyticsShell .overviewFindings .insightCanvas { padding: 4px 18px 18px; }
+.analyticsShell .workspaceDisclosure { margin-bottom: 12px; }
+.analyticsShell .workspaceDisclosure > summary { padding: 17px 20px; }
+.analyticsShell .workspaceDisclosure[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.analyticsShell .dedicatedConversation { max-width: 1100px; margin: 0 auto; }
+.analyticsShell .dedicatedConversation .analysisViewControls { padding-top: 0; margin-top: 0; }
+.analyticsShell .conversationWorkspace { animation: workspaceEnter 260ms ease-out both; }
+.analyticsShell .askPanel { border-radius: 16px; box-shadow: 0 8px 30px #16283f05; }
+.analyticsShell .chatHeader { padding: 20px 24px; }
+.analyticsShell .chatHeader h2 { font-size: 17px; }
+.analyticsShell .chatSource { display: none; }
+.analyticsShell .conversationHistory { font-size: 12px; padding: 11px 24px; }
+.analyticsShell .conversationLog { padding: 24px; max-height: min(68vh, 760px); }
+.analyticsShell .askPanel:not(:has(.conversationTurn)) .conversationLog { min-height: 170px; max-height: none; }
+.analyticsShell .welcomeMessage h3 { font-size: 22px; letter-spacing: -.025em; }
+.analyticsShell .welcomeMessage p { max-width: 60ch; }
+.analyticsShell .askPanel:has(.conversationTurn) .welcomeMessage { display: none; }
+.analyticsShell .conversationTurn { padding-bottom: 24px; }
+.analyticsShell .chatComposer { padding: 16px 24px 20px; background: #fff; border-radius: 0 0 16px 16px; }
+.analyticsShell .chatComposer .summaryAction { font-size: 12px; margin-bottom: 10px; }
+.analyticsShell .chatComposer form { border-radius: 12px; background: #fafcfd; }
+.analyticsShell .chatComposer textarea { background: transparent; font-size: 14px; line-height: 1.6; }
+.analyticsShell .focusedMeaningReview { max-width: 1000px; margin-inline: auto; animation: workspaceEnter 260ms ease-out both; }
+.analyticsShell .reviewDone { background: #edf5f5; color: #08736f; border: 1px solid #cde1e0; font-size: 12px; margin-bottom: 20px; }
+.analyticsShell .sourceMapDisclosure { padding: 18px; font-size: 12px; color: #62748a; border-top: 1px solid var(--line); }
+.analyticsShell .sourceMapDisclosure > summary { cursor: pointer; }
+.workspaceLoading { display: flex; align-items: center; justify-content: center; gap: 22px; min-height: 180px; padding: 30px; }
+.workspaceLoading strong { font-size: 17px; font-weight: 650; color: #16283f; }
+.workspaceLoading p { max-width: 38ch; color: #62748a; font-size: 13px; line-height: 1.65; margin: 6px 0 0; }
+.loadingChart { display: flex; align-items: flex-end; gap: 5px; height: 72px; border-bottom: 1px solid #cde1e0; padding-inline: 4px; flex-shrink: 0; }
+.loadingChart span { width: 9px; background: #92c5c0; border-radius: 3px 3px 0 0; transform-origin: bottom; animation: loadingBars 1.4s ease-in-out 3; }
+.loadingChart span:nth-child(3n) { background: #087f8c; }
+.analyticsShell .forecastChart { padding: 20px; background: #f9fbfd; border-color: var(--line); }
+.analyticsShell .forecastChart svg { max-width: 100%; min-width: 0; margin-block: 18px 4px; }
+.analyticsShell .forecastChart .forecastActual, .analyticsShell .forecastChart .forecastEstimate { animation: chartAppear 380ms ease-out both; }
+.analyticsShell .forecastBand { animation: chartAppear 550ms ease-out both; }
+.analyticsShell .forecastScoreGrid { gap: 12px; }
+.analyticsShell .decisionPanel, .analyticsShell .forecastResult { animation: workspaceEnter 260ms ease-out both; }
+.analyticsShell .workbenchRail nav button { transition: background-color 160ms, color 160ms, box-shadow 160ms; }
+.analyticsShell [hidden] { display: none !important; }
+@keyframes workspaceEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes loadingBars { 50% { transform: scaleY(.55); opacity: .6; } }
+@keyframes chartAppear { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 800px) {
+  .analyticsShell .workbenchContent { padding: 20px 18px 0; }
+  .analyticsShell .datasetToolbar { gap: 12px; padding: 12px; }
+  .analyticsShell .sourceStats { display: none; }
+}
+@media (max-width: 550px) {
+  .analyticsShell .workbenchContent { padding: 16px 12px 0; }
+  .analyticsShell .workspaceHeader h1 { font-size: 21px; }
+  .analyticsShell .workspaceHeader p:last-child { max-width: 25ch; }
+  .analyticsShell .datasetToolbar { gap: 10px; margin-bottom: 16px; }
+  .analyticsShell .homeWelcome { padding: 10px 0 16px; }
+  .analyticsShell .homeWelcome h2 { font-size: 26px; }
+  .analyticsShell .homeComposer { padding: 14px 12px 10px; }
+  .analyticsShell .homeComposer > input { font-size: 15px; }
+  .analyticsShell .homeQuickQuestions { gap: 6px; margin-bottom: 20px; }
+  .analyticsShell .homeQuickQuestions button { padding: 9px 10px; font-size: 12px; }
+  .analyticsShell .homeDataContext { padding: 16px; }
+  .analyticsShell .reviewEntryActions { align-items: flex-start; gap: 12px; }
+  .analyticsShell .chatHeader, .analyticsShell .conversationHistory { padding-inline: 14px; }
+  .analyticsShell .conversationLog, .analyticsShell .chatComposer { padding: 16px 14px; }
+  .analyticsShell .welcomeMessage h3 { font-size: 20px; }
+  .analyticsShell .workspaceDisclosure > summary { padding: 14px; }
+  .analyticsShell .overviewFindings .insightCanvas { padding: 0 10px 12px; }
+  .analyticsShell .forecastChart { padding: 12px; }
+  .workspaceLoading { flex-direction: column; text-align: center; padding: 28px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analyticsShell *, .analyticsShell *::before, .analyticsShell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+.analyticsShell [aria-label="Guided data review"] { max-width: 780px; margin: 12px auto 28px; padding: 30px; border-radius: 18px; box-shadow: 0 12px 40px #16283f06; }
+@media (max-width: 550px) { .analyticsShell [aria-label="Guided data review"] { padding: 18px; } }
+
+.analyticsShell .workbenchRail nav button { font-size: 13px; }
+.analyticsShell .homeSourcePill, .analyticsShell .homeSourceChange, .analyticsShell .homeContextEyebrow, .analyticsShell .homeContextStatus, .analyticsShell .homePrivateLabel, .analyticsShell .homeLibraryCard small, .analyticsShell .patternCoverageNote { font-size: 12px; }

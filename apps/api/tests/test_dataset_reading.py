@@ -109,11 +109,83 @@ def test_reading_asks_only_the_missing_unit_before_suggesting_calculation(integr
     ],
 )
 def test_invalid_or_unavailable_reading_falls_back_without_calculations(integration, response):
-    owner, _, _, path, _ = prepare(integration, response)
+    owner, _, _, path, model = prepare(integration, response, response)
     answer = ask(integration, owner, path, "Help me understand this data")["answer"]
     assert "fuller explanation is unavailable" in answer["message"]
     assert "999999" not in answer["message"] and "private-provider" not in answer["message"]
     assert answer["model_route"] == "deterministic:dataset-guidance-v1"
+    assert len(model.requests) == (1 if isinstance(response, Exception) else 2)
+
+
+def test_invalid_reading_gets_one_correction_using_only_authorized_context(integration):
+    invalid = {**READING, "summary": "SecretBadReply: revenue is 999999."}
+    owner, _, _, path, model = prepare(integration, invalid, READING)
+    answer = ask(integration, owner, path, "Help me understand this data")["answer"]
+    assert "sales value" in answer["message"]
+    assert "fuller explanation is unavailable" not in answer["message"]
+    assert "999999" not in answer["message"]
+    assert len(model.requests) == 2
+    retry_prompt = "\n".join(message.content for message in model.requests[-1].messages)
+    assert "SecretBadReply" not in retry_prompt
+    assert "Field observations" in retry_prompt
+    with integration.engine.connect() as connection:
+        assert connection.execute(select(s.query_executions)).first() is None
+
+
+def test_changed_notes_during_correction_cannot_publish_old_context(integration):
+    env = integration
+
+    class ChangingModel:
+        calls = 0
+
+        async def complete(self, request):
+            self.calls += 1
+            if self.calls == 1:
+                return ModelResponse("malformed", "test", "planner")
+            await asyncio.to_thread(
+                document,
+                env,
+                owner,
+                root,
+                "Changed during correction.",
+                f"data-reading-{root.split('/')[-1][:8]}.md",
+                False,
+            )
+            return ModelResponse(json.dumps(READING), "test", "planner")
+
+    primary = ChangingModel()
+    owner, _, root, path, _ = prepare(env, primary=primary)
+    result = ask(env, owner, path, "Help me understand this data")
+    assert primary.calls == 2
+    assert result["answer"] is None
+    assert "changed while I was reading" in result["turn"]["message"]
+
+
+def test_changed_context_after_invalid_reading_prevents_second_model_call(integration):
+    env = integration
+
+    class ChangingModel:
+        calls = 0
+
+        async def complete(self, request):
+            self.calls += 1
+            await asyncio.to_thread(
+                document,
+                env,
+                owner,
+                root,
+                "Changed before another model call.",
+                f"data-reading-{root.split('/')[-1][:8]}.md",
+                False,
+            )
+            return ModelResponse("invalid", "test", "planner")
+
+    primary = ChangingModel()
+    owner, _, root, path, _ = prepare(env, primary=primary)
+    result = ask(env, owner, path, "Help me understand this data")
+    assert primary.calls == 1
+    assert result["answer"] is None
+    assert "changed while I was reading" in result["turn"]["message"]
 
 
 def test_changed_context_during_reading_is_not_published(integration):

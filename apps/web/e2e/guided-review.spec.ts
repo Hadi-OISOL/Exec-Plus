@@ -44,11 +44,13 @@ async function corrections(page: Page, panel: ReturnType<Page["getByRole"]>) {
 test("guided review can be skipped without replacing first-upload insights or shared definitions", async ({ page }) => {
   const person = account(); await signIn(page, person); const { root, panel } = await upload(page);
   const before = await (await page.request.get(api + root + "/understanding", { headers: person.headers })).json();
-  await expect(page.locator(".discoveryValue").first()).toBeVisible();
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toHaveCount(0);
+  await expect(page.locator("#chat-question")).toBeHidden();
   await panel.getByRole("button", { name: "Skip for now", exact: true }).click();
   await expect(panel).toHaveCount(0);
   const after = await (await page.request.get(api + root + "/understanding", { headers: person.headers })).json();
   expect(after).toEqual(before);
+  await page.getByText("Other review options", { exact: true }).click();
   await page.getByRole("button", { name: "Review this upload step by step", exact: true }).click();
   await expect(panel.getByRole("button", { name: "Skip for now", exact: true })).toBeVisible();
 });
@@ -107,6 +109,7 @@ test("an ordinary member can save a private interpretation but cannot change sha
   const member = account(); const invitation = await page.request.post(`${api}/workspaces/${stored.workspace_id}/invitations`, { headers: owner.headers, data: { email: member.email, role: "member" } });
   expect(invitation.status()).toBe(201); expect((await page.request.post(`${api}/workspaces/${stored.workspace_id}/invitations/${(await invitation.json()).id}/accept`, { headers: member.headers })).status()).toBe(200);
   const otherPage = await page.context().newPage(); await signIn(otherPage, member, `?workspace=${stored.workspace_id}`);
+  await otherPage.getByText("Other review options", { exact: true }).click();
   await otherPage.getByRole("button", { name: "Review this upload step by step", exact: true }).click();
   const panel = otherPage.getByRole("region", { name: "Guided data review", exact: true });
   await panel.getByRole("button", { name: "Skip this question", exact: false }).click();

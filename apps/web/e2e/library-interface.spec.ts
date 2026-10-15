@@ -2,6 +2,7 @@
 What it does: Exercises metadata-only search, layout choices, exact replay, stale-result removal and immutable study pins. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -18,6 +19,7 @@ async function start(page: Page, token: string, csv: string) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "library-evidence.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
   await expect(page.getByLabel("Profile upload")).toHaveValue(/.+/);
   return `/workspaces/${await page.getByLabel("Current workspace").inputValue()}/datasets/${await page.getByLabel("Dataset", { exact: true }).inputValue()}/uploads/${await page.getByLabel("Profile upload").inputValue()}`;
 }

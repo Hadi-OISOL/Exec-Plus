@@ -102,6 +102,16 @@ def test_common_terms_are_helpful_but_not_mistaken_for_confirmed_file_definition
     assert "Confirmed workspace definition" not in message
 
 
+def test_category_explanation_asks_for_meaning_without_an_irrelevant_unit():
+    metadata = profile(TableData(("city",), (("Lahore",), ("Karachi",))))
+    ctx = DescriptionContext(
+        "Fictional locations", metadata, dataset_view(metadata), None, "inferred"
+    )
+    message, _ = explain_dataset(ctx, ("city",))
+    assert "What does city describe in your data?" in message
+    assert "what unit" not in message and "calculation rule" not in message
+
+
 def setup(env, model=None):
     model = model or ScriptedModel()
     owner, wid, root = prepare(env, model, content=CONTENT)

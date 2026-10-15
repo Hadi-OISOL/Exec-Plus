@@ -7,6 +7,7 @@ import json
 import re
 from typing import Any
 
+from execplus.domain.data_brief import missing_question
 from execplus.domain.guidance import DescriptionContext
 
 READING_PROMPT = """Explain what this dataset is about to a beginner, using the supplied context.
@@ -159,6 +160,12 @@ def render_reading(
         )
     if suggestions:
         paragraphs.append("Useful things to explore\n" + "\n".join(suggestions))
+    connected = [name for item in reading["connections"] for name in item["columns"]]
+    for name in dict.fromkeys([*connected, *columns]):
+        column = columns.get(name)
+        question = missing_question(column) if column else None
+        if question:
+            missing.append(question[1])
     if definition.get("grain", "unknown") == "unknown":
         missing.insert(0, "What does a single row describe in real life?")
     if missing:

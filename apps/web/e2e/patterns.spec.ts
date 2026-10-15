@@ -2,6 +2,7 @@
 What it does: Checks saved evidence, explicit daily assumptions, exact returned values and narrow layouts. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -16,6 +17,7 @@ test("measured patterns replay privately and no-date forecasts lead to explicit 
   const csv = "group,amount,reading,condition\n" + Array.from({ length: 40 }, (_, index) => `${index < 20 ? "A" : "B"},${index + 1},${(index + 1) * 2},${index < 20 ? "Dry" : "Wet"}\n`).join("");
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "measured-patterns.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
   await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
@@ -100,6 +102,7 @@ test("weak and sparse pattern presentations explain their limits instead of inve
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "sparse.csv", mimeType: "text/csv", buffer: Buffer.from("region,amount\nNorth,1\nSouth,2\n") });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
   let status = "no_strong_patterns";
   await page.route(/\/jobs\/[^/]+\/result$/, async route => {
     const response = await route.fetch();
@@ -127,6 +130,7 @@ test("a real weak relationship remains inspectable without becoming a strong fin
   const csv = "amount,reading\n" + Array.from({ length: 80 }, (_, index) => `${index + 1},${(index + 1) * 17 % 83}\n`).join("");
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "weak-measurements.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
   await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();

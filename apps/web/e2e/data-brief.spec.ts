@@ -107,7 +107,8 @@ test("skipping the data reading changes no shared meaning and stores no notes", 
   const before = await get(root + "/understanding");
   await panel.getByRole("button", { name: "Skip for now", exact: true }).click();
   await expect(panel).toHaveCount(0);
-  await expect(page.locator("#chat-question")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
+  await expect(page.locator("#chat-question")).toBeHidden();
   expect(await get(root + "/understanding")).toEqual(before);
   expect(await get(dataset + "/documents")).toEqual([]);
 });
@@ -168,6 +169,7 @@ for (const partial of [false, true]) {
     await page.getByRole("button", { name: "Check what ExecPlus understood", exact: true }).click();
     await expect(reading).toContainText("already confirmed");
     await reading.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
     await page.locator("#chat-question").fill("Find anomalies in measure_19");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await page.getByRole("button", { name: "Inspect unusual values", exact: true }).click();
@@ -191,3 +193,72 @@ for (const partial of [false, true]) {
     expect((await get(root + "/understanding")).questions).toEqual([]);
   });
 }
+
+test("focused reading keeps edits on Back, saves progress and retries only the failed save", async ({ page }) => {
+  const person = account();
+  await modelReading(page);
+  await signIn(page, person);
+  const { root, dataset, get } = await upload(page, person);
+  const panel = page.getByRole("region", { name: "Data reading", exact: true });
+  await expect(panel.getByText("Question 1 of", { exact: false })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toHaveCount(0);
+  await expect(page.locator(".analysisViewControls")).toBeHidden();
+  await expect(page.locator("#chat-question")).toBeHidden();
+  await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
+  await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
+  await panel.getByRole("textbox", { name: "What does this column mean?", exact: true }).fill("Amount actually received after discount");
+  await panel.getByLabel("Unit, if you know it", { exact: true }).fill("PKR");
+  await panel.getByRole("button", { name: "Back", exact: false }).click();
+  await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
+  await expect(panel.getByRole("textbox", { name: "What does this column mean?", exact: true })).toHaveValue("Amount actually received after discount");
+  await expect(panel.getByLabel("Unit, if you know it", { exact: true })).toHaveValue("PKR");
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await panel.screenshot({ path: `../../data/verification/2026-10-15/focused-workspace/reading-${width}.png` });
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(panel).toBeVisible();
+  await panel.getByRole("button", { name: "Save my progress", exact: true }).click();
+  await expect(panel).toContainText("3 of 5 questions answered");
+  let notesAttempts = 0;
+  await page.route("**/documents?name=data-reading-*", async route => {
+    notesAttempts += 1;
+    if (notesAttempts === 1) return route.fulfill({ status: 503, json: { error: { message: "Temporary notes failure" } } });
+    return route.continue();
+  });
+  await panel.getByRole("button", { name: "Save as context for this data", exact: true }).click();
+  await expect(panel.getByRole("heading", { name: "Some answers still need saving", exact: true })).toBeVisible();
+  const first = await get(root + "/understanding");
+  expect(first.state).toBe("needs_review");
+  expect(first.definition.columns.find((item: { name: string }) => item.name === "amt")).toMatchObject({ unit: "PKR", meaning: "Amount actually received after discount" });
+  await panel.getByRole("button", { name: "Retry saving", exact: true }).click();
+  await expect(panel.getByRole("heading", { name: "Review save results", exact: true })).toBeVisible();
+  expect((await get(root + "/understanding")).version).toBe(first.version);
+  expect(await get(dataset + "/documents")).toHaveLength(1);
+  expect(notesAttempts).toBe(2);
+  await panel.getByRole("button", { name: "Continue to my insights", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
+  await expect(page.locator("#chat-question")).toBeHidden();
+});
+
+test("a rejected AI reading keeps a focused structural review with honest provenance", async ({ page }) => {
+  const person = account();
+  await page.route("**/data-brief*", async route => {
+    const real = await (await route.fetch()).json();
+    await route.fulfill({ json: { ...real, source: "profile", model_enabled: true, model_route: null, notice: "A model reading was unavailable.", questions: [] } });
+  });
+  await signIn(page, person);
+  const { root, get } = await upload(page, person);
+  const panel = page.getByRole("region", { name: "Data reading", exact: true });
+  await expect(panel.getByText("Question 1 of", { exact: false })).toBeVisible();
+  await expect(panel).toContainText("a new AI reading is unavailable");
+  await expect(panel).toContainText("Based on the file’s structure and your saved definitions");
+  await expect(panel).not.toContainText("Suggested by the language model");
+  await expect(page.getByRole("region", { name: "Guided data review", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toHaveCount(0);
+  const before = await get(root + "/understanding");
+  await panel.getByRole("button", { name: "Skip for now", exact: true }).click();
+  expect(await get(root + "/understanding")).toEqual(before);
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
+});

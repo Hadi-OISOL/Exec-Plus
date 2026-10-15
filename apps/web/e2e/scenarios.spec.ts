@@ -1,6 +1,7 @@
 /* Use case: Verifies conditional scenarios with real numerical source receipts.
 What it does: Exercises exact comparisons, immutable succession and narrow layouts. */
 import { execFileSync } from "node:child_process";
+import { finishInitialReview } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -15,6 +16,8 @@ test("private what-if comparisons reproduce original evidence and preserve prede
   await expect(page.getByText("Signed in as", { exact: false })).toBeVisible();
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "scenario.csv", mimeType: "text/csv", buffer: Buffer.from("city,amount,cost\nKarachi,0.10,0.05\nLahore,0.20,0.15\n") });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await page.getByRole("radio", { name: "Expert", exact: true }).check();
   await expect(page.getByLabel("Analysis focus")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();

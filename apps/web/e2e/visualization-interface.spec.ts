@@ -2,6 +2,7 @@
 What it does: Exercises signed and missing values, modal keyboard behavior, server drill-down, and narrow screens against actual services. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview, openFindings } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -33,6 +34,8 @@ test("chart and table exploration preserve exact values, gaps, source filters an
     ),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   const discovery = page.getByRole("region", {
     name: "First reading of your data",
     exact: true,

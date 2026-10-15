@@ -3,6 +3,21 @@
 
 # ExecPlus Architecture
 
+## October 15 focused experience and reading recovery
+
+Home, review and conversation are separate presentation contexts over the same
+authorized services. Hidden conversation state preserves active work; moving
+screens is not a permission or source-selection operation. Review drafts and
+failed-save recovery remain local to the actor/source and require explicit save.
+
+Qualitative upload/chat reading now shares a bounded structured-response helper:
+at most two model calls within one forty-second deadline, existing call budgets,
+unchanged validators and no replay of rejected model prose. Authorization/source
+checks run before correction and before publication. Server-owned saved-answer
+merging and missing-definition questions prevent the model from replacing a
+reviewed field. This adds no schema/provider change. Read
+`docs/clean-experience.md` and `docs/clean-experience-plan.md` for scope and limits.
+
 ## October 14 measured pattern exploration
 
 The existing private conversation pipeline supports a registered `explore_patterns`

@@ -1,6 +1,7 @@
 /* Use case: Verifies anomaly findings and conditional allocations using real services.
 What it does: Covers source review, exact replay, private history, approvals and narrow layouts. */
 import { execFileSync } from "node:child_process";
+import { finishInitialReview } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 test("private anomaly and allocation evidence survives replay and human review", async ({ page }) => {
@@ -15,6 +16,8 @@ test("private anomaly and allocation evidence survives replay and human review",
     const csv = "city,amount,cost\n" + Array.from({ length: 8 }, (_, i) => `A${i},10.10,1.00\n`).join("") + "Z,100.10,1.00\n";
     await page.getByLabel("CSV or Excel file").setInputFiles({ name: "decision-demo.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
     await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await page.getByRole("radio", { name: "Expert", exact: true }).check();
     await expect(page.getByLabel("Analysis focus")).toBeVisible();
     const nav = page.getByRole("navigation", { name: "Workspace navigation" });
     await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();

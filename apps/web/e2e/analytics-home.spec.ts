@@ -2,6 +2,7 @@
 What it does: Covers saved evidence navigation, accessible mobile search and preservation of a second question during active work. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -21,6 +22,7 @@ async function start(page: Page) {
     buffer: Buffer.from("city,amount\nKarachi,0.10\nLahore,0.20\nKarachi,0.30\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
   await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
   return {
     headers: { Authorization: `Bearer ${token}` },

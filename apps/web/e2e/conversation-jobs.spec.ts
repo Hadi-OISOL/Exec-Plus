@@ -2,6 +2,7 @@
 What it does: Exercises recorded actions, explicit cancellation races, network recovery and presentation-only evidence views. */
 
 import { execFileSync } from "node:child_process";
+import { finishInitialReview, openFindings, openConversation } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -41,11 +42,14 @@ async function upload(page: Page, filename = "activity-example.csv") {
     buffer: Buffer.from("branch,amount\nNorth,0.10\nSouth,0.20\nNorth,0.30\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
   await expect(page.locator(".discoveryValue")).toHaveText([
     "0.1",
     "0.3",
     "0.2",
   ]);
+  await openConversation(page);
 }
 
 function submitResponse(page: Page) {
