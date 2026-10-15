@@ -151,6 +151,7 @@ test("durable conversation shows actual actions and Expert changes only the evid
   expect(computations).toBe(count);
   await page.reload();
   await signIn(page, token);
+  await openConversation(page);
   await page.getByText("Private conversation history", { exact: true }).click();
   await page.getByLabel("Saved conversation").selectOption({ index: 1 });
   await page
@@ -304,6 +305,7 @@ test("switching files detaches old activity without cancelling or overwriting th
   await upload(page, "second-activity.csv");
   const second = await page.getByLabel("Dataset", { exact: true }).inputValue();
   await page.getByLabel("Dataset", { exact: true }).selectOption(first);
+  await openConversation(page);
   await expect(page.locator(".chatSource")).toContainText("first-activity.csv");
   let release: () => void = () => {};
   const held = new Promise<void>((resolve) => {
@@ -372,7 +374,7 @@ test("a broad goal asks a source-specific follow-up and the chosen task executes
   await signIn(page, session());
   await upload(page, "goal-example.csv");
   const chat = page.getByRole("region", { name: "Ask a question", exact: true });
-  await chat.getByLabel("Your question", { exact: true }).fill("Find patterns");
+  await chat.getByLabel("Your question", { exact: true }).fill("Analyze my data");
   await chat.getByRole("button", { name: "Ask", exact: true }).click();
   const first = chat.locator(".conversationTurn").first();
   const choices = first.getByRole("group", { name: "Clarify your request", exact: true });

@@ -28,7 +28,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
   await signIn(page, session, false);
   await expect(
     page.getByRole("heading", {
-      name: "Drop in a file. Find your first insight.",
+      name: "Start with a file.",
     }),
   ).toBeVisible();
   await expect(
@@ -756,7 +756,7 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   await finishInitialReview(page);
   await openFindings(page);
-  await expect(page.locator('.notice[role="status"]')).toContainText("uploaded successfully");
+  await expect(page.getByLabel("Profile upload").locator("option:checked")).toHaveText("sales.csv");
   await navigate(page, "Data library");
   await page.getByText(/Retained uploads in the selected dataset/).click();
   await expect(

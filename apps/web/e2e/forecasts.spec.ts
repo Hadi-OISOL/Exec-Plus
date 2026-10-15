@@ -128,7 +128,10 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
     exact: true,
   });
   await expect(result).toContainText("Estimate, not an observed result");
-  await expect(result).toContainText("Held-out backtest accuracy");
+  await expect(result.getByRole("heading", { name: "Held-out backtest accuracy", exact: true })).toBeHidden();
+  await result.getByText("How accurate was this forecast?", { exact: true }).click();
+  await expect(result.getByRole("heading", { name: "Held-out backtest accuracy", exact: true })).toBeVisible();
+  await result.getByText("How accurate was this forecast?", { exact: true }).click();
   await expect(result).toContainText("Last-value baseline MAE:");
   await expect(result).toContainText("no guaranteed coverage");
   await expect(result.locator(".verifiedBadge")).toHaveCount(0);
@@ -143,6 +146,7 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
     .click();
   await expect(result).toContainText(run.evidence.query_ids[0]);
   await expect(result).toContainText(run.revision_id);
+  await result.getByText("Method, backtest and source evidence", { exact: true }).click();
   for (const width of [320, 390, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -151,6 +155,7 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
         () => document.documentElement.scrollWidth <= innerWidth + 1,
       ),
     ).toBe(true);
+    expect(await result.locator(".forecastChart").evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await result.screenshot({
       path: `../../data/phase4c/forecast-${width}.png`,
     });

@@ -236,6 +236,7 @@ export function ForecastResults({
 }) {
   const result = run.result;
   const rows = forecastRows(result.predictions, comparison);
+  const commentary = [...(result.commentary ?? []), ...(comparison?.result.commentary ?? [])];
   const limits = [
     ...new Set([...result.limitations, ...run.evidence.limitations]),
   ];
@@ -300,6 +301,15 @@ export function ForecastResults({
         {!result.uncertainty.coverage_guaranteed &&
           " This range has no guaranteed coverage probability."}
       </p>
+      {result.benchmark && !result.benchmark.beats_baseline_mae && <p className="forecastBenchmark">This forecast did not beat a simple last-value estimate on the held-out data. Check the errors before relying on it.</p>}
+      {commentary.length > 0 && <section className="forecastCommentary" aria-label="Grounded forecast commentary">
+        <h3>What the results say</h3>
+        {commentary.slice(0, 3).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        {commentary.length > 3 && <details><summary>More about these results</summary>{commentary.slice(3).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</details>}
+      </section>}
+      <details className="forecastEvidence">
+        <summary>How accurate was this forecast?</summary>
+        <p>These checks compare estimates with known values. Past accuracy does not guarantee future results.</p>
       {comparison && (
         <ForecastAccuracy
           title="Accuracy against later actual data"
@@ -330,27 +340,13 @@ export function ForecastResults({
           {result.uncertainty.backtest_coverage.label}
         </p>
       )}
-      {result.commentary?.length || comparison?.result.commentary?.length ? (
-        <section
-          className="forecastCommentary"
-          aria-label="Grounded forecast commentary"
-        >
-          <h3>What the results say</h3>
-          {[
-            ...(result.commentary ?? []),
-            ...(comparison?.result.commentary ?? []),
-          ].map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
-        </section>
-      ) : null}
-      <ul className="studyLimitations">
-        {[...limits, ...(comparison?.result.limitations ?? [])].map(
-          (text, index) => (
-            <li key={index}>{text}</li>
-          ),
-        )}
-      </ul>
+      </details>
+      <details className="forecastEvidence">
+        <summary>What this forecast assumes</summary>
+        <ul className="studyLimitations">
+          {[...limits, ...(comparison?.result.limitations ?? [])].map((text, index) => <li key={index}>{text}</li>)}
+        </ul>
+      </details>
       <details className="forecastEvidence">
         <summary>Method, backtest and source evidence</summary>
         <h3>Time windows</h3>

@@ -46,7 +46,7 @@ test("private what-if comparisons reproduce original evidence and preserve prede
   await expect(result).toContainText("0.3600000000000");
   await panel.getByRole("button", { name: "Open prior comparison", exact: true }).click();
   await expect(result).toContainText("0.3300000000000");
-  await expect(result.getByRole("heading", { level: 3 })).toHaveText("Conditional ten percent");
+  await expect(result.getByRole("heading", { name: "Conditional ten percent", exact: true })).toBeVisible();
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);

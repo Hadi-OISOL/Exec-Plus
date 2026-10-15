@@ -8,6 +8,6 @@ import nextTypeScript from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextCoreWebVitals,
   ...nextTypeScript,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", "out/**", "build/**", "test-results/**", "playwright-report/**", "next-env.d.ts"]),
 ]);
 
