@@ -15,6 +15,27 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 15 — Focused experience and reliable reading
+
+**Status:** Complete for the first two bounded local/test and private-demo phases.
+Application `412bf4e` runs on unchanged 0017.
+The [four-phase plan](docs/clean-experience-plan.md) separates today's focused
+screens and reading reliability from next-session analytics depth and evaluation.
+Home, chat and one-question review have separate primary views. Mobile charts,
+expandable method details, preserved drafts and bounded reading correction improve
+existing features while retaining exact receipts and private ownership.
+
+Local evidence covers 1,177 distinct backend cases, 27 frontend tests and 52
+distinct browser journeys across full/focused/live runs, plus static/build and
+restricted-image checks. Deployed hosted reading/context/privacy/replay checks and
+two browser journeys pass with source data preserved. The
+[verification ledger](docs/verification-clean-experience.md)
+retains failed attempts and limits. The [REA audit](docs/clean-experience-reference-audit.md)
+records public ThoughtSpot/Metabase observations and library decisions. No new
+provider, schema, public exposure or runtime UI library is introduced. Counts
+remain 37/16/11; all eight production gates remain blocked. General understanding
+quality, advanced methods and production acceptance are not declared complete.
+
 ## October 14 — Measured pattern exploration and daily assumptions
 
 **Status:** Complete for the bounded local/test and private-demo enhancement.

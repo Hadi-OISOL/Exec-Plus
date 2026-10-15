@@ -1,7 +1,7 @@
 {
   "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
-  "date": "2026-10-14",
+  "date": "2026-10-15",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
   "rows": [
     {
@@ -151,7 +151,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Saved meanings and private goals guide questions. Pattern requests run bounded measured comparisons with private replay; missing inputs and uncertain interpretation stay explicit.",
+      "note": "Saved meanings and private goals guide questions. Qualitative readings have bounded invalid-output correction and source checks; patterns use measured private evidence. Missing details and uncertain interpretation stay explicit.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -171,7 +171,8 @@
         "E13",
         "E17",
         "E19",
-        "E20"
+        "E20",
+        "E21"
       ]
     },
     {
@@ -312,7 +313,7 @@
       "section": "Improve activation",
       "feature": "Guided data-upload wizard",
       "status": "done",
-      "note": "Upload validates files and creates workspace/dataset when needed. Optional step-by-step review previews corrections, saves private notes separately and leaves shared meanings as drafts until full confirmation.",
+      "note": "Upload opens a focused review with one question at a time. Back keeps edits; partial progress stays a draft, and failed saves retry only unfinished parts. Notes remain private unless explicitly shared.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/web/e2e/workspace.spec.ts",
@@ -323,7 +324,8 @@
       ],
       "evidence_groups": [
         "E10",
-        "E16"
+        "E16",
+        "E21"
       ]
     },
     {
@@ -814,7 +816,7 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "partial",
-      "note": "Guided reading covers all fields and resumes missing details without overwriting answers. Explicit confirmation is required; customer signup and paid-plan onboarding remain absent.",
+      "note": "Focused reading preserves saved meanings and resumes actual missing details. Invalid AI output can recover once or show an honest profile fallback. Explicit confirmation remains required; production signup and paid-plan onboarding are absent.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
@@ -830,7 +832,8 @@
       "evidence_groups": [
         "E10",
         "E16",
-        "E19"
+        "E19",
+        "E21"
       ]
     },
     {
@@ -1289,6 +1292,14 @@
         "docs/verification-measured-patterns.md",
         "docs/measured-patterns.md",
         "docs/pattern-exploration-reference-audit.md"
+      ]
+    ],
+    "E21": [
+      "Focused workspace and reliable reading",
+      [
+        "docs/verification-clean-experience.md",
+        "docs/clean-experience.md",
+        "docs/clean-experience-plan.md"
       ]
     ]
   },

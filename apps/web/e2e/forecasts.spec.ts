@@ -7,6 +7,16 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+const pageErrors = new WeakMap<Page, string[]>();
+test.beforeEach(async ({ page }) => {
+  const errors: string[] = [];
+  pageErrors.set(page, errors);
+  page.on("pageerror", error => errors.push(error.message));
+});
+test.afterEach(async ({ page }) => {
+  expect(pageErrors.get(page) ?? []).toEqual([]);
+});
+
 function session() {
   return execFileSync(
     "python3",

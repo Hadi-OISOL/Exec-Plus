@@ -36,6 +36,60 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 15 — Focused experience and reliable reading
+
+- The user requested four improvement phases: deliver the first two now, retain
+  two for the next session. The first two are complete for local/test and the
+  private demo. Application `412bf4e` runs on unchanged **0017**. Read `docs/clean-experience-plan.md`,
+  `docs/clean-experience.md`, `docs/verification-clean-experience.md` and
+  `docs/clean-experience-reference-audit.md` before extending this work.
+- Home, conversation and review have separate primary views. Reading asks one
+  question at a time; Back keeps drafts, partial saves stay drafts and failed saves
+  retry only the unfinished part. Forecast/scenario charts fit mobile screens;
+  accuracy and method details expand on demand. Essential uncertainty remains
+  visible. Finite motion respects reduced motion and never invents progress.
+- Upload/chat reading reuses saved meanings and actual missing details. One bounded
+  correction can repair invalid returned model content within a shared forty-second
+  deadline and existing budgets. Server merging preserves saved answers; source,
+  definitions, private context and permissions are rechecked. Provider failures or
+  repeated invalid replies use explicit fallback. Cleanup may extend wall time;
+  provider-level incomplete responses may still fall back. Old replies remain
+  immutable; ask again to receive the enhanced reading. No model arithmetic,
+  automatic shared confirmation, provider change or schema change was added.
+- Local evidence: 1,170 full backend/architecture passes plus 107 final targeted
+  checks yield **1,177 distinct**. All 27 frontend tests, Ruff/mypy (170 files),
+  types/lint and final local/VPS builds pass. All **52 distinct browser journeys**
+  have passing executions across full/focused/live runs, including all three
+  model-dependent conversations. Initial failures and the earlier development
+  router error remain in the ledger; no single clean full browser run is claimed.
+  Non-root network-disabled images pass old/new compute and reading-recovery checks.
+- REA inspected five public ThoughtSpot/Metabase documentation illustrations.
+  Radix/Motion licenses and compatibility were reviewed; native disclosures/CSS
+  meet this slice's needs, so no new runtime dependency was installed. No private
+  competitor backend or code was accessed. This is not full product parity.
+- Eight deployed API checks pass, including a twenty-field hosted reading that
+  successfully uses correction, saved private notes/goal, the actual missing-unit
+  question, exact 20.5 alias calculation/replay and three private-thread denials.
+  Old ordinary/pattern/forecast/scenario evidence reopens. Two live browser journeys
+  pass six 1440/390/320 layouts with zero page errors in 48.3 seconds; source metadata
+  and bytes remain unchanged. This is functional evidence, not representative
+  model-quality or sustained-load acceptance. The absent local tunnel, expired
+  demo session and stale verification receipt index were corrected and retained
+  as initial harness failures. Only one demo session was renewed; teammates remain.
+- All 47 activation table fingerprints and the environment checksum match.
+  Checkpoint: `pre-412bf4e-20261015`; checked pre-release backup:
+  `20261015T182108Z`. Checked post-release backup `20261015T185057Z` preserves the
+  live saved work and restarts services successfully.
+  Preserve all new saved work on rollback. Models, timers and loopback-only access
+  retain their existing configuration.
+- Next session: phase 3 adds pooled-versus-within-group relationship comparisons
+  and explicit allocation prerequisites/exclusions, with independent numerical,
+  compatibility and privacy evidence. Phase 4 adds fixed failure-case evaluation,
+  complete journeys and a declared local workload. See the plan's exact bounds.
+  Broader methods and representative production acceptance remain open. All 64
+  feature IDs, **37 Done / 16 Partial / 11 Not yet** and all eight blocked production
+  gates remain unchanged. No automatic next-session schedule was created.
+
 ### October 14 — Measured patterns and meaningful no-date alternatives
 
 - Application `e7e4b8c` is deployed on unchanged **0017**. Read

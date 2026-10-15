@@ -7,6 +7,16 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+const pageErrors = new WeakMap<Page, string[]>();
+test.beforeEach(async ({ page }) => {
+  const errors: string[] = [];
+  pageErrors.set(page, errors);
+  page.on("pageerror", error => errors.push(error.message));
+});
+test.afterEach(async ({ page }) => {
+  expect(pageErrors.get(page) ?? []).toEqual([]);
+});
+
 function session() {
   return execFileSync(
     "python3",
@@ -371,6 +381,10 @@ test("switching files detaches old activity without cancelling or overwriting th
 
 
 test("a broad goal asks a source-specific follow-up and the chosen task executes in the same thread", async ({ page }) => {
+  test.skip(
+    process.env.EXECPLUS_BROWSER_LIVE_MODEL !== "1",
+    "Requires an explicitly enabled live planner with fictional data.",
+  );
   await signIn(page, session());
   await upload(page, "goal-example.csv");
   const chat = page.getByRole("region", { name: "Ask a question", exact: true });

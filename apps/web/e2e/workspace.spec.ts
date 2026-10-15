@@ -7,6 +7,16 @@ import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+const pageErrors = new WeakMap<Page, string[]>();
+test.beforeEach(async ({ page }) => {
+  const errors: string[] = [];
+  pageErrors.set(page, errors);
+  page.on("pageerror", error => errors.push(error.message));
+});
+test.afterEach(async ({ page }) => {
+  expect(pageErrors.get(page) ?? []).toEqual([]);
+});
+
 function token(email: string) {
   return execFileSync(
     "python3",
@@ -18,6 +28,10 @@ function token(email: string) {
 test("first file needs no setup and opens sourced discoveries with useful conversation", async ({
   page,
 }) => {
+  test.skip(
+    process.env.EXECPLUS_BROWSER_LIVE_MODEL !== "1",
+    "Requires an explicitly enabled live planner with fictional data.",
+  );
   test.setTimeout(150_000);
   const session = token(`first-reading-${randomUUID()}@example.test`);
   let legacySuggestionRequests = 0;
@@ -98,9 +112,9 @@ test("first file needs no setup and opens sourced discoveries with useful conver
   await chat
     .getByRole("button", { name: "Help me understand my data", exact: true })
     .click();
-  await expect(chat.locator(".datasetGuidance")).toContainText(
-    "3 rows and 2 columns",
-  );
+  await expect(chat.locator(".datasetGuidance")).toContainText("branch");
+  await expect(chat.locator(".datasetGuidance")).toContainText("revenue");
+  await expect(chat.locator(".datasetGuidance .verifiedBadge")).toHaveCount(0);
   const averageSubmitted = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
@@ -510,6 +524,7 @@ test("combined data and document chat reopens private evidence after refresh", a
   ).toContainText("Source revision:");
   await page.reload();
   await signIn(page, session);
+  await finishInitialReview(page);
   await openConversation(page);
   await page.getByText("Private conversation history", { exact: true }).click();
   await expect(
@@ -782,8 +797,6 @@ test("create workspace, invite teammate, upload, reject malformed file, switch t
     buffer: Buffer.from("a,b\n1,2,3\n"),
   });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
-  await finishInitialReview(page);
-  await openFindings(page);
   await expect(
     page.getByRole("alert", { name: "Request error" }),
   ).toContainText("consistent columns");
@@ -1088,6 +1101,7 @@ test("upload creates a dataset and opens an interactive responsive exploration",
     page.getByRole("heading", { name: "A clearer picture." }),
   ).toBeVisible();
   await reveal(page, "Review & refine data understanding");
+  await page.getByText("Explore the column map", { exact: true }).click();
   const journey = page.getByRole("region", { name: "Data journey" });
   await expect(journey).toContainText("3 columns recognized");
   await journey.getByText("Explore your column map", { exact: false }).click();
@@ -1104,9 +1118,11 @@ test("upload creates a dataset and opens an interactive responsive exploration",
     "2 of 2 matching",
   );
   await expect(dashboard.locator(".drilldownRows")).not.toContainText("Lahore");
+  await openConversation(page);
   await expect(page.getByRole("log", { name: "Conversation" })).toContainText(
     "What would you like to discover?",
   );
+  await openFindings(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.screenshot({
@@ -1213,6 +1229,7 @@ test("confirm business meaning and private goals without losing the source", asy
     .getByRole("article");
   await expect(cards).toHaveCount(1);
   await expect(cards.first().locator(".kpiValue")).toHaveText("0.1");
+  await reveal(page, "Review & refine data understanding");
   await meaning
     .getByText("Your private analysis goal", { exact: true })
     .click();
@@ -1221,9 +1238,10 @@ test("confirm business meaning and private goals without losing the source", asy
   );
   await navigate(page, "Prepare data");
   await navigate(page, "Overview");
+  await reveal(page, "Review & refine data understanding");
   await expect(meaning.getByText("confirmed", { exact: true })).toBeVisible();
   await meaning
-    .getByText("Review business definitions", { exact: true })
+    .getByText("Edit saved definitions", { exact: true })
     .click();
   await expect(meaning.getByLabel("Dataset description")).toHaveValue(
     "Only paid amounts count toward revenue.",
@@ -1237,6 +1255,7 @@ test("confirm business meaning and private goals without losing the source", asy
     .getByRole("button", { name: "Revoke definition", exact: true })
     .click();
   await expect(meaning.getByText("rejected", { exact: true })).toBeVisible();
+  await reveal(page, "Charts & dashboard controls");
   await expect(
     page.getByRole("region", { name: "Dataset dashboard" }).getByRole("alert"),
   ).toContainText("Review and confirm");
