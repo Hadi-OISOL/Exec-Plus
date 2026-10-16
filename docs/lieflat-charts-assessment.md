@@ -1,21 +1,32 @@
 > **File use case:** Records the requested Lieflat Charts inspection and safe product fit.
-> **What it does:** Pins the local reference, distinguishes its license from its dependencies, and bounds original ExecPlus chart improvements.
+> **What it does:** Records the project-only skill installation, distinguishes its license from its dependencies, and bounds original ExecPlus chart improvements.
 
 # Lieflat Charts assessment
 
 The user supplied [Lieflat Charts](https://github.com/larashero3-dotcom/lieflat-charts)
 as a chart and agent-design reference. The inspected source is pinned to
 ed436ba56b3cbeee20b9b9966b38a9a9689e239c, observed on October 16, 2026.
-The source clone and installer-produced reference copy stay in ignored local tools:
+The source clone, earlier reference copy and newly installed coding skill stay
+local and ignored:
 
 - data/agent-tools/references/larashero3-dotcom--lieflat-charts/
 - data/agent-tools/reference-skills/lieflat-charts/
+- .agents/skills/lieflat-charts/
 
-The official skill-installer helper uses the explicit commit and project-local
-destination. This reference copy is outside automatic skill discovery. Its workflow
-requires copying template structure; that workflow is not enabled for ExecPlus.
-No global skill, runtime package, provider, CDN, user-data transfer or model-written
-code execution is installed.
+At the user's explicit request, the official skill-installer helper installed the
+unmodified repository at that exact commit into `.agents/skills/lieflat-charts/`.
+The skill is available to the coding agent after the client discovers it on a
+subsequent turn. All **146 installed files** match both the pinned clone and the
+previously scanned reference copy byte-for-byte, including `LICENSE`,
+`THIRD_PARTY_NOTICES.md` and `agents/openai.yaml`. The ignored receipt
+`data/agent-tools/references/lieflat-charts-project-installation.json` records every
+file hash. The older reference-installation receipt remains historical evidence.
+
+The project uses its data-shape, chart-selection and readability guidance for
+independently authored components. Its instructions to copy template structure
+are not authorization to place that code in ExecPlus. This project boundary takes
+precedence over those workflow instructions. No global skill directory, runtime
+package, provider, CDN or arbitrary-code execution capability changed.
 
 ## Observed scope and license
 
@@ -31,7 +42,8 @@ is **PolyForm Noncommercial 1.0.0**. The
 [README](https://github.com/larashero3-dotcom/lieflat-charts/blob/ed436ba56b3cbeee20b9b9966b38a9a9689e239c/README.en.md)
 states that commercial use requires separate permission. No template, token file,
 example artwork or renderer from this repository is copied into the ExecPlus
-product or deployment. Local source and notices are retained for assessment.
+product or deployment. The local skill and notices are retained intact. Installation
+does not supply commercial permission for its templates or remove their terms.
 
 Its [third-party notices](https://github.com/larashero3-dotcom/lieflat-charts/blob/ed436ba56b3cbeee20b9b9966b38a9a9689e239c/THIRD_PARTY_NOTICES.md)
 separately identify Chart.js as MIT, ECharts as Apache-2.0 and Inter as SIL OFL-1.1.
@@ -42,7 +54,7 @@ No permission from the toolkit author is assumed.
 
 The useful comparison is how readily a reader can identify the question, unit,
 series and source. The implementation uses ExecPlus's existing React/SVG components
-and original styles rather than the toolkit's template-copy workflow:
+and original styles. The earlier studio release established this baseline:
 
 | Existing result | Original improvement | Evidence boundary |
 | --- | --- | --- |
@@ -53,6 +65,12 @@ and original styles rather than the toolkit's template-copy workflow:
 
 These are ordinary chart-design ideas implemented independently within the existing
 codebase. No derivative template or full competitor-style clone is claimed.
+
+The follow-up [chart experience](chart-experience.md) extends actual dashboard,
+answer, pattern and forecast presentation. Its [reference audit](chart-experience-reference-audit.md)
+records the three gallery images inspected, the seven-repository use map and the
+required behavior. That follow-up's implementation and release checks are recorded
+separately; the baseline table above is not a claim that newer changes have passed.
 
 ExecPlus keeps its own readable type sizes, keyboard interaction, reduced-motion
 behavior and current palette. It does not adopt unusually tiny gallery text,
@@ -66,6 +84,13 @@ Source inspection checked the pinned skill, catalog, license/notices, network
 references and script behavior. No upstream template was executed against customer
 data. Static source scanning is recorded separately and does not certify a toolkit
 or grant a commercial license.
+
+The unchanged files reuse the earlier source-aware review: **CAUTION**, with raw
+SkillSpector score **96 / CRITICAL**, 40 findings and **37.8% fully inspected text
+components / partial coverage**. Explanations of flagged comments do not close the
+JavaScript parser coverage gaps. The scope is local coding guidance, not automatic
+execution of its templates, scripts or optional installers. No additional model
+scan or provider call was made for installation. See [project skill adoption](project-skill-adoption.md).
 
 The UI change requires ExecPlus's exact-value, null/missing-point, responsive,
 keyboard and reduced-motion checks plus the normal build. Results belong in the

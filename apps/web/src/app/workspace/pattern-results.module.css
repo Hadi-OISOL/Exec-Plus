@@ -1,0 +1,66 @@
+/* Use case: Presents measured patterns as readable evidence, with original chart styling.
+What it does: Gives records, comparison scales and exact-value inspectors a consistent responsive canvas. */
+
+.results { color: #213a32; min-width: 0; }
+.results :global(.patternOverview) { background: #f7faf5; border: 1px solid #dce5dc; border-radius: 16px; padding: 24px; }
+.results :global(.patternOverview h3) { font-size: 22px; line-height: 1.35; letter-spacing: -.025em; }
+.results :global(.patternCoverage) { gap: 24px; border-top: 1px solid #dce5dc; padding-top: 18px; }
+.results :global(.patternCoverage dd) { font-size: 28px; font-weight: 650; color: #176b57; }
+.results :global(.patternCoverage dt) { font-size: 12px; }
+.results :global(.patternFindings) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 22px; }
+.results :global(.patternFinding) { border-color: #dce5dc; border-radius: 16px; padding: 24px; box-shadow: none; }
+.results :global(.patternFinding h4) { font-size: 18px; line-height: 1.4; letter-spacing: -.015em; }
+.results :global(.patternFinding .patternSummary) { font-size: 14px; color: #53685f; }
+.results :global(.patternNumber) { border-radius: 8px; background: #e9f1e7; color: #176b57; }
+.results :global(.patternType), .results :global(.patternSupport), .results :global(.patternCoverageNote) { font-size: 12px; }
+.results :global(.patternCoverageNote) { padding-top: 14px; border-top: 1px solid #e6eae2; }
+.chartHeading { display: grid; gap: 5px; font-size: 13px; color: #213a32; overflow-wrap: anywhere; }
+.chartHeading span { color: #53685f; font-size: 12px; }
+.scatter.scatter { background: #fbfcfa; border: 1px solid #e3e9df; border-radius: 12px; padding: 18px; margin: 18px 0; }
+.scatterLayout { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; margin-top: 18px; }
+.valueScale { display: flex; flex-direction: column; justify-content: space-between; padding-block: 5px 29px; font-size: 11px; text-align: right; color: #53685f; font-variant-numeric: tabular-nums; }
+.scatterPlot { min-width: 0; border-radius: 6px; }
+.scatterPlot:focus-visible { outline: 2px solid #176b57; outline-offset: 4px; }
+.scatterPlot.scatterPlot svg { width: 100%; height: 220px; margin: 0; display: block; }
+.scatterPlot :global(.patternGridLine) { stroke: #dce5dc; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.scatterPlot circle { stroke: #fff; stroke-width: 1; fill: #176b57; opacity: .8; cursor: pointer; }
+.scatterPlot circle[data-selected="true"] { stroke: #213a32; stroke-width: 2; opacity: 1; }
+.cursor { stroke: #7c9187; stroke-dasharray: 3 5; vector-effect: non-scaling-stroke; }
+.horizontalScale, .scoreAxis { display: flex; justify-content: space-between; color: #53685f; font-size: 11px; font-variant-numeric: tabular-nums; }
+.horizontalTitle { text-align: center; padding: 7px 0 15px 58px; color: #53685f; font-size: 12px; overflow-wrap: anywhere; }
+.pointInspection { border-top: 1px solid #dce5dc; padding-top: 14px; margin: 0 0 14px; }
+.pointInspection > span { font-size: 12px; color: #53685f; overflow-wrap: anywhere; }
+.pointInspection dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 0; }
+.pointInspection dl > div { min-width: 0; }
+.pointInspection dt { color: #53685f; font-size: 12px; overflow-wrap: anywhere; }
+.pointInspection dd { margin: 4px 0 0; color: #213a32; font-weight: 650; font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.recordPicker { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: #53685f; font-size: 12px; margin-bottom: 14px; }
+.recordPicker select { min-height: 44px; max-width: 100%; flex: 1 1 145px; padding: 8px; }
+.results .scatter figcaption small { font-size: 12px; line-height: 1.5; color: #53685f; }
+.results :global(.patternBarChart), .results :global(.patternCategoryChart) { gap: 18px; }
+.results :global(.patternBarLabel) { font-size: 14px; color: #213a32; gap: 6px 12px; }
+.results :global(.patternBarTrack) { height: 14px; border-radius: 4px; margin: 9px 0 5px; background: #edf2e9; }
+.results :global(.patternBarTrack > span), .results :global(.patternCountTrack > span) { background: #478672; }
+.results :global(.patternBarTrack > span[data-negative="true"]) { background: #a56730; }
+.results :global(.patternBarRow small) { font-size: 12px; color: #53685f; }
+.results :global(.patternCategoryRow) { grid-template-columns: minmax(0, 1fr) minmax(50px, .65fr) 40px; font-size: 13px; color: #213a32; }
+.results :global(.patternCountTrack) { height: 14px; border-radius: 4px; background: #edf2e9; }
+.results :global(.relationshipPooled) { border-color: #a9c4b6; background: #f5f9f3; padding: 22px; }
+.results :global(.relationshipGroup) { padding: 22px; border-radius: 14px; }
+.results :global(.relationshipScore strong) { font-size: 18px; font-variant-numeric: tabular-nums; }
+.scoreAxis { padding: 0 2px; margin: -2px 0 10px; }
+.results :global(.relationshipLegend) { margin-top: 16px; font-size: 12px; }
+.results :global(.patternFinding) { animation: appear 280ms ease-out both; }
+@keyframes appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 520px) {
+  .results :global(.patternOverview), .results :global(.patternFinding) { padding: 16px; }
+  .results :global(.patternOverview h3) { font-size: 20px; }
+  .results :global(.patternCoverage) { gap: 15px; }
+  .results :global(.patternCoverage dd) { font-size: 24px; }
+  .scatter.scatter { padding: 12px; }
+  .pointInspection dl { grid-template-columns: 1fr; gap: 10px; }
+  .results :global(.patternCategoryRow) { grid-template-columns: minmax(0, 1fr) 40px; }
+  .results :global(.patternCategoryRow .patternCountTrack) { grid-column: 1; grid-row: 2; margin: 0; }
+  .results :global(.patternCategoryRow strong) { grid-column: 2; grid-row: 1 / 3; }
+}
+@media (prefers-reduced-motion: reduce) { .results :global(.patternFinding) { animation: none; } }

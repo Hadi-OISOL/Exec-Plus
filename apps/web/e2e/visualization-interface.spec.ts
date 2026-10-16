@@ -69,6 +69,21 @@ test("chart and table exploration preserve exact values, gaps, source filters an
   await expect(trend.locator("polyline")).toHaveCount(2);
   await expect(trend).not.toContainText("__value");
   await expect(trend).toContainText("Missing values remain gaps");
+  await expect(trend.getByLabel("Chart value range", { exact: true })).toContainText("9,007,199,254,740,993.000001");
+  await expect(trend.getByLabel("Chart value range", { exact: true }).locator("span").first()).toHaveAttribute("title", /^9007199254740993\.000001/);
+  await trend.locator(".chartPoint").last().focus();
+  await expect(trend.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("9007199254740993.000001");
+  const lineBox = await trend.locator("svg.trendSvg").boundingBox();
+  expect(lineBox).not.toBeNull();
+  await page.mouse.move(lineBox!.x + 16 + (lineBox!.width - 32) / 3, lineBox!.y + 100);
+  await expect(trend.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("Missing");
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await trend.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await trend.screenshot({ path: `../../data/verification/2026-10-16/chart-experience/line-${width}.png`, animations: "disabled" });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: "../../data/interface-polish-20261013/local-charts.png", fullPage: true });
   await trend.getByRole("button", { name: "Table", exact: true }).click();
   const exact = trend.getByRole("region", {
@@ -103,6 +118,19 @@ test("chart and table exploration preserve exact values, gaps, source filters an
       .filter({ hasText: "2026-01-03" })
       .locator(".discoveryBarTrack > span"),
   ).toHaveCSS("width", "0px");
+  await modal.getByRole("button", { name: "Dots", exact: true }).click();
+  await expect(modal.getByRole("button", { name: "Dots", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(modal.locator('[class*="dotMarker"]')).toHaveCount(3);
+  await expect(modal.getByRole("listitem").filter({ hasText: "2026-01-02" }).locator('[class*="dotMarker"]')).toHaveCount(0);
+  await expect(modal.getByRole("listitem").filter({ hasText: "2026-01-03" }).locator('[class*="dotMarker"]')).toHaveCount(1);
+  await modal.getByRole("img", { name: /^2026-01-04: 9007199254740993\.000001/ }).focus();
+  await expect(modal.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("9007199254740993.000001");
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await modal.screenshot({ path: `../../data/verification/2026-10-16/chart-experience/dots-${width}.png`, animations: "disabled" });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.keyboard.press("Escape");
   await expect(modal).not.toBeVisible();
   await expect(expand).toBeFocused();
@@ -142,9 +170,10 @@ test("chart and table exploration preserve exact values, gaps, source filters an
     name: "Amount by Region",
     exact: true,
   });
-  await expandedBreakdown
-    .getByRole("button", { name: /West.*-1\.250000000000/ })
-    .click();
+  await expandedBreakdown.getByRole("button", { name: "Dots", exact: true }).click();
+  await expandedBreakdown.getByRole("button", { name: /West.*-1\.250000000000/ }).focus();
+  await expect(expandedBreakdown.getByLabel("Exact chart detail for Amount by Region", { exact: true })).toContainText("-1.250000000000");
+  await page.keyboard.press("Enter");
   await expect(expandedBreakdown).not.toBeVisible();
   const drillResponse = await drilled;
   expect(drillResponse.ok()).toBe(true);

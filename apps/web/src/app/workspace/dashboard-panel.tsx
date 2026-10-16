@@ -71,15 +71,20 @@ function KpiCard({
 }) {
   const value = card.rows[0]?.[0] ?? null;
   return (
-    <article className="kpiCard">
-      <span className="kpiLabel">{card.kpi?.name ?? label(card.metric)}</span>
+    <article className={`kpiCard ${styles.metricCard}`}>
+      <div className={styles.metricHeading}>
+        <span className="kpiLabel">{card.kpi?.name ?? label(card.metric)}</span>
+        <span className={styles.metricMethod}>{label(card.lineage.aggregation)}</span>
+      </div>
       <strong className="kpiValue" data-long-value={displayMetric(value).length > 24} title={String(value ?? "Missing")}>{displayMetric(value)}</strong>
+      {card.kpi?.unit && <span className={styles.metricUnit}>{card.kpi.unit}</span>}
       <span className="kpiFootnote">
         {card.lineage.aggregation} · verified from{" "}
         {card.records_analyzed.toLocaleString()} records
       </span>
       <details className="cardDetails">
         <summary>Evidence & save</summary>
+        <p className={styles.metricSource}>Source: {card.lineage.dataset_name}</p>
         {card.kpi && <p className="kpiExplain">{card.kpi.explanation}</p>}
         <SaveControl
           root={root}
@@ -344,15 +349,16 @@ function DashboardContent({
       aria-label="Dataset dashboard"
       aria-busy={busy}
     >
-      <div className="sectionHeading">
-        <h2>Your data at a glance</h2>
-        <span>
-          <Icon name="check" size={12} /> Verified calculations
-        </span>
-      </div>
-      <p>
-        Explore the numbers. Select a category to see the records behind it.
-      </p>
+      <header className={styles.overviewHeader}>
+        <div>
+          <span className={styles.eyebrow}>THE NUMBERS, IN CONTEXT</span>
+          <h2>Your data at a glance</h2>
+          <p>Read the key figures, follow the changes, then explore the records behind them.</p>
+        </div>
+        {dashboard && (dashboard.cards.length > 0 || dashboard.trend || dashboard.breakdown) && (
+          <span className={styles.verified}><Icon name="check" size={14} /> Verified calculations</span>
+        )}
+      </header>
       <details className="dashboardTools">
         <summary>Customize view & filters</summary>
         <form
@@ -448,11 +454,16 @@ function DashboardContent({
           {error}
         </p>
       )}
-      {!dashboard && !error && <p>Loading dashboard…</p>}
+      {!dashboard && !error && (
+        <div className={styles.loading} role="status">
+          <span className={styles.loadingMark} aria-hidden="true" />
+          <div><strong>Reading the numbers</strong><p>Loading the calculated results for this view…</p></div>
+        </div>
+      )}
       {dashboard && (
         <>
           {dashboard.cards.length ? (
-            <div className="kpiGrid">
+            <div className={`kpiGrid ${styles.metrics}`} aria-label="Key figures">
               {dashboard.cards.map((card) => (
                 <KpiCard
                   key={card.lineage.query_id}
@@ -465,7 +476,13 @@ function DashboardContent({
           ) : (
             <p>No numeric columns were found to summarize.</p>
           )}
-          <div className="chartGrid">
+          {(dashboard.trend || dashboard.breakdown) && (
+            <div className={styles.figureHeading}>
+              <div><span className={styles.eyebrow}>A CLOSER LOOK</span><h3>See how the numbers fit together</h3></div>
+              <p>Switch to the table for every exact value.</p>
+            </div>
+          )}
+          <div className={`chartGrid ${styles.figures}`}>
             {dashboard.trend && (
               <TrendChart
                 key={dashboard.trend.lineage.query_id}

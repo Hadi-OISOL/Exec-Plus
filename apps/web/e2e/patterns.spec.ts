@@ -44,6 +44,21 @@ test("measured patterns replay privately and no-date forecasts lead to explicit 
   await expect(patterns.locator(".patternFinding")).not.toHaveCount(0);
   await expect(patterns).toContainText("do not prove that one thing caused another");
   await expect(patterns.locator("svg")).not.toHaveCount(0);
+  const chart = patterns.locator(".patternFinding").filter({ has: page.locator(".patternScatter") }).first();
+  const recordPlot = chart.getByRole("group", { name: /^Record chart for/ });
+  await recordPlot.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(chart.getByRole("status")).toContainText("Record 2");
+  await chart.getByLabel("Inspect a plotted record").selectOption("0");
+  await expect(chart.getByRole("status")).toContainText("Record 1");
+  await chart.locator("circle").last().hover();
+  await expect(chart.getByRole("status")).toContainText(`Record ${await chart.locator("circle").count()}`);
+  await recordPlot.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(chart.getByRole("status")).toContainText("Record 2");
+  await expect(chart.locator("polyline, path")).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(chart).toHaveCSS("animation-name", "none");
   await patterns.locator(".patternDetails summary").first().click();
   await expect(patterns.getByRole("table").first()).toBeVisible();
   await patterns.locator(".patternDetails summary").first().click();
@@ -52,6 +67,13 @@ test("measured patterns replay privately and no-date forecasts lead to explicit 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await patterns.locator(".patternOverview").scrollIntoViewIfNeeded();
     await page.screenshot({ path: `../../data/verification/2026-10-14/patterns/patterns-${width}.png`, fullPage: true });
+  }
+  for (const viewport of [{ width: 375, height: 812 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    expect(await chart.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await expect(chart.getByLabel("Inspect a plotted record")).toBeVisible();
+    await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "New conversation", exact: true }).click();

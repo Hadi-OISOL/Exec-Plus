@@ -23,6 +23,7 @@ const {
   chartEligible,
   plotPoints,
   plotScale,
+  plotBounds,
   lineSegments,
   compareExactNumeric,
 } = await import(
@@ -119,6 +120,19 @@ test("finite extreme magnitudes never overflow plot positions", () => {
   assert.equal(scale.position(-1e308), 0);
   assert.equal(scale.zero, 50);
   assert.equal(scale.position(1e308), 100);
+});
+
+test("chart endpoint labels select original exact cells and include the zero baseline", () => {
+  assert.deepEqual(plotBounds(plotPoints([
+    ["Lower", "9007199254740992.000001"],
+    ["Higher", "9007199254740993.000001"],
+    ["Missing", null],
+  ], 0, 1)), { minimum: "0", maximum: "9007199254740993.000001" });
+  assert.deepEqual(plotBounds(plotPoints([
+    ["Loss", "-50.000"], ["Zero", "-0.000"], ["Gain", "100.00"],
+  ], 0, 1)), { minimum: "-50.000", maximum: "100.00" });
+  assert.deepEqual(plotBounds(plotPoints([["Only", "-0.000"], ["Missing", null]], 0, 1)), { minimum: "0", maximum: "0" });
+  assert.deepEqual(plotBounds(plotPoints([["Loss", "-1e308"], ["Gain", "1e308"]], 0, 1)), { minimum: "-1e308", maximum: "1e308" });
 });
 
 test("line gaps remain gaps and do not join known values across missing periods", () => {

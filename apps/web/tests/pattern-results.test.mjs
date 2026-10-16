@@ -14,7 +14,8 @@ const javascript = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const compiled = { exports: {} };
-new Function("require", "module", "exports", javascript)(createRequire(import.meta.url), compiled, compiled.exports);
+const require = createRequire(import.meta.url);
+new Function("require", "module", "exports", javascript)(name => name.endsWith(".module.css") ? { default: new Proxy({}, { get: (_, key) => key }) } : require(name), compiled, compiled.exports);
 const { PatternResults } = compiled.exports;
 const base = {
   version: "pattern-exploration-v1", engine_version: "test-engine", status: "patterns_found",
@@ -115,4 +116,22 @@ test("weak, unavailable and insufficient group comparisons do not fabricate reve
   assert.match(sparse, /More comparable groups are needed/);
   assert.match(sparse, /No combined relationship is claimed/);
   assert.doesNotMatch(sparse, /All included groups together|class="relationshipScore"|-0\.900001/);
+});
+
+test("record charts expose exact unit-aware inspection and keyboard guidance without creating a trend", () => {
+  const html = render({ ...base, findings: [{ ...finding, type: "numeric_relationship", chart: { kind: "scatter", x: "rainfall", x_unit: "mm", y: "revenue", y_unit: "USD", points: [{ x: "0", y: "9007199254740993.000001" }, { x: "10.00001", y: "-0.0000000000001" }] } }] });
+  assert.match(html, /Use left and right arrow keys to inspect records/);
+  assert.match(html, /role="group" tabindex="0"/);
+  assert.match(html, /<dd>0 mm<\/dd>/);
+  assert.match(html, /<dd>9007199254740993\.000001 USD<\/dd>/);
+  assert.match(html, /Inspect a plotted record/);
+  assert.match(html, /approximate coordinates and axis labels/);
+  assert.doesNotMatch(html, /<polyline|<path|NaN|Infinity/);
+});
+
+test("blank plotted fields are omitted rather than displayed as a measured zero", () => {
+  const html = render({ ...base, findings: [{ ...finding, type: "numeric_relationship", chart: { kind: "scatter", x: "measure", y: "result", points: [{ x: "", y: "7" }, { x: "0", y: "2" }, { x: "3", y: "" }] } }] });
+  assert.equal((html.match(/<circle/g) ?? []).length, 1);
+  assert.match(html, /1 displayed points/);
+  assert.match(html, /<td><\/td><td>7<\/td>/);
 });

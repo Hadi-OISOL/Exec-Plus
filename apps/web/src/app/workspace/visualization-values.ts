@@ -89,6 +89,20 @@ export function plotScale(points: PlotPoint[]): {
   return { position, zero: position(0) };
 }
 
+export function plotBounds(points: PlotPoint[]): {
+  minimum: VisualizationCell;
+  maximum: VisualizationCell;
+} {
+  let minimum: VisualizationCell = "0";
+  let maximum: VisualizationCell = "0";
+  for (const point of points) {
+    if (point.value === null) continue;
+    if (compareExactNumeric(point.raw, minimum) < 0) minimum = point.raw;
+    if (compareExactNumeric(point.raw, maximum) > 0) maximum = point.raw;
+  }
+  return { minimum, maximum };
+}
+
 export function lineSegments(
   points: PlotPoint[],
 ): { x: number; y: number; index: number }[][] {

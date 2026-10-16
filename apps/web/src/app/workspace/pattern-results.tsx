@@ -1,7 +1,8 @@
 /* Use case: Makes measured relationships understandable without inventing causes.
 What it does: Presents server-calculated findings, exact evidence labels and accessible exploratory charts. */
 
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import styles from "./pattern-results.module.css";
 
 export type PatternFinding = {
   id: string;
@@ -50,12 +51,24 @@ export type PatternEvidence = { query_id: string; method_version?: string; resul
 const groupColors = ["#087f8c", "#b35438", "#6657a5", "#406c3c", "#936713", "#a74473", "#276596", "#786650", "#34866e", "#8463a7", "#a14743", "#5d6684"];
 
 function PatternChart({ finding }: { finding: PatternFinding }) {
+  const [selected, setSelected] = useState(0);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const inspectionId = useId();
+  const plotRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(440);
   const { chart } = finding;
+  useEffect(() => {
+    if (!plotRef.current) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(100, Math.min(1200, entry.contentRect.width))));
+    observer.observe(plotRef.current);
+    return () => observer.disconnect();
+  }, [chart.kind]);
   if (chart.kind === "matrix") {
     const maximum = Math.max(1, ...chart.points.map(point => point.count ?? 0));
     const recorded = chart.points.filter(point => (point.count ?? 0) > 0);
     const shown = [...recorded].sort((left, right) => (right.count ?? 0) - (left.count ?? 0)).slice(0, 8);
     return <div className="patternCategoryChart" role="group" aria-label={`${chart.x} and ${chart.y}: recorded combinations`}>
+      <div className={styles.chartHeading}><strong>Recorded combinations</strong><span>{chart.x} · {chart.y}</span></div>
       {shown.map((point, index) => <div className="patternCategoryRow" key={index}>
         <span>{point.x} <span aria-hidden="true">·</span> {point.y}</span>
         <div className="patternCountTrack" aria-hidden="true"><span style={{ width: `${(point.count ?? 0) / maximum * 100}%` }} /></div>
@@ -71,6 +84,7 @@ function PatternChart({ finding }: { finding: PatternFinding }) {
     const position = (value: number) => high === low ? 0 : (value - low) / (high - low) * 100;
     const zero = position(0);
     return <div className="patternBarChart" role="group" aria-label={`Average ${chart.y} by ${chart.x}`}>
+      <div className={styles.chartHeading}><strong>Average {chart.y}{chart.y_unit ? ` (${chart.y_unit})` : ""}</strong><span>By {chart.x} · bars share a zero baseline</span></div>
       {chart.points.map((point, index) => <div className="patternBarRow" key={index}>
         <div className="patternBarLabel"><span>{point.x}</span><strong>{point.y}{chart.y_unit ? ` ${chart.y_unit}` : ""}</strong></div>
         <div className="patternBarTrack" aria-hidden="true"><i style={{ left: `${zero}%` }} /><span data-negative={Number(point.y) < 0} style={{ left: `${Math.min(zero, position(values[index]))}%`, width: `${Math.abs(position(values[index]) - zero)}%` }} /></div>
@@ -78,7 +92,7 @@ function PatternChart({ finding }: { finding: PatternFinding }) {
       </div>)}
     </div>;
   }
-  const points = chart.points.filter(point => Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y)));
+  const points = chart.points.filter(point => point.x.trim() !== "" && point.y.trim() !== "" && Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y)));
   const groups = [...new Set(points.flatMap(point => point.group === undefined ? [] : [point.group]))];
   if (!points.length) return <p>Open the values below to inspect this relationship.</p>;
   const xs = points.map(point => Number(point.x)), ys = points.map(point => Number(point.y));
@@ -88,13 +102,30 @@ function PatternChart({ finding }: { finding: PatternFinding }) {
     const scale = Math.max(Math.abs(minimum), Math.abs(maximum), 1);
     return (value / scale - minimum / scale) / (maximum / scale - minimum / scale);
   };
-  return <figure className="patternScatter">
-    <svg role="img" aria-label={`${chart.x} versus ${chart.y}; illustrative coordinates, source values below`} viewBox="0 0 440 200">
+  const activeIndex = Math.min(hovered ?? selected, points.length - 1);
+  const activePoint = points[activeIndex];
+  const label = (value: number) => value === 0 ? "0" : Math.abs(value) >= 1e6 || Math.abs(value) < .001 ? value.toExponential(1) : Number(value.toPrecision(4)).toLocaleString("en-US");
+  return <figure className={`patternScatter ${styles.scatter}`}>
+    <div className={styles.chartHeading}><strong>{chart.y}{chart.y_unit ? ` (${chart.y_unit})` : ""}</strong><span>One dot = one returned record</span></div>
+    <div className={styles.scatterLayout}>
+      <div className={styles.valueScale} aria-label="Approximate vertical scale"><span>{label(maxY)}</span><span>{label(minY)}</span></div>
+      <div ref={plotRef} className={styles.scatterPlot} role="group" tabIndex={0} aria-label={`Record chart for ${chart.x} and ${chart.y}. Use left and right arrow keys to inspect records.`} aria-describedby={inspectionId}
+        onFocus={() => setHovered(null)} onPointerLeave={() => setHovered(null)}
+        onKeyDown={event => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setHovered(null); setSelected(Math.max(0, Math.min(points.length - 1, selected + (event.key === "ArrowLeft" ? -1 : 1)))); } }}>
+    <svg role="img" aria-label={`${chart.x} versus ${chart.y}; illustrative coordinates, source values below`} viewBox={`0 0 ${width} 220`}>
       <title>{`${chart.x} versus ${chart.y}`}</title>
-      {[30, 75, 120, 165].map(y => <line key={y} x1="20" y1={y} x2="420" y2={y} className="patternGridLine" />)}
-      {points.map((point, index) => <circle key={index} style={point.group === undefined ? undefined : { fill: groupColors[groups.indexOf(point.group) % groupColors.length] }} cx={24 + position(Number(point.x), minX, maxX) * 392} cy={168 - position(Number(point.y), minY, maxY) * 144} r="3.5"><title>{`${point.group === undefined ? "" : `${point.group}; `}${chart.x}: ${point.x}; ${chart.y}: ${point.y}`}</title></circle>)}
+      {[12, 77, 143, 208].map(y => <line key={y} x1="12" y1={y} x2={width - 12} y2={y} className="patternGridLine" />)}
+      {[0, .25, .5, .75, 1].map(level => <line key={level} x1={12 + level * (width - 24)} y1="12" x2={12 + level * (width - 24)} y2="208" className="patternGridLine" />)}
+      <line x1={12 + position(Number(activePoint.x), minX, maxX) * (width - 24)} x2={12 + position(Number(activePoint.x), minX, maxX) * (width - 24)} y1="12" y2="208" className={styles.cursor} />
+      {points.map((point, index) => <circle key={index} onPointerMove={() => setHovered(index)} onClick={() => { setHovered(null); setSelected(index); }} style={point.group === undefined ? undefined : { fill: groupColors[groups.indexOf(point.group) % groupColors.length] }} cx={12 + position(Number(point.x), minX, maxX) * (width - 24)} cy={208 - position(Number(point.y), minY, maxY) * 196} r={index === activeIndex ? 6 : 4} data-selected={index === activeIndex}><title>{`${point.group === undefined ? "" : `${point.group}; `}${chart.x}: ${point.x}; ${chart.y}: ${point.y}`}</title></circle>)}
     </svg>
-    <figcaption><span>{chart.x}{chart.x_unit ? ` (${chart.x_unit})` : ""} <span aria-hidden="true">↔</span> {chart.y}{chart.y_unit ? ` (${chart.y_unit})` : ""}</span><small>{points.length} displayed points · approximate coordinates</small></figcaption>
+      <div className={styles.horizontalScale} aria-label="Approximate horizontal scale"><span>{label(minX)}</span><span>{label(maxX)}</span></div>
+      </div>
+    </div>
+    <div className={styles.horizontalTitle}>{chart.x}{chart.x_unit ? ` (${chart.x_unit})` : ""}</div>
+    <div className={styles.pointInspection} id={inspectionId} role="status"><span>Record {activeIndex + 1}{activePoint.group === undefined ? "" : ` · ${activePoint.group}`}</span><dl><div><dt>{chart.x}</dt><dd>{activePoint.x}{chart.x_unit ? ` ${chart.x_unit}` : ""}</dd></div><div><dt>{chart.y}</dt><dd>{activePoint.y}{chart.y_unit ? ` ${chart.y_unit}` : ""}</dd></div></dl></div>
+    <label className={styles.recordPicker}>Inspect a plotted record<select value={selected} onChange={event => { setHovered(null); setSelected(Number(event.target.value)); }}>{points.map((point, index) => <option key={index} value={index}>Record {index + 1}{point.group === undefined ? "" : ` · ${point.group}`}</option>)}</select></label>
+    <figcaption><small>{points.length} displayed points · approximate coordinates and axis labels. Exact values are in the inspector and table.</small></figcaption>
     {!!groups.length && <ul className="relationshipLegend" aria-label="Groups in the chart">{groups.map((group, index) => <li key={group}><i style={{ background: groupColors[index % groupColors.length] }} aria-hidden="true" />{group}</li>)}</ul>}
   </figure>;
 }
@@ -104,6 +135,7 @@ function RelationshipScore({ name, value, direction }: { name: string; value: st
   const coordinate = value === null ? NaN : Number(value);
   return <div className="relationshipScore"><div><span>{name}</span><strong>{value ?? "Unavailable"}</strong></div>
     <div className="relationshipScale" aria-hidden="true"><span />{Number.isFinite(coordinate) && <i style={{ left: `${(Math.max(-1, Math.min(1, coordinate)) + 1) * 50}%` }} />}</div>
+    <div className={styles.scoreAxis} aria-hidden="true"><span>−1</span><span>0</span><span>+1</span></div>
     <small>{directionLabels[direction]}</small>
   </div>;
 }
@@ -114,7 +146,7 @@ function GroupRelationshipResults({ result, evidence, sources }: { result: Group
   const excluded = result.groups.filter(group => group.status !== "eligible");
   const reasons = { sparse: "Fewer than 20 complete pairs", constant: "A measure does not vary", unstable: "A stable score could not be calculated" };
   const scoreCards = (statistics: Correlations, directions: Directions) => <div className="relationshipScores"><RelationshipScore name="Straight-line relationship" value={statistics.pearson} direction={directions.pearson} /><RelationshipScore name="Rank relationship" value={statistics.spearman} direction={directions.spearman} /></div>;
-  return <section className="patternResults groupRelationshipResults" aria-label="Relationships within groups">
+  return <section className={`patternResults groupRelationshipResults ${styles.results}`} aria-label="Relationships within groups">
     <header className="patternOverview"><span className="analysisEyebrow">SAME RECORDS · TWO VIEWS</span><h3>{result.status === "compared" ? "Does the overall pattern hold within groups?" : "More comparable groups are needed"}</h3>
       <p>{result.columns[0]} and {result.columns[1]}, grouped by {result.group_by}. The combined result uses exactly the complete pairs from the eligible groups below.</p>
       <dl className="patternCoverage"><div><dt>Usable rows</dt><dd>{result.coverage.covered_rows}</dd></div><div><dt>Usable groups</dt><dd>{result.coverage.eligible_groups}</dd></div><div><dt>Rows left out</dt><dd>{result.coverage.excluded_rows}</dd></div></dl>
@@ -122,13 +154,13 @@ function GroupRelationshipResults({ result, evidence, sources }: { result: Group
     {result.pooled ? <>
       <div className="relationshipTakeaway" data-reversal={reversed.length > 0}><h4>{reversed.length ? "The combined view can hide a different direction" : "Read both views before drawing a conclusion"}</h4><p>{reversed.length ? "At least one group points in the opposite direction from the combined result. The comparison below shows which relationship changes." : "A combined relationship may be stronger, weaker or similar inside groups. Weak scores are not a useful rule for prediction."}</p><p>These are observed relationships. They do not show that one measure causes the other.</p></div>
       <article className="relationshipPooled"><header><h4>All included groups together</h4><span>{result.pooled.support} complete pairs</span></header>{scoreCards(result.pooled.statistics, result.pooled.directions)}</article>
+      <PatternChart finding={{ id: "group-comparison", type: "numeric_relationship", title: "Grouped relationship", summary: "", columns: result.columns, score: "", support: result.pooled.support, excluded: result.coverage.excluded_rows, chart: result.pooled.chart, notes: [] }} />
       <section aria-label="Group relationship comparisons"><h4>Within each group</h4><div className="relationshipGroupGrid">{eligible.map(group => <article className="relationshipGroup" key={group.id}>
         <header><h5>{group.label}</h5><span>{group.complete_pairs} complete pairs</span></header>
         {group.statistics && group.directions && scoreCards(group.statistics, group.directions)}
         {(["pearson", "spearman"] as const).map(method => result.comparisons[method].reversal_groups.includes(group.label) ? <p className="relationshipReversal" key={method}>{method === "pearson" ? "Straight-line" : "Rank"} direction reverses here.</p> : null)}
       </article>)}</div></section>
       <details className="patternDetails"><summary>See the plotted records and exact values</summary><p>The chart is a limited view of the recorded pairs. Scores above use every covered row; plotted coordinates are approximate.</p>
-        <PatternChart finding={{ id: "group-comparison", type: "numeric_relationship", title: "Grouped relationship", summary: "", columns: result.columns, score: "", support: result.pooled.support, excluded: result.coverage.excluded_rows, chart: result.pooled.chart, notes: [] }} />
         <div className="tableWrap"><table><caption>Returned chart values</caption><thead><tr><th>{result.group_by}</th><th>{result.columns[0]} ({result.units[result.columns[0]]})</th><th>{result.columns[1]} ({result.units[result.columns[1]]})</th></tr></thead><tbody>{result.pooled.chart.points.map((point, index) => <tr key={index}><td>{point.group}</td><td>{point.x}</td><td>{point.y}</td></tr>)}</tbody></table></div>
       </details>
     </> : <><p>{result.reason || "At least two groups need 20 complete pairs each, with both measures varying."}</p><p>No combined relationship is claimed for this result.</p></>}
@@ -169,7 +201,7 @@ export function PatternResults({ result, evidence, sources }: { result: PatternR
   const instance = useId();
   if ("pooled" in result) return <GroupRelationshipResults result={result} evidence={evidence} sources={sources} />;
   const empty = result.status === "insufficient_data" ? "A little more data is needed" : "No clear pattern found";
-  return <section className="patternResults" aria-label="Measured data patterns">
+  return <section className={`patternResults ${styles.results}`} aria-label="Measured data patterns">
     <header className="patternOverview">
       <span className="analysisEyebrow">MEASURED FROM YOUR FILE</span>
       <h3>{result.findings.length ? "Here is what stands out" : empty}</h3>

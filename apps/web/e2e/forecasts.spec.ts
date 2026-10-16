@@ -151,6 +151,19 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
   await expect(result.getByRole("status").first()).toContainText(
     run.result.predictions[0].estimate,
   );
+  const plot = result.getByRole("group", { name: "Forecast chart. Use left and right arrow keys to inspect periods.", exact: true });
+  await plot.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(result.getByRole("status").first()).toContainText(run.result.predictions[1].period);
+  await result.getByRole("button", { name: "Inspect previous period", exact: true }).click();
+  await expect(result.getByRole("status").first()).toContainText(run.result.predictions[0].period);
+  await result.locator(".forecastActual").first().hover();
+  await expect(result.getByRole("status").first()).toContainText(run.result.history[0].period);
+  await result.getByRole("button", { name: "Inspect next period", exact: true }).click();
+  await expect(result.getByRole("status").first()).toContainText(run.result.predictions[1].period);
+  await result.locator(".forecastEstimate").last().hover();
+  await expect(result.getByRole("status").first()).toContainText(run.result.predictions.at(-1).period);
+  await expect(result.locator(".forecastChart polyline, .forecastChart path")).toHaveCount(0);
   await result
     .getByText("Method, backtest and source evidence", { exact: true })
     .click();
@@ -166,9 +179,17 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
       ),
     ).toBe(true);
     expect(await result.locator(".forecastChart").evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await expect(result.locator(".forecastEstimate").first()).toHaveCSS("animation-name", "none");
     await result.screenshot({
       path: `../../data/phase4c/forecast-${width}.png`,
     });
+  }
+  for (const viewport of [{ width: 375, height: 812 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    expect(await result.locator(".forecastChart").evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await expect(result.getByLabel("Inspect a forecast period")).toBeVisible();
+    await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
   }
   await page.setViewportSize({ width: 1280, height: 900 });
   await upload(page, 42, true);

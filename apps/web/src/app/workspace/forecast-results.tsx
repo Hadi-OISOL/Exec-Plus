@@ -1,7 +1,9 @@
 /* Use case: Makes basic forecasts and their limitations inspectable.
 What it does: Displays server-calculated estimates, holdout errors and comparison evidence without calculating business values in the browser. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import styles from "./forecast.module.css";
+import { displayMetric } from "./visualization-values";
 import { RecordTable } from "./explore-components";
 import {
   forecastRows,
@@ -64,7 +66,7 @@ export function ForecastAccuracy({
   );
 }
 
-function ForecastChart({
+export function ForecastChart({
   run,
   rows,
 }: {
@@ -72,12 +74,14 @@ function ForecastChart({
   rows: ForecastPoint[];
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const inspectionId = useId();
   const container = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(700);
   useEffect(() => {
     const element = container.current;
     if (!element) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(200, Math.min(1000, entry.contentRect.width))));
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(120, Math.min(1200, entry.contentRect.width - 64))));
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -99,21 +103,22 @@ function ForecastChart({
       point.lower,
       point.upper,
     ])
-    .filter((value) => value !== null && value !== undefined)
+    .filter((value) => value !== null && value !== undefined && value.trim() !== "")
     .map(Number)
     .filter(Number.isFinite);
-  if (!all.length) return null;
+  if (!all.length) return <p>No finite values can be plotted. The original values remain in the table below.</p>;
   const minimum = Math.min(...all);
   const maximum = Math.max(...all);
-  const span = maximum - minimum || Math.max(Math.abs(maximum), 1);
+  const scale = Math.max(Math.abs(minimum), Math.abs(maximum), 1);
+  const span = maximum / scale - minimum / scale;
   const x = (index: number) =>
-    26 + (index * (width - 52)) / Math.max(points.length - 1, 1);
-  const y = (value: string) => 200 - ((Number(value) - minimum) / span) * 155;
+    12 + (index * (width - 24)) / Math.max(points.length - 1, 1);
+  const y = (value: string) => span === 0 ? 132 : 238 - ((Number(value) / scale - minimum / scale) / span) * 212;
   const forecastStart = history.length;
-  const band = rows.every(
+  const finite = (value: string | null | undefined): value is string => value !== null && value !== undefined && value.trim() !== "" && Number.isFinite(Number(value));
+  const band = rows.length > 1 && rows.every(
     (point) =>
-      Number.isFinite(Number(point.lower)) &&
-      Number.isFinite(Number(point.upper)),
+      finite(point.lower) && finite(point.upper),
   )
     ? [
         ...rows.map(
@@ -126,77 +131,94 @@ function ForecastChart({
           .reverse(),
       ].join(" ")
     : "";
-  const selectedPoint = points.find((point) => point.period === selected);
+  const selectedIndex = Math.max(0, selected === null ? forecastStart < points.length ? forecastStart : points.length - 1 : points.findIndex(point => point.period === selected));
+  const hoveredIndex = points.findIndex(point => point.period === hovered);
+  const inspectedIndex = hoveredIndex < 0 ? selectedIndex : hoveredIndex;
+  const selectedPoint = points[inspectedIndex];
+  const latestObserved = history.findLast(point => finite(point.actual));
+  const boundary = forecastStart ? x(forecastStart - .5) : 0;
+  const axisLabel = (value: number) => value === 0 ? "0" : Math.abs(value) >= 1e6 || Math.abs(value) < .001 ? value.toExponential(1) : Number(value.toPrecision(4)).toLocaleString("en-US");
+  const levels = [0, 1 / 3, 2 / 3, 1];
+  const move = (step: number) => { setHovered(null); setSelected(points[Math.max(0, Math.min(points.length - 1, selectedIndex + step))].period); };
   return (
-    <div className="forecastChart" ref={container}>
-      <header className="studioChartHeading"><div><span className="studioEyebrow">OBSERVED & ESTIMATED</span><h4>{run.request.metric} <span>· {run.evidence.unit}</span></h4></div><span>{run.request.frequency === "daily" ? "By day" : "By month"}</span></header>
-      <div className="forecastLegend">
+    <div className={`forecastChart ${styles.chart}`}>
+      <header className={styles.heading}><div><span className={styles.eyebrow}>OBSERVED & ESTIMATED</span><h4>{run.request.metric} <span>· {run.evidence.unit}</span></h4></div><span>{run.request.frequency === "daily" ? "By day" : "By month"}</span></header>
+      <div className={styles.highlights}>
+        <div><span>Last value before forecast</span><strong title={latestObserved?.actual ?? "Not available"}>{displayMetric(latestObserved?.actual ?? "Not available")}</strong><small>{latestObserved?.period ?? "No recorded observation"}</small></div>
+        <div data-estimate="true"><span>First forecast value</span><strong title={rows[0]?.estimate ?? "Not available"}>{displayMetric(rows[0]?.estimate ?? "Not available")}</strong><small>{rows[0]?.period ?? "No forecast period"} · {run.evidence.unit}</small></div>
+      </div>
+      <div className={`forecastLegend ${styles.legend}`}>
         <span>
-          <i className="actualKey" />
+          <i className="actualKey" aria-hidden="true" />
           Observed
         </span>
         <span>
-          <i className="estimateKey" />
+          <i className="estimateKey" aria-hidden="true" />
           Forecast
         </span>
         <span>
-          <i className="rangeKey" />
+          <i className="rangeKey" aria-hidden="true" />
           Uncertainty range
         </span>
       </div>
-      <svg
-        viewBox={`0 0 ${width} 218`}
-        role="img"
-        aria-label="Observed history and saved forecast with uncertainty range; exact values follow in the table"
-      >
-        {[45, 96, 148, 200].map(level => <line key={level} x1="26" x2={width - 26} y1={level} y2={level} stroke="currentColor" opacity="0.09" />)}
-        <path d={`M26 210H${width - 26}`} stroke="currentColor" opacity="0.25" />
+      <div className={styles.plotShell} ref={container}>
+        <div className={styles.axis} aria-label="Approximate value scale">{levels.map(level => <span key={level}>{axisLabel((maximum / scale * (1 - level) + minimum / scale * level) * scale)}</span>)}</div>
+        <div className={styles.plot} role="group" tabIndex={0} aria-label="Forecast chart. Use left and right arrow keys to inspect periods." aria-describedby={inspectionId}
+          onFocus={() => setHovered(null)} onPointerLeave={() => setHovered(null)}
+          onKeyDown={event => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setHovered(null); move(event.key === "ArrowLeft" ? -1 : 1); } }}>
+          <svg viewBox={`0 0 ${width} 264`} role="img" aria-label="Observed history and saved forecast with uncertainty range; exact values follow in the table">
+        {rows.length > 0 && <rect x={boundary} y="12" width={width - boundary} height="238" className={styles.forecastZone} />}
+        {levels.map(level => <line key={level} x1="0" x2={width} y1={26 + level * 212} y2={26 + level * 212} className={styles.grid} />)}
+        {rows.length > 0 && forecastStart > 0 && <line x1={boundary} x2={boundary} y1="12" y2="250" className={styles.boundary} />}
         {band && <polygon points={band} className="forecastBand" />}
+        <line x1={x(inspectedIndex)} x2={x(inspectedIndex)} y1="12" y2="250" className={styles.cursor} />
         {points.map((point, index) => (
-          <g key={point.period}>
-            {point.actual !== null &&
-              point.actual !== undefined &&
-              Number.isFinite(Number(point.actual)) && (
+          <g key={point.period} onPointerMove={() => setHovered(point.period)} onClick={() => { setHovered(null); setSelected(point.period); }}>
+            <rect x={Math.max(0, x(index) - Math.max(8, (width - 24) / Math.max(points.length - 1, 1) / 2))} y="12" width={Math.max(16, (width - 24) / Math.max(points.length - 1, 1))} height="238" fill="transparent" />
+            {finite(point.lower) && finite(point.upper) && <line x1={x(index)} x2={x(index)} y1={y(point.lower)} y2={y(point.upper)} className={styles.interval} />}
+            {finite(point.actual) && (
                 <circle
                   cx={x(index)}
                   cy={y(point.actual)}
-                  r={selected === point.period ? 6 : 3.5}
+                  r={inspectedIndex === index ? 6 : 3.5}
                   className="forecastActual"
                 >
-                  <title>
-                    {point.period}: observed {point.actual}
-                  </title>
+                  <title>{`${point.period}: observed ${point.actual}`}</title>
                 </circle>
               )}
-            {point.estimate !== null &&
-              Number.isFinite(Number(point.estimate)) && (
+            {finite(point.estimate) && (
                 <circle
                   cx={x(index)}
                   cy={y(point.estimate)}
-                  r={selected === point.period ? 6 : 3.5}
+                  r={inspectedIndex === index ? 6 : 3.5}
                   className="forecastEstimate"
                 >
-                  <title>
-                    {point.period}: forecast {point.estimate}
-                  </title>
+                  <title>{`${point.period}: forecast ${point.estimate}`}</title>
                 </circle>
               )}
           </g>
         ))}
-      </svg>
-      <div className="studioChartRange" aria-label="Chart date range"><span>{points[0]?.period}</span><span>{points.at(-1)?.period}</span></div>
+          </svg>
+          <div className={styles.dateRange} aria-label="Chart date range"><span>{points[0]?.period}</span><span>{points.at(-1)?.period}</span></div>
+        </div>
+      </div>
+      <div className={styles.periodRegions}><span>History: {history.length} shown periods</span><span>Forecast starts {rows[0]?.period ?? "—"}</span></div>
       <p className="chartCaption">
-        Chart positions are approximate; all labels and tables retain the exact
-        server values.{" "}
+        Axis labels and chart positions are approximate; the inspector and tables retain the exact
+        values.{" "}
         {run.result.history.length > 48
           ? "The chart shows the last 48 historical periods and all forecast periods."
-          : "Observed points are not filled across missing periods."}
+          : "Observed points are not filled across missing periods."} No lines connect missing observations or turn forecasts into observations.
       </p>
-      <label>
+      <div className={styles.inspection} id={inspectionId} role="status">
+        <div><span>{selectedPoint.period}</span><strong>{selectedPoint.estimate === null ? "Observed history" : "Forecast period"}</strong></div>
+        <dl><div><dt>Observed</dt><dd>{selectedPoint.actual ?? "Awaiting actual data"}</dd></div>{selectedPoint.estimate !== null && <><div><dt>Forecast</dt><dd>{selectedPoint.estimate}</dd></div><div><dt>Uncertainty range</dt><dd>{selectedPoint.lower} to {selectedPoint.upper}</dd></div></>}</dl>
+      </div>
+      <div className={styles.controls}><label>
         Inspect a forecast period
         <select
-          value={selected ?? ""}
-          onChange={(event) => setSelected(event.target.value || null)}
+          value={rows.some(point => point.period === selected) ? selected ?? "" : ""}
+          onChange={(event) => { setHovered(null); setSelected(event.target.value || null); }}
         >
           <option value="">Choose a period</option>
           {rows.map((point) => (
@@ -205,14 +227,7 @@ function ForecastChart({
             </option>
           ))}
         </select>
-      </label>
-      {selectedPoint && (
-        <p role="status">
-          {selectedPoint.period} · Forecast: {selectedPoint.estimate} ·
-          Observed: {selectedPoint.actual ?? "Awaiting actual data"} · Range:{" "}
-          {selectedPoint.lower} to {selectedPoint.upper}
-        </p>
-      )}
+      </label><div><button type="button" onClick={() => move(-1)} disabled={selectedIndex === 0} aria-label="Inspect previous period">←</button><button type="button" onClick={() => move(1)} disabled={selectedIndex === points.length - 1} aria-label="Inspect next period">→</button></div></div>
     </div>
   );
 }
@@ -250,6 +265,11 @@ export function ForecastResults({
         Created {new Date(run.created_at).toLocaleString()} · Method:{" "}
         {result.method.id.replaceAll("_", " ")}
       </p>
+      <p className="forecastUncertainty">
+        {result.uncertainty.label}
+        {!result.uncertainty.coverage_guaranteed &&
+          " This range has no guaranteed coverage probability."}
+      </p>
       <ForecastChart
         key={`${run.id}-${comparison?.id ?? "forecast"}`}
         run={run}
@@ -286,11 +306,6 @@ export function ForecastResults({
           records_analyzed: rows.length,
         }}
       />
-      <p className="forecastUncertainty">
-        {result.uncertainty.label}
-        {!result.uncertainty.coverage_guaranteed &&
-          " This range has no guaranteed coverage probability."}
-      </p>
       {result.benchmark && !result.benchmark.beats_baseline_mae && <p className="forecastBenchmark">This forecast did not beat a simple last-value estimate on the held-out data. Check the errors before relying on it.</p>}
       {commentary.length > 0 && <section className="forecastCommentary" aria-label="Grounded forecast commentary">
         <h3>What the results say</h3>

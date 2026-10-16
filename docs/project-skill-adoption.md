@@ -13,7 +13,8 @@ gate or supported upload format changes because a skill is installed.
 All repositories are downloaded beneath the ignored
 `data/agent-tools/references/` directory. The six-source index is
 `data/agent-tools/references/oct16-manifest.json`; Lieflat has a separate
-`lieflat-charts-installation.json` receipt in that directory.
+`lieflat-charts-installation.json` receipt for the earlier reference copy and
+`lieflat-charts-project-installation.json` for the subsequent coding-skill install.
 
 | Source | Pinned commit | License | Project use |
 | --- | --- | --- | --- |
@@ -21,7 +22,7 @@ All repositories are downloaded beneath the ignored
 | [documd visuals](https://github.com/markdown-viewer/skills/tree/2672b6920f6c055caf72a916b414ede62ecbfc2e) | `2672b6920f6c055caf72a916b414ede62ecbfc2e` | CC-BY-4.0 for this skill package | Selected skill at `.agents/skills/documd-visuals/` |
 | [Medical Research Skills](https://github.com/aipoch/medical-research-skills/tree/686e09dfdb45d9fa1a08664f06bb93769b3c9d91) | `686e09dfdb45d9fa1a08664f06bb93769b3c9d91` | MIT | Only general `exploratory-data-analysis` installed at `.agents/skills/exploratory-data-analysis/` |
 | [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector/tree/8ccf9201c57ae89afcb84737d8c9d58f7fccf952) | `8ccf9201c57ae89afcb84737d8c9d58f7fccf952` | Apache-2.0 | Inspector instructions at `.agents/skills/skill-inspector/`; scanner in `data/agent-tools/skillspector-env/` |
-| [Lieflat Charts](https://github.com/larashero3-dotcom/lieflat-charts/tree/ed436ba56b3cbeee20b9b9966b38a9a9689e239c) | `ed436ba56b3cbeee20b9b9966b38a9a9689e239c` | PolyForm Noncommercial 1.0.0; additional third-party notices | Retained at `data/agent-tools/reference-skills/lieflat-charts/`, outside automatic skill discovery; no product integration |
+| [Lieflat Charts](https://github.com/larashero3-dotcom/lieflat-charts/tree/ed436ba56b3cbeee20b9b9966b38a9a9689e239c) | `ed436ba56b3cbeee20b9b9966b38a9a9689e239c` | PolyForm Noncommercial 1.0.0; additional third-party notices | Coding skill at `.agents/skills/lieflat-charts/`; chart guidance for original components, without template/code copying into the product |
 | [oneDAL](https://github.com/uxlfoundation/oneDAL/tree/eeb645077424fe8534060d74a044a120384db325) | `eeb645077424fe8534060d74a044a120384db325` | Apache-2.0 | Source reference only; no application install |
 | [SQL Data Analytics Project](https://github.com/DataWithBaraa/sql-data-analytics-project/tree/b99f16a26197ff0d36131867af319238aec23dd8) | `b99f16a26197ff0d36131867af319238aec23dd8` | MIT | Analysis progression/examples; no upstream datasets or SQL imported into the product |
 
@@ -30,9 +31,21 @@ environment, reference clones and reports remain project-local and ignored. No
 global skill directory, shell profile or company repository setting was changed.
 The complete medical collection is downloaded for reference; its clinical skills
 are not enabled. REA remains at its previously pinned project-local location.
-All seven clone HEADs match the listed pins. The four installed skill copies
-match their upstream files byte-for-byte, with only the upstream root license
-added where the selected subfolder did not include one.
+All seven clone HEADs match the listed pins. The four previously installed skill
+copies match their upstream files byte-for-byte, with only the upstream root
+license added where the selected subfolder did not include one. The fifth,
+Lieflat, was installed unmodified through the official skill-installer helper with
+explicit `--ref`, `--name lieflat-charts` and this project's `.agents/skills`
+destination. All 146 files match the clone and previously scanned copy, with no
+extra or missing files. Its directory is excluded through `.git/info/exclude`;
+license/notices and a per-file SHA-256 receipt remain intact. Client discovery on
+a subsequent turn makes it available as a coding skill.
+
+The [chart reference audit](chart-experience-reference-audit.md) connects every
+repository to a concrete application improvement or a clearly bounded development
+role. Actual presentation work is described in [chart experience](chart-experience.md).
+Downloading oneDAL or installing an EDA skill does not make the product agent run
+their numerical code, and these documents do not claim that it does.
 
 ## Review method and retained evidence
 
@@ -69,12 +82,15 @@ the last column is the separate source-review verdict for the stated use.
 | UI/UX Pro Max | 100 / CRITICAL / DO_NOT_INSTALL; 65 findings | 62/74 files fully inspected, 83.8%; **partial** | **CAUTION**: local design guidance; no blind execution of catalog snippets/install commands |
 | documd visuals | 100 / CRITICAL / DO_NOT_INSTALL; 18 findings | 355/361 files fully inspected, 98.3%; **partial** | **CAUTION**: authoring guidance only; optional exporter not installed or executed |
 | Exploratory data analysis | 27 / MEDIUM / CAUTION; 2 findings | 12/12 files inspected, 100%; **partial** because sample-path references are unresolved | **CAUTION**: general development guidance; analyzer not a product tool |
-| Lieflat Charts | 96 / CRITICAL / DO_NOT_INSTALL; 40 findings | 31/82 analyzed text components fully inspected, 37.8%; **partial** | **CAUTION** for inactive reference retention only; no automatic discovery or product copying |
+| Lieflat Charts | 96 / CRITICAL / DO_NOT_INSTALL; 40 findings | 31/82 analyzed text components fully inspected, 37.8%; **partial** | **CAUTION** for explicitly requested local coding guidance; no automatic template execution or product copying |
 | Skill Inspector | 0 / LOW / SAFE; no findings | 2/2 files inspected, 100%; **complete** within the requested static configuration | **APPROVE** as the scoped review procedure; not a certification of the scanner or other skills |
 
 These are not clean-scan or certified-safe claims. No findings were suppressed,
 upstream instructions edited, or scores lowered. Source review accounts for the
 specific signals as follows; per-finding judgments remain in the private evidence.
+The newly installed Lieflat files are identical to the scanned files, so the
+existing result is reused without another scan. Installation does not upgrade
+the verdict or close its incomplete coverage.
 
 - **UI:** HIGH `PE3` matches password-manager keywords and instructions to keep
   `.env.local` out of Git; `P1` matches system gestures in an anti-pattern column;
@@ -106,7 +122,8 @@ specific signals as follows; per-finding judgments remain in the private evidenc
   parsing limits. That coverage gap remains open. MEDIUM `RP1` is an unpinned
   installer example; `MP2` is a visible decorative divider. Its `big-threads.html`
   uses `innerHTML` with fixed demo labels, which must not be replaced blindly with
-  untrusted data. This review supports inactive retention, not template execution.
+  untrusted data. These source findings remain applicable to the identical installed
+  copy; the allowed use is bounded coding guidance, not template execution.
 
 ## Use boundaries
 
@@ -137,13 +154,17 @@ branch. No bundled analyzer or extra scientific dependency was run or installed.
 See [the data-tool adoption review](data-tool-adoption-review.md) for supported
 ExecPlus methods and the conditions for a future evaluated ML adapter.
 
-Lieflat stays reference-only. Its PolyForm Noncommercial terms are not treated as
-permission to copy its templates, token library or layout code into a potentially
-commercial ExecPlus product. The retained source has its license and third-party
-notices. No Lieflat template is opened as executable HTML or shipped in the app;
-no product chart is represented as a copied Lieflat implementation.
-An independent source review agrees with this boundary: `SKILL.md:33–65` directs
-template reuse, and `README.en.md:308` calls for separate commercial permission.
+Lieflat is now an installed project coding skill, following the user's explicit
+request. Use its inspected data-shape, honest-encoding and readability guidance
+to design original ExecPlus components. Its PolyForm Noncommercial terms are not
+treated as permission to copy its templates, token library or layout code into a
+potentially commercial ExecPlus product. The unmodified installation has its
+license and third-party notices. No Lieflat template is opened as executable HTML
+or shipped in the app; no product chart is represented as a copied implementation.
+The project boundary takes precedence over `SKILL.md:33–65`, which directs template
+reuse; `README.en.md:308` calls for separate commercial permission. Installing the
+skill does not waive those terms. Its general design ideas can inform original
+work without copying the licensed assets.
 The templates use major-version CDN URLs and Google Fonts; map examples fetch
 fixed public GeoJSON. Its smoke-test script runs `npm root -g`, dynamically imports
 Playwright and launches Chromium; its validator evaluates the local palette in a
