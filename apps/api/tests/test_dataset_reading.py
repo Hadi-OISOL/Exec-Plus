@@ -111,7 +111,8 @@ def test_reading_asks_only_the_missing_unit_before_suggesting_calculation(integr
 def test_invalid_or_unavailable_reading_falls_back_without_calculations(integration, response):
     owner, _, _, path, model = prepare(integration, response, response)
     answer = ask(integration, owner, path, "Help me understand this data")["answer"]
-    assert "fuller explanation is unavailable" in answer["message"]
+    assert "The AI explanation" in answer["message"]
+    assert "Your file is still available" in answer["message"]
     assert "999999" not in answer["message"] and "private-provider" not in answer["message"]
     assert answer["model_route"] == "deterministic:dataset-guidance-v1"
     assert len(model.requests) == (1 if isinstance(response, Exception) else 2)
@@ -122,7 +123,7 @@ def test_invalid_reading_gets_one_correction_using_only_authorized_context(integ
     owner, _, _, path, model = prepare(integration, invalid, READING)
     answer = ask(integration, owner, path, "Help me understand this data")["answer"]
     assert "sales value" in answer["message"]
-    assert "fuller explanation is unavailable" not in answer["message"]
+    assert "The AI explanation" not in answer["message"]
     assert "999999" not in answer["message"]
     assert len(model.requests) == 2
     retry_prompt = "\n".join(message.content for message in model.requests[-1].messages)

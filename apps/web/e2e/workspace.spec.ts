@@ -178,8 +178,8 @@ test("first file needs no setup and opens sourced discoveries with useful conver
     ),
   ).toBe(true);
   await expect(
-    discovery.locator(".discoveryBarTrack > span").first(),
-  ).toHaveCSS("animation-name", "none");
+    discovery.locator('[data-chart-renderer="apache-echarts"]').first(),
+  ).toHaveAttribute("data-reduced-motion", "true");
   await page.screenshot({
     path: "../../data/vps-private/discovery-mobile-check.png",
     fullPage: true,
@@ -1172,10 +1172,11 @@ test("upload creates a dataset and opens an interactive responsive exploration",
   ).toBeVisible();
   await reveal(page, "Charts & dashboard controls");
   const dashboard = page.getByRole("region", { name: "Dataset dashboard" });
-  const point = dashboard.locator(".chartPoint").first();
+  const point = dashboard.getByRole("group", { name: "Date trend interactive chart", exact: true });
   await point.focus();
+  await page.keyboard.press("Home");
   await expect(dashboard.locator(".chartReadout")).toContainText("125.25");
-  await dashboard.getByRole("button", { name: /Karachi/ }).click();
+  await dashboard.getByRole("button", { name: "View records for Karachi", exact: true }).click();
   await expect(dashboard.locator(".drilldownRows")).toContainText(
     "2 of 2 matching",
   );
@@ -1208,12 +1209,7 @@ test("upload creates a dataset and opens an interactive responsive exploration",
     ),
     JSON.stringify(overflowing),
   ).toBe(true);
-  expect(
-    await dashboard
-      .locator(".discoveryBarTrack > span")
-      .first()
-      .evaluate((node) => getComputedStyle(node).animationName),
-  ).toBe("none");
+  await expect(dashboard.locator('[data-chart-renderer="apache-echarts"]').first()).toHaveAttribute("data-reduced-motion", "true");
 });
 
 test("confirm business meaning and private goals without losing the source", async ({

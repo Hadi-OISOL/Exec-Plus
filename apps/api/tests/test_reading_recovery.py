@@ -16,7 +16,7 @@ from execplus.application.progress import execution_progress
 from execplus.application.services.structured_reading import read_validated
 from execplus.domain.data_brief import ground_brief, model_input, next_question, parse_brief
 from execplus.domain.dataset_reading import render_reading
-from execplus.domain.errors import ProviderUnavailableError
+from execplus.domain.errors import IncompleteModelResponseError, ProviderUnavailableError
 from execplus.domain.guidance import DescriptionContext
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.profiling import TableData, profile
@@ -139,7 +139,15 @@ def test_model_payload_retains_bounded_saved_fields_for_wide_sources():
     assert "factor_99" not in json.dumps(sent)
 
 
-@pytest.mark.parametrize("outcome", [good_reply(), "invalid", ProviderUnavailableError("down")])
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        good_reply(),
+        "invalid",
+        ProviderUnavailableError("down"),
+        IncompleteModelResponseError("cut"),
+    ],
+)
 def test_changed_saved_answers_prevent_repair_or_publication(integration, outcome):
     env = integration
 
@@ -171,7 +179,15 @@ def test_changed_saved_answers_prevent_repair_or_publication(integration, outcom
         ).first()
 
 
-@pytest.mark.parametrize("outcome", [good_reply(), "invalid", ProviderUnavailableError("down")])
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        good_reply(),
+        "invalid",
+        ProviderUnavailableError("down"),
+        IncompleteModelResponseError("cut"),
+    ],
+)
 def test_revoked_permission_prevents_retry_and_fallback_disclosure(integration, outcome):
     env = integration
 

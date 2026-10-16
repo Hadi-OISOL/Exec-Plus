@@ -7,6 +7,10 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 
 ## Planning and product-positioning guardrails
 
+The owner confirmed noncommercial project use on October 16, 2026. Historical
+commercial checklist entries remain visible for traceability; they are not a new
+authorization to commercialize code restricted to noncommercial use.
+
 - The September 2026 delivery window prioritizes the core product and activation capabilities allocated to Phases 1 through 3, plus enabling work for the export, metering, and billing capabilities in Phases 4 and 5. Full growth, commercial-hardening, and integration capabilities remain sequenced behind their required security and data foundations.
 - A capability listed in this roadmap is planned scope, not evidence that it is implemented, production-ready, or included in a customer plan.
 - Conversational analytics cannot begin until workspace isolation, upload validation, and deterministic profiling pass the Phase 1 acceptance criteria.

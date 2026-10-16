@@ -116,139 +116,6 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   margin-top: 4px;
   font-size: 13px;
 }
-.bars {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-.visualization .barRow {
-  display: grid;
-  grid-template-columns: minmax(80px, 1fr) minmax(80px, 2fr) minmax(65px, 1.2fr);
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
-  padding: 14px 0;
-  min-height: 54px;
-  background: transparent;
-  color: var(--chart-ink);
-  border: 0;
-  border-radius: 4px;
-  text-align: left;
-  font-size: 14px;
-  line-height: 1.55;
-}
-button.barRow:not(:disabled):hover {
-  background: #eef4ef;
-}
-button.barRow:disabled {
-  opacity: 1;
-  cursor: default;
-}
-.barLabel {
-  overflow-wrap: anywhere;
-  font-weight: 550;
-}
-.barTrack {
-  height: 16px;
-  position: relative;
-  background: transparent;
-  border-radius: 0;
-  min-width: 0;
-  overflow: visible;
-}
-.visualization .plot .barTrack .barFill {
-  display: block;
-  position: absolute;
-  top: 0;
-  height: 16px;
-  border-radius: 0 4px 4px 0;
-  background: var(--green, #176b57);
-  transform-origin: left center;
-  animation: barReveal 420ms ease-out both;
-}
-.visualization .plot .barTrack .negative {
-  transform-origin: right center;
-  background: #a56730;
-  border-radius: 3px 0 0 3px;
-}
-.zeroLine {
-  position: absolute;
-  top: -18px;
-  height: 52px;
-  width: 1px;
-  background: #82988b;
-}
-.barValue {
-  text-align: right;
-  font-size: 14px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-.visualization .plot .lineChart {
-  display: block;
-  width: 100%;
-  height: 254px;
-  padding: 0;
-  overflow: visible;
-}
-.gridLine {
-  stroke: #e6ece1;
-  stroke-width: 1;
-}
-.zeroAxis {
-  stroke: #82988b;
-  stroke-width: 1;
-}
-.line {
-  stroke: var(--green, #176b57);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.point {
-  fill: var(--green, #176b57);
-  stroke: white;
-  stroke-width: 1.5;
-}
-.pointTarget:focus .point, .activePoint .point {
-  stroke: var(--chart-ink);
-  stroke-width: 3;
-}
-.pointTarget { outline: none; }
-.hitTarget { fill: transparent; stroke: none; }
-.crosshair { stroke: #6e8779; stroke-width: 1; stroke-dasharray: 3 4; pointer-events: none; }
-.lineLayout { display: grid; grid-template-columns: minmax(50px, 85px) minmax(0, 1fr); gap: 10px; }
-.lineArea { min-width: 0; }
-.valueAxis { display: flex; flex-direction: column; justify-content: space-between; height: 254px; padding: 15px 0; color: var(--chart-muted); font-size: 12px; font-variant-numeric: tabular-nums; line-height: 1.5; overflow-wrap: anywhere; text-align: right; }
-.barScale { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(80px, 2fr) minmax(65px, 1.2fr); gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--chart-line); color: var(--chart-muted); font-size: 12px; line-height: 1.5; }
-.barScale > div { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
-.barScale > div span { max-width: 50%; overflow-wrap: anywhere; }
-.barScale > div span:last-child, .barScale > span:last-child { text-align: right; }
-.barGuide { position: absolute; top: -18px; height: 52px; width: 1px; background: #e8ede8; }
-.zeroMarker, .dotMarker { display: block; position: absolute; top: 4px; width: 8px; height: 8px; background: var(--green, #176b57); border-radius: 50%; transform: translateX(-50%); }
-.zeroMarker { width: 6px; height: 6px; top: 5px; background: #4d6558; }
-.missingMark { display: block; text-align: center; font-size: 12px; font-style: normal; color: var(--chart-muted); }
-.visualization .plot .dotPlot .barTrack .barFill { top: 7px; height: 2px; border-radius: 0; opacity: .65; }
-.dotMarker { box-shadow: 0 0 0 3px var(--chart-paper); }
-.negativeDot { background: #a56730; }
-.visualization .activeBar { background: #eef4ef; }
-.activeBar .dotMarker { box-shadow: 0 0 0 3px #eef4ef; }
-.axisRange {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  color: #5f7055;
-  font-size: 12px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-  margin: 2px 0 14px;
-}
-.axisRange span:last-child { text-align: right; }
 .visualization .readout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -367,12 +234,6 @@ button.barRow:disabled {
 .dialog .plot {
   padding: 24px 35px;
 }
-.dialog .bars {
-  gap: 14px;
-}
-.dialog .barRow {
-  grid-template-columns: minmax(90px, 1fr) minmax(85px, 3fr) minmax(70px, 1fr);
-}
 .visualization button:focus-visible,
 .visualization [tabindex="0"]:focus-visible {
   outline: 2px solid var(--green, #176b57);
@@ -401,11 +262,6 @@ button.barRow:disabled {
   .compact .plot {
     padding: 18px 16px;
   }
-  .visualization .barRow {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: 13px;
-    padding: 15px 0;
-  }
   .sourceCount {
     padding: 12px 16px;
   }
@@ -419,15 +275,6 @@ button.barRow:disabled {
   .dialog .plot {
     padding: 20px 14px;
   }
-  .dialog .barRow {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  }
-  .barTrack { grid-column: 1 / -1; grid-row: 2; }
-  .barValue { grid-column: 2; grid-row: 1; font-size: 13px; }
-  .barScale { display: block; }
-  .barScale > span { display: none; }
-  .barGuide, .zeroLine { top: -5px; height: 26px; }
-  .lineLayout { grid-template-columns: minmax(42px, 66px) minmax(0, 1fr); gap: 7px; }
   .plotHeading { flex-wrap: wrap; margin-bottom: 20px; }
   .plotEncoding { max-width: none; text-align: left; }
   .visualization .readout { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 15px; }
@@ -443,12 +290,6 @@ button.barRow:disabled {
   }
 }
 
-.bars > li {
-  display: block;
-  min-width: 0;
-}
-
-@keyframes barReveal { from { transform: scaleX(0); opacity: .3; } to { transform: scaleX(1); opacity: 1; } }
 .plot { animation: plotReveal 240ms ease-out; }
 @keyframes plotReveal { from { opacity: .25; } to { opacity: 1; } }
 .dialog { overscroll-behavior: contain; }

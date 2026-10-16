@@ -148,8 +148,8 @@ test("study and dashboard galleries filter real saved versions and retain pinned
   await library.locator(".studySuggestion").filter({ has: page.getByRole("heading", { name: "How does amount vary by date?", exact: true }) }).getByRole("button", { name: "Run & save study" }).click();
   const observations = library.getByRole("article", { name: "Study result: Observed branch amounts", exact: true });
   await expect(observations).toContainText("Observed date points; no inferred values between dates.");
-  await expect(observations.locator(".chartPoint")).toHaveCount(2);
-  await expect(observations.locator("svg polyline")).toHaveCount(0);
+  await expect(observations.locator('[data-chart-template="documd-line"] svg')).toBeVisible();
+  await expect(observations.getByRole("combobox").locator("option")).toHaveCount(2);
   await mobile(page);
 });
 

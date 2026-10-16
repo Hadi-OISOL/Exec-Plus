@@ -16,6 +16,7 @@ from execplus.application.services.forecasts import read_complete
 from execplus.application.services.structured_reading import (
     READING_TIMEOUT_SECONDS,
     read_validated,
+    reading_failure_notice,
 )
 from execplus.domain.data_brief import (
     fallback_brief,
@@ -32,11 +33,6 @@ from execplus.domain.profiling import Revision, reconstruct
 from execplus.domain.understanding import infer_definition
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
-
-FALLBACK_NOTICES = {
-    "unavailable": "The language model is unavailable; these questions come from the file profile.",
-    "unverified": "The model reply could not be verified; these questions come from the profile.",
-}
 
 
 class DataBriefService:
@@ -220,12 +216,13 @@ class DataBriefService:
             result["model_route"] = f"{response.provider}:{response.model}"
             result["sampled"] = samples is not None
             result["repaired"] = repaired
-        except (ProviderUnavailableError, UnverifiedAnswerError, TimeoutError):
+        except (ProviderUnavailableError, UnverifiedAnswerError, TimeoutError, ValueError) as error:
             brief = fallback_brief(profile, definition)
-            result["notice"] = FALLBACK_NOTICES["unavailable"]
-        except ValueError:
-            brief = fallback_brief(profile, definition)
-            result["notice"] = FALLBACK_NOTICES["unverified"]
+            result["notice"] = (
+                reading_failure_notice(error)
+                + " Your file is still available. "
+                "These questions use its profile and saved answers."
+            )
         with self.uow() as repo:
             self._recheck(repo, actor, workspace_id, dataset_id, upload_id, context)
             repo.add(

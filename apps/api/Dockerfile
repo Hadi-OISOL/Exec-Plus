@@ -17,6 +17,8 @@ COPY apps/api/src ./apps/api/src
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY scripts ./scripts
+COPY THIRD_PARTY_NOTICES.md ./
+COPY apps/web/public/third-party ./third-party
 
 RUN pip install --no-cache-dir .
 RUN useradd --create-home --uid 10001 execplus && chmod -R a+rX /app

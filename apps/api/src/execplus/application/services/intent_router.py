@@ -21,7 +21,7 @@ from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import read_complete
 from execplus.application.services.patterns import PatternService
-from execplus.application.services.structured_reading import read_validated
+from execplus.application.services.structured_reading import read_validated, reading_failure_notice
 from execplus.domain.analysis_guidance import analysis_guidance
 from execplus.domain.analysis_plan import conversation_plan, pattern_conversation_plan
 from execplus.domain.dataset_reading import (
@@ -293,11 +293,12 @@ class IntentRouterService:
             )
             message, suggestions = render_reading(context, reading, notes)
             route = f"{response.provider}:{response.model}:dataset-reading-v1"
-        except (ProviderUnavailableError, UnverifiedAnswerError, TimeoutError, ValueError):
+        except (ProviderUnavailableError, UnverifiedAnswerError, TimeoutError, ValueError) as error:
             message, suggestions = explain_dataset(context, ())
             message = (
-                "A fuller explanation is unavailable right now. "
-                "Here is the saved file information.\n\n" + message
+                reading_failure_notice(error)
+                + " Your file is still available. Here is its saved information; "
+                "you can use the analysis suggestions below.\n\n" + message
             )
         await activity(JobStage.PLANNING, EventStatus.COMPLETED)
         await verify_context()

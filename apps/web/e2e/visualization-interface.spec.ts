@@ -57,26 +57,28 @@ test("chart and table exploration preserve exact values, gaps, source filters an
     exact: true,
   });
   const trend = dashboard.locator('[data-visualization="Date trend"]');
-  await expect(dashboard.locator('[data-visualization="Amount by Region"] .barButton').first()).toHaveCSS("display", "grid");
-  await expect(trend.locator(".chartPoint")).toHaveCount(3);
+  const barEngine = dashboard.locator('[data-visualization="Amount by Region"] [data-chart-renderer="apache-echarts"]');
+  await expect(barEngine).toHaveAttribute("data-engine-ready", "true");
+  await expect(barEngine.locator("svg")).toBeVisible();
+  await expect(trend.locator('[data-chart-template="documd-line"]')).toBeVisible();
+  const trendEngine = trend.locator('[data-chart-renderer="apache-echarts"]');
+  await expect(trendEngine.locator("svg")).toBeVisible();
   await expect(discovery.locator('.discoveryValue').filter({ hasText: '9,007,199,254,740,993' }).first()).toBeVisible();
   expect(await page.locator('.analyticsShell').evaluate(element => getComputedStyle(element).fontFamily.toLowerCase())).toContain('manrope');
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  const fill = dashboard.locator('[class*="barFill"]').first();
-  expect(await fill.evaluate(element => getComputedStyle(element).animationName)).not.toBe('none');
+  await expect(trendEngine).toHaveAttribute("data-reduced-motion", "false");
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(fill).toHaveCSS('animation-name', 'none');
-  await expect(trend.locator("polyline")).toHaveCount(2);
+  await expect(trendEngine).toHaveAttribute("data-reduced-motion", "true");
   await expect(trend).not.toContainText("__value");
   await expect(trend).toContainText("Missing values remain gaps");
   await expect(trend.getByLabel("Chart value range", { exact: true })).toContainText("9,007,199,254,740,993.000001");
-  await expect(trend.getByLabel("Chart value range", { exact: true }).locator("span").first()).toHaveAttribute("title", /^9007199254740993\.000001/);
-  await trend.locator(".chartPoint").last().focus();
+  await trend.getByLabel("Inspect returned row for Date trend", { exact: true }).selectOption("3");
   await expect(trend.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("9007199254740993.000001");
-  const lineBox = await trend.locator("svg.trendSvg").boundingBox();
-  expect(lineBox).not.toBeNull();
-  await page.mouse.move(lineBox!.x + 16 + (lineBox!.width - 32) / 3, lineBox!.y + 100);
+  await trend.getByLabel("Inspect returned row for Date trend", { exact: true }).selectOption("1");
   await expect(trend.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("Missing");
+  await trend.getByRole("group", { name: "Date trend interactive chart", exact: true }).focus();
+  await page.keyboard.press("End");
+  await expect(trend.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("9007199254740993.000001");
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     await trend.scrollIntoViewIfNeeded();
@@ -109,21 +111,20 @@ test("chart and table exploration preserve exact values, gaps, source filters an
   ).toBeFocused();
   await modal.getByRole("button", { name: "Chart", exact: true }).click();
   await modal.getByRole("button", { name: "Bars", exact: true }).click();
-  await expect(
-    modal.getByRole("list", { name: "Date trend", exact: true }),
-  ).toContainText("-1.250000000000");
-  await expect(
-    modal
-      .getByRole("listitem")
-      .filter({ hasText: "2026-01-03" })
-      .locator(".discoveryBarTrack > span"),
-  ).toHaveCSS("width", "0px");
+  await expect(modal.locator('[data-chart-template="lieflat-g10"]')).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 1000 });
+  const missingRows = modal.getByLabel("Rows without a value", { exact: true });
+  await expect(missingRows).toContainText("Missing values · 1");
+  await expect(missingRows.getByRole("listitem")).toHaveText("2026-01-02");
+  await expect(missingRows).not.toContainText("2026-01-03");
+  await modal.getByLabel("Inspect returned row for Date trend", { exact: true }).selectOption("2");
+  await expect(modal.getByLabel("Exact chart detail for Date trend", { exact: true }).locator("strong").last()).toHaveText("0E-12");
+  await modal.getByLabel("Inspect returned row for Date trend", { exact: true }).selectOption("1");
+  await expect(modal.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("Missing");
   await modal.getByRole("button", { name: "Dots", exact: true }).click();
   await expect(modal.getByRole("button", { name: "Dots", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(modal.locator('[class*="dotMarker"]')).toHaveCount(3);
-  await expect(modal.getByRole("listitem").filter({ hasText: "2026-01-02" }).locator('[class*="dotMarker"]')).toHaveCount(0);
-  await expect(modal.getByRole("listitem").filter({ hasText: "2026-01-03" }).locator('[class*="dotMarker"]')).toHaveCount(1);
-  await modal.getByRole("img", { name: /^2026-01-04: 9007199254740993\.000001/ }).focus();
+  await expect(modal.locator('[data-chart-template="echarts-dots"] svg')).toBeVisible();
+  await modal.getByLabel("Inspect returned row for Date trend", { exact: true }).selectOption("3");
   await expect(modal.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("9007199254740993.000001");
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -171,7 +172,7 @@ test("chart and table exploration preserve exact values, gaps, source filters an
     exact: true,
   });
   await expandedBreakdown.getByRole("button", { name: "Dots", exact: true }).click();
-  await expandedBreakdown.getByRole("button", { name: /West.*-1\.250000000000/ }).focus();
+  await expandedBreakdown.getByRole("button", { name: "View records for West", exact: true }).focus();
   await expect(expandedBreakdown.getByLabel("Exact chart detail for Amount by Region", { exact: true })).toContainText("-1.250000000000");
   await page.keyboard.press("Enter");
   await expect(expandedBreakdown).not.toBeVisible();
@@ -214,4 +215,55 @@ test("chart and table exploration preserve exact values, gaps, source filters an
       fullPage: true,
     });
   }
+});
+
+test("bundled chart engines navigate every returned row without changing the calculation", async ({ page }) => {
+  const token = execFileSync("python3", ["-m", "execplus.manage", "provision-user", "--email", `chart-window-${randomUUID()}@example.test`], { cwd: "../..", encoding: "utf8" }).trim();
+  await page.goto("/workspace");
+  await page.getByLabel("Session token").fill(token);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  const csv = "date,region,amount\n" + Array.from({ length: 45 }, (_, index) => `${new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10)},Region ${index % 3},${index === 17 ? "" : index + 1}`).join("\n");
+  await page.getByLabel("CSV or Excel file").setInputFiles({ name: "complete-chart.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  await openFindings(page);
+  await page.locator("summary").filter({ hasText: "Charts & dashboard controls" }).click();
+  const trend = page.locator('[data-visualization="Date trend"]');
+  await expect(trend.getByLabel("Inspect returned row for Date trend").locator("option")).toHaveCount(45);
+  let calculations = 0;
+  page.on("request", request => { if (request.method() === "POST" && /\/(dashboard|query)$/.test(new URL(request.url()).pathname)) calculations += 1; });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const [name, template] of [["Bars", "lieflat-g10"], ["Dots", "echarts-dots"], ["Line", "documd-line"]] as const) {
+    await trend.getByRole("button", { name, exact: true }).click();
+    await expect(trend.locator(`[data-chart-template="${template}"] svg`)).toBeVisible();
+    if (name === "Bars") {
+      const previewBar = trend.locator('svg path[fill="#176c64"]').nth(2);
+      await previewBar.hover();
+      await expect(trend.getByLabel("Exact chart detail for Date trend").locator("strong").last()).not.toHaveText("1");
+      await expect(trend.getByLabel("Inspect returned row for Date trend")).toHaveValue("0");
+      await trend.getByRole("button", { name: "Next chart row for Date trend", exact: true }).click();
+      await expect(trend.getByLabel("Exact chart detail for Date trend").locator("strong").last()).toHaveText("2");
+    }
+    await trend.getByRole("button", { name: "Zoom in", exact: true }).click();
+    const canvas = trend.getByRole("group", { name: "Date trend interactive chart", exact: true });
+    await canvas.focus();
+    await page.keyboard.press("End");
+    await expect(trend.getByLabel("Exact chart detail for Date trend")).toContainText("2026-02-14");
+    await expect(trend.getByLabel("Exact chart detail for Date trend").locator("strong").last()).toHaveText("45");
+    await expect(trend.getByRole("group", { name: "Date trend chart navigation" })).toContainText(/–45 of 45 returned rows/);
+    await trend.getByLabel("Inspect returned row for Date trend").selectOption("17");
+    await expect(trend.getByLabel("Exact chart detail for Date trend")).toContainText("Missing");
+    await trend.getByRole("button", { name: "Show all", exact: true }).click();
+    await expect(trend.getByRole("group", { name: "Date trend chart navigation" })).toContainText("Viewing 1–45 of 45 returned rows");
+    await trend.getByLabel("Inspect returned row for Date trend").selectOption("44");
+    for (const width of [1440, 390, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await trend.scrollIntoViewIfNeeded();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      expect(await trend.locator('[data-chart-renderer="apache-echarts"] svg').evaluate(node => /NaN|Infinity/.test(node.innerHTML))).toBe(false);
+      await trend.screenshot({ path: `../../data/verification/2026-10-16/chart-experience/engine-${template}-${width}.png`, animations: "disabled" });
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+  }
+  expect(calculations).toBe(0);
 });

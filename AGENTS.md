@@ -14,6 +14,10 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 - Start future sessions by reading `data/agent-memory/context.json` when present,
   then run `python3 data/agent-tools/project.py status`. These ignored local files
   hold compact context and reusable commands; this tracked handoff remains the fallback.
+- On October 16 the user explicitly confirmed that this project will remain
+  noncommercial. Actual attributed Lieflat template reuse is authorized; preserve
+  its license and notices. Earlier reference-only Lieflat and commercial roadmap
+  assumptions are historical. Keep original feature IDs/statuses for traceability.
 - The user authorizes routine personal-repo pull/push needed for requested project
   work. Use `phase2` and the repo-local Hadi-OISOL SSH identity. Preserve company
   settings, unrelated changes and existing work; never force-push or publish private

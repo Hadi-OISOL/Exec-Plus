@@ -4,9 +4,11 @@
 # Project skill adoption
 
 Reviewed October 16, 2026. The selected skills help the coding agent design,
-inspect and document this project. They are not executable tools available to
-ExecPlus's product agent. No application dependency, model provider, production
-gate or supported upload format changes because a skill is installed.
+inspect and document this project. They are not unrestricted executable tools
+available to ExecPlus's product agent. The subsequent implementation explicitly
+adapts two chart templates and two bounded analysis-guidance sources, as recorded
+in the [repository integration map](repository-integration.md). Installing a skill
+alone does not change a model provider, production gate or supported upload format.
 
 ## Exact sources and locations
 
@@ -22,9 +24,9 @@ All repositories are downloaded beneath the ignored
 | [documd visuals](https://github.com/markdown-viewer/skills/tree/2672b6920f6c055caf72a916b414ede62ecbfc2e) | `2672b6920f6c055caf72a916b414ede62ecbfc2e` | CC-BY-4.0 for this skill package | Selected skill at `.agents/skills/documd-visuals/` |
 | [Medical Research Skills](https://github.com/aipoch/medical-research-skills/tree/686e09dfdb45d9fa1a08664f06bb93769b3c9d91) | `686e09dfdb45d9fa1a08664f06bb93769b3c9d91` | MIT | Only general `exploratory-data-analysis` installed at `.agents/skills/exploratory-data-analysis/` |
 | [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector/tree/8ccf9201c57ae89afcb84737d8c9d58f7fccf952) | `8ccf9201c57ae89afcb84737d8c9d58f7fccf952` | Apache-2.0 | Inspector instructions at `.agents/skills/skill-inspector/`; scanner in `data/agent-tools/skillspector-env/` |
-| [Lieflat Charts](https://github.com/larashero3-dotcom/lieflat-charts/tree/ed436ba56b3cbeee20b9b9966b38a9a9689e239c) | `ed436ba56b3cbeee20b9b9966b38a9a9689e239c` | PolyForm Noncommercial 1.0.0; additional third-party notices | Coding skill at `.agents/skills/lieflat-charts/`; chart guidance for original components, without template/code copying into the product |
+| [Lieflat Charts](https://github.com/larashero3-dotcom/lieflat-charts/tree/ed436ba56b3cbeee20b9b9966b38a9a9689e239c) | `ed436ba56b3cbeee20b9b9966b38a9a9689e239c` | PolyForm Noncommercial 1.0.0; additional third-party notices | Coding skill at `.agents/skills/lieflat-charts/`; actual G10 renderer adapted after the owner confirmed noncommercial use |
 | [oneDAL](https://github.com/uxlfoundation/oneDAL/tree/eeb645077424fe8534060d74a044a120384db325) | `eeb645077424fe8534060d74a044a120384db325` | Apache-2.0 | Source reference only; no application install |
-| [SQL Data Analytics Project](https://github.com/DataWithBaraa/sql-data-analytics-project/tree/b99f16a26197ff0d36131867af319238aec23dd8) | `b99f16a26197ff0d36131867af319238aec23dd8` | MIT | Analysis progression/examples; no upstream datasets or SQL imported into the product |
+| [SQL Data Analytics Project](https://github.com/DataWithBaraa/sql-data-analytics-project/tree/b99f16a26197ff0d36131867af319238aec23dd8) | `b99f16a26197ff0d36131867af319238aec23dd8` | MIT | Analysis progression adapted into the runtime reading catalog; no upstream datasets or unrestricted SQL imported |
 
 The installed copies retain their source license files. Their folders, scanner
 environment, reference clones and reports remain project-local and ignored. No
@@ -80,9 +82,9 @@ the last column is the separate source-review verdict for the stated use.
 | Target | Raw score / severity / recommendation | Static coverage | Combined verdict and posture |
 | --- | --- | --- | --- |
 | UI/UX Pro Max | 100 / CRITICAL / DO_NOT_INSTALL; 65 findings | 62/74 files fully inspected, 83.8%; **partial** | **CAUTION**: local design guidance; no blind execution of catalog snippets/install commands |
-| documd visuals | 100 / CRITICAL / DO_NOT_INSTALL; 18 findings | 355/361 files fully inspected, 98.3%; **partial** | **CAUTION**: authoring guidance only; optional exporter not installed or executed |
-| Exploratory data analysis | 27 / MEDIUM / CAUTION; 2 findings | 12/12 files inspected, 100%; **partial** because sample-path references are unresolved | **CAUTION**: general development guidance; analyzer not a product tool |
-| Lieflat Charts | 96 / CRITICAL / DO_NOT_INSTALL; 40 findings | 31/82 analyzed text components fully inspected, 37.8%; **partial** | **CAUTION** for explicitly requested local coding guidance; no automatic template execution or product copying |
+| documd visuals | 100 / CRITICAL / DO_NOT_INSTALL; 18 findings | 355/361 files fully inspected, 98.3%; **partial** | **CAUTION**: a separately reviewed line option is adapted; optional exporter remains unused |
+| Exploratory data analysis | 27 / MEDIUM / CAUTION; 2 findings | 12/12 files inspected, 100%; **partial** because sample-path references are unresolved | **CAUTION**: curated guidance feeds the bounded reading catalog; analyzer is not a product tool |
+| Lieflat Charts | 96 / CRITICAL / DO_NOT_INSTALL; 40 findings | 31/82 analyzed text components fully inspected, 37.8%; **partial** | **CAUTION**: the specifically reviewed G10 block is adapted for authorized noncommercial use; whole galleries/scripts are not automatically executed |
 | Skill Inspector | 0 / LOW / SAFE; no findings | 2/2 files inspected, 100%; **complete** within the requested static configuration | **APPROVE** as the scoped review procedure; not a certification of the scanner or other skills |
 
 These are not clean-scan or certified-safe claims. No findings were suppressed,
@@ -123,7 +125,9 @@ the verdict or close its incomplete coverage.
   installer example; `MP2` is a visible decorative divider. Its `big-threads.html`
   uses `innerHTML` with fixed demo labels, which must not be replaced blindly with
   untrusted data. These source findings remain applicable to the identical installed
-  copy; the allowed use is bounded coding guidance, not template execution.
+  copy. Whole-gallery execution remains outside this review; the separately read
+  G10 block is adapted and checked as compiled application code under the owner's
+  explicit noncommercial scope.
 
 ## Use boundaries
 
@@ -143,7 +147,8 @@ Keep upstream attribution when sharing copied package examples. Plain Markdown
 viewers do not necessarily render its custom fences, and ExecPlus does not gain a
 document-export feature from these files.
 
-The EDA skill is development guidance only. Its analyzer reads a requested local
+The EDA skill supplies development guidance and a small attributed runtime recipe
+catalog, not a general runtime analysis engine. Its analyzer reads a requested local
 file and writes a report, with no network or subprocess implementation. The output
 path can overwrite a file and reports contain source metadata and data summaries;
 use an explicit ignored output location if the analyzer is separately authorized.
@@ -154,17 +159,15 @@ branch. No bundled analyzer or extra scientific dependency was run or installed.
 See [the data-tool adoption review](data-tool-adoption-review.md) for supported
 ExecPlus methods and the conditions for a future evaluated ML adapter.
 
-Lieflat is now an installed project coding skill, following the user's explicit
-request. Use its inspected data-shape, honest-encoding and readability guidance
-to design original ExecPlus components. Its PolyForm Noncommercial terms are not
-treated as permission to copy its templates, token library or layout code into a
-potentially commercial ExecPlus product. The unmodified installation has its
-license and third-party notices. No Lieflat template is opened as executable HTML
-or shipped in the app; no product chart is represented as a copied implementation.
-The project boundary takes precedence over `SKILL.md:33–65`, which directs template
-reuse; `README.en.md:308` calls for separate commercial permission. Installing the
-skill does not waive those terms. Its general design ideas can inform original
-work without copying the licensed assets.
+Lieflat is an installed project coding skill. The owner's subsequent explicit
+confirmation that ExecPlus will remain noncommercial supersedes the earlier
+commercial-use assumption. Its actual G10 renderer is now adapted into the
+application, retaining the source pin and license/notices. It receives governed
+returned rows through compiled React/ECharts code; no whole gallery is opened as
+executable HTML. `README.en.md:308` still calls for separate commercial permission;
+installing or adapting the skill does not waive those terms. The
+[integration map](repository-integration.md) identifies the exact reused block
+and changes, separate from the earlier original chart work.
 The templates use major-version CDN URLs and Google Fonts; map examples fetch
 fixed public GeoJSON. Its smoke-test script runs `npm root -g`, dynamically imports
 Playwright and launches Chromium; its validator evaluates the local palette in a
@@ -176,3 +179,8 @@ Skill Inspector is a review procedure, not a runtime hook. Keep its `--no-llm`
 default for this project; starting separate model/agent scans requires a separate
 user request. Static scanning and this manual review do not certify future
 versions, transitive packages, external CDNs or all possible skill behavior.
+The ignored `data/agent-tools/scan-skill.py` wrapper invokes the real pinned CLI
+with an explicit local skill directory and a fresh private JSON output path. It
+passes no provider credentials, disables tracing, requests static-only checks and
+retains findings/incomplete coverage as nonzero outcomes. Its syntax and dry-run
+paths were checked; unchanged targets were not rescanned merely to add the wrapper.

@@ -1,5 +1,5 @@
 > **File use case:** Connects the seven requested repositories to concrete ExecPlus chart and data-exploration work.
-> **What it does:** Separates observed reference behavior, original product adaptations, developer guidance and numerical methods that still need evaluation.
+> **What it does:** Separates observed reference behavior, actual licensed adaptations, developer guidance and numerical methods that still need evaluation.
 
 # Chart experience reference audit
 
@@ -36,10 +36,15 @@ ordering and missing-value policy support a connection.
 
 The [installed skill](https://github.com/larashero3-dotcom/lieflat-charts/blob/ed436ba56b3cbeee20b9b9966b38a9a9689e239c/SKILL.md)
 also advises choosing a chart from the data's shape, avoiding broken bar axes and
-giving each figure one purpose. These are useful general design principles. Its
-template-copy instructions, token files and artwork are not used in the product.
-The PolyForm Noncommercial boundary and unchanged partial static-scan result are
-documented in [the Lieflat assessment](lieflat-charts-assessment.md).
+giving each figure one purpose. Those principles informed the initial original
+chart pass. After the owner explicitly confirmed noncommercial use and requested
+actual reuse, the G10 diverging-bar renderer was adapted into the application.
+Its zero baseline, signed horizontal bars, cap geometry and animation structure
+are retained; demo values and gallery execution are removed. The PolyForm
+Noncommercial boundary and unchanged partial static-scan result are documented
+in [the Lieflat assessment](lieflat-charts-assessment.md). The
+[repository integration map](repository-integration.md) identifies all actual
+imports and bounded guidance adaptations.
 
 ## Concrete use of all seven repositories
 
@@ -49,12 +54,12 @@ screen immediately; a new numerical engine needs a defined method and evaluation
 | Reference and exact source | Useful application work | Layer and current boundary |
 | --- | --- | --- |
 | [UI/UX Pro Max chart catalog, 56ea9cf](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill/blob/56ea9cf174ed86786187daa9de0e6247cb0747e4/src/ui-ux-pro-max/data/charts.csv) | Make category/value labels readable, show exact values through keyboard focus and touch as well as hover, retain a visible table, and distinguish series by shape/text | Installed coding guidance applied to existing answer, pattern, forecast and dashboard components. Its suggested palettes, sorting rules, sampling thresholds and statistical cutoffs do not override ExecPlus's contracts |
-| [documd exploration guidance, 2672b69](https://github.com/markdown-viewer/skills/tree/2672b6920f6c055caf72a916b414ede62ecbfc2e) | Plan one question per figure; separate a distribution, a group comparison and a time trend instead of filling a page with repeated charts | Installed developer documentation/design guidance. The dashboard reading order can use that principle. No custom Markdown renderer, exporter or document feature is added |
-| [EDA workflow, 686e09d](https://github.com/aipoch/medical-research-skills/blob/686e09dfdb45d9fa1a08664f06bb93769b3c9d91/scientific-skills/Data%20Analysis/exploratory-data-analysis/SKILL.md) | Lead with file meaning, then quality/coverage, then measured findings and suitable next steps. Keep missing or excluded rows visible beside patterns | Installed general analysis guidance used to assess the demo and screen flow. Existing profile and measured tools provide the runtime values; the bundled analyzer is not executed and its broad format catalog is not an upload-support claim |
+| [documd exploration guidance, 2672b69](https://github.com/markdown-viewer/skills/tree/2672b6920f6c055caf72a916b414ede62ecbfc2e) | Use its actual ECharts time-series option skeleton for eligible observed-line answers, separate from Lieflat bars | `documd-chart-presets.ts` adapts the CC-BY line example: removes all demo values, second axis and threshold; preserves returned order, null gaps and exact inspection. No custom Markdown renderer, exporter or document feature is added |
+| [EDA workflow, 686e09d](https://github.com/aipoch/medical-research-skills/blob/686e09dfdb45d9fa1a08664f06bb93769b3c9d91/scientific-skills/Data%20Analysis/exploratory-data-analysis/SKILL.md) | Lead with file meaning, then quality/coverage, then measured findings and suitable next steps. Keep missing or excluded rows visible beside patterns | The CSV checklist/report structure is adapted into `reading_catalog.py` and supplied to new qualitative readings through eligible fields/registered operations. Existing tools provide values; the bundled analyzer is not executed and its format catalog is not an upload-support claim |
 | [SkillSpector review workflow, 8ccf920](https://github.com/NVIDIA/SkillSpector/blob/8ccf9201c57ae89afcb84737d8c9d58f7fccf952/skills/skill-inspector/SKILL.md) | Review downloaded skills, executable assets and external-resource behavior before using them to change the product | Installed developer review procedure, used for five static scans plus source review. It improves the adoption process; it does not analyze customer data or become a product insight feature |
-| [Lieflat catalog, ed436ba](https://github.com/larashero3-dotcom/lieflat-charts/blob/ed436ba56b3cbeee20b9b9966b38a9a9689e239c/catalog.md) | Clear question/unit/source framing, restrained chart cards, direct labels, useful zero baselines and meaningful observed/estimated distinctions | Installed project coding skill. The concrete result is independently authored React/SVG presentation using existing returned values, without upstream template, renderer, artwork or token copying |
+| [Lieflat catalog, ed436ba](https://github.com/larashero3-dotcom/lieflat-charts/blob/ed436ba56b3cbeee20b9b9966b38a9a9689e239c/catalog.md) | Reuse the actual G10 signed-bar template with the ExecPlus theme and source-backed returned values | `lieflat-chart-presets.ts` is a licensed derivative of the pinned G10 renderer for the owner's explicitly noncommercial project. It is bundled through ECharts, not a whole-gallery HTML or runtime agent-code executor |
 | [oneDAL methods, eeb6450](https://github.com/uxlfoundation/oneDAL/blob/eeb645077424fe8534060d74a044a120384db325/README.md) | A future bounded regression or clustering adapter could provide a new result type after a real prediction/segmentation problem is specified | Reviewed source, not a runtime install. No current ML, speed, causal or model-quality benefit is claimed. Exact DuckDB totals and existing SciPy/NumPy statistics remain authoritative |
-| [SQL analysis progression, b99f16a](https://github.com/DataWithBaraa/sql-data-analytics-project/blob/b99f16a26197ff0d36131867af319238aec23dd8/03_scripts/05_magnitude_analysis.sql) | Present totals first, then category comparisons and dated observations, with a clear route to investigate a finding. The demo walkthrough already follows this sequence | Reference guidance for actual dashboard/result order and the existing [demo guide](demo-data-guide.md). No unrestricted SQL, warehouse initialization, upstream dataset or unsupported running-total/YoY/cohort method is imported |
+| [SQL analysis progression, b99f16a](https://github.com/DataWithBaraa/sql-data-analytics-project/blob/b99f16a26197ff0d36131867af319238aec23dd8/03_scripts/05_magnitude_analysis.sql) | Present totals, category comparisons and dated observations with a clear route to investigate a finding | Date/measure/magnitude exploration is adapted into the runtime reading catalog and reflected in the [demo guide](demo-data-guide.md). No unrestricted SQL, warehouse initialization, upstream dataset or unsupported running-total/YoY/cohort method is imported |
 
 The SQL reference's
 [time example](https://github.com/DataWithBaraa/sql-data-analytics-project/blob/b99f16a26197ff0d36131867af319238aec23dd8/03_scripts/07_change_over_time_analysis.sql)
@@ -107,7 +112,8 @@ not flatten that distinction into a universal story. These are synthetic workflo
 checks, not representative acceptance or proof of causality. The guide and tests
 record the generator and exact definitions.
 
-No new numerical method, provider, runtime package, schema, production gate,
-connector or export feature is claimed by this audit. The user's earlier open-tab
+The separate implementation adds pinned Apache ECharts 6.1.0 for the two adapted
+templates and the interactive dot view. It does not add a new numerical method,
+provider, schema, production gate, connector or export feature. The user's earlier open-tab
 mismatch remains unverified until their refreshed screen is observed; a successful
 fresh-browser check alone does not diagnose their tab.

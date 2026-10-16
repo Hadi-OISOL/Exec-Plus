@@ -3,6 +3,34 @@
 
 # ExecPlus Architecture
 
+## October 16 imported chart engines and bounded reading recipes
+
+The web bundle now includes pinned Apache ECharts 6.1.0 with its SVG renderer.
+An attributed Lieflat G10 adapter supplies signed bars; a separate attributed
+documd option supplies eligible observed lines. The owner explicitly confirmed
+noncommercial use, superseding the earlier reference-only Lieflat boundary.
+Only selected code and full notices ship; gallery scripts, remote CDN assets,
+export programs and arbitrary generated HTML do not execute.
+
+Every authorized returned row remains available to view navigation. ECharts zoom
+changes the visible window, never the query population. Raw decimal strings stay
+in the native inspector and exact table; normalized plotting coordinates cannot
+be reused as numerical evidence. Source filters and permission checks continue
+through existing query/drill services. Forecast and pattern method outputs retain
+their dedicated typed evidence and uncertainty displays.
+
+The qualitative-reading context includes a frozen EDA/SQL recipe catalog mapped
+to registered profile/query operations and the first eighty supplied fields.
+Explicit eligible metric/group names align model suggestions with validation.
+A typed truncated-response error allows one fresh correction within the existing
+two-call/forty-second bounds. Current source, permissions and private context are
+rechecked; invalid or unavailable explanations retain a clear reason and saved
+information. Diagnostics record a reason enum only. No provider, schema, numerical
+method, automatic confirmation or general runtime plugin execution changes.
+See [integration map](../repository-integration.md),
+[verification](../verification-repository-integration.md) and
+[notices](../../THIRD_PARTY_NOTICES.md).
+
 ## October 16 explicit personal context and studio review
 
 Migration 0018 adds membership-bound, actor-private `agent_memories`. Explicit

@@ -32,5 +32,9 @@ class ProviderUnavailableError(ExecPlusError):
     pass
 
 
+class IncompleteModelResponseError(ProviderUnavailableError):
+    pass
+
+
 class UnverifiedAnswerError(ExecPlusError):
     pass

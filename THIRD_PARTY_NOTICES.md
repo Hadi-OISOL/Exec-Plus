@@ -1,0 +1,27 @@
+> **File use case:** Attributes reused third-party code and analysis guidance.
+> **What it does:** Records source versions, modifications and the licenses shipped with ExecPlus.
+
+# Third-party notices
+
+The owner confirmed on October 16, 2026 that this project will remain
+**noncommercial**. Lieflat-derived code retains its PolyForm Noncommercial
+terms. These notices do not change the independent licenses of other components.
+
+| Component | Source/version | Use and modifications | License |
+| --- | --- | --- | --- |
+| Lieflat Charts by 躺在废墟里 | [ed436ba](https://github.com/larashero3-dotcom/lieflat-charts/tree/ed436ba56b3cbeee20b9b9966b38a9a9689e239c) | Adapted G10 signed-bar renderer; ExecPlus theme, authorized values, React lifecycle, exact-value inspection and bounded zoom replace demo wiring | [PolyForm Noncommercial](apps/web/public/third-party/lieflat-LICENSE.txt) |
+| Apache ECharts | [6.1.0](https://github.com/apache/echarts/tree/6.1.0) | Unmodified pinned npm runtime, selected SVG chart modules; application-specific options | [Apache 2.0](apps/web/public/third-party/echarts-LICENSE.txt), [NOTICE](apps/web/public/third-party/echarts-NOTICE.txt), [d3 notices](apps/web/public/third-party/echarts-d3-LICENSE.txt) |
+| ZRender | [6.1.0](https://github.com/ecomfe/zrender) | ECharts rendering dependency | [BSD 3-Clause](apps/web/public/third-party/zrender-LICENSE.txt) |
+| tslib | 2.3.0, Microsoft Corporation | ECharts/ZRender runtime helpers | [License](apps/web/public/third-party/echarts-tslib-LICENSE.txt), [copyright](apps/web/public/third-party/echarts-tslib-CopyrightNotice.txt) |
+| documd-visuals | [2672b69](https://github.com/markdown-viewer/skills/tree/2672b6920f6c055caf72a916b414ede62ecbfc2e) | Adapted time-series chart preset; real returned observations, exact inspection, ExecPlus theme and null-gap preservation replace demonstration values | [CC-BY-4.0](apps/web/public/third-party/documd-LICENSE.md) |
+| Exploratory data analysis guidance, AIpoch | [686e09d](https://github.com/aipoch/medical-research-skills/tree/686e09dfdb45d9fa1a08664f06bb93769b3c9d91) | Curated reading recipe adapted from the CSV EDA checklist and report template; filtered to supported tools and eligible fields; no bundled analyzer execution | [MIT](apps/web/public/third-party/eda-LICENSE.txt), ©2026 AIpoch |
+| SQL Data Analytics Project, Baraa Khatib Salkini | [b99f16a](https://github.com/DataWithBaraa/sql-data-analytics-project/tree/b99f16a26197ff0d36131867af319238aec23dd8) | Reading progression adapted from date-range, measures and magnitude exploration; no upstream dataset or unrestricted SQL execution | [MIT](apps/web/public/third-party/sql-analytics-LICENSE.txt), ©2025 Baraa Khatib Salkini |
+
+Exact reused source paths and implementation boundaries are recorded in
+[the repository integration map](docs/repository-integration.md). The documd CLI
+and GPL rendering/export programs are not included. Project-only development
+skills retain their own notices in the ignored local installations.
+
+The web distribution includes these license texts under `/third-party/`; the API
+image carries this notice and the same texts. No upstream example values are used
+as user data. Licensors do not endorse ExecPlus.

@@ -1,0 +1,30 @@
+ExecPlus third-party credits
+
+Lieflat Charts by 躺在废墟里
+Source: https://github.com/larashero3-dotcom/lieflat-charts
+Pinned ed436ba56b3cbeee20b9b9966b38a9a9689e239c; adapted signed-bar renderer.
+This project is noncommercial. Lieflat-derived code is under PolyForm Noncommercial.
+License: lieflat-LICENSE.txt; upstream notices: lieflat-THIRD_PARTY_NOTICES.md
+
+Apache ECharts 6.1.0, Copyright2017-2026 The Apache Software Foundation
+https://echarts.apache.org/ ; echarts-LICENSE.txt, echarts-NOTICE.txt, echarts-d3-LICENSE.txt
+ZRender6.1.0: zrender-LICENSE.txt
+Microsoft tslib2.3.0: echarts-tslib-LICENSE.txt, echarts-tslib-CopyrightNotice.txt
+
+documd-visuals by markdown-viewer/skills
+https://github.com/markdown-viewer/skills/tree/2672b6920f6c055caf72a916b414ede62ecbfc2e
+Time-series preset adapted for actual observations and the ExecPlus theme.
+CC-BY-4.0: documd-LICENSE.md. The separate GPL renderer/exporter is not included.
+
+AIpoch, medical-research-skills@686e09dfdb45d9fa1a08664f06bb93769b3c9d91
+https://github.com/aipoch/medical-research-skills
+EDA checklist/report structure adapted as bounded reading guidance.
+MIT ©2026 AIpoch: eda-LICENSE.txt
+
+Baraa Khatib Salkini, sql-data-analytics-project@b99f16a26197ff0d36131867af319238aec23dd8
+https://github.com/DataWithBaraa/sql-data-analytics-project
+Date/measure/group exploration progression adapted as bounded reading guidance.
+MIT ©2025 Baraa Khatib Salkini: sql-analytics-LICENSE.txt
+
+No licensor endorsement is implied. Exact source paths and modifications are in
+THIRD_PARTY_NOTICES.md and docs/repository-integration.md in the project source.

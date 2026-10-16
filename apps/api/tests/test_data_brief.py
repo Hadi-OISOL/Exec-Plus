@@ -202,9 +202,9 @@ def test_endpoint_returns_a_validated_model_reading_without_sending_row_values(i
 @pytest.mark.parametrize(
     "outcome, notice",
     [
-        (ProviderUnavailableError("down"), "unavailable"),
-        ("not json at all", "could not be verified"),
-        (good_reply(summary="Revenue was 99999."), "could not be verified"),
+        (ProviderUnavailableError("down"), "service is unavailable right now"),
+        ("not json at all", "did not pass the checks"),
+        (good_reply(summary="Revenue was 99999."), "did not pass the checks"),
     ],
 )
 def test_endpoint_falls_back_to_profile_questions_when_the_model_cannot_be_used(
@@ -215,6 +215,7 @@ def test_endpoint_falls_back_to_profile_questions_when_the_model_cannot_be_used(
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["source"] == "profile" and notice in body["notice"]
+    assert "Your file is still available" in body["notice"]
     assert body["model_route"] is None and body["columns"]
 
 

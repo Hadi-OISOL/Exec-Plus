@@ -10,7 +10,7 @@ import httpx
 
 from execplus.application.contracts import ModelRequest, ModelResponse
 from execplus.application.progress import provider_attempt
-from execplus.domain.errors import ProviderUnavailableError
+from execplus.domain.errors import IncompleteModelResponseError, ProviderUnavailableError
 from execplus.domain.models import ModelTier
 
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
@@ -73,12 +73,12 @@ class OpenAICompatibleLanguageModel:
                     response.raise_for_status()
                 body = response.json()
                 choice = body["choices"][0]
+                if choice.get("finish_reason") == "length":
+                    raise IncompleteModelResponseError(
+                        "The language-model reply ended before it was complete."
+                    )
                 content = choice["message"]["content"]
-                if (
-                    choice.get("finish_reason") == "length"
-                    or not isinstance(content, str)
-                    or not content.strip()
-                ):
+                if not isinstance(content, str) or not content.strip():
                     raise ValueError("Incomplete model response")
                 usage = body.get("usage") or {}
                 input_tokens = usage.get("prompt_tokens")
