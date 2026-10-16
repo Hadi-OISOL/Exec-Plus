@@ -3,6 +3,29 @@
 
 # ExecPlus Architecture
 
+## October 16 grouped relationships and constrained choices
+
+A registered `compare_group_relationship` step uses one private governed projection
+receipt for two confirmed fixed-unit measures and one category. Pooled and group
+coefficients use the same eligible rows. New request/result/evidence versions
+preserve old pattern replay; durable results retain their verified method route.
+Ambiguous or additionally filtered grouped questions clarify instead of silently
+changing their population. The Home chooser sends exact JSON-quoted field names
+through the existing private conversation route and its 500-character bound.
+
+Optional allocation prerequisites and exclusions select a new bounded exhaustive
+method. Rules apply to positive quantities, with exact arithmetic and both existing
+resource limits. A separate checker verifies quantities, totals and constraints
+before publication. Unspecified rules retain legacy serialization and methods.
+Creator privacy, current-source checks, immutable reopening and explicit approval
+remain unchanged; no action executes externally.
+
+A fixed named regression manifest and isolated eight-user workload runner provide
+repeatable internal evidence. They do not satisfy representative model quality or
+sustained production load gates. No new dependency, schema, provider or permission
+boundary is introduced. See [contracts](../internal-analytics-depth.md) and
+[verification](../verification-internal-analytics-depth.md).
+
 ## October 15 focused experience and reading recovery
 
 Home, review and conversation are separate presentation contexts over the same

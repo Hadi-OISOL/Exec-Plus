@@ -15,6 +15,24 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 16 — Internal analytics depth and cross-feature reliability
+
+**Status:** In progress; local methods, fixed evaluation and paired workload pass;
+full browser/build/private-release verification in progress.
+The user authorized continuing phases three and four of the
+[four-phase plan](docs/clean-experience-plan.md). The new comparison checks pooled
+and within-group relationships on identical covered rows. Explicit allocation
+prerequisites/exclusions retain exact quantities and both resource limits.
+[Contracts](docs/internal-analytics-depth.md) declare bounds, exclusions and limits.
+
+The fixed internal evaluation passes 18 named cases / 42 exact checks. Numerical
+oracles, end-to-end journeys and a paired local eight-user workload supply bounded
+evidence; final results belong in the
+[verification ledger](docs/verification-internal-analytics-depth.md).
+This adds no causal interpretation, external action, integration, provider or
+schema change. All 64 original IDs, counts 37/16/11 and eight blocked production
+gates remain unchanged. Broader methods and representative acceptance remain open.
+
 ## October 15 — Focused experience and reliable reading
 
 **Status:** Complete for the first two bounded local/test and private-demo phases.

@@ -55,7 +55,12 @@ from execplus.domain.models import (
     ModelTier,
     QuestionKind,
 )
-from execplus.domain.pattern_requests import pattern_filter_needs_clarification, wants_patterns
+from execplus.domain.pattern_requests import (
+    group_relationship_selection,
+    pattern_filter_needs_clarification,
+    wants_group_relationship,
+    wants_patterns,
+)
 from execplus.domain.semantics import DatasetView
 
 
@@ -381,9 +386,23 @@ class IntentRouterService:
         goal_request = (
             description.private_goal if broad_goal and description.private_goal else question
         )
-        if self.patterns is not None and wants_patterns(goal_request):
-            columns = mentioned_columns(goal_request, description.view)
-            if pattern_filter_needs_clarification(goal_request, columns):
+        grouped = wants_group_relationship(goal_request)
+        if self.patterns is not None and (grouped or wants_patterns(goal_request)):
+            group_by = None
+            columns: tuple[str, ...]
+            if grouped:
+                try:
+                    left, right, group_by = group_relationship_selection(
+                        goal_request, tuple(column.name for column in description.view.columns)
+                    )
+                except ClarificationRequiredError as error:
+                    raise PlanningClarification(
+                        ClarificationContext(question, str(error), description.view.sources)
+                    ) from None
+                columns = (left, right)
+            else:
+                columns = mentioned_columns(goal_request, description.view)
+            if not grouped and pattern_filter_needs_clarification(goal_request, columns):
                 raise PlanningClarification(
                     ClarificationContext(
                         question,
@@ -403,16 +422,23 @@ class IntentRouterService:
                     definition_state=description.state,
                     actions=({"tool": "prepare", "label": "Finish data review"},),
                 )
-            await planned(pattern_conversation_plan(columns, description.view.sources))
-            evidence = await self.patterns.discover(
-                actor, workspace_id, dataset_id, upload_id, columns
+            await planned(
+                pattern_conversation_plan(columns, description.view.sources, group_by=group_by)
             )
+            if group_by is None:
+                evidence = await self.patterns.discover(
+                    actor, workspace_id, dataset_id, upload_id, columns
+                )
+            else:
+                evidence = await self.patterns.discover(
+                    actor, workspace_id, dataset_id, upload_id, columns, group_by=group_by
+                )
             if tuple(evidence["sources"]) != description.view.sources:
                 raise ClarificationRequiredError(
                     "The file or definitions changed during the scan. "
                     "Ask again to use the current version."
                 )
-            return PatternAnswer(evidence)
+            return PatternAnswer(evidence, "deterministic:" + evidence["result"]["version"])
         advice = analysis_guidance(description, goal_request)
         if advice:
             await planned(

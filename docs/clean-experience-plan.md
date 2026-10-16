@@ -3,8 +3,8 @@
 
 # Clean experience and better understanding
 
-The user authorized four phases, with phases one and two implemented now and the
-remaining two retained for the next working session. This extends the existing
+The user authorized four phases. Phases one and two were delivered October 15;
+on October 16 the user authorized continuing phases three and four. This extends the existing
 private demo. It does not change model providers, network exposure or production
 acceptance requirements. The original 64 feature IDs remain the source of truth.
 
@@ -12,8 +12,8 @@ acceptance requirements. The original 64 feature IDs remain the source of truth.
 | --- | --- | --- | --- |
 | 1 — Focused experience | Separate Home, reading, definition review and conversation; retain drafts on Back; show one primary task; responsive charts, finite transitions and honest loading states. | Existing navigation and saved work remain available; desktop and narrow screens pass; keyboard/reduced-motion behavior and exact chart/table values are preserved. | Complete for local/test and private demo, October 15 |
 | 2 — Reliable understanding | Supply saved descriptions, meanings and units to the current model; preserve answered definitions; allow one bounded correction for invalid qualitative readings; ask for an actual missing detail; recheck source and permissions before returning. | Invalid/slow/provider failures recover safely; no invented numbers or automatic confirmation; retry respects budgets; changed context is rejected; actual hosted reading and saved replay pass. | Complete for local/test and private demo, October 15 |
-| 3 — Internal analytics depth | Add a pooled-versus-within-group relationship comparison for 33 and explicit allocation prerequisites/exclusions for 59. Preserve current daily what-if, grouped anomaly baselines and exact allocation. Broader 57/58 methods remain separately sequenced in the research plan. | Independent numerical fixtures, sparse/degenerate/infeasible cases, exact receipts, compatibility and owner privacy. Causal or predictive claims require separate evidence. | Planned for next session; not implemented by this release |
-| 4 — Cross-feature reliability | Exercise upload → meaning → question → tool → saved result, create a fixed internal failure-case set and measure a declared local eight-user workload. Improve bottlenecks only when measured. | Document failures, recovery and performance on declared fixtures; preserve source data and existing work. Representative human-labelled evaluation and sustained production acceptance remain open. | Planned after phase 3; not scheduled automatically |
+| 3 — Internal analytics depth | Add a pooled-versus-within-group relationship comparison for 33 and explicit allocation prerequisites/exclusions for 59. Preserve current daily what-if, grouped anomaly baselines and exact allocation. Broader 57/58 methods remain separately sequenced in the research plan. | Independent numerical fixtures, sparse/degenerate/infeasible cases, exact receipts, compatibility and owner privacy. Causal or predictive claims require separate evidence. | Implemented; final verification and private release in progress, October 16 |
+| 4 — Cross-feature reliability | Exercise upload → meaning → question → tool → saved result, create a fixed internal failure-case set and measure a declared local eight-user workload. Improve bottlenecks only when measured. | Document failures, recovery and performance on declared fixtures; preserve source data and existing work. Representative human-labelled evaluation and sustained production acceptance remain open. | Fixed evaluation and paired workload pass; full browser/release verification in progress, October 16 |
 
 ## Feature mapping
 
@@ -27,10 +27,10 @@ acceptance requirements. The original 64 feature IDs remain the source of truth.
 - Phase 4 provides internal evidence toward 44/50, not a production-quality or
   sustained-performance certification.
 - External identity, billing, SMTP, off-server recovery, monitoring destinations,
-  connectors and customer integration policies are outside today's two phases.
+  connectors and customer integration policies are outside these four phases.
   Fine-grained permissions (64) need a dedicated policy/architecture design.
 
-## Next-session implementation boundaries
+## Phase 3 and 4 implementation boundaries
 
 Phase 3 adds comparisons that the existing group-contribution report does not
 already provide. A user chooses two eligible measures and one category. Compare

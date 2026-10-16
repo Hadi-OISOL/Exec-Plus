@@ -13,6 +13,12 @@ from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.forecasts import ForecastService, read_complete
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
+from execplus.domain.allocation_constraints import (
+    RULE_METHOD,
+    allocate_selection_rules,
+    selection_rules,
+    verify_selection_result,
+)
 from execplus.domain.analysis_extensions import (
     RESOURCE_METHOD,
     SEGMENT_METHOD,
@@ -46,6 +52,8 @@ def method_version(raw: dict[str, Any]) -> str:
         return DAILY_METHOD
     if raw["kind"] == "robust_distribution" and raw.get("segment_column"):
         return SEGMENT_METHOD
+    if raw["kind"] == "bounded_allocation" and (raw.get("prerequisites") or raw.get("exclusions")):
+        return RULE_METHOD
     if raw["kind"] == "bounded_allocation" and raw.get("resource_column"):
         return RESOURCE_METHOD
     if raw["kind"] == "scenario_comparison" and any(
@@ -85,6 +93,28 @@ def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
         )
     bounds = {row[0]: (0, raw["maximum_quantity"]) for row in candidates}
     bounds.update({item["candidate"]: (item["minimum"], item["maximum"]) for item in supplied})
+    if raw.get("prerequisites") or raw.get("exclusions"):
+        rule_rows: list[tuple[str, object, object, object | None]] = [
+            (str(row[0]), row[1], row[2], row[3] if raw.get("resource_column") else None)
+            for row in value.rows
+        ]
+        rules = selection_rules(
+            {row[0] for row in candidates}, raw.get("prerequisites", []), raw.get("exclusions", [])
+        )
+        calculated = allocate_selection_rules(
+            rule_rows,
+            raw["budget"],
+            raw["quantum"],
+            bounds,
+            raw["assumptions_confirmed"],
+            raw.get("prerequisites", []),
+            raw.get("exclusions", []),
+            raw.get("resource_capacity"),
+        )
+        verify_selection_result(
+            rule_rows, raw["budget"], bounds, rules, calculated, raw.get("resource_capacity")
+        )
+        return calculated
     if raw.get("resource_column"):
         return allocate_resources(
             [(str(row[0]), row[1], row[2], row[3]) for row in value.rows],
@@ -118,7 +148,13 @@ class DecisionAnalysisService:
             metrics=metrics,
             entities=[c["name"] for c in columns if c["role"] in {"dimension", "identifier"}],
             methods=REGISTERED_METHODS,
-            extensions=[SEGMENT_METHOD, RESOURCE_METHOD, COMPOUND_METHOD, DAILY_METHOD],
+            extensions=[
+                SEGMENT_METHOD,
+                RESOURCE_METHOD,
+                RULE_METHOD,
+                COMPOUND_METHOD,
+                DAILY_METHOD,
+            ],
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
                 "Exploratory anomalies are not confirmed errors; "
@@ -244,7 +280,7 @@ class DecisionAnalysisService:
             + (
                 method_version(raw)
                 if method_version(raw)
-                in {SEGMENT_METHOD, RESOURCE_METHOD, COMPOUND_METHOD, DAILY_METHOD}
+                in {SEGMENT_METHOD, RESOURCE_METHOD, RULE_METHOD, COMPOUND_METHOD, DAILY_METHOD}
                 else SCENARIO_METHOD
                 if raw["kind"] == "scenario_comparison"
                 else "decision-analysis-v1"

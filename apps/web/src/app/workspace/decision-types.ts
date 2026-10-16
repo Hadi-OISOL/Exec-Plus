@@ -48,6 +48,12 @@ export type AllocationResult = {
     resource_used?: string | null;
     unused_resource?: string | null;
     reason?: string;
+    solver_status?: "optimal" | "infeasible";
+    selection_rules?: {
+        prerequisites: { candidate: string; requires: string }[];
+        exclusions: { first: string; second: string }[];
+    };
+    verification?: { quantities: string; resources: string; selection_rules: string };
     baseline: {
         cost: string;
         benefit: string;

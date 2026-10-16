@@ -35,6 +35,8 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
     const [quantum, setQuantum] = useState("");
     const [quantity, setQuantity] = useState("1");
     const [confirmed, setConfirmed] = useState(false);
+    const [prerequisites, setPrerequisites] = useState<{ candidate: string; requires: string }[]>([]);
+    const [exclusions, setExclusions] = useState<{ first: string; second: string }[]>([]);
     const [bounds, setBounds] = useState<{
         candidate: string;
         minimum: string;
@@ -102,6 +104,8 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
                 ...common, entity_column: entityName, cost_column: costName, benefit_column: benefitName,
                 resource_column: resource || null, resource_capacity: resource ? capacity : null,
                 budget, quantum, maximum_quantity: Number(quantity), bounds: declaredBounds, assumptions_confirmed: confirmed,
+                ...(prerequisites.length ? { prerequisites } : {}),
+                ...(exclusions.length ? { exclusions } : {}),
             };
             const value = await request<AnalysisBody>(`${root}/decision-analysis/${kind}`, { ...post(body), signal });
             const saved = await request<AnalysisSummary[]>(runsRoot, { signal });
@@ -149,7 +153,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
     {error && <p role="alert" className="error">{error}</p>}
     {message && <p role="status">{message}</p>}
     {pending && <p role="status">{pending}</p>}
-    {!options ? <p>Loading source options…</p> : options.state !== "ready" ? <div><h3>Review meanings and units before analysis</h3><p>Confirm the selected source and a fixed unit for every numerical measure.</p><button type="button" onClick={onReview}>Review data meanings</button></div> : <form onSubmit={create}>
+    {!options ? <p>Loading source options…</p> : options.state !== "ready" ? <div><h3>Review meanings and units before analysis</h3><p>Confirm the selected source and a fixed unit for every numerical measure.</p><button type="button" onClick={onReview}>Review data meanings</button></div> : <form onSubmit={create} onInvalidCapture={event => { const disclosure = (event.target as HTMLElement).closest("details"); if (disclosure) disclosure.open = true; }}>
       <div className="formGrid">
         <label>Analysis method<select value={kind} onChange={(e) => setKind(e.target.value)}><option value="anomalies">Unusual values · snapshot distribution</option><option value="allocations">Recommendation · budget allocation</option><option value="scenarios">What-if · scenario comparison</option></select></label>
         <label>Analysis name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Optional name"/></label>
@@ -160,7 +164,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
           <label>Unusualness threshold · 3 to 10<input inputMode="decimal" required value={threshold} onChange={(e) => setThreshold(e.target.value)}/></label>
           <label>Minimum difference from median<input inputMode="decimal" required value={materiality} onChange={(e) => setMateriality(e.target.value)}/></label>
         </> : <>
-          {selector("Candidate identifier", entityName, setEntity, options.entities)}
+          {selector("Candidate identifier", entityName, value => { setEntity(value); setPrerequisites([]); setExclusions([]); setConfirmed(false); }, options.entities)}
           {selector("Per-unit cost", costName, value => { setCost(value); if (resource === value) setResource(""); setConfirmed(false); }, options.metrics.map((m) => m.name))}
           {selector("Per-unit benefit", benefitName, value => { setBenefit(value); if (resource === value) setResource(""); setConfirmed(false); }, options.metrics.map((m) => m.name))}
           <label>Additional resource limit<select value={resource} onChange={e => { setResource(e.target.value); setConfirmed(false); }}><option value="">Budget only</option>{options.metrics.filter(m => m.name !== costName && m.name !== benefitName).map(m => <option key={m.name} value={m.name}>{m.name} · {m.unit}</option>)}</select></label>
@@ -183,8 +187,25 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
           <button type="button" disabled={bounds.length >= 20} onClick={() => setBounds([...bounds, { candidate: "", minimum: "0", maximum: quantity }])}>Add a candidate quantity limit</button>
         </div>}
       </details>
+      {kind === "allocations" && <details className="selectionRulesSetup"><summary>Which choices need each other, or cannot go together? <span>Optional selection rules</span></summary>
+        <p>Use the exact candidate names from <strong>{entityName}</strong>, including spaces and capital letters. For example, if choosing <strong>Delivery</strong> also needs <strong>Vehicle</strong>, add that prerequisite. This is a selection rule, not a schedule.</p>
+        <h4>Needs another choice</h4><p>Choosing any quantity of the first candidate requires at least one of the second.</p>
+        {prerequisites.map((rule, index) => <fieldset className="selectionRule" key={index}><legend>Prerequisite {index + 1}</legend><div className="formGrid">
+          <label>Choosing candidate {index + 1}<input required maxLength={200} placeholder="Example: Delivery" value={rule.candidate} onChange={event => { setPrerequisites(prerequisites.map((item, i) => i === index ? { ...item, candidate: event.target.value } : item)); setConfirmed(false); }} /></label>
+          <label>Requires candidate {index + 1}<input required maxLength={200} placeholder="Example: Vehicle" value={rule.requires} onChange={event => { setPrerequisites(prerequisites.map((item, i) => i === index ? { ...item, requires: event.target.value } : item)); setConfirmed(false); }} /></label>
+        </div><button type="button" onClick={() => { setPrerequisites(prerequisites.filter((_, i) => i !== index)); setConfirmed(false); }}>Remove prerequisite {index + 1}</button></fieldset>)}
+        <button type="button" disabled={prerequisites.length >= 40} onClick={() => { setPrerequisites([...prerequisites, { candidate: "", requires: "" }]); setConfirmed(false); }}>Add a prerequisite</button>
+        <h4>Cannot be chosen together</h4><p>At most one of these two candidates can have a quantity above zero.</p>
+        {exclusions.map((rule, index) => <fieldset className="selectionRule" key={index}><legend>Exclusion {index + 1}</legend><div className="formGrid">
+          <label>First excluded candidate {index + 1}<input required maxLength={200} placeholder="Exact candidate name" value={rule.first} onChange={event => { setExclusions(exclusions.map((item, i) => i === index ? { ...item, first: event.target.value } : item)); setConfirmed(false); }} /></label>
+          <label>Second excluded candidate {index + 1}<input required maxLength={200} placeholder="Exact candidate name" value={rule.second} onChange={event => { setExclusions(exclusions.map((item, i) => i === index ? { ...item, second: event.target.value } : item)); setConfirmed(false); }} /></label>
+        </div><button type="button" onClick={() => { setExclusions(exclusions.filter((_, i) => i !== index)); setConfirmed(false); }}>Remove exclusion {index + 1}</button></fieldset>)}
+        <button type="button" disabled={exclusions.length >= 40} onClick={() => { setExclusions([...exclusions, { first: "", second: "" }]); setConfirmed(false); }}>Add an exclusion</button>
+        <p>Names must exist in the included source rows. Duplicate rules, self-rules and circular prerequisites are refused. Conflicting rules stay in place and can make the decision impossible.</p>
+      </details>}
       {kind === "anomalies" ? <p>At least eight complete values per evaluated group; at most 32 groups and 1,000 group/value pairs. Missing or undersized groups are excluded with visible coverage. No seasonal baseline, fraud probability or automatic correction.</p> : <>
-        {resource && <p>The additional limit uses {options.metrics.find(m => m.name === resource)?.unit}. At most 100,000 quantity combinations; reduce candidate ranges if the calculation is refused.</p>}
+        {resource && <p>The additional limit uses {options.metrics.find(m => m.name === resource)?.unit}.</p>}
+        {(resource || prerequisites.length > 0 || exclusions.length > 0) && <p>At most 100,000 quantity combinations; reduce candidate ranges if the calculation is refused.</p>}
         <p>Cost uses {options.metrics.find((m) => m.name === costName)?.unit}; benefit uses {options.metrics.find((m) => m.name === benefitName)?.unit}. Budget and quantum must use the cost unit. All costs must be exact multiples of the quantum.</p>
         <label className="checkLabel"><input type="checkbox" checked={confirmed} required onChange={(e) => setConfirmed(e.target.checked)}/>I confirm fixed per-unit costs and additive linear benefits in a common benefit unit. Any additional resource has fixed additive per-unit use. These are decision assumptions, not proven causal effects.</label>
       </>}
@@ -203,6 +224,11 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
         {!anomaly.findings.length && <p>No values flagged by this method. This does not prove the absence of other anomalies.</p>}
       </>}
       {allocation && <><p>Recommendation: {allocation.status}. Review: {selected.decision_status}; {selected.approval_effective ? "approval applies to the current source" : "no effective current approval"}.</p>
+        {allocation.selection_rules && <section className="savedSelectionRules" aria-label="Saved selection rules"><h4>Rules used for this recommendation</h4>
+          <ul>{allocation.selection_rules.prerequisites.map((rule, index) => <li key={`requires-${index}`}><strong>{rule.candidate}</strong> requires at least one <strong>{rule.requires}</strong>.</li>)}{allocation.selection_rules.exclusions.map((rule, index) => <li key={`excludes-${index}`}><strong>{rule.first}</strong> and <strong>{rule.second}</strong> cannot both be selected.</li>)}</ul>
+          <p>{allocation.status === "feasible" ? "The selected quantities satisfy these rules and the declared limits." : "No quantities satisfy every declared rule and limit. Change an assumption explicitly to try another decision."}</p>
+          {allocation.verification && <details><summary>Constraint verification</summary><dl><div><dt>Quantity bounds</dt><dd>{allocation.verification.quantities}</dd></div><div><dt>Resource limits</dt><dd>{allocation.verification.resources}</dd></div><div><dt>Selection rules</dt><dd>{allocation.verification.selection_rules}</dd></div></dl></details>}
+        </section>}
         <div className="tableWrap"><table><thead><tr><th>Alternative</th><th>Cost</th><th>Conditional benefit</th><th>Feasible</th></tr></thead><tbody><tr><td>Do nothing</td><td>{allocation.baseline.cost}</td><td>{allocation.baseline.benefit}</td><td>{allocation.baseline.feasible ? "Yes" : "No · mandatory minimums"}</td></tr><tr><td>Optimal declared allocation</td><td>{allocation.cost ?? "Unavailable"}</td><td>{allocation.benefit ?? "Unavailable"}</td><td>{allocation.status === "feasible" ? "Yes" : "No"}</td></tr></tbody></table></div>
         {allocation.resource_capacity !== undefined && <p>Additional resource used: {allocation.resource_used ?? "Unavailable"}; available: {allocation.resource_capacity}; remaining: {allocation.unused_resource ?? "Unavailable"}.</p>}
         {allocation.reason && <p>{allocation.reason}</p>}

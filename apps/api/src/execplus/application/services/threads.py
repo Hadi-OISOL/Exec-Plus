@@ -134,7 +134,8 @@ class ThreadService:
             evidence = cast(dict[str, Any], turn.evidence["patterns"])
             if str(turn.query_id) != evidence.get("query_id"):
                 raise IngestionError("lineage_mismatch", "The pattern source is inconsistent.", 409)
-            return PatternAnswer(await patterns.reopen(actor, wid, evidence))
+            restored = await patterns.reopen(actor, wid, evidence)
+            return PatternAnswer(restored, "deterministic:" + restored["result"]["version"])
         data: NumericalAnswer | None = None
         if turn.query_id:
             result, lineage = await self.intent_router.analytics.replay(actor, wid, turn.query_id)

@@ -15,9 +15,16 @@ from execplus.application.services.forecasts import read_complete
 from execplus.domain.decision_analysis import checksum
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.evidence import receipt
+from execplus.domain.group_relationships import EVIDENCE_VERSION as GROUP_EVIDENCE_VERSION
+from execplus.domain.group_relationships import VERSION as GROUP_VERSION
+from execplus.domain.group_relationships import (
+    group_relationship_plan,
+    group_relationship_request,
+    group_relationship_result,
+)
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.jobs import EventStatus, JobStage
-from execplus.domain.models import CalculationLineage
+from execplus.domain.models import CalculationLineage, QueryResult
 from execplus.domain.patterns import VERSION, pattern_plan, pattern_request, pattern_result
 
 EVIDENCE_VERSION = "pattern-evidence-v1"
@@ -40,6 +47,21 @@ class PatternService:
                     "Use the current accepted file before finding new patterns."
                 )
 
+    def _result(
+        self, value: QueryResult, request: dict[str, Any], *, grouped: bool
+    ) -> dict[str, Any]:
+        if grouped:
+            return group_relationship_result(
+                value, request, self.statistics.engine_version, self.statistics.correlations
+            )
+        return pattern_result(
+            value,
+            request,
+            self.statistics.engine_version,
+            self.statistics.correlations,
+            self.statistics.categorical_association,
+        )
+
     async def discover(
         self,
         actor: User,
@@ -47,14 +69,21 @@ class PatternService:
         did: UUID,
         uid: UUID,
         columns: tuple[str, ...] = (),
+        *,
+        group_by: str | None = None,
     ) -> dict[str, Any]:
         self._current(actor, wid, did, uid)
         context, table, scope = await read_complete(
             lambda: self.analytics.descriptive_snapshot(actor, wid, did, uid)
         )
-        request = pattern_request(context, table, columns)
+        grouped = group_by is not None
+        request = (
+            group_relationship_request(context, table, columns, group_by)
+            if group_by is not None
+            else pattern_request(context, table, columns)
+        )
         view = context.view
-        plan = pattern_plan(scope, did, view, request)
+        plan = (group_relationship_plan if grouped else pattern_plan)(scope, did, view, request)
         lineage = CalculationLineage(
             plan.query_id,
             wid,
@@ -66,7 +95,7 @@ class PatternService:
             (),
             (),
             plan.sql,
-            "deterministic:" + VERSION,
+            "deterministic:" + (GROUP_VERSION if grouped else VERSION),
         )
         await read_complete(
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
@@ -83,21 +112,13 @@ class PatternService:
             raise
         self.analytics._persist(actor, replace(lineage, receipt=receipt(plan, view.sources, value)))
         await activity(JobStage.QUERY, EventStatus.COMPLETED)
-        result = await read_complete(
-            lambda: pattern_result(
-                value,
-                request,
-                self.statistics.engine_version,
-                self.statistics.correlations,
-                self.statistics.categorical_association,
-            )
-        )
+        result = await read_complete(lambda: self._result(value, request, grouped=grouped))
         await read_complete(
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
         )
         self._current(actor, wid, did, uid)
         return dict(
-            version=EVIDENCE_VERSION,
+            version=GROUP_EVIDENCE_VERSION if grouped else EVIDENCE_VERSION,
             query_id=str(plan.query_id),
             sources=list(view.sources),
             request=request,
@@ -112,10 +133,12 @@ class PatternService:
             "lineage_mismatch", "The saved pattern evidence is inconsistent.", 409
         )
         try:
-            if evidence["version"] != EVIDENCE_VERSION or evidence["request_checksum"] != checksum(
-                evidence["request"]
-            ):
+            if evidence["version"] not in {
+                EVIDENCE_VERSION,
+                GROUP_EVIDENCE_VERSION,
+            } or evidence["request_checksum"] != checksum(evidence["request"]):
                 raise invalid
+            grouped = evidence["version"] == GROUP_EVIDENCE_VERSION
             if evidence["engine_version"] != self.statistics.engine_version:
                 raise IngestionError(
                     "pattern_engine_changed",
@@ -133,11 +156,23 @@ class PatternService:
             _, scope, table, view = await read_complete(
                 lambda: self.analytics.context_at(actor, wid, source)
             )
-            request = pattern_request(context, table, tuple(evidence["request"]["selected"]))
+            request = (
+                group_relationship_request(
+                    context,
+                    table,
+                    tuple(evidence["request"]["selected"]),
+                    evidence["request"]["group_by"],
+                )
+                if grouped
+                else pattern_request(context, table, tuple(evidence["request"]["selected"]))
+            )
             if request != evidence["request"]:
                 raise invalid
             qid = UUID(evidence["query_id"])
-            plan = replace(pattern_plan(scope, did, view, request), query_id=qid)
+            plan = replace(
+                (group_relationship_plan if grouped else pattern_plan)(scope, did, view, request),
+                query_id=qid,
+            )
             with self.uow() as repo:
                 repo.membership(wid, actor.id)
                 record = repo.query_execution(wid, qid)
@@ -157,15 +192,7 @@ class PatternService:
                 ):
                     raise invalid
             value, _ = await self.analytics.replay(actor, wid, qid)
-            result = await read_complete(
-                lambda: pattern_result(
-                    value,
-                    request,
-                    self.statistics.engine_version,
-                    self.statistics.correlations,
-                    self.statistics.categorical_association,
-                )
-            )
+            result = await read_complete(lambda: self._result(value, request, grouped=grouped))
             if result != evidence["result"] or checksum(result) != evidence["result_checksum"]:
                 raise invalid
             with self.uow() as repo:

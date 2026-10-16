@@ -74,3 +74,45 @@ test("weak measured comparisons stay separate from screened findings and retain 
   assert.match(html, /Straight-line relationship<\/dt><dd>-0\.120000/);
   assert.doesNotMatch(html, /Here is what stands out|Move together/);
 });
+
+const grouped = {
+  version: "group-relationship-comparison-v1", engine_version: "fixture", status: "compared", columns: ["amount", "response"], group_by: "region", units: { amount: "PKR", response: "mm" },
+  pooled: { support: 45, statistics: { pearson: "-0.900001", spearman: "-0.880000" }, directions: { pearson: "negative", spearman: "negative" }, chart: { kind: "scatter", x: "amount", y: "response", points: [{ x: "9007199254740993.000001", y: "-0.0000000000001", group: "<North>" }] }, notes: ["Every covered row contributes once."] },
+  groups: [
+    { id: "north", label: "<North>", rows: 20, complete_pairs: 20, excluded_pairs: 0, status: "eligible", statistics: { pearson: "0.700001", spearman: "0.880000" }, directions: { pearson: "positive", spearman: "positive" } },
+    { id: "south", label: "South", rows: 27, complete_pairs: 25, excluded_pairs: 2, status: "eligible", statistics: { pearson: null, spearman: "0.120001" }, directions: { pearson: "unavailable", spearman: "weak" } },
+    { id: "sparse", label: "Small group", rows: 3, complete_pairs: 3, excluded_pairs: 0, status: "sparse", statistics: null, directions: null },
+  ],
+  comparisons: { pearson: { reversal_groups: ["<North>"], same_direction_groups: [], weak_groups: [], unavailable_groups: ["South"] }, spearman: { reversal_groups: ["<North>"], same_direction_groups: [], weak_groups: ["South"], unavailable_groups: [] } },
+  coverage: { source_rows: 50, filtered_rows: 50, covered_rows: 45, excluded_rows: 5, missing_category_rows: 0, missing_pair_rows: 2, sparse_group_rows: 3, constant_group_rows: 0, unstable_group_rows: 0, observed_groups: 3, eligible_groups: 2 },
+  limitations: ["Observed associations, not causes."], exclusions: [],
+};
+
+test("group comparisons preserve exact scores, source values and excluded coverage without causal claims", () => {
+  const html = render(grouped);
+  assert.match(html, /The combined view can hide a different direction/);
+  assert.match(html, /Straight-line direction reverses here/);
+  assert.match(html, /Rank direction reverses here/);
+  assert.match(html, /-0\.900001/);
+  assert.match(html, /9007199254740993\.000001/);
+  assert.match(html, /-0\.0000000000001/);
+  assert.match(html, /&lt;North&gt;/);
+  assert.doesNotMatch(html, /<North>|cx="NaN"|cy="NaN"/);
+  assert.match(html, /Rows left out<\/dt><dd>5/);
+  assert.match(html, /Small group<\/strong>: Fewer than 20 complete pairs/);
+  assert.match(html, /Source receipt: private-receipt/);
+  assert.match(html, /They do not show that one measure causes the other/);
+  assert.doesNotMatch(html, /<details[^>]+open/);
+});
+
+test("weak, unavailable and insufficient group comparisons do not fabricate reversals or pooled scores", () => {
+  const weak = render({ ...grouped, comparisons: { pearson: { reversal_groups: [] }, spearman: { reversal_groups: [] } } });
+  assert.match(weak, /Read both views before drawing a conclusion/);
+  assert.match(weak, /Unavailable/);
+  assert.match(weak, /No clear direction/);
+  assert.doesNotMatch(weak, /direction reverses here/);
+  const sparse = render({ ...grouped, status: "insufficient_data", pooled: null, groups: [grouped.groups[2]] });
+  assert.match(sparse, /More comparable groups are needed/);
+  assert.match(sparse, /No combined relationship is claimed/);
+  assert.doesNotMatch(sparse, /All included groups together|class="relationshipScore"|-0\.900001/);
+});

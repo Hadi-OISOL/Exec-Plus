@@ -36,6 +36,7 @@ class AnalysisPlan:
     def __post_init__(self) -> None:
         policies = {
             "explore_patterns": ("patterns", "analysis_receipt"),
+            "compare_group_relationship": ("patterns", "analysis_receipt"),
             "inspect_profile": ("profile", "source_checksum"),
             "query": ("query_result", "execution_receipt"),
             "retrieve_documents": ("citations", "authorized_citation_checksum"),
@@ -86,6 +87,7 @@ class AnalysisPlan:
                 self._invalid()
             expected = {
                 "explore_patterns": {"columns"},
+                "compare_group_relationship": {"columns", "group_by"},
                 "inspect_profile": {"columns", "focus"},
                 "query": {"kind", "plan"},
                 "retrieve_documents": {"query"},
@@ -96,7 +98,10 @@ class AnalysisPlan:
             self._parameters(step)
             seen.add(step.id)
         if (
-            sum(s.operation in {"query", "explore_patterns"} for s in self.steps)
+            sum(
+                s.operation in {"query", "explore_patterns", "compare_group_relationship"}
+                for s in self.steps
+            )
             > self.budget.max_queries
         ):
             self._invalid()
@@ -112,13 +117,20 @@ class AnalysisPlan:
 
     def _parameters(self, step: AnalysisStep) -> None:
         values = step.parameters
-        if step.operation == "explore_patterns":
+        if step.operation in {"explore_patterns", "compare_group_relationship"}:
             columns = values["columns"]
             if (
                 not isinstance(columns, list)
                 or len(columns) > 12
                 or not all(isinstance(name, str) and 0 < len(name) <= 200 for name in columns)
                 or len(set(columns)) != len(columns)
+            ):
+                self._invalid()
+            if step.operation == "compare_group_relationship" and (
+                len(columns) != 2
+                or not isinstance(values["group_by"], str)
+                or not 0 < len(values["group_by"]) <= 200
+                or values["group_by"] in columns
             ):
                 self._invalid()
         elif step.operation == "inspect_profile":
@@ -252,7 +264,10 @@ def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...])
 
 
 def pattern_conversation_plan(
-    columns: tuple[str, ...], sources: tuple[dict[str, str], ...]
+    columns: tuple[str, ...],
+    sources: tuple[dict[str, str], ...],
+    *,
+    group_by: str | None = None,
 ) -> AnalysisPlan:
     return AnalysisPlan(
         "conversation-plan-v1",
@@ -260,9 +275,12 @@ def pattern_conversation_plan(
         (
             AnalysisStep(
                 "patterns",
-                "explore_patterns",
+                "compare_group_relationship" if group_by is not None else "explore_patterns",
                 (),
-                {"columns": list(columns)},
+                {
+                    "columns": list(columns),
+                    **({"group_by": group_by} if group_by is not None else {}),
+                },
                 "patterns",
                 "analysis_receipt",
             ),

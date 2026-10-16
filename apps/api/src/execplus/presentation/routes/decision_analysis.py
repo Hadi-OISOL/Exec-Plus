@@ -53,6 +53,16 @@ class QuantityBound(Input):
     maximum: int = Field(ge=0, le=10, strict=True)
 
 
+class Prerequisite(Input):
+    candidate: str = Field(min_length=1, max_length=200)
+    requires: str = Field(min_length=1, max_length=200)
+
+
+class Exclusion(Input):
+    first: str = Field(min_length=1, max_length=200)
+    second: str = Field(min_length=1, max_length=200)
+
+
 class AllocationInput(SourceInput):
     kind: Literal["bounded_allocation"] = "bounded_allocation"
     entity_column: str = Field(min_length=1, max_length=200)
@@ -65,6 +75,8 @@ class AllocationInput(SourceInput):
     assumptions_confirmed: Literal[True]
     resource_column: str | None = Field(default=None, min_length=1, max_length=200)
     resource_capacity: str | None = Field(default=None, min_length=1, max_length=100)
+    prerequisites: list[Prerequisite] = Field(default_factory=list, max_length=40)
+    exclusions: list[Exclusion] = Field(default_factory=list, max_length=40)
 
     @model_validator(mode="after")
     def paired_resource(self) -> "AllocationInput":
@@ -164,9 +176,12 @@ async def allocations(
     actor: Actor,
     analyses: Service,
 ) -> object:
-    return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-    )
+    raw = body.model_dump(mode="json")
+    if not body.prerequisites and not body.exclusions:
+        # New optional defaults must not alter the retained legacy request contract.
+        raw.pop("prerequisites")
+        raw.pop("exclusions")
+    return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
 
 
 @router.get(RUNS)

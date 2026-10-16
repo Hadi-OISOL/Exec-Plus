@@ -4,11 +4,13 @@ What it does: Starts real conversations and opens saved work without inventing r
 import { useEffect, useState } from "react";
 import { Icon } from "./explore-components";
 import type { ApiRequest } from "./profile-panel";
+import { GroupRelationshipForm } from "./group-relationship-form";
 
 type SavedItem = { id: string; name: string; kind: string; shared: boolean };
 type DataContext = {
   state: string;
-  definition: { description: string };
+  definition: { description: string; columns: { name: string; role: string; unit: string; currency: string; unit_column: string }[] };
+  column_types: Record<string, string>;
   preference: { goal: string };
 };
 
@@ -102,6 +104,7 @@ export function AnalyticsHome({
         </button>)}
         <button type="button" onClick={() => onNavigate("forecasts")}><Icon name="forecasts" size={14} />Explore forecasts</button>
       </div>
+      {meaning && <GroupRelationshipForm key={root} understanding={meaning} onAsk={onAsk} onReview={onReview} />}
       {meaning && (meaning.definition.description || meaning.preference.goal) ?
         <section className="homeDataContext" aria-label="Saved context for this data">
           <header>
