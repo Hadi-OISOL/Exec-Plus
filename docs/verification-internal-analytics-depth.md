@@ -4,9 +4,7 @@
 # Verification — internal analytics depth and cross-feature reliability
 
 Scope: phases three and four of [the saved plan](clean-experience-plan.md), with
-[versioned method contracts](internal-analytics-depth.md). Verification is in
-progress; the private demo still runs the previous release until activation below
-is recorded. Schema remains 0017. The 64 feature IDs, 37 Done / 16 Partial / 11 Not
+[versioned method contracts](internal-analytics-depth.md). Both bounded phases are complete for local/test and the private demo at dfddb8c. Schema remains 0017. The 64 feature IDs, 37 Done / 16 Partial / 11 Not
 yet counts and eight blocked production gates are unchanged.
 
 ## Numerical and cross-feature evidence
@@ -103,7 +101,14 @@ A native disabled option needed a DOM-property assertion because Playwright
 reported the rendered disabled option as enabled. No product validity check was
 removed. Narrow-screen evidence tables have bounded scrolling, oversized generated
 questions are blocked explicitly, and the result labels distinguish usable rows
-from an available pooled comparison. Broader browser/build checks are pending.
+from an available pooled comparison. The full offline browser suite then passes **51 journeys**, with **three explicit
+live-model skips**, zero failures, in 5.8 minutes. These skips are not claimed as
+passes. The new group/rule journeys cover upload, explicit meaning confirmation,
+selected inputs, execution, private saved reopening, keyboard and reduced motion
+at 1440/390/320 widths. Viewport screenshot inspection confirms readable coverage,
+pooled/within-group scores and rule cards. Initial tall element screenshots were
+clipped by the existing chat scroller; corrected viewport captures are retained.
+The final local and VPS production builds both pass.
 
 Initial static checks exposed local annotation issues in
 the router and new workload script; corrected mypy passes all 174 source files.
@@ -114,8 +119,49 @@ containers, zero restarts, migration 0017, web/readiness 200, six loopback liste
 active model/refresh/backup units and zero application-error lines in the inspected
 30-minute window. Inspection caused no restart. Pre-release backup **20261016T044108Z** passes both
 database/object archive checksums and restarts services successfully. This proves
-archive integrity, not current-version restore or off-server recovery. Candidate
-build, activation fingerprints, live journeys and post-release state remain pending.
+archive integrity, not current-version restore or off-server recovery.
+API/web candidate **dfddb8c** builds pass. The non-root, read-only, network-disabled
+image passes eight prior exact/forecast computations, the three earlier extensions,
+eight pattern/daily computations and 48 new group/rule computations across eight
+workers. Application **dfddb8c** is activated on unchanged **0017** under the
+maintenance lock. All **47 table fingerprint entries** and the environment-file
+checksum match before/after activation. Source/images checkpoint:
+`pre-dfddb8c-20261016`. Activated runtime has five running containers with zero
+restarts, web/readiness 200, six loopback listeners, active model/timers and no
+application-error lines in the checked thirty-minute window.
+
+Deployed API verification passes in **179.936 seconds**: eight fictional actors,
+eight durable group jobs, eight rule allocations, eight approvals/review reopens,
+sixteen exact receipt replays, **224 cross-actor privacy denials** and sixteen
+authorized shared-source controls. The shared forty-row fixture returns pooled
+Pearson −0.973749 / Spearman −0.500938 while both groups return +1, and the exact
+constrained choices retain their rules and resource limits. The original farm
+bytes/profile/definitions/revision history and fictional source snapshots match
+before/after. Old ordinary, pattern, forecast, scenario and October 15 reading
+evidence reopen. A fresh configured hosted response uses the saved private goal
+and reopens immutably with route `hosted:deepseek-v4-pro:dataset-reading-v1`; it is
+accepted model output, not a fallback counted as model success.
+
+This is functional evidence, not representative model-quality or sustained-load
+acceptance. Both deployed browser journeys pass on their first execution in
+**49.8 seconds**, across six 1440/390/320 layouts with zero page errors. They check
+the keyboard chooser, saved reversal, exact forty-row chart table, reduced motion,
+context retention, saved rules, exact cost 3 / benefit 9 / resource use 2, two
+retained reviews, verification disclosure and replay. Viewport screenshots are
+readable without page overflow. The actual farm and fictional source snapshots
+still match after browser verification. No live API/browser harness failure
+occurred. Checked post-release backup **20261016T050051Z** preserves the new saved
+work; database/object archive checksums pass and services restart successfully.
+Final readiness and workspace return HTTP 200; migration remains 0017, all five
+containers run with zero restarts, all six listeners remain loopback, model/refresh/
+backup units are active and the checked thirty-minute application log has zero
+error lines. Preserve all new results and
+reviews when rolling back application code; no database restore or migration
+downgrade occurred.
+
+The absent independent demo tunnel was restored. Demo1 authentication then returned
+401; only that expired account was renewed privately for eight hours. Other account
+records/sessions remain intact, and the token file/key retain mode 0600.
 
 ## Evidence and limits
 
@@ -126,3 +172,7 @@ private keys or generated reports are published. Public reference work from the
 October 15 audit is reused; no new REA capture or competitor-backend access is
 claimed. Broader causal/predictive methods, external integrations, representative
 evaluation and production operations remain open.
+
+The maintained audit and October 16 Desktop DOCX preserve all 64 original IDs
+and counts 37 Done / 16 Partial / 11 Not yet. All eight production gates remain
+blocked on a fresh preflight. The user-supplied October 13 PDF is untouched.

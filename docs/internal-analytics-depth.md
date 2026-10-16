@@ -110,6 +110,11 @@ the complete canonical form and known distinct field names. Other grouped phrasi
 or appended row restrictions clarifies rather than silently discarding the request's
 scope. This slice does not introduce a general natural-language grouped-query parser.
 
+The existing chat action labelled “Generate AI summary” still summarizes dataset
+insights; it is not a narrative of the currently visible grouped comparison. The
+group result supplies its own deterministic explanation. Clarifying that older
+action label is a small follow-up usability improvement.
+
 The envelope binds source/revision/confirmed meaning, request, engine version,
 private query ID and checksums. Reopening reconstructs the governed request,
 reauthorizes the source, checks owner-only receipt access, replays typed evidence,

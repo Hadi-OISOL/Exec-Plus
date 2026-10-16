@@ -17,17 +17,21 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 
 ## October 16 — Internal analytics depth and cross-feature reliability
 
-**Status:** In progress; local methods, fixed evaluation and paired workload pass;
-full browser/build/private-release verification in progress.
+**Status:** Complete for the bounded local/test and private-demo phases.
+Application `dfddb8c` runs on unchanged 0017.
 The user authorized continuing phases three and four of the
 [four-phase plan](docs/clean-experience-plan.md). The new comparison checks pooled
 and within-group relationships on identical covered rows. Explicit allocation
 prerequisites/exclusions retain exact quantities and both resource limits.
 [Contracts](docs/internal-analytics-depth.md) declare bounds, exclusions and limits.
 
-The fixed internal evaluation passes 18 named cases / 42 exact checks. Numerical
-oracles, end-to-end journeys and a paired local eight-user workload supply bounded
-evidence; final results belong in the
+Evidence: 1,300 backend and 29 frontend cases pass; the full offline browser run
+has 51 passes and three explicit model-dependent skips. The fixed evaluation
+passes 18 named cases / 42 checks, and a paired local eight-user workload passes
+144 before / 208 after requests. Deployed eight-actor analysis/privacy/old-evidence
+checks, a fresh hosted reading and two browser journeys pass with source data
+preserved. Builds and restricted-image checks pass; details and retained failures
+belong in the
 [verification ledger](docs/verification-internal-analytics-depth.md).
 This adds no causal interpretation, external action, integration, provider or
 schema change. All 64 original IDs, counts 37/16/11 and eight blocked production

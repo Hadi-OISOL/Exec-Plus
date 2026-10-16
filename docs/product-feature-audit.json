@@ -1,7 +1,7 @@
 {
   "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
-  "date": "2026-10-15",
+  "date": "2026-10-16",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
   "rows": [
     {
@@ -557,16 +557,19 @@
       "section": "Growth-plan features",
       "feature": "Variance and root-cause analysis",
       "status": "partial",
-      "note": "Shows exact changes over time or between files, plus which groups contributed to a change. It does not prove the business cause.",
+      "note": "Shows exact changes and contributing groups, plus pooled-versus-within-group relationships on identical covered rows. These are descriptive differences and associations; business causes remain unproven.",
       "evidence": [
         "apps/api/src/execplus/domain/refresh.py",
         "apps/api/src/execplus/application/services/monitoring.py",
         "apps/api/tests/test_refresh.py",
-        "docs/phase4-refresh-monitoring.md"
+        "docs/phase4-refresh-monitoring.md",
+        "docs/internal-analytics-depth.md",
+        "docs/verification-internal-analytics-depth.md"
       ],
       "roadmap": "4B delivered descriptive drivers; advanced causal methods remain Phase 6",
       "evidence_groups": [
-        "E5"
+        "E5",
+        "E22"
       ]
     },
     {
@@ -762,17 +765,20 @@
       "section": "Commercial readiness",
       "feature": "AI-response evaluation",
       "status": "partial",
-      "note": "Repeatable demo and public-data AI tests exist, with failures retained. Representative customer-data targets and production model/provider comparisons are still unfinished.",
+      "note": "Repeatable demo/public-data tests and 18 named internal failure cases (42 exact checks) retain failures. Representative customer labels and production model/provider comparisons remain unfinished.",
       "evidence": [
         "scripts/evaluate_demo_model.py",
         "scripts/evaluate_data_partner.py",
         "apps/api/tests/test_demo_readiness.py",
         "docs/verification-data-partner.md",
-        "docs/production-readiness.json"
+        "docs/production-readiness.json",
+        "docs/internal-analytics-depth.md",
+        "docs/verification-internal-analytics-depth.md"
       ],
       "roadmap": "Phase 5 production evaluation gates",
       "evidence_groups": [
-        "E7"
+        "E7",
+        "E22"
       ]
     },
     {
@@ -871,14 +877,17 @@
       "section": "Commercial readiness",
       "feature": "Performance optimization",
       "status": "partial",
-      "note": "Local overview median improved from 1,934.907 to 241.882 ms on the 100k-per-table fixture; initial JavaScript gzip fell 7.64%. Representative sustained alpha workloads and broader performance acceptance remain open.",
+      "note": "Earlier local overview median improved from 1,934.907 to 241.882 ms on the 100k-per-table fixture; initial JavaScript gzip fell 7.64%. A new declared eight-user analysis workload passes before/after checks, without a general speedup claim. Representative sustained workloads remain open.",
       "evidence": [
         "docs/verification-operations.md",
-        "docs/operations-console-support.md"
+        "docs/operations-console-support.md",
+        "docs/internal-analytics-depth.md",
+        "docs/verification-internal-analytics-depth.md"
       ],
       "roadmap": "Measured optimization delivered; representative sustained-load/alpha performance acceptance remains open.",
       "evidence_groups": [
-        "E12"
+        "E12",
+        "E22"
       ]
     },
     {
@@ -1027,7 +1036,7 @@
       "section": "Integration with other Solutions",
       "feature": "Prescriptive recommendations",
       "status": "partial",
-      "note": "Private demo: exact bounded allocation can respect a second resource limit as well as budget and quantity bounds. Broader business modules, larger solvers and causal validation remain unfinished. No external action executes.",
+      "note": "Private demo: exact bounded allocation supports budget, a second resource, quantity bounds, explicit prerequisites and exclusions with independently checked selected quantities. Business modules, larger solvers and validated action effects remain unfinished. No external action executes.",
       "evidence": [
         "docs/decision-analysis.md",
         "docs/verification-decision-analysis.md",
@@ -1036,12 +1045,15 @@
         "docs/analysis-extensions.md",
         "docs/verification-analysis-extensions.md",
         "apps/api/tests/test_analysis_extensions_integration.py",
-        "apps/web/e2e/analysis-extensions.spec.ts"
+        "apps/web/e2e/analysis-extensions.spec.ts",
+        "docs/internal-analytics-depth.md",
+        "docs/verification-internal-analytics-depth.md"
       ],
-      "roadmap": "October 14 bounded local/test and private-demo extension verified; broader Phase 6 remains Frozen",
+      "roadmap": "October 16 bounded local/test and private-demo extension verified; broader Phase 6 remains Frozen",
       "evidence_groups": [
         "E14",
-        "E18"
+        "E18",
+        "E22"
       ]
     },
     {
@@ -1301,6 +1313,16 @@
         "docs/clean-experience.md",
         "docs/clean-experience-plan.md"
       ]
+    ],
+    "E22": [
+      "Grouped relationships, selection rules and internal evaluation",
+      [
+        "docs/internal-analytics-depth.md",
+        "docs/verification-internal-analytics-depth.md",
+        "docs/analysis-evaluation-cases.json",
+        "scripts/check_analysis_evaluation.py",
+        "scripts/measure_analysis_workload.py"
+      ]
     ]
   },
   "section_intros": {
@@ -1434,8 +1456,8 @@
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "phase2 now includes phase3 data-reading commit 2a93080. October 14 private release 8ffdf5d adds grouped anomalies, compound scenarios and a second allocation resource on unchanged schema 0017.",
-    "p25": "October 14 local/test: 1,046 full backend cases plus rechecks give 1,050 distinct passes; 19 frontend tests, seven selected browser journeys, static checks and web build pass. Clean-image and live-provider browser checks pass on the private VPS; eight production gates remain blocked. [E18]",
+    "p24": "October 16 application dfddb8c adds pooled/within-group comparisons and exact allocation prerequisites/exclusions on unchanged schema 0017. The personal phase2 branch already includes phase3 data-reading commit 2a93080.",
+    "p25": "October 16: 1,300 backend cases, 29 frontend tests and 18 fixed evaluation cases / 42 checks pass. Full offline browser run: 51 pass, 3 explicit model-dependent skips. Paired eight-user workload, local/VPS builds, eight-actor deployed privacy/replay checks, a fresh hosted reading and two live browser journeys pass. Eight production gates remain blocked. [E22]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

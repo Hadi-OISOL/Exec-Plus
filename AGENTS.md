@@ -36,6 +36,54 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 16 — Group comparisons, selection rules and fixed evaluation
+
+- The user authorized continuing the remaining clean-experience phases. All four
+  bounded phases are now complete for local/test and the private demo. Application
+  `dfddb8c` runs on unchanged **0017**. Read `docs/internal-analytics-depth.md`,
+  `docs/verification-internal-analytics-depth.md` and the completed
+  `docs/clean-experience-plan.md` before extending this work.
+- Compare groups takes two confirmed fixed-unit measures and one category. Pooled
+  and within-group Pearson/Spearman scores use identical covered rows; missing,
+  sparse, constant and unstable groups are explicit. Bounds: 10,000 matching rows,
+  twelve groups, twenty complete varying pairs per group and two eligible groups.
+  The 0.5 direction threshold is a display rule, not significance or causality.
+  A canonical chooser request fits the existing 500-character question limit;
+  ambiguous/filtered phrasing clarifies. Old pattern evidence remains unchanged.
+- Allocation adds explicit prerequisites and exclusions for up to twenty actions,
+  both existing resource limits and at most 100,000 quantity combinations. Cycles
+  are refused. Exact enumeration supplies the bounded optimum; a separate checker
+  verifies selected quantities, totals and rules, not a second optimality proof.
+  Old request/result methods, private ownership, source guards and reviews remain.
+- Evidence: **1,300** full backend/architecture passes, **29** frontend tests,
+  Ruff/mypy (174 files), types/lint and local/VPS builds. Full offline browser run:
+  **51 passes / three explicit model-dependent skips / zero failures**. Fixed
+  evaluation: eighteen named cases / forty-two checks, all passing. Independent
+  rational/numerical fixtures and 48 new restricted-image computations pass.
+  Initial fixture/selector/static issues and the saved method-route repair are
+  retained in the ledger; three skipped journeys are not counted as passes.
+- The declared eight-user local workload passes 144 before / 208 after requests,
+  with exact answers and no errors. Common elapsed time is 6.068 / 5.241 seconds,
+  but a single short pair with mixed step timings proves no general speedup.
+  The fixed evaluation and workload remain fictional internal evidence.
+- Deployed checks: eight actors, eight group jobs, eight rule allocations, sixteen
+  exact replays, 224 private denials and sixteen authorized controls pass. A fresh
+  hosted reading uses saved private context and reopens; old ordinary/pattern/
+  forecast/scenario/October15-reading evidence remains compatible. Two browser
+  journeys pass six 1440/390/320 layouts in 49.8 seconds with zero page errors.
+  Actual farm bytes, meanings and metadata remain unchanged.
+- All 47 activation table fingerprints and configuration checksum match.
+  Checkpoint: `pre-dfddb8c-20261016`; checked pre-release backup:
+  `20261016T044108Z`; checked post-release backup: `20261016T050051Z`.
+  Preserve every new saved result/review on rollback. The independent demo tunnel
+  is restored and only expired demo1 was renewed; teammates were not revoked.
+- No provider, dependency, schema or network-exposure change. All 64 original IDs,
+  **37 Done / 16 Partial / 11 Not yet** and eight blocked production gates remain.
+  Broader scenario/anomaly/decision methods, exports/connectors and representative
+  acceptance remain open. No additional work is scheduled automatically. Small
+  follow-up: the existing “Generate AI summary” action summarizes dataset insights,
+  not the selected grouped result; its label could state that scope more clearly.
+
 ### October 15 — Focused experience and reliable reading
 
 - The user requested four improvement phases: deliver the first two now, retain

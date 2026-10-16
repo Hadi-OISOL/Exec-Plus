@@ -18,6 +18,17 @@ reproducible computation, an inspectable result and a human decision. Methods ca
 expand independently; a single detector or solver must not be advertised as
 working for every dataset or business problem.
 
+## Subsequent bounded deliveries
+
+October 14 added grouped MAD/IQR, compound scenarios, a second allocation resource,
+measured relationships and explicit daily assumptions. October 16 adds pooled and
+within-group comparisons, allocation prerequisites/exclusions, and fixed internal
+evaluation/workload evidence. See [the latest contracts](internal-analytics-depth.md)
+and [verification](verification-internal-analytics-depth.md). These deliveries use
+bounded exact enumeration, not CP-SAT. Time scheduling, larger/general solvers,
+advanced anomaly/scenario methods and representative validation remain research
+work. The historical baseline and broader plan below remain contextual.
+
 ## Verified feature baseline from October 10
 
 The supplied Desktop `ExecPlus_VC_Feature_Report_2026-10-10.docx` has 64 feature IDs.

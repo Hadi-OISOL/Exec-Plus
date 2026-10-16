@@ -12,8 +12,8 @@ acceptance requirements. The original 64 feature IDs remain the source of truth.
 | --- | --- | --- | --- |
 | 1 — Focused experience | Separate Home, reading, definition review and conversation; retain drafts on Back; show one primary task; responsive charts, finite transitions and honest loading states. | Existing navigation and saved work remain available; desktop and narrow screens pass; keyboard/reduced-motion behavior and exact chart/table values are preserved. | Complete for local/test and private demo, October 15 |
 | 2 — Reliable understanding | Supply saved descriptions, meanings and units to the current model; preserve answered definitions; allow one bounded correction for invalid qualitative readings; ask for an actual missing detail; recheck source and permissions before returning. | Invalid/slow/provider failures recover safely; no invented numbers or automatic confirmation; retry respects budgets; changed context is rejected; actual hosted reading and saved replay pass. | Complete for local/test and private demo, October 15 |
-| 3 — Internal analytics depth | Add a pooled-versus-within-group relationship comparison for 33 and explicit allocation prerequisites/exclusions for 59. Preserve current daily what-if, grouped anomaly baselines and exact allocation. Broader 57/58 methods remain separately sequenced in the research plan. | Independent numerical fixtures, sparse/degenerate/infeasible cases, exact receipts, compatibility and owner privacy. Causal or predictive claims require separate evidence. | Implemented; final verification and private release in progress, October 16 |
-| 4 — Cross-feature reliability | Exercise upload → meaning → question → tool → saved result, create a fixed internal failure-case set and measure a declared local eight-user workload. Improve bottlenecks only when measured. | Document failures, recovery and performance on declared fixtures; preserve source data and existing work. Representative human-labelled evaluation and sustained production acceptance remain open. | Fixed evaluation and paired workload pass; full browser/release verification in progress, October 16 |
+| 3 — Internal analytics depth | Add a pooled-versus-within-group relationship comparison for 33 and explicit allocation prerequisites/exclusions for 59. Preserve current daily what-if, grouped anomaly baselines and exact allocation. Broader 57/58 methods remain separately sequenced in the research plan. | Independent numerical fixtures, sparse/degenerate/infeasible cases, exact receipts, compatibility and owner privacy. Causal or predictive claims require separate evidence. | Complete for local/test and private demo, October 16 |
+| 4 — Cross-feature reliability | Exercise upload → meaning → question → tool → saved result, create a fixed internal failure-case set and measure a declared local eight-user workload. Improve bottlenecks only when measured. | Document failures, recovery and performance on declared fixtures; preserve source data and existing work. Representative human-labelled evaluation and sustained production acceptance remain open. | Complete for declared internal evaluation and private-demo scope, October 16 |
 
 ## Feature mapping
 
@@ -72,3 +72,12 @@ source data and configuration fingerprints, test the hosted model and old saved
 work, then record evidence and remaining limitations. All eight production gates
 and the 37 Done / 16 Partial / 11 Not yet counts remain unchanged unless their
 documented acceptance criteria are independently satisfied.
+
+## October 16 completion
+
+Phases three and four are delivered at `dfddb8c`. Read
+[the method contracts](internal-analytics-depth.md) and
+[the verification ledger](verification-internal-analytics-depth.md). All four
+bounded phases are now complete. Broader analytical methods, external
+integrations and representative production acceptance remain separately planned;
+no additional phase or automatic schedule is started by this completion.
