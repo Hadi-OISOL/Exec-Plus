@@ -2,6 +2,8 @@
 What it does: Displays profiles, quality explanations, previews, mapping, and reversible history. */
 
 import { useEffect, useState } from "react";
+import { Icon } from "./explore-components";
+import styles from "./prepare-profile.module.css";
 
 export type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
 type Column = {
@@ -75,6 +77,7 @@ export function ProfilePanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [refreshNeeded, setRefreshNeeded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     request<Revision>(`${root}/profile`)
@@ -113,51 +116,98 @@ export function ProfilePanel({
     setStep(value);
     setPreview(null);
   }
-  async function refresh() {
-    setActive(await request<Revision>(`${root}/profile`));
-    setHistory(await request<Revision[]>(`${root}/revisions`));
+  async function refresh(notifyChange = true) {
+    const [revision, revisions] = await Promise.all([
+      request<Revision>(`${root}/profile`),
+      request<Revision[]>(`${root}/revisions`),
+    ]);
+    setActive(revision);
+    setHistory(revisions);
     setPreview(null);
     setStep(emptyStep);
-    onRevisionChange?.();
+    setRefreshNeeded(false);
+    if (notifyChange) onRevisionChange?.();
   }
+  async function afterMutation(message: string) {
+    setPreview(null);
+    setStep(emptyStep);
+    setRefreshNeeded(true);
+    setNotice(message);
+    onRevisionChange?.();
+    try {
+      await refresh(false);
+    } catch {
+      throw new Error("Your change was saved, but the latest profile could not be loaded. Reload the profile before making another change.");
+    }
+  }
+  const flagged = active?.profile.quality_checks.filter(check => check.count > 0) ?? [];
+  const checkLabels: Record<string, string> = {
+    missing_values: "Missing values",
+    duplicate_rows: "Repeated rows",
+    type_conflicts: "Mixed data types",
+    invalid_dates: "Invalid dates",
+    unsupported_structures: "Unsupported structure",
+  };
   return (
-    <section className="panel profilePanel" aria-label="Dataset profile">
-      <h2>6. Understand your data</h2>
+    <section className={`panel profilePanel ${styles.profile}`} aria-label="Dataset profile">
+      <header className={styles.heading}>
+        <span className={styles.headingIcon}><Icon name="prepare" size={24} /></span>
+        <div><p className={styles.eyebrow}>A GOOD FOUNDATION</p><h2>Know your file. Find your next step.</h2></div>
+      </header>
       {error && (
         <p role="alert" aria-label="Profile error" className="errorNotice">
           {error}{" "}
-          <button onClick={() => void run(refresh)} disabled={busy}>
+          <button onClick={() => void run(() => refresh())} disabled={busy}>
             Reload profile
           </button>
         </p>
       )}
-      <p aria-live="polite">{busy ? "Checking your data…" : notice}</p>
+      <p className={styles.notice} aria-live="polite">{busy ? "Checking your data…" : notice}</p>
       {!active ? (
         <p>Loading profile…</p>
       ) : (
         <>
-          <p>
-            <strong>
-              {active.profile.row_count} rows · {active.profile.column_count}{" "}
-              columns
-            </strong>
-          </p>
-          {onUnderstand && (
-            <p>
-              <button type="button" onClick={onUnderstand}>
-                Check what ExecPlus understood about this data
+          <div className={styles.overview}>
+            <div className={styles.snapshot}>
+              <p className={styles.eyebrow}>{refreshNeeded ? "LAST LOADED VERSION" : "YOUR ACTIVE DATA"}</p>
+              <p className={styles.dimensions}>{active.profile.row_count} rows · {active.profile.column_count} columns</p>
+              <p>{refreshNeeded ? "Reload to see your saved changes. Your original upload is retained." : "You’re viewing the active version. Your original upload is retained."}</p>
+              <div className={styles.score}>
+                <span>File consistency <strong>{active.profile.quality_score}<small>/100</small></strong></span>
+                <p>Checks file structure, not business accuracy or readiness for every analysis.</p>
+              </div>
+            </div>
+            {onUnderstand && <aside className={styles.nextStep} aria-label="Understand this file">
+              <span className={styles.eyebrow}>THE NEXT STEP</span>
+              <h3>Review what we know.</h3>
+              <p>See what ExecPlus understands about this file and review anything missing.</p>
+              <button type="button" onClick={onUnderstand} disabled={busy || refreshNeeded}>
+                Review data meaning <Icon name="arrow" size={18} />
               </button>
-            </p>
-          )}
-          <p className="qualityScore">
-            Quality score: <strong>{active.profile.quality_score}/100</strong>
-          </p>
-          <p>
-            The score checks completeness, exact duplicate rows, numeric or
-            boolean type conflicts, dates and supported structure with equal
-            weight. It describes consistency, not business accuracy.
-          </p>
-          <ul>
+              <span className={styles.nextStepNote}>Your saved answers stay in place.</span>
+            </aside>}
+          </div>
+          <section className={styles.checks} aria-label="File checks">
+            <div className={styles.sectionHeading}>
+              <div><h3>File checks</h3><p>A quick look at what may need attention.</p></div>
+              <span className={`${styles.status} ${flagged.length ? styles.attention : ""}`}>
+                {flagged.length ? `${flagged.length} ${flagged.length === 1 ? "check needs" : "checks need"} review` : active.profile.quality_checks.length ? "No issues found in these checks" : "No checks available"}
+              </span>
+            </div>
+            <ul className={styles.checkGrid}>
+              {active.profile.quality_checks.map(check => <li key={check.code} className={check.count ? styles.flaggedCheck : ""}>
+                <span>{checkLabels[check.code] ?? check.code.replaceAll("_", " ")}</span>
+                <strong>{check.count}</strong>
+                <small>{check.count ? "Review the details below" : "None found"}</small>
+              </li>)}
+            </ul>
+            {flagged.length > 0 && <ul className={styles.actionableChecks} aria-label="Checks to review">
+              {flagged.map(check => <li key={check.code}><strong>{checkLabels[check.code] ?? check.code.replaceAll("_", " ")}</strong><span>{check.explanation}</span></li>)}
+            </ul>}
+            <details className={styles.checkDetails}>
+              <summary>What these checks mean</summary>
+              <p>The score checks completeness, exact duplicate rows, numeric or boolean type conflicts, dates and supported structure with equal weight. Counts refer to each check; they are not a total of affected rows.</p>
+              <ul>
             {active.profile.quality_checks.map((check) => (
               <li key={check.code}>
                 <strong>
@@ -166,13 +216,19 @@ export function ProfilePanel({
                 — {check.explanation}
               </li>
             ))}
-          </ul>
+              </ul>
+            </details>
+          </section>
+          <div className={styles.tools}>
+          <details className={styles.disclosure}>
+            <summary><span><strong>Explore columns</strong><small>Names, suggested types, missing values and date ranges</small></span><span className={styles.detailCount}>{active.profile.column_count} fields</span></summary>
+            <div className={styles.disclosureBody}>
           <p>
             Types and tags are suggestions from column names and values. Metrics
             are numeric fields; dimensions group records. Review identifier
             columns before analysis.
           </p>
-          <div className="tableScroll">
+          <div className="tableScroll" tabIndex={0} role="region" aria-label="Column profile table">
             <table>
               <thead>
                 <tr>
@@ -205,12 +261,16 @@ export function ProfilePanel({
               </tbody>
             </table>
           </div>
-          <h3>Preview cleaning and column mapping</h3>
+            </div>
+          </details>
+          <details className={styles.disclosure}>
+            <summary><span><strong>Clean or rename fields</strong><small>Choose changes, inspect the preview, then decide</small></span><Icon name="prepare" size={20} /></summary>
+            <div className={styles.disclosureBody}>
           <p>
             Your original stays unchanged. Removing repeated or incomplete rows
             can remove valid records; review the preview before applying.
           </p>
-          <fieldset disabled={busy}>
+          <fieldset disabled={busy || refreshNeeded}>
             <legend>Cleaning options</legend>
             <label className="checkOption">
               <input
@@ -269,7 +329,7 @@ export function ProfilePanel({
             </details>
           </fieldset>
           <button
-            disabled={busy}
+            disabled={busy || refreshNeeded}
             onClick={() =>
               void run(async () => {
                 setPreview(
@@ -295,7 +355,7 @@ export function ProfilePanel({
                 First 10 output rows at most. The counts and score cover the
                 full file.
               </p>
-              <div className="tableScroll">
+              <div className="tableScroll" tabIndex={0} role="region" aria-label="Cleaning preview rows">
                 <table>
                   <thead>
                     <tr>
@@ -318,15 +378,14 @@ export function ProfilePanel({
                 </table>
               </div>
               <button
-                disabled={busy}
+                disabled={busy || refreshNeeded}
                 onClick={() =>
                   void run(async () => {
                     await request(
                       `${root}/cleaning/apply`,
                       post({ ...step, expected_revision_id: active.id }),
                     );
-                    await refresh();
-                    setNotice(
+                    await afterMutation(
                       "Changes applied. The original file is retained; you can restore any revision below.",
                     );
                   })
@@ -336,8 +395,11 @@ export function ProfilePanel({
               </button>
             </div>
           )}
-          <details>
-            <summary>Revision history and lineage</summary>
+            </div>
+          </details>
+          <details className={styles.disclosure}>
+            <summary><span><strong>Revision history and lineage</strong><small>Revisit a previous version or inspect its source</small></span><Icon name="audit" size={20} /></summary>
+            <div className={styles.disclosureBody}>
             <p>
               Restoring changes the active version. It keeps all history and the
               original file.
@@ -352,7 +414,7 @@ export function ProfilePanel({
                     "Active"
                   ) : (
                     <button
-                      disabled={busy}
+                      disabled={busy || refreshNeeded}
                       onClick={() =>
                         void run(async () => {
                           await request(
@@ -362,8 +424,7 @@ export function ProfilePanel({
                               revision_id: revision.id,
                             }),
                           );
-                          await refresh();
-                          setNotice("Revision restored.");
+                          await afterMutation("Revision restored.");
                         })
                       }
                     >
@@ -385,7 +446,9 @@ export function ProfilePanel({
             <pre className="recipe">
               {JSON.stringify(active.recipe, null, 2)}
             </pre>
+            </div>
           </details>
+          </div>
         </>
       )}
     </section>

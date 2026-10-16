@@ -131,7 +131,7 @@ test("a skipped data reading can be reopened from the Prepare data panel", async
   await panel.getByRole("button", { name: "Skip for now", exact: true }).click();
   await expect(panel).toHaveCount(0);
   await page.getByRole("button", { name: "Prepare data", exact: true }).first().click();
-  await page.getByRole("button", { name: "Check what ExecPlus understood about this data", exact: true }).click();
+  await page.getByRole("button", { name: "Review data meaning", exact: true }).click();
   await expect(panel.getByText("Question 1 of", { exact: false })).toBeVisible();
   await expect(page.locator("#chat-question")).toBeHidden();
 });

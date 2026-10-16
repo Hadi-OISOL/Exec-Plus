@@ -740,6 +740,8 @@ export default function WorkspacePage() {
                   ? "Explore, ask and build on what you discover."
                   : section === "memory"
                     ? "Your private preferences for clearer explanations."
+                  : section === "prepare"
+                    ? "Check your file, review its meaning and choose any changes."
                   : section === "ask"
                     ? "Follow a question, explore the answer, check the evidence."
                   : section === "forecasts"

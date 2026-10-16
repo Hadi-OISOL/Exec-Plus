@@ -895,7 +895,23 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
   await navigate(page, "Prepare data");
   const profile = page.getByRole("region", { name: "Dataset profile" });
   await expect(profile).toContainText("93.33/100");
+  await expect(profile.getByRole("heading", { name: "Know your file. Find your next step." })).toBeVisible();
+  await expect(profile.getByLabel("Checks to review")).toContainText("Repeated rows");
+  await expect(profile.getByLabel("Trim surrounding whitespace")).not.toBeVisible();
+  await expect(profile.getByRole("columnheader", { name: "Column", exact: true })).not.toBeVisible();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: `../../data/verification/2026-10-16/prepare-redesign/prepare-with-issue-${width}.png`, fullPage: true });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const columns = profile.locator("summary").filter({ hasText: "Explore columns" });
+  await columns.focus();
+  await page.keyboard.press("Enter");
+  await expect(profile.getByRole("columnheader", { name: "Column", exact: true })).toBeVisible();
   await expect(profile).toContainText("2026-01-01 to 2026-01-02");
+  await profile.getByText("Clean or rename fields", { exact: true }).click();
   await profile.getByLabel("Trim surrounding whitespace").check();
   await profile.getByLabel("Remove exact duplicate rows").check();
   await profile.getByText("Map column names", { exact: true }).click();
@@ -903,17 +919,53 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
   await profile
     .getByRole("button", { name: "Preview changes", exact: true })
     .click();
-  const preview = profile.getByLabel("Cleaning preview");
+  const preview = profile.getByLabel("Cleaning preview", { exact: true });
   await expect(preview).toContainText("1 rows removed · 2 rows remaining");
   await expect(preview).toContainText("100.00/100");
   await expect(
     preview.getByRole("columnheader", { name: "sales", exact: true }),
   ).toBeVisible();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await preview.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: `../../data/verification/2026-10-16/prepare-redesign/cleaning-preview-${width}.png`, fullPage: false });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await profile.getByLabel("Rename amount").fill("revenue");
+  await expect(preview).not.toBeVisible();
+  await expect(profile.getByRole("button", { name: "Apply reviewed changes", exact: true })).not.toBeVisible();
+  await profile.getByLabel("Rename amount").fill("sales");
+  await profile.getByRole("button", { name: "Preview changes", exact: true }).click();
+  await expect(preview.getByRole("columnheader", { name: "sales", exact: true })).toBeVisible();
+  let appliedWrites = 0;
+  page.on("request", request => {
+    if (request.method() === "POST" && request.url().endsWith("/cleaning/apply")) appliedWrites += 1;
+  });
+  let failHistoryReload = true;
+  await page.route("**/uploads/*/revisions", route => {
+    if (failHistoryReload) {
+      failHistoryReload = false;
+      return route.fulfill({ status: 503, json: { error: { message: "Temporary history-read failure" } } });
+    }
+    return route.continue();
+  });
   await profile
     .getByRole("button", { name: "Apply reviewed changes", exact: true })
     .click();
   await expect(profile).toContainText("Changes applied");
+  await expect(profile.getByRole("alert", { name: "Profile error" })).toContainText("Your change was saved");
+  await expect(preview).not.toBeVisible();
+  await expect(profile.getByRole("button", { name: "Apply reviewed changes", exact: true })).not.toBeVisible();
+  await expect(profile.getByRole("button", { name: "Preview changes", exact: true })).toBeDisabled();
+  await expect(profile.getByLabel("Trim surrounding whitespace")).toBeDisabled();
+  expect(appliedWrites).toBe(1);
+  await profile.getByRole("button", { name: "Reload profile", exact: true }).click();
+  await expect(profile.getByRole("alert", { name: "Profile error" })).not.toBeVisible();
   await expect(profile).toContainText("2 rows · 4 columns");
+  await expect(profile.getByRole("button", { name: "Preview changes", exact: true })).toBeEnabled();
+  expect(appliedWrites).toBe(1);
+  await page.unroute("**/uploads/*/revisions");
   await profile
     .getByText("Revision history and lineage", { exact: true })
     .click();
@@ -941,6 +993,16 @@ test("sample exploration, profile, cleaning preview, mapping, undo and own uploa
   await openFindings(page);
   await navigate(page, "Prepare data");
   await expect(profile).toContainText("100.00/100");
+  await expect(profile).toContainText("No issues found in these checks");
+  await expect(profile.getByLabel("Checks to review")).toHaveCount(0);
+  await expect(profile.getByLabel("Trim surrounding whitespace")).not.toBeVisible();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: `../../data/verification/2026-10-16/prepare-redesign/prepare-clean-${width}.png`, fullPage: true });
+  }
+  await profile.getByText("Explore columns", { exact: true }).click();
   await expect(profile).toContainText("decimal / metric");
   await navigate(page, "Overview");
   await reveal(page, "Review & refine data understanding");
