@@ -3,11 +3,11 @@
 
 # Domain agent tools
 
-Status: implementation in progress, not deployed or accepted.
+Status: implemented locally; verification and private-demo release in progress.
 The October 16 user example asks for a diagram of how data converges and receives
 a generic profile instead. The user authorizes better tool selection, remembered
 preferences, simple upfront choices and PDF generation inside ExecPlus's domain.
-This extends the repository/chart integration already undergoing release.
+This extends deployed repository/chart integration `7b46db2` on schema 0018.
 
 ## Requested behavior
 
@@ -46,6 +46,39 @@ New tools must preserve workspace and owner access, source freshness, accepted
 refresh checks, old saved answers, cancellation/publication behavior and the
 existing model budgets. New skill/tool material is reviewed and attributed before
 use. Development skills are not automatically product runtime capabilities.
+
+## Registered actions and private context
+
+The planner's immutable catalog describes real configured actions:
+`query`, `inspect_profile`, `map_dataset_structure`, `explore_patterns`,
+`compare_group_relationship`, `retrieve_documents` and `export_report`.
+Unavailable document, pattern or report services are omitted. Each entry states
+its route, prerequisites and limits. Existing method-specific forecast, scenario
+and allocation screens remain separate; the catalog does not claim a chat
+executor for them. The harness continues to use checked plans, durable worker
+jobs and immutable private evidence.
+
+The user's exact diagram wording has a deterministic route; a validated model
+route supports other wording. Diagrams show at most eighty fields, with ten-field
+visual windows, all fields in the native inspector and an exact full list. Named
+field subsets remain explicit. An over-wide source asks for a smaller subset
+rather than dropping fields. Saved roles/units/meanings come from the recorded
+definitions; unconfirmed fields are labeled as awaiting review.
+
+The optional setup asks for perspective, usual aim and explanation style one at
+a time, then presents an explicit save. It uses the existing actor/workspace
+memory and version conflicts. My memory still supports editing and forgetting.
+Source-specific notes, saved definitions and existing private conversation context
+retain their separate roles. This is controlled personalization, not automatic
+learning of every message or authority to change numerical filters.
+
+The first PDF tool supports completed saved calculations, tables and source-backed
+explanations. It preserves every returned row within explicit caps and includes
+the saved source/receipt context. Chart images, diagrams, pattern/forecast/scenario
+reports, whole conversations and Excel/CSV/PNG are outside this first export
+slice. See [the PDF contract](pdf-export.md) for exact supported content, dependencies
+and download behavior. Unsupported output receives an honest next step; a missing
+result is never filled with fabricated data.
 
 ## Evidence required
 

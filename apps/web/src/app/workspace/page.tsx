@@ -180,11 +180,11 @@ export default function WorkspacePage() {
     );
   }
 
-  const request = useCallback(
-    async function request<T>(
+  const authorizedResponse = useCallback(
+    async function authorizedResponse(
       path: string,
       options: RequestInit = {},
-    ): Promise<T> {
+    ): Promise<Response> {
       const response = await fetch(`${api}${path}`, {
         ...options,
         headers: { Authorization: `Bearer ${token}`, ...options.headers },
@@ -209,10 +209,29 @@ export default function WorkspacePage() {
           { status: response.status, code: body.error?.code },
         );
       }
-      return response.status === 204 ? (undefined as T) : response.json();
+      return response;
     },
     [token],
   );
+
+  const request = useCallback(async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const response = await authorizedResponse(path, options);
+    return response.status === 204 ? (undefined as T) : response.json();
+  }, [authorizedResponse]);
+
+  const downloadPdf = useCallback(async (path: string, signal: AbortSignal) => {
+    const ids = path.match(/^\/workspaces\/([0-9a-f-]{36})\/threads\/([0-9a-f-]{36})\/turns\/([0-9a-f-]{36})\/export\.pdf$/i);
+    if (!ids) throw new Error("This report download is unavailable.");
+    const response = await authorizedResponse(path, { signal, headers: { Accept: "application/pdf" } });
+    if (!response.headers.get("Content-Type")?.toLowerCase().startsWith("application/pdf")) throw new Error("The server did not return a PDF. Please try again.");
+    const blob = await response.blob();
+    if (signal.aborted) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = `execplus-answer-${ids[3]}.pdf`;
+    document.body.appendChild(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }, [authorizedResponse]);
 
   function json(method: string, body: object): RequestInit {
     return {
@@ -496,6 +515,16 @@ export default function WorkspacePage() {
           body: file,
         },
       );
+      let contextSaved = true;
+      if (uploadDomain !== "auto" || uploadGoal.trim()) {
+        try {
+          await request(
+            `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}/preferences`,
+            json("POST", { domain_hint: uploadDomain, goal: uploadGoal }),
+          );
+          setRevisionTick((value) => value + 1);
+        } catch { contextSaved = false; }
+      }
       setUploads(await request<Upload[]>(prefix));
       setProfileUpload(stored.id);
       setGuidedFor(stored.id);
@@ -507,23 +536,10 @@ export default function WorkspacePage() {
       setAnalysisIntent("descriptive");
       setSection("overview");
       setMessage(
-        `${stored.filename} is ready. Let’s check what it means together.`,
+        contextSaved ? `${stored.filename} is ready. Let’s check what it means together.` : "File uploaded successfully. Your optional context could not be saved; add it under Data understanding.",
       );
       setFile(null);
       form.reset();
-      if (uploadDomain !== "auto" || uploadGoal.trim()) {
-        try {
-          await request(
-            `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}/preferences`,
-            json("POST", { domain_hint: uploadDomain, goal: uploadGoal }),
-          );
-          setRevisionTick((value) => value + 1);
-        } catch {
-          setMessage(
-            "File uploaded successfully. Your optional context could not be saved; add it under Data understanding.",
-          );
-        }
-      }
     });
   }
 
@@ -914,6 +930,8 @@ export default function WorkspacePage() {
                           : "Choose a .csv or .xlsx file · up to 20 MiB"}
                       </span>
                     </label>
+                    <label>What is this data about? (optional)<select disabled={busy} value={uploadDomain} onChange={event => setUploadDomain(event.target.value)}>{domains.map(item => <option key={item} value={item}>{item === "auto" ? "Help me work it out" : item}</option>)}</select></label>
+                    <label>What would you like to do first? (private, optional)<select disabled={busy} value={["", "Understand what this data means", "Find patterns and unusual values", "Compare results and choose next steps"].includes(uploadGoal) ? uploadGoal : "custom"} onChange={event => { if (event.target.value !== "custom") setUploadGoal(event.target.value); }}><option value="">Help me choose</option><option>Understand what this data means</option><option>Find patterns and unusual values</option><option>Compare results and choose next steps</option><option value="custom" disabled>My own question (under optional context)</option></select></label>
                     <button className="uploadPrimary" disabled={!file || busy}>
                       <Icon name="sparkle" size={18} />
                       {busy ? "Reading your file…" : "Upload file"}
@@ -941,22 +959,6 @@ export default function WorkspacePage() {
                           </select>
                         </label>
                       )}
-                      <label>
-                        What is this data about? (optional)
-                        <select
-                          disabled={busy}
-                          value={uploadDomain}
-                          onChange={(event) =>
-                            setUploadDomain(event.target.value)
-                          }
-                        >
-                          {domains.map((item) => (
-                            <option key={item} value={item}>
-                              {item === "auto" ? "Detect automatically" : item}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
                       <label>
                         What would you like to understand? (private, optional)
                         <input
@@ -1550,6 +1552,7 @@ export default function WorkspacePage() {
                         key={`chat-${root}-${revisionTick}`}
                         root={root}
                         request={request}
+                        downloadPdf={downloadPdf}
                         filename={selectedUpload?.filename ?? "Selected upload"}
                         starterQuestions={starterQuestions}
                         onTool={action => {

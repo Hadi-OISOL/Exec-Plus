@@ -149,20 +149,33 @@ async def test_truncated_provider_reply_gets_fresh_correction_without_identical_
 
 
 @pytest.mark.parametrize(
-    "error,reason,notice",
+    "error,reason,notice,issue",
     [
-        (IncompleteModelResponseError("private-partial"), "incomplete_response", "ended before"),
-        (ProviderUnavailableError("private-key"), "provider_unavailable", "service is unavailable"),
-        (ValueError("private-response"), "invalid_response", "did not pass"),
-        (TimeoutError("private-deadline"), "deadline", "took too long"),
+        (
+            IncompleteModelResponseError("private-partial"),
+            "incomplete_response",
+            "ended before",
+            "incomplete",
+        ),
+        (
+            ProviderUnavailableError("private-key"),
+            "provider_unavailable",
+            "service is unavailable",
+            "unclassified",
+        ),
+        (ValueError("private-response"), "invalid_response", "did not pass", "unclassified"),
+        (TimeoutError("private-deadline"), "deadline", "took too long", "unclassified"),
     ],
 )
 def test_failure_diagnostics_never_include_sensitive_exception_content(
-    caplog, error, reason, notice
+    caplog, error, reason, notice, issue
 ):
     assert reading_failure_reason(error) == reason
     assert notice in reading_failure_notice(error)
-    assert caplog.messages == [f"qualitative_reading_fallback reason={reason}"]
+    assert caplog.messages == [
+        f"qualitative_reading_fallback reason={reason}",
+        f"qualitative_reading_validation issue={issue}",
+    ]
     assert "private-" not in caplog.text
 
 

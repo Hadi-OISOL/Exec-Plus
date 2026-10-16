@@ -7,6 +7,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from inspect import isawaitable
+from json import JSONDecodeError
 from typing import TypeVar
 
 from execplus.application.contracts import ModelMessage, ModelRequest, ModelResponse
@@ -14,6 +15,7 @@ from execplus.application.ports import LanguageModel
 from execplus.application.progress import model_call
 from execplus.domain.errors import IncompleteModelResponseError, ProviderUnavailableError
 from execplus.domain.models import ModelTier
+from execplus.domain.reading_validation import READING_CORRECTIONS, ReadingValidationError
 
 Reading = TypeVar("Reading")
 logger = logging.getLogger(__name__)
@@ -40,9 +42,21 @@ def reading_failure_reason(error: Exception) -> str:
     return "invalid_response"
 
 
+def reading_validation_hint(error: Exception) -> tuple[str, str]:
+    if isinstance(error, ReadingValidationError) and error.issue in READING_CORRECTIONS:
+        return error.issue.value, READING_CORRECTIONS[error.issue]
+    if isinstance(error, JSONDecodeError):
+        return "json", "Return one complete valid JSON object, without surrounding text."
+    if isinstance(error, IncompleteModelResponseError):
+        return "incomplete", "Use shorter sentences and fewer optional connections to finish."
+    return "unclassified", "Follow the required format and evidence checks exactly."
+
+
 def reading_failure_notice(error: Exception) -> str:
     reason = reading_failure_reason(error)
     logger.warning("qualitative_reading_fallback reason=%s", reason)
+    issue, _ = reading_validation_hint(error)
+    logger.warning("qualitative_reading_validation issue=%s", issue)
     return {
         "deadline": "The AI explanation took too long.",
         "incomplete_response": "The AI explanation ended before it was complete.",
@@ -74,10 +88,17 @@ async def read_validated(
                 if len(response.content) > MAX_READING_REPLY_CHARS:
                     raise ValueError("The reading exceeded its response limit")
                 return parse(response.content), response, bool(attempt)
-            except (ValueError, IncompleteModelResponseError):
+            except (ValueError, IncompleteModelResponseError) as error:
+                issue, hint = reading_validation_hint(error)
+                logger.info(
+                    "qualitative_reading_correction attempt=%s issue=%s", attempt + 1, issue
+                )
                 if attempt:
                     raise
-                attempt_messages = (*messages, ModelMessage("system", CORRECTION_PROMPT))
+                attempt_messages = (
+                    *messages,
+                    ModelMessage("system", CORRECTION_PROMPT + " " + hint),
+                )
         raise AssertionError("A reading must return or fail within its bounded attempts")
 
     try:

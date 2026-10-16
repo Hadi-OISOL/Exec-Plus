@@ -35,6 +35,8 @@ class AnalysisPlan:
 
     def __post_init__(self) -> None:
         policies = {
+            "export_report": ("report_link", "authorized_saved_answer"),
+            "map_dataset_structure": ("diagram", "source_checksum"),
             "explore_patterns": ("patterns", "analysis_receipt"),
             "compare_group_relationship": ("patterns", "analysis_receipt"),
             "inspect_profile": ("profile", "source_checksum"),
@@ -86,6 +88,8 @@ class AnalysisPlan:
             ):
                 self._invalid()
             expected = {
+                "export_report": {"thread_id", "turn_id"},
+                "map_dataset_structure": {"columns"},
                 "explore_patterns": {"columns"},
                 "compare_group_relationship": {"columns", "group_by"},
                 "inspect_profile": {"columns", "focus"},
@@ -117,7 +121,22 @@ class AnalysisPlan:
 
     def _parameters(self, step: AnalysisStep) -> None:
         values = step.parameters
-        if step.operation in {"explore_patterns", "compare_group_relationship"}:
+        if step.operation == "export_report":
+            try:
+                UUID(values["thread_id"])
+                UUID(values["turn_id"])
+            except (ValueError, TypeError, AttributeError):
+                self._invalid()
+        elif step.operation == "map_dataset_structure":
+            columns = values["columns"]
+            if (
+                not isinstance(columns, list)
+                or len(columns) > 80
+                or not all(isinstance(name, str) and 0 < len(name) <= 200 for name in columns)
+                or len(set(columns)) != len(columns)
+            ):
+                self._invalid()
+        elif step.operation in {"explore_patterns", "compare_group_relationship"}:
             columns = values["columns"]
             if (
                 not isinstance(columns, list)
@@ -209,6 +228,8 @@ class AnalysisPlan:
 
 
 def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...]) -> AnalysisPlan:
+    if intent.kind == QuestionKind.DIAGRAM:
+        return diagram_conversation_plan(intent.guide_columns, sources)
     steps: list[AnalysisStep] = []
     data = intent.data_intent if intent.kind == QuestionKind.MIXED else intent
     if data and data.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}:
@@ -261,6 +282,50 @@ def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...])
         )
     )
     return AnalysisPlan("conversation-plan-v1", sources, tuple(steps), ResourceBudget())
+
+
+def report_conversation_plan(thread_id: UUID, turn_id: UUID) -> AnalysisPlan:
+    return AnalysisPlan(
+        "conversation-plan-v1",
+        (),
+        (
+            AnalysisStep(
+                "report",
+                "export_report",
+                (),
+                {"thread_id": str(thread_id), "turn_id": str(turn_id)},
+                "report_link",
+                "authorized_saved_answer",
+            ),
+            AnalysisStep(
+                "answer", "assemble_evidence", ("report",), {}, "answer", "authorized_evidence"
+            ),
+        ),
+        ResourceBudget(),
+    )
+
+
+def diagram_conversation_plan(
+    columns: tuple[str, ...], sources: tuple[dict[str, str], ...]
+) -> AnalysisPlan:
+    return AnalysisPlan(
+        "conversation-plan-v1",
+        sources,
+        (
+            AnalysisStep(
+                "diagram",
+                "map_dataset_structure",
+                (),
+                {"columns": list(columns)},
+                "diagram",
+                "source_checksum",
+            ),
+            AnalysisStep(
+                "answer", "assemble_evidence", ("diagram",), {}, "answer", "authorized_evidence"
+            ),
+        ),
+        ResourceBudget(),
+    )
 
 
 def pattern_conversation_plan(

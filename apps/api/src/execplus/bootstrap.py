@@ -29,6 +29,7 @@ from execplus.application.services.knowledge import KnowledgeService
 from execplus.application.services.monitoring import MonitoringService
 from execplus.application.services.operations import OperationsService
 from execplus.application.services.patterns import PatternService
+from execplus.application.services.pdf_exports import PdfExportService
 from execplus.application.services.product_usage import ProductUsageService
 from execplus.application.services.refresh import RefreshService
 from execplus.application.services.reports import ReportService
@@ -41,6 +42,7 @@ from execplus.application.services.workspaces import WorkspaceService
 from execplus.config import Settings
 from execplus.domain.compute import ComputeCapabilities, ComputeOperation, QueryBudget
 from execplus.infrastructure.email import DisabledEmailDelivery, SMTPEmailDelivery
+from execplus.infrastructure.exports.reportlab_pdf import ReportLabPdfRenderer
 from execplus.infrastructure.file_parser import StructuredFileParser
 from execplus.infrastructure.identity import LocalSessionIdentity
 from execplus.infrastructure.knowledge import ReferenceHybridRanker
@@ -145,6 +147,9 @@ def build_runtime(settings: Settings) -> "Runtime":
     uploads = WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes)
     refresh = RefreshService(SQLUnitOfWork(engine), uploads, analytics)
     threads = ThreadService(SQLUnitOfWork(engine), intent_router)
+    pdf_exports = PdfExportService(SQLUnitOfWork(engine), threads, ReportLabPdfRenderer())
+    threads.pdf_exports = pdf_exports
+    intent_router.report_exports_enabled = True
     operations = OperationsService(SQLUnitOfWork(engine))
     return Runtime(
         uploads,
@@ -200,6 +205,7 @@ def build_runtime(settings: Settings) -> "Runtime":
             settings.data_brief_sample_values,
             settings.llm_mode != "disabled",
         ),
+        pdf_exports,
     )
 
 
@@ -231,3 +237,4 @@ class Runtime:
     product_usage: ProductUsageService
     decision_analysis: DecisionAnalysisService
     data_brief: DataBriefService
+    pdf_exports: PdfExportService

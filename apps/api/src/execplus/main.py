@@ -34,6 +34,7 @@ from execplus.presentation.routes.health import router as health_router
 from execplus.presentation.routes.jobs import router as jobs_router
 from execplus.presentation.routes.joins import router as joins_router
 from execplus.presentation.routes.operations import router as operations_router
+from execplus.presentation.routes.pdf_exports import router as pdf_exports_router
 from execplus.presentation.routes.product_usage import router as product_usage_router
 from execplus.presentation.routes.refresh import router as refresh_router
 from execplus.presentation.routes.saved_items import router as saved_items_router
@@ -66,6 +67,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         allow_origins=[configured.web_origin],
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
+        expose_headers=["Content-Disposition"],
     )
 
     @application.middleware("http")
@@ -94,6 +96,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.include_router(product_usage_router)
     application.include_router(decision_analysis_router)
     application.include_router(data_brief_router)
+    application.include_router(pdf_exports_router)
 
     @application.exception_handler(IngestionError)
     async def ingestion_error(request: Request, error: IngestionError) -> JSONResponse:

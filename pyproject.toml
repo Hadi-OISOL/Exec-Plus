@@ -28,6 +28,7 @@ dependencies = [
   "sqlglot>=27,<28",
   "numpy==2.2.6",
   "scipy==1.15.3",
+  "reportlab==5.0.1",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,7 @@ dev = [
   "pytest-asyncio>=0.23,<1",
   "pytest-cov>=5,<7",
   "ruff>=0.5,<1",
+  "pypdf==6.20.1",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -77,4 +79,8 @@ ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["scipy", "scipy.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["reportlab", "reportlab.*"]
 ignore_missing_imports = true

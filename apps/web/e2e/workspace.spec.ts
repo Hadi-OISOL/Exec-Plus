@@ -50,7 +50,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
   ).not.toBeVisible();
   await expect(
     page.getByLabel("What is this data about? (optional)"),
-  ).not.toBeVisible();
+  ).toBeVisible();
   await page.getByLabel("CSV or Excel file").setInputFiles({
     name: "branch-performance.csv",
     mimeType: "text/csv",

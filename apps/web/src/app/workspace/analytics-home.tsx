@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "./explore-components";
 import type { ApiRequest } from "./profile-panel";
 import { GroupRelationshipForm } from "./group-relationship-form";
+import { AgentSetup } from "./agent-setup";
 
 type SavedItem = { id: string; name: string; kind: string; shared: boolean };
 type DataContext = {
@@ -76,6 +77,7 @@ export function AnalyticsHome({
   }, [root, request]);
   return (
     <section className="analyticsHome" aria-label="Analytics home">
+      <AgentSetup workspaceId={root.split("/")[2]} request={request} onEdit={() => onNavigate("memory")} />
       <div className="studioHomeTop">
       <div className="studioQuestionSpace">
       <div className="homeWelcome">
@@ -102,6 +104,7 @@ export function AnalyticsHome({
           ["Help me understand my data", "Understand this data"],
           ["Find patterns in my data", "Find patterns"],
           ["Show the first 10 records", "Explore records"],
+          ["Show a diagram of my data", "Map this file"],
         ].map(([question, label]) => <button key={question} type="button" onClick={() => onAsk(question)}>
           <Icon name="sparkle" size={14} />{label}
         </button>)}

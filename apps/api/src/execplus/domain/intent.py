@@ -141,6 +141,17 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
         ):
             return _unsupported("The model proposed invalid record fields, filters or limit.")
         return RoutedIntent(kind, rows=RowRequest(filters, tuple(columns)), limit=limit)
+    if kind == QuestionKind.DIAGRAM:
+        columns = payload.get("columns", [])
+        if (
+            set(payload) - {"kind", "columns"}
+            or not isinstance(columns, list)
+            or len(columns) > 80
+            or not all(isinstance(name, str) and view.column(name) for name in columns)
+            or len(set(columns)) != len(columns)
+        ):
+            return _unsupported("Choose up to eighty existing fields for a structure diagram.")
+        return RoutedIntent(kind, guide_columns=tuple(columns))
     if kind == QuestionKind.OVERVIEW:
         columns = payload.get("columns", [])
         focus = payload.get("focus", "orientation")

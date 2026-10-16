@@ -18,6 +18,7 @@ class QuestionKind(str, Enum):
     NUMERICAL = "numerical"
     ROWS = "rows"
     OVERVIEW = "overview"
+    DIAGRAM = "diagram"
     TEXTUAL = "textual"
     MIXED = "mixed"
     AMBIGUOUS = "ambiguous"

@@ -32,7 +32,33 @@ licenses, supported answer types and rendering bounds belong in the PDF contract
 
 ## Acceptance and release
 
-Pending: focused/full backend checks; frontend types/lint/unit/browser tests;
-actual diagram/PDF visual inspection; production/restricted-image builds; gated
-live tool/routing/privacy/source checks; backup and schema/configuration
+Focused diagram/report/plan/conversation checks pass 93 cases, followed by 28
+scope/paraphrase rechecks containing two additional cases: **95 distinct**. These
+cover the exact reported wording, unknown fields, row restrictions, reserved field
+names, clarification continuation, model subset mismatch and all-field requests.
+The PDF group passes **36 cases** in 13.26 seconds, including real extraction,
+pagination, Unicode, exact values, limits, private access, source races and
+cancellation. ReportLab's shared font state requires serialized builds; concurrent
+distinct-document extraction verifies that repair. The five architecture checks
+also pass. The independent fixed reading-correction group above passes 85 cases.
+
+All **53 frontend unit tests**, types and lint pass. Eight affected browser journeys
+pass in 52.7 seconds; a final diagram/PDF journey passes in 15.6 seconds after the
+diagram-opening scroll fix. Root inspects desktop/mobile field maps, optional
+preference review and rendered PDF pages. These focused results are separate from
+the currently running full suites.
+
+Retained initial failures include a ReportLab page-limit exception converted to
+a server error (fixed), incorrect audit/membership test expectations, obsolete
+browser selectors, an ECharts tree transition crash when replacing its root on
+resize (fixed with a bounded tree reset), and an SSR-only fixture attempting
+browser resize after clear (corrected; real browser resizing passes). The first
+diagram captures showed only the bottom of the answer; the final scroll assertion
+and new chart captures verify its heading opens first. An unsorted root import is
+fixed. A broad format probe also finds nine pre-existing unrelated formatting
+differences; only the three new PDF files are formatted, and no whole-repository
+format-pass claim is made.
+
+Pending: full backend/browser results; final production/restricted-image builds;
+gated live tool/routing/privacy/source checks; backup and schema/configuration
 preservation; final handoff/report updates. Do not describe pending work as passed.

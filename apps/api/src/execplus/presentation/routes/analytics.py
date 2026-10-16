@@ -20,6 +20,7 @@ from execplus.application.services.analytics import (
     DashboardBreakdown,
     DashboardCard,
 )
+from execplus.application.services.data_diagrams import DiagramAnswer
 from execplus.application.services.discovery import discover
 from execplus.application.services.intent_router import (
     ConversationAnswer,
@@ -30,6 +31,7 @@ from execplus.application.services.intent_router import (
 from execplus.application.services.summaries import SummaryService
 from execplus.domain.kpi_library import KpiMatch
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
+from execplus.domain.pdf_exports import ReportAnswer
 from execplus.domain.semantics import AggregationKind, FilterOperator, MetricFilter, MetricRequest
 from execplus.presentation.routes.workspaces import Actor
 
@@ -159,6 +161,24 @@ def answer_body(answer: VerifiedMetricAnswer) -> dict[str, object]:
 def numerical_answer_body(
     answer: ConversationAnswer,
 ) -> dict[str, object]:
+    if isinstance(answer, ReportAnswer):
+        return {
+            "kind": "report",
+            "report": {
+                "thread_id": str(answer.thread_id),
+                "turn_id": str(answer.turn_id),
+                "label": answer.label,
+                "format": answer.format,
+                "download_url": answer.download_url,
+            },
+        }
+    if isinstance(answer, DiagramAnswer):
+        return {
+            "kind": "diagram",
+            "diagram": answer.diagram.body(),
+            "sources": answer.sources,
+            "model_route": answer.model_route,
+        }
     if isinstance(answer, PatternAnswer):
         evidence = answer.evidence
         return {

@@ -86,6 +86,10 @@ def integration():
     )
     runtime.saved_items = SavedItemService(SQLUnitOfWork(engine))
     runtime.threads = ThreadService(SQLUnitOfWork(engine), runtime.intent_router)
+    runtime.pdf_exports.uow = SQLUnitOfWork(engine)
+    runtime.pdf_exports.resolver = runtime.threads
+    runtime.threads.pdf_exports = runtime.pdf_exports
+    runtime.intent_router.report_exports_enabled = True
     runtime.jobs.uow = SQLUnitOfWork(engine)
     runtime.jobs.threads = runtime.threads
     runtime.activation.uow = SQLUnitOfWork(engine)

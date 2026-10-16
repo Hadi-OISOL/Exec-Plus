@@ -3,6 +3,38 @@
 
 # ExecPlus Architecture
 
+## October 16 domain-agent tools (implementation under verification)
+
+The conversation planner receives a frozen capability catalog for configured,
+implemented services. An explicit structural request routes to
+`map_dataset_structure`; a validated model route covers other wording. Calculated
+charts retain governed queries. Unsupported row scopes, causal links and joins
+clarify instead of becoming field-membership diagrams. A typed
+`dataset-structure-v1` result records fields, roles and source versions; private
+reopening reconstructs and compares that evidence. Publication checks current
+source, accepted refresh and ownership. No migration or arbitrary skill execution
+is required. Bundled ECharts Tree renders bounded field windows with an exact,
+keyboard-accessible inspector and complete included-field list.
+
+Explicit PDF requests select the latest completed answer in the same private
+conversation. A saved report reference offers a download; reopening never starts
+one automatically. The export port accepts supported source-backed explanations,
+calculations and tables. Pinned ReportLab renders escaped text with the bundled
+licensed font, exact cells, repeated headers and explicit size/glyph limits. An
+authenticated no-store endpoint reauthorizes and compares source state after
+rendering; private audit records retain identifiers only. Cancellation drains a
+running render before releasing its concurrency slot. There is no model call,
+remote asset fetch, arbitrary HTML or permanent export object.
+
+Optional perspective, goal and explanation-style selections use existing versioned
+actor-private memory. Only an explicit Save writes them. Skip is local to the actor
+and workspace; shared definitions and numerical filters remain separate. Upload
+context finishes saving before the first reading is exposed. Fixed validation
+issue codes improve one bounded correction without echoing rejected prose or
+relaxing the evidence rules. See [scope](../domain-agent-tools.md),
+[PDF contract](../pdf-export.md) and [verification](../verification-domain-agent-tools.md)
+for acceptance and release status.
+
 ## October 16 imported chart engines and bounded reading recipes
 
 The web bundle now includes pinned Apache ECharts 6.1.0 with its SVG renderer.

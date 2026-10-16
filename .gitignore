@@ -26,6 +26,7 @@ coverage/
 data/
 uploads/
 exports/
+!apps/api/src/execplus/infrastructure/exports/
 /models/
 *.duckdb
 *.duckdb.wal

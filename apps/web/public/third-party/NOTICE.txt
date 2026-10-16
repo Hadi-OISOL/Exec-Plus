@@ -28,3 +28,12 @@ MIT ©2025 Baraa Khatib Salkini: sql-analytics-LICENSE.txt
 
 No licensor endorsement is implied. Exact source paths and modifications are in
 THIRD_PARTY_NOTICES.md and docs/repository-integration.md in the project source.
+
+ReportLab5.0.1, Copyright (c)2000-2024 ReportLab Inc.
+https://pypi.org/project/reportlab/5.0.1/ ; reportlab-LICENSE.txt (BSD)
+Pillow12.3.0: pillow-LICENSE.txt (MIT-CMU and bundled notices)
+charset-normalizer3.5.2: charset-normalizer-LICENSE.txt (MIT)
+These unmodified Python dependencies support the protected saved-answer PDF tool.
+The existing Manrope font is also embedded in PDFs under SIL OFL; its font/license
+are packaged in the API adapter assets and the web source fonts directory.
+No Anthropic PDF skill or AIpoch HTML-to-PDF script is distributed in this tool.

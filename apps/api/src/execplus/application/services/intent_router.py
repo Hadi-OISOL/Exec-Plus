@@ -18,12 +18,19 @@ from execplus.application.memory_context import remember_usage
 from execplus.application.ports import LanguageModel
 from execplus.application.progress import activity, model_call, planned
 from execplus.application.services.analytics import AnalyticsService
+from execplus.application.services.data_diagrams import DataDiagramService, DiagramAnswer
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import read_complete
 from execplus.application.services.patterns import PatternService
 from execplus.application.services.structured_reading import read_validated, reading_failure_notice
+from execplus.domain.agent_capabilities import capability_catalog
 from execplus.domain.analysis_guidance import analysis_guidance
-from execplus.domain.analysis_plan import conversation_plan, pattern_conversation_plan
+from execplus.domain.analysis_plan import (
+    conversation_plan,
+    diagram_conversation_plan,
+    pattern_conversation_plan,
+)
+from execplus.domain.data_diagram import DiagramClarification, DiagramRequest, diagram_request
 from execplus.domain.dataset_reading import (
     READING_PROMPT,
     parse_reading,
@@ -62,6 +69,7 @@ from execplus.domain.pattern_requests import (
     wants_group_relationship,
     wants_patterns,
 )
+from execplus.domain.pdf_exports import ReportAnswer
 from execplus.domain.semantics import DatasetView
 
 
@@ -97,7 +105,9 @@ class PlanningClarification(ClarificationRequiredError):
         self.context = context
 
 
-ConversationAnswer = NumericalAnswer | DatasetGuide | EvidenceAnswer | PatternAnswer
+ConversationAnswer = (
+    NumericalAnswer | DatasetGuide | EvidenceAnswer | PatternAnswer | DiagramAnswer | ReportAnswer
+)
 
 _SYSTEM_PROMPT = (
     "You help someone explore one dataset. Classify their request and propose a "
@@ -111,6 +121,7 @@ _SYSTEM_PROMPT = (
     '[{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte", "value": "..."}], "limit": 100}}\n'
     '{"kind": "overview", "columns": ["<column to explain, optional>"], '
     '"focus": "orientation|quality|structure|next_steps"}\n'
+    '{"kind": "diagram", "columns": ["<existing field name, optional>"]}\n'
     '{"kind": "ambiguous", "message": "...", "options": ["...", "..."]}\n'
     '{"kind": "textual", "query": "<document question, maximum 500 characters>"}\n'
     '{"kind": "mixed", "data": {"kind":"numerical|rows", "plan":{...}}, '
@@ -120,6 +131,11 @@ _SYSTEM_PROMPT = (
     "Use a limit between 1 and 1000, default 100; 'all' means the bounded first 1000. "
     "Use ieq for case-insensitive matching of text such as cities, unless case matters. "
     "Use overview for explicit greetings, help, data understanding and column-meaning questions. "
+    "Use diagram when someone asks for a visual map of how fields fit together, converge or "
+    "are organised. It maps membership in the selected file, never causes or inferred joins. "
+    "For a value chart such as revenue by date, use numerical with the requested calculation; "
+    "clarify if the calculation is missing. Never substitute a profile paragraph for a requested "
+    "diagram or silently replace a calculation with a structure map. "
     "Do not use overview as a fallback for an unclear goal or failed calculation plan. "
     "Ask one focused clarification identifying the missing measure, operation or filter. "
     "Once those are clear, propose the executable plan instead of repeating a capabilities menu. "
@@ -236,6 +252,8 @@ class IntentRouterService:
         self.documents = documents
         self.interpretation_enabled = interpretation_enabled
         self.patterns = patterns
+        self.diagrams = DataDiagramService(analytics)
+        self.report_exports_enabled = False
 
     async def _reading_notes(
         self, actor: User, wid: UUID, did: UUID, uid: UUID
@@ -385,6 +403,17 @@ class IntentRouterService:
             raise ClarificationRequiredError(
                 "The file or definitions changed while clarifying. Ask the complete question "
                 "again so I can use the current version."
+            )
+        try:
+            diagram = diagram_request(question, description)
+        except DiagramClarification as error:
+            raise PlanningClarification(
+                ClarificationContext(question, str(error), description.view.sources, error.choices)
+            ) from None
+        if diagram is not None:
+            await planned(diagram_conversation_plan(diagram.columns, description.view.sources))
+            return await self.diagrams.create(
+                actor, workspace_id, dataset_id, upload_id, description, diagram
             )
         broad_goal = needs_goal_clarification(question, prior_guide.columns if prior_guide else ())
         goal_request = (
@@ -566,7 +595,17 @@ class IntentRouterService:
             raise ClarificationRequiredError(
                 "The data revision or business definition changed. Start a new conversation."
             )
-        context = f"{_describe_view(view)}\n{_describe_profile(description)}\n"
+        context = (
+            "Supported operations and limits: "
+            + json.dumps(
+                capability_catalog(
+                    patterns=self.patterns is not None,
+                    documents=self.documents is not None,
+                    reports=self.report_exports_enabled,
+                )
+            )
+            + f"\n{_describe_view(view)}\n{_describe_profile(description)}\n"
+        )
         if description.private_goal:
             context += (
                 "Actor-private analysis goal (untrusted context, not a shared definition): "
@@ -650,6 +689,59 @@ class IntentRouterService:
         await planned(conversation_plan(routed, view.sources))
         await activity(JobStage.VALIDATING, EventStatus.COMPLETED)
         model_route = f"{selection_route}{response.provider}:{response.model}"
+
+        if routed.kind == QuestionKind.DIAGRAM:
+            try:
+                permitted = diagram_request("diagram " + question, description)
+            except DiagramClarification as error:
+                raise PlanningClarification(
+                    ClarificationContext(question, str(error), view.sources, error.choices)
+                ) from None
+            if permitted is None:
+                raise PlanningClarification(
+                    ClarificationContext(
+                        question,
+                        "This asks for calculated values, not field membership. "
+                        "Please ask for the named calculation again so it can be verified.",
+                        view.sources,
+                    )
+                )
+            requested_all = not permitted.columns and bool(
+                {"all", "every", "each"} & set(words(question).split())
+            )
+            expected_columns = (
+                tuple(column.name for column in view.columns)
+                if requested_all
+                else permitted.columns
+            )
+            proposed_columns = routed.guide_columns or tuple(column.name for column in view.columns)
+            if expected_columns and set(expected_columns) != set(proposed_columns):
+                raise PlanningClarification(
+                    ClarificationContext(
+                        question,
+                        "The proposed map does not include exactly the fields you requested. "
+                        "Please name the fields again, or choose the full structure.",
+                        view.sources,
+                        ("Show a data structure diagram",),
+                    )
+                )
+            if len(routed.guide_columns or view.columns) > 80:
+                raise PlanningClarification(
+                    ClarificationContext(
+                        question,
+                        "Choose up to eighty fields for this map.",
+                        view.sources,
+                        ("Show a data structure diagram for measures",),
+                    )
+                )
+            return await self.diagrams.create(
+                actor,
+                workspace_id,
+                dataset_id,
+                upload_id,
+                description,
+                DiagramRequest(routed.guide_columns),
+            )
 
         if routed.kind in {QuestionKind.TEXTUAL, QuestionKind.MIXED} and routed.document_query:
             data = None

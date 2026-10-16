@@ -11,6 +11,7 @@ from execplus.domain.agent_memory import MEMORY_PROMPT
 from execplus.domain.data_brief import missing_question
 from execplus.domain.guidance import DescriptionContext
 from execplus.domain.reading_catalog import exploration_catalog
+from execplus.domain.reading_validation import ReadingIssue, ReadingValidationError
 
 READING_PROMPT = (
     MEMORY_PROMPT
@@ -79,12 +80,14 @@ def reading_input(
 
 def _plain(value: Any, limit: int, names: set[str]) -> str:
     if not isinstance(value, str) or not value.strip() or len(value) > limit:
-        raise ValueError("Invalid reading text")
+        raise ReadingValidationError(ReadingIssue.TEXT_BOUNDS, "Invalid reading text")
     remainder = value
     for name in sorted(names, key=len, reverse=True):
         remainder = remainder.replace(name, "")
     if re.search(r"\d|https?://|[<>`]|[\x00-\x1f]", remainder):
-        raise ValueError("Reading text must contain no numbers, markup or links")
+        raise ReadingValidationError(
+            ReadingIssue.PROSE_EVIDENCE, "Reading text must contain no numbers, markup or links"
+        )
     return value.strip()
 
 
@@ -94,15 +97,15 @@ def parse_reading(raw: str, context: DescriptionContext) -> dict[str, Any]:
         text = text[8:-3].strip()
     payload = json.loads(text)
     if not isinstance(payload, dict) or set(payload) != {"summary", "connections", "explore"}:
-        raise ValueError("Invalid reading shape")
+        raise ReadingValidationError(ReadingIssue.SHAPE, "Invalid reading shape")
     names = {column.name for column in context.view.columns[:80]}
     payload["summary"] = _plain(payload["summary"], 360, names)
     connections = payload["connections"]
     if not isinstance(connections, list) or not 1 <= len(connections) <= 3:
-        raise ValueError("Invalid reading connections")
+        raise ReadingValidationError(ReadingIssue.CONNECTIONS, "Invalid reading connections")
     for item in connections:
         if not isinstance(item, dict) or set(item) != {"columns", "meaning"}:
-            raise ValueError("Invalid reading connection")
+            raise ReadingValidationError(ReadingIssue.CONNECTION, "Invalid reading connection")
         fields = item["columns"]
         if (
             not isinstance(fields, list)
@@ -110,14 +113,14 @@ def parse_reading(raw: str, context: DescriptionContext) -> dict[str, Any]:
             or any(not isinstance(name, str) or name not in names for name in fields)
             or len(set(fields)) != len(fields)
         ):
-            raise ValueError("Unknown reading field")
+            raise ReadingValidationError(ReadingIssue.FIELDS, "Unknown reading field")
         item["meaning"] = _plain(item["meaning"], 200, names)
     explore = payload["explore"]
     if not isinstance(explore, list) or len(explore) > 2:
-        raise ValueError("Invalid exploration choices")
+        raise ReadingValidationError(ReadingIssue.EXPLORATIONS, "Invalid exploration choices")
     for item in explore:
         if not isinstance(item, dict) or set(item) != {"metric", "group_by"}:
-            raise ValueError("Invalid exploration choice")
+            raise ReadingValidationError(ReadingIssue.EXPLORATION, "Invalid exploration choice")
         if (
             not isinstance(item["metric"], str)
             or item["metric"] not in context.view.metrics
@@ -130,7 +133,9 @@ def parse_reading(raw: str, context: DescriptionContext) -> dict[str, Any]:
                 )
             )
         ):
-            raise ValueError("Unknown exploration field")
+            raise ReadingValidationError(
+                ReadingIssue.EXPLORATION_FIELDS, "Unknown exploration field"
+            )
     return payload
 
 

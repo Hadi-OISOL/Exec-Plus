@@ -14,6 +14,10 @@ import type { Citation } from "./conversation-evidence";
 import { ConversationActivity } from "./conversation-activity";
 import { DataExplanation } from "./data-explanation";
 import { PatternResults } from "./pattern-results";
+import { DiagramResults } from "./diagram-results";
+import type { DatasetDiagram } from "./diagram-results";
+import { AnswerPdfDownload } from "./answer-pdf-download";
+import type { PdfDownload } from "./answer-pdf-download";
 import type { PatternResult, PatternEvidence } from "./pattern-results";
 import {
   isTerminalJob,
@@ -49,6 +53,8 @@ type Answer = {
   coverage?: string;
   patterns?: PatternResult;
   pattern_evidence?: PatternEvidence;
+  diagram?: DatasetDiagram;
+  report?: { thread_id: string; turn_id: string; label: string; format: "pdf"; download_url: string };
   guidance?: {
     columns: string[];
     suggestions: string[];
@@ -115,6 +121,7 @@ export function AskPanel({
   starterQuestions = [],
   expert = false,
   onTool,
+  downloadPdf,
   ref,
 }: {
   root: string;
@@ -123,6 +130,7 @@ export function AskPanel({
   starterQuestions?: string[];
   expert?: boolean;
   onTool?: (action: { tool: string; metric?: string; scenario_mode?: "daily_change" }) => void;
+  downloadPdf?: PdfDownload;
   ref?: Ref<ChatHandle>;
 }) {
   const [threadId, setThreadId] = useState("");
@@ -417,7 +425,7 @@ export function AskPanel({
   useEffect(() => {
     const log = conversation.current;
     if (!log) return;
-    const reading = log.querySelector('.conversationTurn:last-of-type .explanationCard[data-kind="meaning"], .conversationTurn:last-of-type .patternOverview');
+    const reading = log.querySelector('.conversationTurn:last-of-type .explanationCard[data-kind="meaning"], .conversationTurn:last-of-type .patternOverview, .conversationTurn:last-of-type [aria-label="Data organisation diagram"]');
     if (reading && !pending) {
       log.scrollTo({
         top: Math.max(0, log.scrollTop + reading.getBoundingClientRect().top - log.getBoundingClientRect().top - 16),
@@ -666,7 +674,11 @@ export function AskPanel({
                   </span>
                 )}
               </span>
-              {turn.answer?.patterns ? (
+              {turn.answer?.diagram ? (
+                <DiagramResults diagram={turn.answer.diagram} sources={turn.answer.sources} />
+              ) : turn.answer?.report ? (
+                <section aria-label="Requested PDF report"><h3>Your answer, ready to download</h3><p>{turn.answer.report.label}</p><p>The PDF uses the saved answer and its original source evidence.</p>{downloadPdf && <AnswerPdfDownload path={turn.answer.report.download_url} download={downloadPdf} />}</section>
+              ) : turn.answer?.patterns ? (
                 <PatternResults result={turn.answer.patterns} evidence={turn.answer.pattern_evidence} sources={turn.answer.sources} />
               ) : turn.answer?.guidance ? (
                 <div className="datasetGuidance" aria-label="Data explanation">
@@ -868,6 +880,7 @@ export function AskPanel({
                   />
                 </details>
               )}
+              {downloadPdf && threadId && turn.serverId && turn.answer && !turn.answer.report && (turn.answer.lineage || turn.answer.guidance) && <AnswerPdfDownload path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export.pdf`} download={downloadPdf} />}
               <details className="saveQuestion">
                 <summary>Save question</summary>
                 <SaveControl

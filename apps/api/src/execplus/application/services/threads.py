@@ -12,8 +12,11 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
+from execplus.application.export_ports import PdfDescriptorProvider
 from execplus.application.memory_context import capture_memory
 from execplus.application.ports import WorkspaceRepository
+from execplus.application.progress import activity, planned
+from execplus.application.services.data_diagrams import DiagramAnswer
 from execplus.application.services.intent_router import (
     ClarificationContext,
     ConversationAnswer,
@@ -22,6 +25,7 @@ from execplus.application.services.intent_router import (
     PatternAnswer,
     PlanningClarification,
 )
+from execplus.domain.analysis_plan import report_conversation_plan
 from execplus.domain.errors import (
     ClarificationRequiredError,
     ProviderUnavailableError,
@@ -30,7 +34,9 @@ from execplus.domain.errors import (
     UnsupportedQuestionError,
 )
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
+from execplus.domain.jobs import EventStatus, JobStage
 from execplus.domain.models import VerifiedMetricAnswer
+from execplus.domain.pdf_exports import ReportAnswer, validate_pdf_export_request, wants_pdf_export
 from execplus.domain.threads import Thread, ThreadTurn
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
@@ -40,6 +46,7 @@ class ThreadService:
     def __init__(self, unit_of_work: UnitOfWork, intent_router: IntentRouterService) -> None:
         self.uow = unit_of_work
         self.intent_router = intent_router
+        self.pdf_exports: PdfDescriptorProvider | None = None
 
     def _thread(self, repo: WorkspaceRepository, actor: User, wid: UUID, tid: UUID) -> Thread:
         repo.membership(wid, actor.id)
@@ -102,7 +109,7 @@ class ThreadService:
         self, repo: WorkspaceRepository, actor: User, wid: UUID, evidence: dict[str, Any]
     ) -> None:
         repo.membership(wid, actor.id)
-        if evidence.get("guide"):
+        if evidence.get("guide") or evidence.get("diagram"):
             for source in evidence.get("sources", []):
                 repo.upload(wid, UUID(source["dataset_id"]), UUID(source["upload_id"]))
         for ref in evidence.get("citations", []):
@@ -126,6 +133,15 @@ class ThreadService:
             return None
         with self.uow() as repo:
             self._authorize_evidence(repo, actor, wid, turn.evidence)
+        if turn.evidence.get("report"):
+            if self.pdf_exports is None:
+                raise IngestionError("pdf_unavailable", "PDF export is unavailable.", 503)
+            target = self._report_target(turn, turns)
+            return await self.pdf_exports.describe(actor, wid, tid, target.id)
+        if turn.evidence.get("diagram"):
+            return await self.intent_router.diagrams.reopen(
+                actor, wid, cast(dict[str, Any], turn.evidence["diagram"])
+            )
         if turn.evidence.get("patterns"):
             patterns = self.intent_router.patterns
             if patterns is None:
@@ -206,6 +222,58 @@ class ThreadService:
             tuple(body.get("actions", ())),
         )
 
+    def _report_target(self, turn: ThreadTurn, turns: tuple[ThreadTurn, ...]) -> ThreadTurn:
+        body = cast(dict[str, Any], turn.evidence["report"])
+        position = next(i for i, item in enumerate(turns) if item.id == turn.id)
+        target = next(
+            (item for item in turns[:position] if str(item.id) == body.get("turn_id")), None
+        )
+        if (
+            body.get("thread_id") != str(turn.thread_id)
+            or target is None
+            or target.evidence.get("report")
+            or target.status not in {"complete", "partial"}
+        ):
+            raise IngestionError(
+                "lineage_mismatch", "The saved PDF reference is inconsistent.", 409
+            )
+        return target
+
+    async def _prepare_report(
+        self, actor: User, wid: UUID, thread: Thread, prior: tuple[ThreadTurn, ...], question: str
+    ) -> ReportAnswer:
+        if self.pdf_exports is None:
+            raise UnsupportedQuestionError("PDF export is not configured for this workspace.")
+        try:
+            validate_pdf_export_request(question)
+        except IngestionError as error:
+            raise ClarificationRequiredError(str(error)) from None
+        latest = next(
+            (
+                item
+                for item in reversed(prior)
+                if item.status in {"complete", "partial"}
+                and item.kind not in {"ambiguous", "unsupported"}
+            ),
+            None,
+        )
+        if latest is None:
+            raise ClarificationRequiredError(
+                "First ask a question and save its answer. "
+                "Then ask me to make a PDF of that answer."
+            )
+        target = self._report_target(latest, prior) if latest.evidence.get("report") else latest
+        await planned(report_conversation_plan(thread.id, target.id))
+        await activity(JobStage.VERIFYING, EventStatus.STARTED)
+        try:
+            result = await self.pdf_exports.describe(actor, wid, thread.id, target.id)
+        except IngestionError as error:
+            if error.status == 422 or error.code == "pdf_export_unavailable":
+                raise ClarificationRequiredError(str(error)) from None
+            raise
+        await activity(JobStage.VERIFYING, EventStatus.COMPLETED)
+        return result
+
     def claim(
         self,
         repo: WorkspaceRepository,
@@ -265,6 +333,13 @@ class ThreadService:
         repo.workspace(wid, lock=True)
         self._thread(repo, actor, wid, turn.thread_id)
         self._authorize_evidence(repo, actor, wid, turn.evidence)
+        if turn.evidence.get("report"):
+            turns = tuple(
+                turn if item.id == turn.id else item
+                for item in repo.thread_turns(wid, turn.thread_id)
+            )
+            target = self._report_target(turn, turns)
+            self._authorize_evidence(repo, actor, wid, target.evidence)
         reference = turn.evidence.get("agent_memory")
         if reference is not None and repo.agent_memory(wid, actor.id).reference() != reference:
             raise IngestionError(
@@ -272,22 +347,24 @@ class ThreadService:
                 "Your personal memory changed. Ask again to use its latest version.",
                 409,
             )
-        if turn.evidence.get("patterns"):
-            patterns = cast(dict[str, Any], turn.evidence["patterns"])
-            for source in patterns["sources"]:
+        if turn.evidence.get("patterns") or turn.evidence.get("diagram"):
+            artifact = cast(
+                dict[str, Any], turn.evidence.get("patterns") or turn.evidence["diagram"]
+            )
+            for source in artifact["sources"]:
                 _, current_sources = self.intent_router.analytics._current_description_source(
                     repo, actor, wid, UUID(source["dataset_id"]), UUID(source["upload_id"])
                 )
                 if current_sources != (source,):
                     raise IngestionError(
-                        "source_changed", "The file changed. Run a fresh pattern scan.", 409
+                        "source_changed", "The file changed. Ask again for a current result.", 409
                     )
                 if any(
                     str(feed.source["upload_id"]) != source["upload_id"]
                     for feed in repo.refresh_feeds(wid, UUID(source["dataset_id"]))
                 ):
                     raise IngestionError(
-                        "source_changed", "Use the current accepted file for new patterns.", 409
+                        "source_changed", "Use the current accepted file for new results.", 409
                     )
         current = next(
             item for item in repo.thread_turns(wid, turn.thread_id) if item.id == turn.id
@@ -386,7 +463,9 @@ class ThreadService:
         try:
             with capture_memory() as memory_use:
                 answer = await asyncio.wait_for(
-                    self.intent_router.ask(
+                    self._prepare_report(actor, wid, thread, prior_turns, turn.question)
+                    if wants_pdf_export(turn.question)
+                    else self.intent_router.ask(
                         actor,
                         wid,
                         thread.dataset_id,
@@ -401,7 +480,34 @@ class ThreadService:
                 )
             evidence: dict[str, Any] = {}
             data = None
-            if isinstance(answer, PatternAnswer):
+            if isinstance(answer, ReportAnswer):
+                evidence = {
+                    "report": {
+                        "thread_id": str(answer.thread_id),
+                        "turn_id": str(answer.turn_id),
+                        "format": answer.format,
+                        "label": answer.label,
+                    }
+                }
+                turn = replace(
+                    turn,
+                    kind="overview",
+                    model_route="deterministic:saved-pdf-v1",
+                    status="complete",
+                )
+            elif isinstance(answer, DiagramAnswer):
+                evidence = dict(
+                    diagram={
+                        "result": answer.diagram.body(),
+                        "columns": list(answer.columns),
+                        "sources": list(answer.sources),
+                    },
+                    sources=list(answer.sources),
+                )
+                turn = replace(
+                    turn, kind="overview", model_route=answer.model_route, status="complete"
+                )
+            elif isinstance(answer, PatternAnswer):
                 evidence = dict(patterns=answer.evidence, sources=answer.evidence["sources"])
                 turn = replace(
                     turn,

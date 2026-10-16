@@ -17,6 +17,11 @@ terms. These notices do not change the independent licenses of other components.
 | Exploratory data analysis guidance, AIpoch | [686e09d](https://github.com/aipoch/medical-research-skills/tree/686e09dfdb45d9fa1a08664f06bb93769b3c9d91) | Curated reading recipe adapted from the CSV EDA checklist and report template; filtered to supported tools and eligible fields; no bundled analyzer execution | [MIT](apps/web/public/third-party/eda-LICENSE.txt), ©2026 AIpoch |
 | SQL Data Analytics Project, Baraa Khatib Salkini | [b99f16a](https://github.com/DataWithBaraa/sql-data-analytics-project/tree/b99f16a26197ff0d36131867af319238aec23dd8) | Reading progression adapted from date-range, measures and magnitude exploration; no upstream dataset or unrestricted SQL execution | [MIT](apps/web/public/third-party/sql-analytics-LICENSE.txt), ©2025 Baraa Khatib Salkini |
 
+| ReportLab | [5.0.1](https://pypi.org/project/reportlab/5.0.1/) | Pinned unmodified PDF runtime; ExecPlus supplies protected saved-answer content and a bounded renderer | [BSD](apps/web/public/third-party/reportlab-LICENSE.txt) |
+| Pillow | 12.3.0 in the verified PDF build | ReportLab dependency; no user images or arbitrary image loading are exposed by the export adapter | [MIT-CMU and bundled notices](apps/web/public/third-party/pillow-LICENSE.txt) |
+| charset-normalizer | 3.5.2 in the verified PDF build | ReportLab dependency | [MIT](apps/web/public/third-party/charset-normalizer-LICENSE.txt) |
+| Manrope by Mikhail Sharanda and Mirko Velimirović | Existing ExecPlus font; SHA-256 `3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6` | Unmodified duplicate packaged for offline PDF embedding with checked glyph coverage | [SIL OFL](apps/api/src/execplus/infrastructure/exports/assets/OFL.txt) |
+
 Exact reused source paths and implementation boundaries are recorded in
 [the repository integration map](docs/repository-integration.md). The documd CLI
 and GPL rendering/export programs are not included. Project-only development
@@ -25,3 +30,8 @@ skills retain their own notices in the ignored local installations.
 The web distribution includes these license texts under `/third-party/`; the API
 image carries this notice and the same texts. No upstream example values are used
 as user data. Licensors do not endorse ExecPlus.
+
+The PDF adapter contains original project code, not Anthropic PDF skill or AIpoch
+HTML-to-PDF script code. See [its dependency and content boundary](docs/pdf-export.md).
+The pinned development-only pypdf 6.20.1 (BSD 3-Clause) is used to verify output,
+not included in the application runtime.
