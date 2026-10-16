@@ -183,8 +183,7 @@ function FindingCard({
       />
       {rows.length > 8 && (
         <p>
-          Top 8 of {rows.length} groups shown. All groups are available in the
-          calculation evidence.
+          All {rows.length} returned groups are available in Chart and Table.
         </p>
       )}
       <button

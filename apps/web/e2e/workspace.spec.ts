@@ -325,14 +325,16 @@ test("automatic discoveries show leading categories and keep saved review gates 
     name: "First reading of your data",
     exact: true,
   });
-  await expect(discovery.locator(".discoveryBars li").first()).toContainText(
-    "Zulu",
-  );
-  await expect(discovery.locator(".discoveryBars li")).toHaveCount(8);
-  await expect(
-    discovery.locator(".discoveryBarLabel").filter({ hasText: "Alpha.00" }),
-  ).toHaveText("Alpha.00");
-  await expect(discovery).toContainText("Top 8 of 10 groups shown");
+  const chart = discovery.locator('[data-visualization="How category is distributed"]');
+  const picker = chart.getByLabel("Inspect returned row for How category is distributed");
+  await expect(picker.locator("option").first()).toHaveText("1. Zulu");
+  await expect(picker.locator("option")).toHaveCount(10);
+  await expect(chart).toContainText("Viewing 1–8 of 10 returned rows");
+  await picker.selectOption("1");
+  await expect(chart.getByLabel("Exact chart detail for How category is distributed")).toContainText("Alpha.00");
+  await chart.getByRole("button", { name: "Show all", exact: true }).click();
+  await expect(chart).toContainText("Viewing 1–10 of 10 returned rows");
+  await expect(discovery).toContainText("All 10 returned groups are available in Chart and Table.");
   await expect(discovery.locator(".discoveryMetricNote")).toContainText(
     "inferred, not confirmed",
   );

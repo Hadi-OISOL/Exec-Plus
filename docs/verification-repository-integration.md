@@ -82,15 +82,36 @@ an explicit missing-row list so a narrow zero-width bar cannot hide a missing
 value, and labels Minimum/Maximum clearly. The full browser run includes these
 last presentation changes; the prior six-pass run predates them.
 
-Final build/full-browser results and private release checks will be recorded
-here after execution. Private evidence lives under
+The full browser attempt passes **55 journeys**, fails one obsolete native-bar
+selector and explicitly skips three model-dependent journeys in **6.5 minutes**.
+The replacement renderer exposes all ten returned category options instead of
+native list items. Its discovery caption is also corrected to describe all
+returned groups. The repaired discovery case plus both visualization cases pass
+in a focused **three-journey / 25.8-second** rerun. Thus **56 distinct offline
+journeys** have passing executions; no single clean full run or executed local
+hosted-model cases is claimed. The scale-caption wording changed during the full
+run before the focused visualization cases; the rerun checks the final source.
+
+Local production build, final lint and types pass. Candidate VPS API/web builds
+pass. Non-root network-disabled images pass eight minimal exact/forecast checks,
+three extension checks, eight pattern/daily checks, and an eight-worker/48-operation
+grouped/allocation check. New reading imports and shipped notices also pass.
+Upstream license files preserve their original bytes, including CRLF/EOF whitespace;
+`git diff --check` flags those verbatim assets, not application-code whitespace.
+
+Private release checks will be recorded here after execution. Private evidence lives under
 `data/verification/2026-10-16/runtime-tool-adoption/` and
 `data/verification/2026-10-16/chart-experience/`.
 
 ## Private release
 
-Checked pre-release backup `20261016T083202Z` passes database/object archive
-checksums and restarts services successfully. Pending: candidate API/web images; unchanged 0018 activation with
+Checked backups `20261016T083202Z` and fresh pre-activation
+`20261016T084552Z` pass database/object checksums and restart services successfully.
+Before activation, a source comparison detects a real saved-definition update:
+version 3 becomes version 4, both units are filled and no questions remain. Source
+bytes/profile/revisions stay unchanged. Original snapshots and the failed comparison
+are retained; a new pre-activation baseline preserves the latest definitions rather
+than overwriting them. Pending: unchanged 0018 activation with
 all table fingerprints/config preserved; hosted retail reading and exact/privacy
 checks; browser/visual checks; post-release backup and healthy services.
 Earlier failure reasons are not retrospectively invented. A successful new
