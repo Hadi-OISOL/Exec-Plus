@@ -73,15 +73,17 @@
       "section": "Month 1",
       "feature": "Data-quality validation",
       "status": "done",
-      "note": "Checks missing cells, duplicates, mixed types and invalid dates. Suggested issues do not prove that values are wrong.",
+      "note": "Checks missing cells, duplicates, mixed types and invalid dates. Prepare shows actual check results first and expands explanations on request; consistency does not prove business accuracy.",
       "evidence": [
         "apps/api/src/execplus/domain/profiling.py",
         "apps/api/src/execplus/domain/quality.py",
         "apps/api/tests/test_profiling.py",
-        "apps/api/tests/test_artifacts.py"
+        "apps/api/tests/test_artifacts.py",
+        "docs/prepare-data-experience-repair.md"
       ],
       "evidence_groups": [
-        "E1"
+        "E1",
+        "E24"
       ]
     },
     {
@@ -89,15 +91,17 @@
       "section": "Month 1",
       "feature": "Basic data cleaning and mapping",
       "status": "done",
-      "note": "Preview/apply basic cleaning and column renaming. Original files, change history and restoration remain available.",
+      "note": "Preview/apply basic cleaning and column renaming, with original files, history and restore. A saved change consumes its preview; failed reloads lock edits until recovery without repeating the write.",
       "evidence": [
         "apps/api/src/execplus/domain/profiling.py",
         "apps/api/src/execplus/application/services/workspaces.py",
         "apps/api/tests/test_profile_integration.py",
-        "apps/web/src/app/workspace/profile-panel.tsx"
+        "apps/web/src/app/workspace/profile-panel.tsx",
+        "docs/prepare-data-experience-repair.md"
       ],
       "evidence_groups": [
-        "E1"
+        "E1",
+        "E24"
       ]
     },
     {
@@ -388,15 +392,17 @@
       "section": "Improve activation",
       "feature": "Data-quality score",
       "status": "done",
-      "note": "Shows a repeatable quality score with reasons for missing values, duplicates and date/type issues. The score does not prove business accuracy.",
+      "note": "A file-consistency score and exact check counts are visible in Prepare. Detailed checks expand on request; the score does not establish business accuracy or forecast readiness.",
       "evidence": [
         "apps/api/src/execplus/domain/profiling.py",
         "apps/web/src/app/workspace/profile-panel.tsx",
         "apps/api/tests/test_profiling.py",
-        "apps/api/tests/test_profile_integration.py"
+        "apps/api/tests/test_profile_integration.py",
+        "docs/prepare-data-experience-repair.md"
       ],
       "evidence_groups": [
-        "E1"
+        "E1",
+        "E24"
       ]
     },
     {
@@ -1346,6 +1352,15 @@
         "apps/api/tests/test_agent_memory.py",
         "apps/web/e2e/personal-studio.spec.ts"
       ]
+    ],
+    "E24": [
+      "Prepare data presentation and saved-cleaning recovery",
+      [
+        "docs/prepare-data-experience-repair.md",
+        "apps/web/src/app/workspace/profile-panel.tsx",
+        "apps/web/e2e/workspace.spec.ts",
+        "apps/web/e2e/data-brief.spec.ts"
+      ]
     ]
   },
   "section_intros": {
@@ -1479,8 +1494,8 @@
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "October 16 application 327ba7d adds explicit private personal memory, two useful fictional samples, a refreshed studio and reliable missing-unit review on additive schema 0018. The personal phase2 branch includes phase3 data-reading commit 2a93080 and the earlier grouped-analysis release.",
-    "p25": "October 16: 1,337 distinct backend cases pass across full/focused runs; original failures remain recorded. All 29 frontend tests and 54 distinct offline browser journeys have passing executions, with 3 explicit model-dependent skips. Builds, restricted-image checks, deployed sample calculations/privacy/replay and 3 live browser journeys across 18 layouts pass. One retail reading fell back; a separate action-file reading successfully uses saved personal memory. All eight production gates remain blocked. [E23]",
+    "p24": "October 16 web aded714 simplifies Prepare data and recovers safely after a saved cleaning change cannot reload. API/jobs remain 327ba7d on schema 0018, retaining explicit private memory, fictional samples and missing-unit repair. Personal phase2 includes phase3 data-reading commit 2a93080. A fresh browser sees the new UI; the user’s existing-tab mismatch remains unverified.",
+    "p25": "Latest web-only repair: 29 frontend tests, four distinct focused browser journeys, five architecture checks, types/lint and local/VPS builds pass. Live read-only verification passes nine layouts with source/definitions unchanged and no page/HTTP errors. A selector failure is retained. Earlier studio evidence includes 1,337 backend cases, 54 distinct offline browser journeys and three model-dependent skips; these were not all rerun for this repair. The earlier retail-reading fallback remains unresolved. All eight production gates stay blocked. [E23, E24]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

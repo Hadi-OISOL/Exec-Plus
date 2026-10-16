@@ -15,11 +15,16 @@ matches the checkout. No service listens at localhost:3000. These checks do not
 establish what an already-open browser tab has retained.
 
 A fresh browser in the existing demo account shows the new Home and My memory
-menu. The actual gap is visible in Prepare data: the old “6. Understand your data”
+menu. One confirmed gap is visible in Prepare data: the old “6. Understand your data”
 heading, large raw quality paragraphs, zero-count remediation advice, schema table
 and cleaning controls remain the dominant experience. Passing functional tests
 and serving a new stylesheet did not establish that this screen met the user's
 request. The prior completion message overstated the completeness of UI work.
+
+The user subsequently confirms that neither My memory nor the new Overview
+heading appears in their existing tab. A hard refresh and, if unchanged, a
+screenshot have been requested. Their tab remains unverified; these fresh-browser
+checks do not establish caching as its cause or resolve that reported mismatch.
 
 The investigation makes no source/definition changes. Twelve settled layouts
 show no page/HTTP errors or horizontal overflow. Missing-unit questions are
@@ -75,10 +80,37 @@ passes in 13.8 seconds. This is a retained helper failure, not a product error.
 These runs cover four distinct journeys, not five. All 29 frontend unit tests,
 TypeScript, ESLint, five architecture checks and the final local production build
 pass. The final wording adjustment was followed by a fresh production build.
-Private-release evidence follows when complete. The previous full backend suite is historical
-evidence, not a fresh rerun for this web-only change.
+The previous full backend suite is historical evidence, not a fresh rerun for
+this web-only change. The restore operation shares the reviewed recovery helper;
+its failed-read branch was not separately injected in the browser test.
 
 The checked pre-release backup is `20261016T072438Z`. Database and source-object
 archive checksums pass and services restart healthy. This is archive-integrity
 evidence, not a restore drill. All eight production gates and the 64-item feature
 statuses remain unchanged.
+
+Web application `aded714` is built and activated; API/jobs retain `327ba7d` and
+schema remains **0018**. The source/image checkpoint is
+`pre-prepare-aded714-20261016`. Activation runs under the maintenance lock and
+verifies unchanged API/jobs/PostgreSQL/storage container identities, image IDs,
+start times and environment checksum. The new web image is
+`sha256:252cd39e7eda80f6e5bc836c579f986be660c46827e4af31b3c6fddc59a33011`.
+An initial readiness curl encounters the expected connection refusal while web
+starts; its configured retry succeeds. This is retained in the activation log.
+
+A read-only live browser check passes in 15.701 seconds across nine Prepare,
+column and saved-meaning layouts at 1440/390/320 pixels. It verifies My memory,
+the new Overview and Prepare headings, zero page/HTTP errors and no overflow.
+The reported source's metadata, original bytes, profile, history and saved
+definitions match their pre-release snapshots. No real definitions or source
+data were written by these checks. Confirmed version three and its two genuine
+missing-unit questions remain intact. Screenshots and evidence stay ignored in
+`data/verification/2026-10-16/prepare-redesign/` and `prepare-repair/`.
+
+Checked post-release backup `20261016T073434Z` preserves the current saved work;
+both archive checksums pass and writers/storage restart healthy. No restore drill
+was performed. Post-backup runtime checks confirm five running containers with
+zero recorded restarts, ready database/storage, workspace HTTP 200, unchanged
+schema 0018, six loopback listeners and active model/refresh/backup units. Preserve
+all saved work if rolling back this web-only change. The user has not yet
+confirmed the refreshed screen in their own tab.

@@ -15,6 +15,21 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 16 — Prepare data follow-up
+
+**Status:** Complete for the bounded local/test and private-demo repair;
+the user's existing-tab mismatch remains unverified.
+Web `aded714` replaces the remaining technical Prepare layout with an active-file
+summary, actual check results and expandable details. It also prevents reusing a
+consumed cleaning preview after a successful write followed by a failed reload.
+API/jobs retain `327ba7d`, schema **0018**, source data and saved definitions.
+The [repair ledger](docs/prepare-data-experience-repair.md) records 29 frontend
+tests, four focused browser journeys, five architecture checks, static/build
+checks, nine deployed layouts and checked pre/post backups. This repairs an
+existing screen; no broad feature status or production gate is promoted. A fresh
+browser shows the new UI, but the user's existing tab has not yet been verified
+after the requested hard refresh.
+
 ## October 16 — Personal data partner and studio
 
 **Status:** Complete for the bounded local/test and private-demo slice.

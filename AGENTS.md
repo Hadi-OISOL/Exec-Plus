@@ -36,6 +36,35 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 16 — Prepare data repair after delivery feedback
+
+- Web `aded714` is deployed on unchanged **0018**; API/jobs remain `327ba7d`.
+  Read `docs/prepare-data-experience-repair.md`. The previous images had already
+  been rebuilt, but Prepare still exposed the old technical layout. It now leads
+  with active data, actual checks and a review action; columns, cleaning and
+  history expand on request. Exact values, preview/apply and restore remain intact.
+- A successful cleaning/restore write consumes its preview and invalidates
+  dependent views before reloading. Failed reads lock further edits until a full
+  reload, preventing reuse of an old preview. Manual reload still refreshes other
+  panels. The apply failure branch has browser coverage; the shared restore
+  failure branch is source-reviewed rather than separately injected.
+- Fresh checks: 29 frontend tests, four distinct focused browser journeys, five
+  architecture checks, types/lint and local/VPS builds pass. A corrected selector
+  failure is retained. One read-only deployed journey passes nine layouts in
+  15.701 seconds without page/HTTP errors or overflow. The reported source's five
+  metadata/content/profile/history/meaning artifacts remain unchanged. The full
+  backend suite below is prior evidence, not a fresh rerun for this web repair.
+- Checkpoint `pre-prepare-aded714-20261016`; checked backups
+  `20261016T072438Z` before and `20261016T073434Z` after. Web activation preserves
+  backend containers and environment checksum. Backups restart writers/storage
+  normally. Schema, model settings, six loopback listeners and timers are retained;
+  all 64 IDs, 37/16/11 counts and eight blocked production gates stay unchanged.
+- The user says their open `http://localhost:18400/workspace` tab lacks My memory
+  and the new Overview heading. Fresh browser checks show both. Hard refresh and
+  a screenshot if unchanged were requested; their actual tab remains unverified.
+  Do not claim caching as the established cause, or the broader experience as
+  accepted. The prior UI completion message overstated its completeness.
+
 ### October 16 — Personal agent, studio UI and saved-unit repair
 
 - This bounded slice is complete for local/test and the private demo. Application
