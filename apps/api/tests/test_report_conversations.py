@@ -88,6 +88,10 @@ def test_pdf_scope_clarifies_and_does_not_export_an_older_supported_answer(integ
     assert scope["answer"] is None and scope["turn"]["kind"] == "ambiguous"
     latest = ask(env, owner, path, "Draw a diagram")
     assert latest["answer"]["kind"] == "diagram"
-    refused = ask(env, owner, path, "Make a PDF of this answer")
-    assert refused["answer"] is None and refused["turn"]["kind"] == "ambiguous"
-    assert "diagrams" in refused["turn"]["message"]
+    report = ask(env, owner, path, "Make a PDF of this answer")
+    assert report["answer"]["kind"] == "report"
+    reference = report["answer"]["report"]
+    assert reference["turn_id"] == latest["turn"]["id"]
+    download = env.client.get(reference["download_url"], headers=owner)
+    assert download.status_code == 200
+    assert download.content.startswith(b"%PDF-")

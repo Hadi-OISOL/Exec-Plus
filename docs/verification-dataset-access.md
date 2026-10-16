@@ -73,10 +73,35 @@ Twenty focused cases pass, including nine new lock and revocation cases and the
 original concurrent-snapshot test. Removing and recreating membership under an
 unchanged full-access policy also rejects the in-flight report.
 
+The frozen `eefb670` completion run passes 570 cases and exposes one obsolete
+expectation that diagrams cannot be exported. Diagram reports are now supported;
+the corrected test verifies that the latest diagram is selected and produces a
+real PDF. All four report-conversation cases pass. This run and the earlier 1,297
+passes overlap; their counts are not added as distinct coverage. Four final
+product-usage/support browser journeys pass, and the candidate image and all 213
+typed source/tool files pass their checks.
+
+A further source audit found refresh configuration, staging, review and activation
+holding workspace locks over object I/O. These now capture their inputs, release
+the lock, then recheck exact source, feed, candidate, membership and policy state
+before publication. Thirty-nine focused lock/race cases pass, including concurrent
+identical staging, creator membership recreation and uncertain commit outcomes.
+Existing refresh, monitoring, forecast and policy compatibility cases also pass;
+172 distinct affected cases have passing executions across the overlapping runs.
+Two retained test-fixture failures were a wrapper missing keyword arguments and
+comparison of in-memory tuples with serialized JSON arrays.
+
+Upload, sample and document cleanup now keeps bytes if a commit may have succeeded
+or its metadata cannot be checked. Only proven unretained objects are deleted,
+outside workspace locks. Nine real database/storage cases verify uncertain commit,
+partial writes and unavailable cleanup metadata across all three source types.
+The original request error remains visible; the system does not silently report
+success after a lost commit response.
+
 Final coverage will combine the retained successful cases with every remaining
-case and fresh affected-report checks on the frozen repair. It will be reported
-as combined coverage, not a single clean full run. Fresh candidate-image and
-private VPS checks remain pending. The existing VPS application is `b3a1fb1` on 0018.
+case and affected-service rechecks on the frozen repair. It will be reported as
+combined coverage, not a single clean full run. Fresh candidate-image and private
+VPS checks remain pending. The existing VPS application is `b3a1fb1` on 0018.
 
 Retained earlier failures distinguish application defects from test setup:
 

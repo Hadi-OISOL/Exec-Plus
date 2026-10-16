@@ -552,7 +552,17 @@ class WorkspaceService:
         except Exception:
             if attempted:
                 try:
-                    self.storage.delete(upload)
+                    retained = True
+                    with self.uow() as repo:
+                        repo.workspace(workspace_id, lock=True)
+                        try:
+                            repo.upload(workspace_id, dataset_id, upload.id)
+                        except IngestionError as error:
+                            if error.status != 404:
+                                raise
+                            retained = False
+                    if not retained:
+                        self.storage.delete(upload)
                 except Exception:
                     logger.error(
                         "upload_cleanup_failed workspace_id=%s upload_id=%s",

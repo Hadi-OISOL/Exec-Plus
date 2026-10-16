@@ -4,6 +4,7 @@ What it does: Keeps source bytes in object storage and resolves immutable, scope
 """
 
 import hashlib
+import logging
 from dataclasses import asdict
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
@@ -14,6 +15,8 @@ from execplus.application.services.analytics import UnitOfWork
 from execplus.application.services.dataset_access import dataset_access, require_full_access
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.knowledge import Document, DocumentChunk, chunks, document_text
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeService:
@@ -80,13 +83,13 @@ class KnowledgeService:
             shared,
             now,
         )
-        written = False
+        attempted = False
         try:
             with self.uow() as repo:
                 repo.workspace(wid, lock=True)
                 reference = self._ingest_access(repo, actor, wid, did)
+            attempted = True
             self.storage.put_document(document, content)
-            written = True
             with self.uow() as repo:
                 repo.workspace(wid, lock=True)
                 if self._ingest_access(repo, actor, wid, did) != reference:
@@ -100,8 +103,25 @@ class KnowledgeService:
                     )
                 )
         except Exception:
-            if written:
-                self.storage.delete_document(document)
+            if attempted:
+                try:
+                    retained = True
+                    with self.uow() as repo:
+                        repo.workspace(wid, lock=True)
+                        try:
+                            repo.document(wid, document.id)
+                        except IngestionError as error:
+                            if error.status != 404:
+                                raise
+                            retained = False
+                    if not retained:
+                        self.storage.delete_document(document)
+                except Exception:
+                    logger.error(
+                        "document_cleanup_failed workspace_id=%s document_id=%s",
+                        wid,
+                        document.id,
+                    )
             raise
         return document
 
