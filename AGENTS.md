@@ -38,9 +38,11 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ### October 16 — Personal agent, studio UI and saved-unit repair
 
-- Current slice is implemented and undergoing final browser/private-release checks.
+- This bounded slice is complete for local/test and the private demo. Application
+  `327ba7d` is deployed on **0018**.
   Read `docs/personal-agent-studio.md`, `docs/verification-personal-agent-studio.md`,
-  `docs/demo-data-guide.md` and `docs/personal-agent-reference-audit.md`.
+  `docs/demo-data-guide.md`, `docs/personal-agent-reference-audit.md` and
+  `docs/project-skill-adoption.md`.
 - Migration **0018** adds explicit actor/workspace-private memory. It guides new
   qualitative readings and suggestions, never numeric planning/filters. Forget
   clears future active use; historical replies/backups remain. Membership removal
@@ -64,8 +66,33 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   before executing tools or changing this boundary. No global settings changed.
 - All 1,335 full-suite backend cases plus two later regressions have passing
   executions (1,337 distinct); the two original fixture failures remain recorded.
-  Final UI/live results and deployment checkpoint will be added after verification.
-  Counts stay 37 Done / 16 Partial / 11 Not yet; all eight production gates blocked.
+  All 29 frontend tests, Ruff/mypy (179 files), types/lint and local/VPS builds pass.
+  All 54 distinct offline browser journeys have passing executions across full/
+  focused runs; three model-dependent cases remain explicitly skipped. Restricted
+  non-root image checks pass prior and new calculations without network access.
+- Live API checks use three fictional actors/two workspaces and pass 24 private
+  denials, two memory conflicts, seven legacy reopens and all sample calculations.
+  The first retail reading fell back; a separate action-file reading successfully
+  uses saved memory through the configured hosted model. Forget preserves that
+  historical answer. This does not establish that the first fallback is resolved.
+  Three live browser journeys pass eighteen 1440/390/320 layouts with zero page
+  errors/overflow in 193.285 seconds; a settled Home recapture also passes.
+  Two initial helper failures remain in the ledger. The fictional v3→v4→v5 unit
+  repair persists both entered units; real user definitions remain unchanged.
+- Activation preserves all 46 prior business-table fingerprints and configuration.
+  Checkpoint: `pre-327ba7d-20261016`; checked backups: `20261016T061031Z` before and
+  `20261016T063610Z` after release. Post-backup readiness/web, five containers,
+  zero restarts, six loopback listeners and model/timers pass. The reported source's
+  five artifacts still match. Preserve all new saved work and memory on rollback.
+- Five no-LLM skill scans completed and all 125 findings were source-reviewed;
+  raw scores and partial coverage remain recorded. This is not a clean scan or
+  safety certification. Selected guidance remains scoped; downloaded templates,
+  optional exporters and scientific analyzers do not run in the product.
+- The October 16 Desktop DOCX and maintained ledger preserve all 64 IDs and counts
+  37 Done / 16 Partial / 11 Not yet. All eight production gates stay blocked.
+  Broader methods, exports/connectors and representative model/load acceptance
+  remain open. Future work should use the current contracts and actual failures;
+  no broader model-quality or competitor-parity claim is supported.
 
 
 ### October 16 — Group comparisons, selection rules and fixed evaluation

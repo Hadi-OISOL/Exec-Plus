@@ -17,7 +17,8 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 
 ## October 16 — Personal data partner and studio
 
-**Status:** In progress through final browser and private-release verification.
+**Status:** Complete for the bounded local/test and private-demo slice.
+Application `327ba7d` is deployed on additive schema **0018**.
 The [bounded contract](docs/personal-agent-studio.md) adds explicit private personal
 memory, two reproducible fictional samples and a lighter studio interface. It also
 repairs missing-unit entry, save/reopen feedback and visible unfinished questions.
@@ -27,6 +28,16 @@ retained failures and release evidence. Downloaded design/EDA/scanner skills sup
 project development; no arbitrary runtime plugin execution, provider switch or
 new production dependency is added. All 64 feature IDs and production gates retain
 their existing status.
+
+Evidence includes 1,337 distinct backend cases across full/focused runs, 29 frontend
+tests, 54 distinct offline browser journeys with passing executions and three
+explicit model-dependent skips. Static checks, local/VPS builds and restricted
+image computations pass. Deployed sample calculations, memory/privacy/replay
+checks and three browser journeys across eighteen layouts pass. An initial retail
+reading falls back; a separate hosted action-file reading successfully uses saved
+memory. Failures and their limits remain in the ledger. All prior business tables,
+configuration and real user definitions are preserved, with checked pre/post
+backups. Synthetic functional success is not representative production acceptance.
 
 ## October 16 — Internal analytics depth and cross-feature reliability
 

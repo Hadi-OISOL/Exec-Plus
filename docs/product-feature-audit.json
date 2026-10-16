@@ -105,7 +105,7 @@
       "section": "Month 1",
       "feature": "Descriptive dashboards",
       "status": "done",
-      "note": "Readable charts and measured pattern cards show relationships, group differences and weak results with coverage/source details. Home retains saved purpose and private goals.",
+      "note": "The light studio presents measured patterns, readable charts, exact-value tables and source context. Observed and forecast points remain distinct; broad chart/export support is bounded.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/web/src/app/workspace/dashboard-panel.tsx",
@@ -118,14 +118,16 @@
         "docs/verification-context-reuse.md",
         "docs/verification-meaning-first.md",
         "docs/measured-patterns.md",
-        "docs/verification-measured-patterns.md"
+        "docs/verification-measured-patterns.md",
+        "docs/verification-personal-agent-studio.md"
       ],
       "evidence_groups": [
         "E2",
         "E13",
         "E17",
         "E19",
-        "E20"
+        "E20",
+        "E23"
       ]
     },
     {
@@ -151,7 +153,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Saved meanings and private goals guide questions. Qualitative readings have bounded invalid-output correction and source checks; patterns use measured private evidence. Missing details and uncertain interpretation stay explicit.",
+      "note": "Supported data/document questions use registered tools and retained evidence. Explicit private memory tailors new qualitative readings and suggestions; it cannot add calculation filters or guarantee model accuracy.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -164,7 +166,8 @@
         "docs/verification-context-reuse.md",
         "docs/verification-meaning-first.md",
         "docs/measured-patterns.md",
-        "docs/verification-measured-patterns.md"
+        "docs/verification-measured-patterns.md",
+        "docs/verification-personal-agent-studio.md"
       ],
       "evidence_groups": [
         "E2",
@@ -172,7 +175,8 @@
         "E17",
         "E19",
         "E20",
-        "E21"
+        "E21",
+        "E23"
       ]
     },
     {
@@ -313,19 +317,21 @@
       "section": "Improve activation",
       "feature": "Guided data-upload wizard",
       "status": "done",
-      "note": "Upload opens a focused review with one question at a time. Back keeps edits; partial progress stays a draft, and failed saves retry only unfinished parts. Notes remain private unless explicitly shared.",
+      "note": "Guided upload review asks one question at a time, preserves saved meanings and writes missing units to the correct field. Skipped details remain visible; saving and reload failures are distinguished.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/web/e2e/workspace.spec.ts",
         "docs/verification-data-partner.md",
         "apps/web/src/app/workspace/guided-review.tsx",
         "apps/web/e2e/guided-review.spec.ts",
-        "docs/verification-onboarding-merge.md"
+        "docs/verification-onboarding-merge.md",
+        "docs/verification-personal-agent-studio.md"
       ],
       "evidence_groups": [
         "E10",
         "E16",
-        "E21"
+        "E21",
+        "E23"
       ]
     },
     {
@@ -333,15 +339,17 @@
       "section": "Improve activation",
       "feature": "Sample datasets",
       "status": "done",
-      "note": "Versioned fictional finance, sales, inventory and city datasets let users explore before uploading their own files. Samples retain reproducible profiles and private originals.",
+      "note": "Seven versioned fictional samples include a complete 365-day, three-region retail dataset and a six-action allocation example. Source generators and a step-by-step guide are retained; meanings still require confirmation.",
       "evidence": [
         "apps/api/src/execplus/domain/samples.py",
         "apps/api/tests/test_profiling.py",
         "apps/api/tests/test_profile_integration.py",
-        "apps/web/e2e/workspace.spec.ts"
+        "apps/web/e2e/workspace.spec.ts",
+        "docs/verification-personal-agent-studio.md"
       ],
       "evidence_groups": [
-        "E1"
+        "E1",
+        "E23"
       ]
     },
     {
@@ -463,15 +471,17 @@
       "section": "Improve activation",
       "feature": "In-app onboarding",
       "status": "done",
-      "note": "In-app next steps track workspace creation, invitations, upload, exploration and saving. Samples and immediate findings help users begin; this is not automated commercial account provisioning.",
+      "note": "Focused Home, chat and review views guide the private-demo workflow. Optional per-user memory is editable and forgettable; it is not automatic learning from every conversation.",
       "evidence": [
         "apps/api/src/execplus/application/services/activation.py",
         "apps/web/src/app/workspace/activation-panel.tsx",
         "apps/api/tests/test_phase3_integration.py",
-        "apps/web/e2e/workspace.spec.ts"
+        "apps/web/e2e/workspace.spec.ts",
+        "docs/verification-personal-agent-studio.md"
       ],
       "evidence_groups": [
-        "E3"
+        "E3",
+        "E23"
       ]
     },
     {
@@ -709,18 +719,20 @@
       "section": "Commercial readiness",
       "feature": "Customer-data isolation",
       "status": "done",
-      "note": "Current private-demo workflows keep workspace data and private resources separate. Automated cross-workspace tests pass; production security review remains open.",
+      "note": "Workspace/source isolation and creator-private analyses are tested. Personal memory is actor/workspace-private with membership removal, conflict and freshness checks; forget does not erase historical replies or backups.",
       "evidence": [
         "apps/api/tests/test_workspace_integration.py",
         "apps/api/tests/test_phase3_integration.py",
         "apps/api/tests/test_studies.py",
         "apps/api/tests/test_artifacts.py",
         "apps/api/tests/test_conversation_jobs.py",
-        "docs/verification-platform-foundation.md"
+        "docs/verification-platform-foundation.md",
+        "docs/verification-personal-agent-studio.md"
       ],
       "evidence_groups": [
         "E6",
-        "E7"
+        "E7",
+        "E23"
       ]
     },
     {
@@ -1323,6 +1335,17 @@
         "scripts/check_analysis_evaluation.py",
         "scripts/measure_analysis_workload.py"
       ]
+    ],
+    "E23": [
+      "Personal agent, useful samples and studio repair",
+      [
+        "docs/personal-agent-studio.md",
+        "docs/verification-personal-agent-studio.md",
+        "docs/demo-data-guide.md",
+        "docs/project-skill-adoption.md",
+        "apps/api/tests/test_agent_memory.py",
+        "apps/web/e2e/personal-studio.spec.ts"
+      ]
     ]
   },
   "section_intros": {
@@ -1456,8 +1479,8 @@
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "October 16 application dfddb8c adds pooled/within-group comparisons and exact allocation prerequisites/exclusions on unchanged schema 0017. The personal phase2 branch already includes phase3 data-reading commit 2a93080.",
-    "p25": "October 16: 1,300 backend cases, 29 frontend tests and 18 fixed evaluation cases / 42 checks pass. Full offline browser run: 51 pass, 3 explicit model-dependent skips. Paired eight-user workload, local/VPS builds, eight-actor deployed privacy/replay checks, a fresh hosted reading and two live browser journeys pass. Eight production gates remain blocked. [E22]",
+    "p24": "October 16 application 327ba7d adds explicit private personal memory, two useful fictional samples, a refreshed studio and reliable missing-unit review on additive schema 0018. The personal phase2 branch includes phase3 data-reading commit 2a93080 and the earlier grouped-analysis release.",
+    "p25": "October 16: 1,337 distinct backend cases pass across full/focused runs; original failures remain recorded. All 29 frontend tests and 54 distinct offline browser journeys have passing executions, with 3 explicit model-dependent skips. Builds, restricted-image checks, deployed sample calculations/privacy/replay and 3 live browser journeys across 18 layouts pass. One retail reading fell back; a separate action-file reading successfully uses saved personal memory. All eight production gates remain blocked. [E23]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

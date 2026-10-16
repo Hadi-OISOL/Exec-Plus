@@ -81,5 +81,7 @@ than adding a second orchestration framework or memory vendor for this slice.
 - No production gate, broad advanced-method status, connector or competitor parity
   is promoted merely because this slice succeeds.
 
-Implementation contracts and final evidence will be recorded separately after
-the checks finish. This plan is not a completion claim.
+The delivered behavior is recorded in [the contract](personal-agent-studio.md).
+Actual checks, failed attempts, release preservation and remaining limitations
+are recorded in [the verification ledger](verification-personal-agent-studio.md).
+This plan defines scope; the ledger supplies completion evidence.

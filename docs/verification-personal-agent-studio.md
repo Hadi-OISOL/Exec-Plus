@@ -4,8 +4,9 @@
 # Verification — personal agent and studio
 
 Scope is defined in [the contract](personal-agent-studio.md) and
-[plan](personal-agent-studio-plan.md). This ledger is in progress until release
-checks below are complete. No production gate or broad feature status is promoted.
+[plan](personal-agent-studio-plan.md). The bounded local/test and private-demo
+slice is complete on application **327ba7d**, schema **0018**. No production gate
+or broad feature status is promoted.
 
 ## Reported definition-saving issue
 
@@ -49,7 +50,9 @@ Memory checks cover actor/workspace isolation, administrator denial, optimistic
 conflict, membership removal/rejoin, forget tombstones, private audit visibility,
 model-input boundaries, changes during correction/publication and immutable old
 replies. The independent code review confirms memory is absent from numerical
-planning and advisory selection.
+planning and advisory selection. A final read-only spot review of committed
+`327ba7d` finds no material blocker in those boundaries or unit-write/reload
+handling; it is not an exhaustive audit.
 
 The retail fixture verifies 1,095 rows, 365 dates, exact revenue 8,235,156.60 USD,
 three support spikes and pooled/within-region direction reversal. The separate
@@ -97,5 +100,103 @@ archive checksums pass and services restart healthy. The first invocation omitte
 retained separately. Archive integrity is not current-version restore or off-server
 recovery evidence. Models and timers are active and /sdb-disk retains ample space.
 All **29 frontend unit tests**, TypeScript, ESLint and the final sequential local
-production build pass. Deployment/build/live results will be added once those
-operations finish.
+production build pass. Deployment and live evidence follow below.
+
+## Activated private release
+
+Application **327ba7d** is activated on **0018**. Both VPS images build and the
+non-root, read-only, network-disabled image passes eight prior compute/forecast
+checks, three earlier extensions, eight pattern/daily checks and 48 group/rule
+computations across eight workers. Activation holds the maintenance lock and keeps
+checkpoint `pre-327ba7d-20261016`. All **46 prior business-table fingerprints** and
+the environment checksum match; the expected differences are the Alembic version
+and an empty new `agent_memories` table. Rollback refuses to discard memory rows
+or tombstones and never restores an old database over new saved work.
+
+Activated runtime has five running containers, zero restarts, healthy database/
+storage readiness, workspace HTTP 200, six loopback listeners and active model,
+refresh and backup units. No application-error lines were found in the inspected
+thirty-minute window. The reported four-column file's five retained artifacts
+match their pre-release copies. The original farm bytes, profile, definitions and
+revision history also match the pre-release snapshot.
+
+## Live application checks
+
+The first API rehearsal passes its assertions in **261.701 seconds**, using three
+fictional actors and two new workspaces. It checks 24 private denials, two stale
+memory-edit conflicts, explicit save/edit/forget, immutable saved reading,
+two exact retail totals, two pattern jobs, all three planted support spikes,
+seven forecast dates, exact scenario/allocation results and seven legacy reopens.
+Source snapshots remain unchanged. A fresh natural-language calculation uses the
+configured local selector and hosted planner and returns exactly 8,235,156.60 USD.
+
+The first qualitative retail reading **falls back** to saved dataset information.
+The recorded route is `deterministic:dataset-guidance-v1`; the retained response
+does not expose enough detail to attribute the cause. It is not counted as a
+successful hosted reading. A separate probe on the smaller action file, with
+plain saved preferences, succeeds through
+`hosted:deepseek-v4-pro:dataset-reading-v1`. It uses the current private memory,
+explains the declared costs/assumed benefits/staff hours and suggests eligible
+comparisons without inventing a dated forecast. Its receipt records the memory
+version without copying the raw memory text. Forget advances the private revision,
+the saved answer still reopens, a second member is denied its private thread and
+source preservation passes. This different probe does not establish that the
+initial retail fallback is resolved.
+
+Private live evidence is retained under
+`data/verification/2026-10-16/workspace-upgrade/live-20261016T062136Z/`.
+These synthetic functional checks do not establish representative model quality,
+calibrated decision benefits or sustained-load acceptance.
+
+The live browser run passes **three journeys** in **193.285 seconds**, with
+**eighteen layouts** at 1440/390/320 pixels, zero page errors and no horizontal
+overflow. It opens the retail Home and saved forecast, reopens the accepted hosted
+action-file explanation, repairs a separate fictional confirmed-v3 definition
+through partial v4 to complete v5, and saves/reopens/forgets a member's own memory.
+Both units persist as explicitly entered, descriptions remain unchanged and the
+fictional fixture has zero remaining questions. The real reported file is not
+edited. The first two attempts remain recorded: an overly exact history selector,
+then an omitted **Load saved answer** step in the new helper. Only the helper was
+corrected; no product change was needed. A separate read-only Home capture waits
+for saved context to finish loading rather than retaining a transient screenshot.
+That recapture passes three layouts with no page errors/overflow in 32.404 seconds;
+it repeats the Home view and is not counted as another distinct journey.
+
+## Checked post-release state
+
+Post-release backup **20261016T063610Z** retains the new fictional verification
+work and private memory revisions. Both archive checksums pass and the script
+restarts writers/storage successfully. Final checks again show five running
+containers, zero restarts, schema 0018, ready database/storage, workspace HTTP 200,
+six loopback listeners and active model/refresh/backup units. The inspected
+thirty-minute application-log window contains no error lines. The reported real
+source's five original artifacts still match after backup. This is archive and
+functional evidence, not a restore drill or off-server disaster recovery.
+
+The maintained feature report and refreshed October 16 Desktop DOCX retain all
+64 original ordered rows and counts 37/16/11. The DOCX archive and new evidence
+text were checked; its previous version is preserved in Desktop report-backups.
+The user's original October 13 PDF remains untouched and untracked. Private
+sessions, local skills, tools, samples, captures and reports remain ignored.
+
+## Development-tool review
+
+All seven requested repositories are downloaded at the pins recorded in
+[the adoption record](project-skill-adoption.md). Four selected skills are local
+coding guidance; Lieflat is an inactive reference outside discovery. No downloaded
+skill is a deployed product tool. UI guidance informed the studio; documd guidance
+informed the attributed local walkthrough; the SQL/EDA references informed its
+question progression and explicit limitations. oneDAL was neither built nor
+benchmarked, and no learned model was trained.
+
+Five no-LLM SkillSpector scans finish with valid reports and no timeout. Their
+125 findings receive source judgments. UI/documd/Lieflat retain raw CRITICAL
+scores and partial parser coverage; EDA retains a MEDIUM result with unresolved
+example references; inspector instructions receive LOW/zero findings. This is
+not a clean scan or safety certification. Scoped UI/documd/EDA guidance remains
+CAUTION, Lieflat retention remains CAUTION/inactive, and the inspector procedure
+is APPROVE within its reviewed scope. Optional exporters/templates/analyzers
+were not executed. Reports, dependencies and source checksums stay ignored.
+
+A fresh production-preflight check still blocks all eight required gates. No
+feature count or production status changes: **37 Done / 16 Partial / 11 Not yet**.

@@ -115,6 +115,6 @@ retaining exact values, missing-point gaps and existing evidence controls.
 The agent continues to use its registered profile, query, document, pattern and
 group-comparison operations. Forecasts, scenarios, anomaly checks and allocations
 retain dedicated forms and explicit assumptions. Personal memory is not a plugin
-loader or arbitrary code runner. This slice adds no provider, dependency, connector,
+loader or arbitrary code runner. This slice adds no provider, application dependency, connector,
 public listener or automatic external action. Broad advanced methods and all
 production gates remain separate.
