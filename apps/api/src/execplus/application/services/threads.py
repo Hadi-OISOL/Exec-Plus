@@ -26,6 +26,7 @@ from execplus.application.services.intent_router import (
     PlanningClarification,
 )
 from execplus.domain.analysis_plan import report_conversation_plan
+from execplus.domain.conversation_requirements import starts_new_orientation
 from execplus.domain.errors import (
     ClarificationRequiredError,
     ProviderUnavailableError,
@@ -220,6 +221,7 @@ class ThreadService:
             str(body["definition_state"]),
             str(body.get("focus", "orientation")),
             tuple(body.get("actions", ())),
+            reading_context_digest=body.get("reading_context_digest"),
         )
 
     def _report_target(self, turn: ThreadTurn, turns: tuple[ThreadTurn, ...]) -> ThreadTurn:
@@ -441,6 +443,16 @@ class ThreadService:
             position = next(i for i, item in enumerate(all_turns) if item.id == turn.id)
             prior_turns = all_turns[:position]
             for item in reversed(prior_turns):
+                if item.status == "complete" and item.evidence.get("guide"):
+                    guide = self._saved_guide(item)
+                    if guide.columns or starts_new_orientation(
+                        item.question, columns=guide.columns, focus=guide.focus
+                    ):
+                        break
+                if item.status == "complete" and (
+                    item.evidence.get("diagram") or item.evidence.get("patterns")
+                ):
+                    break
                 if not prior_document_query and item.evidence.get("document_query"):
                     self._authorize_evidence(repo, actor, wid, item.evidence)
                     prior_document_query = str(item.evidence["document_query"])
@@ -458,6 +470,7 @@ class ThreadService:
                     str(saved["question"]),
                     str(saved["message"]),
                     tuple(cast(list[dict[str, str]], saved["sources"])),
+                    tuple(cast(list[str], saved.get("choices", []))),
                 )
         answer: ConversationAnswer | None = None
         try:
@@ -544,6 +557,7 @@ class ThreadService:
                         definition_state=answer.definition_state,
                         focus=answer.focus,
                         actions=list(answer.actions),
+                        reading_context_digest=answer.reading_context_digest,
                     ),
                     sources=list(answer.sources),
                 )

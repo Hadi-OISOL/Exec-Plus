@@ -91,7 +91,6 @@ def needs_goal_clarification(question: str, previous_columns: tuple[str, ...] = 
         "analyse it",
         "find patterns",
         "what do you notice",
-        "what can you tell me about this data",
     }
     unclear = {"", "what", "what do you mean", "i don t understand", "i dont understand"}
     return normalized in broad or (normalized in unclear and not previous_columns)
@@ -190,7 +189,7 @@ def guidance_selection(
             return named
         if re.search(r"\b(data|dataset|file|spreadsheet|columns|help)\b", normalized):
             return ()
-        if meaning:
+        if meaning and re.search(r"\b(what does .+ mean|meaning of|definition of)\b", normalized):
             raise ClarificationRequiredError(
                 "Which column do you mean? Use its name from the selected file so I can explain it."
             )
