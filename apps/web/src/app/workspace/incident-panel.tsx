@@ -42,7 +42,7 @@ export function IncidentPanel({ request }: { request: ApiRequest }) {
     const controller = new AbortController(); mutation.current = controller;
     setBusy(true); setError(""); setMessage("");
     try {
-      await request(`/admin/incidents/${value.id}`, { method: "PATCH", body: JSON.stringify({ expected_version: value.version, status }), signal: controller.signal });
+      await request(`/admin/incidents/${value.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expected_version: value.version, status }), signal: controller.signal });
       if (!controller.signal.aborted) { setMessage(status === "resolved" ? "Incident resolved. A new failure will open it again." : "Incident acknowledged. New failures are still counted."); setReload(previous => previous + 1); }
     } catch (cause) {
       if (!controller.signal.aborted) { setReport(null); setError(cause instanceof Error ? cause.message : "The incident could not be updated. Reload it and try again."); }

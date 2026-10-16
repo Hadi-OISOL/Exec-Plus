@@ -375,7 +375,9 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
                     for row in connection.execute(select(table)).mappings()
                 )
                 for name, table in s.metadata.tables.items()
-                if name != "agent_memories"
+                if name not in {
+                    "agent_memories", "dataset_access_policies", "incidents", "incident_occurrences"
+                }
             }
 
     before = snapshots()
@@ -388,6 +390,9 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
         command.upgrade(env.config, "head")
     assert snapshots() == before
     assert env.client.get(memory_path(wid), headers=owner).json()["version"] == 0
+    with env.engine.connect() as connection:
+        for table in (s.dataset_access_policies, s.incidents, s.incident_occurrences):
+            assert connection.execute(select(table)).all() == []
     assert env.client.get("/health/ready").status_code == 200
 
 

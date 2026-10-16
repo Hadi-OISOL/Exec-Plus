@@ -30,7 +30,11 @@ test("internal alerts collect durable failures and honor staff review and revoca
   const card = panel.getByRole("article", { name: "A staged refresh could not activate", exact: true });
   await expect(card).toBeVisible();
   await expect(panel.getByText("Collector is running", { exact: true })).toBeVisible();
+  const acknowledgement = page.waitForResponse(response => response.url().includes("/admin/incidents/") && response.request().method() === "PATCH");
   await card.getByRole("button", { name: "Acknowledge", exact: true }).click();
+  const acknowledged = await acknowledgement;
+  expect(acknowledged.request().headers()["content-type"]).toBe("application/json");
+  expect(acknowledged.ok()).toBe(true);
   await expect(card.getByText("acknowledged", { exact: true })).toBeVisible();
   const directory = "../../data/verification/2026-10-16/remaining-work/incidents-browser";
   mkdirSync(directory, { recursive: true });
