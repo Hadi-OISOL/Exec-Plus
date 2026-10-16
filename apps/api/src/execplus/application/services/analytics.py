@@ -152,7 +152,6 @@ class AnalyticsService:
         source: dict[str, str] | None = None,
     ) -> tuple[DescriptionContext, TableData, WorkspaceScope]:
         with self.uow() as repo:
-            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
             access = dataset_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
@@ -203,6 +202,10 @@ class AnalyticsService:
             scope = WorkspaceScope(
                 workspace_id, actor.id, frozenset({member.role}), frozenset({dataset_id})
             )
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
+            authorize_sources(repo, actor, workspace_id, view.sources)
             return context, table, scope
 
     def _current_description_source(
@@ -251,9 +254,11 @@ class AnalyticsService:
             )
             if before != expected_sources:
                 raise ClarificationRequiredError(message)
-            content = self.storage.read(upload)
-            if hashlib.sha256(content).hexdigest() != upload.checksum:
-                raise IngestionError("lineage_mismatch", "The source integrity check failed.", 409)
+        content = self.storage.read(upload)
+        if hashlib.sha256(content).hexdigest() != upload.checksum:
+            raise IngestionError("lineage_mismatch", "The source integrity check failed.", 409)
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             _, after = self._current_description_source(
                 repo, actor, workspace_id, dataset_id, upload_id
             )
@@ -264,13 +269,16 @@ class AnalyticsService:
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> tuple[str, WorkspaceScope, TableData, DatasetView]:
         with self.uow() as repo:
-            repo.workspace(workspace_id, lock=True)
             member = self._authorize(repo, actor, workspace_id)
             access = dataset_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
             table, view = self._snapshot(repo, upload)
             table, view, _, _ = scope_snapshot(table, view, {}, view.definition, access)
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
+            authorize_sources(repo, actor, workspace_id, view.sources)
         scope = WorkspaceScope(
             workspace_id, actor.id, frozenset({member.role}), frozenset({dataset_id})
         )
@@ -283,7 +291,6 @@ class AnalyticsService:
         self, actor: User, workspace_id: UUID, source: dict[str, str]
     ) -> tuple[str, WorkspaceScope, TableData, DatasetView]:
         with self.uow() as repo:
-            repo.workspace(workspace_id, lock=True)
             member = self._authorize(repo, actor, workspace_id)
             did, uid = UUID(source["dataset_id"]), UUID(source["upload_id"])
             authorize_sources(repo, actor, workspace_id, [source])
@@ -325,7 +332,10 @@ class AnalyticsService:
             table, view, _, _ = scope_snapshot(
                 table, view, revision.profile, meaning.definition, access
             )
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            authorize_sources(repo, actor, workspace_id, [source])
         return (
             dataset.name,
             WorkspaceScope(workspace_id, actor.id, frozenset({member.role}), frozenset({did})),
@@ -754,7 +764,6 @@ class AnalyticsService:
         tables: list[TableData] = []
         views: list[DatasetView] = []
         with self.uow() as repo:
-            repo.workspace(workspace_id, lock=True)
             member = self._authorize(repo, actor, workspace_id)
             authorize_sources(repo, actor, workspace_id, sources)
             for source in sources:

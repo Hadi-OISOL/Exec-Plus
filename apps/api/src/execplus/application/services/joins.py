@@ -13,7 +13,7 @@ from io import BytesIO
 from uuid import UUID, uuid4
 
 from execplus.application.ports import FileParser, ObjectStorage, QueryExecutor, WorkspaceRepository
-from execplus.application.services.dataset_access import require_full_access
+from execplus.application.services.dataset_access import authorize_sources, require_full_access
 from execplus.application.services.lineage import persist_query_execution
 from execplus.application.services.understanding import current_meaning
 from execplus.domain.errors import ClarificationRequiredError
@@ -135,7 +135,6 @@ class JoinService:
     ) -> tuple[QueryResult, CalculationLineage]:
         with self.uow() as repo:
             member = self._authorize(repo, actor, workspace_id)
-            repo.workspace(workspace_id, lock=True)
             join_path = repo.join_path(workspace_id, join_path_id)
             left_access = require_full_access(repo, actor, workspace_id, join_path.left_dataset_id)
             right_access = require_full_access(
@@ -159,6 +158,10 @@ class JoinService:
                     {**source, **right_access.reference()} for source in right_view.sources
                 ),
             )
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
+            authorize_sources(repo, actor, workspace_id, left_view.sources + right_view.sources)
 
         for view, table, column, is_right in (
             (left_view, left_table, join_path.left_column, False),

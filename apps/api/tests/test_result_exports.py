@@ -297,3 +297,41 @@ def test_restricted_export_omits_hidden_field_meanings_and_out_of_scope_rows(int
         403,
         404,
     }
+
+
+@pytest.mark.parametrize("format", ["pdf", "png"])
+def test_export_replay_and_render_do_not_hold_workspace_lock(integration, monkeypatch, format):
+    env = integration
+    owner, _, wid, _, _, _, url, _ = setup(env, grouped=True)
+    observed = {"read": 0, "render": 0}
+
+    def unlocked(stage):
+        with env.engine.begin() as connection:
+            connection.execute(
+                select(s.workspaces.c.id)
+                .where(s.workspaces.c.id == UUID(wid))
+                .with_for_update(nowait=True)
+            ).scalar_one()
+        observed[stage] += 1
+
+    storage = env.runtime.service.storage
+    original_read = storage.read
+
+    def read(*args, **kwargs):
+        unlocked("read")
+        return original_read(*args, **kwargs)
+
+    renderer = (
+        env.runtime.pdf_exports.renderer if format == "pdf" else env.runtime.result_exports.renderer
+    )
+    original_render = renderer.render
+
+    def render(*args, **kwargs):
+        unlocked("render")
+        return original_render(*args, **kwargs)
+
+    monkeypatch.setattr(storage, "read", read)
+    monkeypatch.setattr(renderer, "render", render)
+    response = env.client.get(url.replace(".pdf", "." + format), headers=owner)
+    assert response.status_code == 200, response.text
+    assert observed["read"] > 0 and observed["render"] == 1

@@ -13,7 +13,7 @@ from execplus.application.ports import DocumentStorage, PassageRanker, Workspace
 from execplus.application.services.analytics import UnitOfWork
 from execplus.application.services.dataset_access import dataset_access, require_full_access
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
-from execplus.domain.knowledge import Document, chunks, document_text
+from execplus.domain.knowledge import Document, DocumentChunk, chunks, document_text
 
 
 class KnowledgeService:
@@ -33,6 +33,36 @@ class KnowledgeService:
             raise IngestionError("not_found", "The document is unavailable.", 404)
         repo.dataset(wid, document.dataset_id)
         return document
+
+    def _recheck(
+        self,
+        repo: WorkspaceRepository,
+        actor: User,
+        wid: UUID,
+        did: UUID,
+        reference: dict[str, str],
+        sources: tuple[tuple[Document, tuple[DocumentChunk, ...]], ...],
+    ) -> None:
+        if require_full_access(repo, actor, wid, did).reference() != reference:
+            raise IngestionError("not_found", "The requested documents are unavailable.", 404)
+        for document, passages in sources:
+            if (
+                self._authorized(repo, actor, wid, document.id) != document
+                or tuple(repo.document_chunks(wid, document.id)) != passages
+            ):
+                raise IngestionError("not_found", "The requested document is unavailable.", 404)
+
+    def _ingest_access(
+        self, repo: WorkspaceRepository, actor: User, wid: UUID, did: UUID
+    ) -> dict[str, str]:
+        reference = require_full_access(repo, actor, wid, did).reference()
+        if len(repo.documents(wid, did, actor.id)) >= 20:
+            raise IngestionError(
+                "document_limit",
+                "Reference retrieval supports twenty accessible documents per dataset.",
+                422,
+            )
+        return reference
 
     async def ingest(
         self, actor: User, wid: UUID, did: UUID, name: str, content: bytes, shared: bool
@@ -54,17 +84,13 @@ class KnowledgeService:
         try:
             with self.uow() as repo:
                 repo.workspace(wid, lock=True)
-                repo.membership(wid, actor.id)
-                repo.dataset(wid, did)
-                require_full_access(repo, actor, wid, did)
-                if len(repo.documents(wid, did, actor.id)) >= 20:
-                    raise IngestionError(
-                        "document_limit",
-                        "Reference retrieval supports twenty accessible documents per dataset.",
-                        422,
-                    )
-                self.storage.put_document(document, content)
-                written = True
+                reference = self._ingest_access(repo, actor, wid, did)
+            self.storage.put_document(document, content)
+            written = True
+            with self.uow() as repo:
+                repo.workspace(wid, lock=True)
+                if self._ingest_access(repo, actor, wid, did) != reference:
+                    raise IngestionError("not_found", "The requested dataset is unavailable.", 404)
                 repo.add(document)
                 for chunk in chunks(document, text):
                     repo.add(chunk)
@@ -94,16 +120,17 @@ class KnowledgeService:
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
             document = self._authorized(repo, actor, wid, docid)
-            chunk = next(
-                (item for item in repo.document_chunks(wid, docid) if item.id == chunkid), None
-            )
+            reference = require_full_access(repo, actor, wid, document.dataset_id).reference()
+            passages = tuple(repo.document_chunks(wid, docid))
+            chunk = next((item for item in passages if item.id == chunkid), None)
             if chunk is None:
                 raise IngestionError("not_found", "The passage is unavailable.", 404)
-            text = self.storage.read_document(document).decode("utf-8")[chunk.start : chunk.end]
-            if hashlib.sha256(text.encode()).hexdigest() != chunk.checksum:
-                raise IngestionError(
-                    "source_integrity", "The passage failed its integrity check.", 409
-                )
+        text = self.storage.read_document(document).decode("utf-8")[chunk.start : chunk.end]
+        if hashlib.sha256(text.encode()).hexdigest() != chunk.checksum:
+            raise IngestionError("source_integrity", "The passage failed its integrity check.", 409)
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            self._recheck(repo, actor, wid, document.dataset_id, reference, ((document, passages),))
             return {
                 "document_id": docid,
                 "chunk_id": chunkid,
@@ -145,7 +172,7 @@ class KnowledgeService:
                 "Use a question up to 500 characters and a limit from 1 to 10.",
                 422,
             )
-        candidates = []
+        candidates: list[KnowledgeChunk] = []
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
@@ -158,39 +185,35 @@ class KnowledgeService:
                     "Select a smaller document collection for reference retrieval.",
                     422,
                 )
-            for document in documents:
-                text = self.storage.read_document(document).decode("utf-8")
-                for chunk in repo.document_chunks(wid, document.id):
-                    passage = text[chunk.start : chunk.end]
-                    if hashlib.sha256(passage.encode()).hexdigest() != chunk.checksum:
-                        raise IngestionError(
-                            "source_integrity", "A passage failed its integrity check.", 409
-                        )
-                    candidates.append(
-                        KnowledgeChunk(
-                            chunk.id, wid, did, passage, {"document_id": str(document.id)}
-                        )
-                    )
-            hits = self.ranker.rank(query, tuple(candidates), limit)
-            allowed = {chunk.chunk_id: chunk for chunk in candidates}
-            if any(
-                hit.chunk.chunk_id not in allowed or allowed[hit.chunk.chunk_id] != hit.chunk
-                for hit in hits
-            ):
-                raise IngestionError(
-                    "retrieval_scope", "The retrieval result could not be verified.", 503
-                )
-            repo.add(
-                AuditEvent(
-                    uuid4(),
-                    wid,
-                    actor.id,
-                    "knowledge.searched",
-                    "dataset",
-                    did,
-                    datetime.now(timezone.utc),
-                )
+            sources = tuple(
+                (document, tuple(repo.document_chunks(wid, document.id))) for document in documents
             )
+        for document, passages in sources:
+            text = self.storage.read_document(document).decode("utf-8")
+            for chunk in passages:
+                passage = text[chunk.start : chunk.end]
+                if hashlib.sha256(passage.encode()).hexdigest() != chunk.checksum:
+                    raise IngestionError(
+                        "source_integrity", "A passage failed its integrity check.", 409
+                    )
+                candidates.append(
+                    KnowledgeChunk(chunk.id, wid, did, passage, {"document_id": str(document.id)})
+                )
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            self._recheck(repo, actor, wid, did, access_reference, sources)
+        hits = self.ranker.rank(query, tuple(candidates), limit)
+        allowed = {chunk.chunk_id: chunk for chunk in candidates}
+        if any(
+            hit.chunk.chunk_id not in allowed or allowed[hit.chunk.chunk_id] != hit.chunk
+            for hit in hits
+        ):
+            raise IngestionError(
+                "retrieval_scope", "The retrieval result could not be verified.", 503
+            )
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            self._recheck(repo, actor, wid, did, access_reference, sources)
         results = []
         for hit in hits:
             docid = UUID(hit.chunk.metadata["document_id"])
@@ -204,8 +227,18 @@ class KnowledgeService:
             )
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
-            if require_full_access(repo, actor, wid, did).reference() != access_reference:
-                raise IngestionError("not_found", "The requested documents are unavailable.", 404)
+            self._recheck(repo, actor, wid, did, access_reference, sources)
+            repo.add(
+                AuditEvent(
+                    uuid4(),
+                    wid,
+                    actor.id,
+                    "knowledge.searched",
+                    "dataset",
+                    did,
+                    datetime.now(timezone.utc),
+                )
+            )
         return results
 
     async def delete(self, actor: User, wid: UUID, docid: UUID) -> None:

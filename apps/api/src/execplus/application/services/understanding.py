@@ -18,8 +18,9 @@ from execplus.application.services.dataset_access import (
     scope_snapshot,
 )
 from execplus.domain.agent_memory import AgentMemory, validate_memory
+from execplus.domain.dataset_access import DatasetAccess, denied
 from execplus.domain.errors import ClarificationRequiredError
-from execplus.domain.ingestion import AuditEvent, IngestionError, User
+from execplus.domain.ingestion import AuditEvent, IngestionError, Upload, User
 from execplus.domain.profiling import Revision, TableData, reconstruct
 from execplus.domain.semantics import DatasetView, dataset_view
 from execplus.domain.understanding import (
@@ -59,10 +60,29 @@ class UnderstandingService:
         self.parser = parser
 
     def _snapshot(
-        self, repo: WorkspaceRepository, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
-    ) -> tuple[Revision, TableData]:
-        upload = repo.upload(workspace_id, dataset_id, upload_id)
-        revision = repo.active_revision(workspace_id, dataset_id, upload_id)
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        *,
+        full: bool = False,
+    ) -> tuple[Upload, Revision, TableData, DatasetAccess]:
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
+            if full:
+                access.require_full()
+                member = repo.membership(workspace_id, actor.id)
+                dataset = repo.dataset(workspace_id, dataset_id)
+                if member.role not in {"owner", "admin"} and dataset.created_by != actor.id:
+                    raise IngestionError(
+                        "forbidden",
+                        "The dataset creator or an owner/admin must review shared definitions.",
+                        403,
+                    )
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            revision = repo.active_revision(workspace_id, dataset_id, upload_id)
         if revision is None:
             raise IngestionError("not_found", "Profile this upload first.", 404)
         if revision.source_checksum != upload.checksum:
@@ -73,17 +93,40 @@ class UnderstandingService:
         self.parser.parse(
             content, upload.filename, upload.content_type, stored_format=upload.format
         )
-        return revision, reconstruct(self.parser.read_table(content, upload.format), revision)
+        return (
+            upload,
+            revision,
+            reconstruct(self.parser.read_table(content, upload.format), revision),
+            access,
+        )
+
+    def _recheck_snapshot(
+        self,
+        repo: WorkspaceRepository,
+        actor: User,
+        upload: Upload,
+        revision: Revision,
+        access: DatasetAccess,
+    ) -> None:
+        current = dataset_access(repo, actor, upload.workspace_id, upload.dataset_id)
+        if current.reference() != access.reference():
+            raise denied()
+        retained = repo.upload(upload.workspace_id, upload.dataset_id, upload.id)
+        active = repo.active_revision(upload.workspace_id, upload.dataset_id, upload.id)
+        if retained != upload or active != revision:
+            raise IngestionError(
+                "definition_conflict", "The data changed. Reload before continuing.", 409
+            )
 
     def overview(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> dict[str, Any]:
+        upload, revision, table, access = self._snapshot(actor, workspace_id, dataset_id, upload_id)
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
+            self._recheck_snapshot(repo, actor, upload, revision, access)
             member = repo.membership(workspace_id, actor.id)
-            access = dataset_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
-            revision, table = self._snapshot(repo, workspace_id, dataset_id, upload_id)
             saved = repo.latest_understanding(workspace_id, dataset_id)
             preference = repo.data_preference(workspace_id, dataset_id, actor.id)
             proposal = infer_definition(
@@ -185,8 +228,12 @@ class UnderstandingService:
         state: str,
         definition: dict[str, Any],
     ) -> Understanding:
+        upload, revision, table, access = self._snapshot(
+            actor, workspace_id, dataset_id, upload_id, full=True
+        )
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
+            self._recheck_snapshot(repo, actor, upload, revision, access)
             member = repo.membership(workspace_id, actor.id)
             require_full_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
@@ -196,7 +243,6 @@ class UnderstandingService:
                     "The dataset creator or an owner/admin must review shared definitions.",
                     403,
                 )
-            revision, table = self._snapshot(repo, workspace_id, dataset_id, upload_id)
             latest = repo.latest_understanding(workspace_id, dataset_id)
             if revision.id != revision_id or expected_version != (latest.version if latest else 0):
                 raise IngestionError(

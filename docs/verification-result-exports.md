@@ -10,8 +10,8 @@ The final combined backend run passes **96 tests** in 52.795 seconds, with no fa
 or skips. It covers saved-answer PDF exports, portable renderers, authorized result
 exports and pure analysis-report builders. Overlapping earlier runs are not added to
 this count. Five architecture checks and the current 55 frontend unit tests passed;
-frontend types passed. The latest full lint run encountered the separate policy-panel
-effect under development; final lint remains pending.
+frontend types and lint passed after the policy-panel effect was completed. The earlier
+lint failure during that parallel implementation remains in the local evidence.
 
 Independent readers inspect actual bytes using openpyxl and spreadsheet XML,
 zipfile/CSV/JSON, Pillow and pypdf. Checks preserve long decimal strings, null versus
@@ -51,3 +51,12 @@ with a wider chart gutter and value-preserving compact axis formatting; fourteen
 renderer checks pass after that repair, and the regenerated artifact was inspected.
 The rendering geometry still keeps the original exact metadata. Production build and
 private-demo preservation checks remain due.
+
+The final storage-boundary recheck passes **47 PDF/export tests** in 79.857 seconds,
+including two new real PostgreSQL checks. A second connection obtains the workspace
+row lock with `NOWAIT` during every source read and rendering call for PDF and PNG.
+The checks would fail immediately if replay or rendering retained that lock. Export
+services already kept external work outside their final permission transactions; no
+export implementation change was needed for the related upstream locking repair.
+The first recheck could not collect while the separate metering work temporarily
+duplicated a schema table name; that error and the successful rerun are retained.

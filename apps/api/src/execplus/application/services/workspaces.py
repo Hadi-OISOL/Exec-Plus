@@ -23,7 +23,7 @@ from execplus.application.services.dataset_access import (
     scope_snapshot,
 )
 from execplus.domain.audit import MANAGER_ACTIONS, SHARED_ACTIONS, audit_cursor, parse_audit_cursor
-from execplus.domain.dataset_access import DatasetAccess, ScopedUploadMetadata
+from execplus.domain.dataset_access import DatasetAccess, ScopedUploadMetadata, denied
 from execplus.domain.ingestion import (
     AuditEvent,
     Dataset,
@@ -337,64 +337,106 @@ class WorkspaceService:
             self._audit(repo, actor, workspace_id, "dataset.renamed", "dataset", dataset_id)
             return dataset
 
+    def _listed_uploads(
+        self, repo: WorkspaceRepository, workspace_id: UUID, dataset_id: UUID
+    ) -> tuple[Upload, ...]:
+        uploads = repo.uploads(workspace_id, dataset_id)
+        feeds = repo.refresh_feeds(workspace_id, dataset_id)
+        if not feeds:
+            return uploads
+        active = feeds[0].source["upload_id"]
+        staged = {
+            candidate.details.get(key)
+            for candidate in repo.refresh_candidates(workspace_id, feeds[0].id)
+            for key in ("input_upload_id", "output_upload_id")
+            if candidate.status != "activated"
+        }
+        return tuple(
+            sorted(
+                (
+                    upload
+                    for upload in uploads
+                    if str(upload.id) not in staged or str(upload.id) == active
+                ),
+                key=lambda upload: str(upload.id) != active,
+            )
+        )
+
+    def _recheck_upload(
+        self,
+        repo: WorkspaceRepository,
+        actor: User,
+        upload: Upload,
+        access: DatasetAccess,
+        revision: Revision | None = None,
+    ) -> None:
+        current = dataset_access(repo, actor, upload.workspace_id, upload.dataset_id)
+        if current.reference() != access.reference():
+            raise denied()
+        if repo.upload(upload.workspace_id, upload.dataset_id, upload.id) != upload:
+            raise IngestionError("lineage_mismatch", "The retained source changed.", 409)
+        if (
+            revision is not None
+            and repo.active_revision(upload.workspace_id, upload.dataset_id, upload.id) != revision
+        ):
+            raise IngestionError(
+                "revision_conflict", "The active revision changed. Reload before continuing.", 409
+            )
+
     def list_uploads(
         self, actor: User, workspace_id: UUID, dataset_id: UUID
     ) -> tuple[Upload | ScopedUploadMetadata, ...]:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
-            self._authorize(repo, actor, workspace_id)
             access = dataset_access(repo, actor, workspace_id, dataset_id)
-            repo.dataset(workspace_id, dataset_id)
-            uploads = repo.uploads(workspace_id, dataset_id)
-            feeds = repo.refresh_feeds(workspace_id, dataset_id)
-            if not feeds:
-                return self._visible_uploads(repo, uploads, access)
-            active = feeds[0].source["upload_id"]
-            staged = {
-                c.details.get(key)
-                for c in repo.refresh_candidates(workspace_id, feeds[0].id)
-                for key in ("input_upload_id", "output_upload_id")
-                if c.status != "activated"
-            }
-            selected = tuple(
-                sorted(
-                    (u for u in uploads if str(u.id) not in staged or str(u.id) == active),
-                    key=lambda u: str(u.id) != active,
-                )
+            uploads = self._listed_uploads(repo, workspace_id, dataset_id)
+            if not access.restricted:
+                return uploads
+            snapshots = tuple(
+                (upload, repo.active_revision(workspace_id, dataset_id, upload.id))
+                for upload in uploads
             )
-            return self._visible_uploads(repo, selected, access)
+        visible = tuple(
+            self._visible_upload(upload, revision, access)
+            for upload, revision in snapshots
+            if revision is not None
+        )
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            if (
+                dataset_access(repo, actor, workspace_id, dataset_id).reference()
+                != access.reference()
+            ):
+                raise denied()
+            if self._listed_uploads(repo, workspace_id, dataset_id) != uploads:
+                raise IngestionError(
+                    "revision_conflict", "The sources changed. Reload the list.", 409
+                )
+            for upload, revision in snapshots:
+                self._recheck_upload(repo, actor, upload, access, revision)
+            return visible
 
     def get_upload(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> Upload | ScopedUploadMetadata:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
-            self._authorize(repo, actor, workspace_id)
             access = dataset_access(repo, actor, workspace_id, dataset_id)
-            return self._visible_upload(
-                repo, repo.upload(workspace_id, dataset_id, upload_id), access
-            )
-
-    def _visible_uploads(
-        self, repo: WorkspaceRepository, uploads: tuple[Upload, ...], access: DatasetAccess
-    ) -> tuple[Upload | ScopedUploadMetadata, ...]:
-        visible = []
-        for upload in uploads:
-            try:
-                visible.append(self._visible_upload(repo, upload, access))
-            except IngestionError as error:
-                if error.status != 404:
-                    raise
-        return tuple(visible)
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            if not access.restricted:
+                return upload
+            revision = repo.active_revision(workspace_id, dataset_id, upload_id)
+            if revision is None:
+                raise IngestionError("not_found", "The requested upload is unavailable.", 404)
+        visible = self._visible_upload(upload, revision, access)
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._recheck_upload(repo, actor, upload, access, revision)
+            return visible
 
     def _visible_upload(
-        self, repo: WorkspaceRepository, upload: Upload, access: DatasetAccess
-    ) -> Upload | ScopedUploadMetadata:
-        if not access.restricted:
-            return upload
-        revision = repo.active_revision(upload.workspace_id, upload.dataset_id, upload.id)
-        if revision is None:
-            raise IngestionError("not_found", "The requested upload is unavailable.", 404)
+        self, upload: Upload, revision: Revision, access: DatasetAccess
+    ) -> ScopedUploadMetadata:
         table = reconstruct(self._table(upload), revision)
         table, _, _, _ = scope_snapshot(
             table, dataset_view(revision.profile), revision.profile, None, access
@@ -426,13 +468,24 @@ class WorkspaceService:
         _sample_dataset: Dataset | None = None,
         _sample_id: str | None = None,
     ) -> Upload:
-        if _sample_dataset is None:
-            self.get_dataset(actor, workspace_id, dataset_id)
-            with self.uow() as repo:
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            membership = self._authorize(repo, actor, workspace_id)
+            access = (
                 require_full_access(repo, actor, workspace_id, dataset_id)
-        else:
-            with self.uow() as repo:
-                self._authorize(repo, actor, workspace_id)
+                if _sample_dataset is None
+                else None
+            )
+
+        def reauthorize(repo: WorkspaceRepository) -> None:
+            member = self._authorize(repo, actor, workspace_id)
+            if member.created_at != membership.created_at:
+                raise denied()
+            if access is not None:
+                current = require_full_access(repo, actor, workspace_id, dataset_id)
+                if current.reference() != access.reference():
+                    raise denied()
+
         content.seek(0, 2)
         size = content.tell()
         if size > self.max_upload_bytes:
@@ -477,14 +530,17 @@ class WorkspaceService:
         try:
             with self.uow() as repo:
                 repo.workspace(workspace_id, lock=True)
-                self._authorize(repo, actor, workspace_id)
+                reauthorize(repo)
+            attempted = True
+            self.storage.put(upload, content)
+            with self.uow() as repo:
+                repo.workspace(workspace_id, lock=True)
+                reauthorize(repo)
                 if _sample_dataset is not None:
                     repo.add(_sample_dataset)
                     self._audit(repo, actor, workspace_id, "dataset.created", "dataset", dataset_id)
                 repo.dataset(workspace_id, dataset_id)
                 require_full_access(repo, actor, workspace_id, dataset_id)
-                attempted = True
-                self.storage.put(upload, content)
                 repo.add(upload)
                 repo.add(root)
                 repo.set_active_revision(root)
@@ -509,10 +565,12 @@ class WorkspaceService:
     def download(self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID) -> bytes:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
-            self._authorize(repo, actor, workspace_id)
-            require_full_access(repo, actor, workspace_id, dataset_id)
+            access = require_full_access(repo, actor, workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
-            content = self.storage.read(upload)
+        content = self.storage.read(upload)
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._recheck_upload(repo, actor, upload, access)
             self._audit(repo, actor, workspace_id, "upload.downloaded", "upload", upload_id)
             return content
 
@@ -609,26 +667,47 @@ class WorkspaceService:
         )
         return self.parser.read_table(content, upload.format)
 
-    def _root(self, repo: WorkspaceRepository, actor: User, upload: Upload) -> Revision:
-        active = repo.active_revision(upload.workspace_id, upload.dataset_id, upload.id)
-        if active:
-            return active
+    def _profile_snapshot(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        *,
+        full: bool = False,
+    ) -> tuple[Upload, Revision, DatasetAccess]:
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
+            if full:
+                access.require_full()
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            active = repo.active_revision(workspace_id, dataset_id, upload_id)
+            if active:
+                return upload, active, access
         root = self._make_revision(actor, upload, self._table(upload), [], None)
-        repo.add(root)
-        repo.set_active_revision(root)
-        self._audit(repo, actor, upload.workspace_id, "profile.created", "revision", root.id)
-        return root
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._recheck_upload(repo, actor, upload, access)
+            active = repo.active_revision(workspace_id, dataset_id, upload_id)
+            if active is None:
+                repo.add(root)
+                repo.set_active_revision(root)
+                self._audit(repo, actor, workspace_id, "profile.created", "revision", root.id)
+                active = root
+            return upload, active, access
 
     def profile_upload(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> Revision:
+        upload, revision, access = self._profile_snapshot(
+            actor, workspace_id, dataset_id, upload_id
+        )
+        visible = self._visible_revision(upload, revision, access)
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
-            self._authorize(repo, actor, workspace_id)
-            access = dataset_access(repo, actor, workspace_id, dataset_id)
-            upload = repo.upload(workspace_id, dataset_id, upload_id)
-            revision = self._root(repo, actor, upload)
-            return self._visible_revision(upload, revision, access)
+            self._recheck_upload(repo, actor, upload, access, revision)
+            return visible
 
     def _visible_revision(
         self, upload: Upload, revision: Revision, access: DatasetAccess
@@ -653,12 +732,11 @@ class WorkspaceService:
     ) -> tuple[Revision, ...]:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
-            self._authorize(repo, actor, workspace_id)
             access = dataset_access(repo, actor, workspace_id, dataset_id)
-            upload = repo.upload(workspace_id, dataset_id, upload_id)
-            if access.restricted:
-                return (self._visible_revision(upload, self._root(repo, actor, upload), access),)
-            return repo.revisions(workspace_id, dataset_id, upload_id)
+            repo.upload(workspace_id, dataset_id, upload_id)
+            if not access.restricted:
+                return repo.revisions(workspace_id, dataset_id, upload_id)
+        return (self.profile_upload(actor, workspace_id, dataset_id, upload_id),)
 
     def clean(
         self,
@@ -671,38 +749,38 @@ class WorkspaceService:
         *,
         apply: bool = False,
     ) -> dict[str, object]:
+        upload, active, access = self._profile_snapshot(
+            actor, workspace_id, dataset_id, upload_id, full=True
+        )
+        if active.id != expected_revision_id:
+            raise IngestionError(
+                "revision_conflict",
+                "The active revision changed. Reload the profile and preview again.",
+                409,
+            )
+        if len(active.recipe) >= 20:
+            raise IngestionError(
+                "recipe_limit",
+                "Restore an earlier revision before adding more than 20 cleaning steps.",
+                422,
+            )
+        if active.source_checksum != upload.checksum:
+            raise IngestionError(
+                "lineage_mismatch", "The source checksum does not match this revision.", 409
+            )
+        source = reconstruct(self._table(upload), active)
+        result = transform(source, step)
+        revision = self._make_revision(
+            actor,
+            upload,
+            result,
+            [*active.recipe, step],
+            active.id,
+            algorithm=active.algorithm,
+        )
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
-            self._authorize(repo, actor, workspace_id)
-            require_full_access(repo, actor, workspace_id, dataset_id)
-            upload = repo.upload(workspace_id, dataset_id, upload_id)
-            active = self._root(repo, actor, upload)
-            if active.id != expected_revision_id:
-                raise IngestionError(
-                    "revision_conflict",
-                    "The active revision changed. Reload the profile and preview again.",
-                    409,
-                )
-            if len(active.recipe) >= 20:
-                raise IngestionError(
-                    "recipe_limit",
-                    "Restore an earlier revision before adding more than 20 cleaning steps.",
-                    422,
-                )
-            if active.source_checksum != upload.checksum:
-                raise IngestionError(
-                    "lineage_mismatch", "The source checksum does not match this revision.", 409
-                )
-            source = reconstruct(self._table(upload), active)
-            result = transform(source, step)
-            revision = self._make_revision(
-                actor,
-                upload,
-                result,
-                [*active.recipe, step],
-                active.id,
-                algorithm=active.algorithm,
-            )
+            self._recheck_upload(repo, actor, upload, access, active)
             if apply:
                 repo.add(revision)
                 repo.set_active_revision(revision)
@@ -726,24 +804,25 @@ class WorkspaceService:
         expected_revision_id: UUID,
         revision_id: UUID,
     ) -> Revision:
+        upload, active, access = self._profile_snapshot(
+            actor, workspace_id, dataset_id, upload_id, full=True
+        )
+        if active.id != expected_revision_id:
+            raise IngestionError(
+                "revision_conflict", "The active revision changed. Reload before restoring.", 409
+            )
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
-            self._authorize(repo, actor, workspace_id)
-            require_full_access(repo, actor, workspace_id, dataset_id)
-            upload = repo.upload(workspace_id, dataset_id, upload_id)
-            active = self._root(repo, actor, upload)
-            if active.id != expected_revision_id:
-                raise IngestionError(
-                    "revision_conflict",
-                    "The active revision changed. Reload before restoring.",
-                    409,
-                )
+            self._recheck_upload(repo, actor, upload, access, active)
             revision = repo.revision(workspace_id, dataset_id, upload_id, revision_id)
-            if revision.source_checksum != upload.checksum:
-                raise IngestionError(
-                    "lineage_mismatch", "The source checksum does not match this revision.", 409
-                )
-            reconstruct(self._table(upload), revision)
+        if revision.source_checksum != upload.checksum:
+            raise IngestionError(
+                "lineage_mismatch", "The source checksum does not match this revision.", 409
+            )
+        reconstruct(self._table(upload), revision)
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._recheck_upload(repo, actor, upload, access, active)
             repo.set_active_revision(revision)
             self._audit(repo, actor, workspace_id, "revision.restored", "revision", revision.id)
             return revision
