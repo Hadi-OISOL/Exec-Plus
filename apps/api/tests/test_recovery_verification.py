@@ -45,7 +45,7 @@ def test_recovery_refuses_nonisolated_targets(name):
 def test_recovery_settings_disable_model_and_live_database_connections():
     original = Settings(_env_file=None)
     value = recovery.isolated_settings(original, "execplus_restore_0123456789ab")
-    assert value.object_store_endpoint == "http://execplus_restore_0123456789ab_objects:9000"
+    assert value.object_store_endpoint == "http://execplus-restore-0123456789ab-objects:9000"
     assert (
         "execplus_restore_0123456789ab_db:5432/execplus_restore_0123456789ab" in value.database_url
     )

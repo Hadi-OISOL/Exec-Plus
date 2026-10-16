@@ -36,7 +36,7 @@ def isolated_settings(settings: Settings, name: str) -> Settings:
         database=name,
         query={"options": "-c default_transaction_read_only=on"},
     )
-    endpoint = "http://" + name + "_objects:9000"
+    endpoint = "http://" + name.replace("_", "-") + "-objects:9000"
     if urlparse(endpoint).hostname == urlparse(settings.object_store_endpoint).hostname:
         raise ValueError("The restored store must be separate from the configured store.")
     return settings.model_copy(

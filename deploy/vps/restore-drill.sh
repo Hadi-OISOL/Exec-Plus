@@ -18,6 +18,7 @@ image="oisol-execplus/api:candidate-$release"
 docker image inspect "$image" >/dev/null
 nonce="$(python3 -c 'import secrets; print(secrets.token_hex(6))')"
 name="execplus_restore_$nonce"
+dns_name="${name//_/-}"
 folder="$root/ops/restore-$nonce"
 mkdir "$folder"
 mkdir "$folder/objects"
@@ -28,6 +29,10 @@ network_id=''
 cleanup() {
   status=$?
   trap - EXIT
+  if [[ "$status" -ne 0 && -n "$objects_id" ]]; then
+    docker logs "$objects_id" > "$folder/object-store.log" 2>&1 || true
+    docker inspect -f '{{json .State}}' "$objects_id" > "$folder/object-store-state.json" || true
+  fi
   if [[ -n "$database_id" ]]; then docker rm -f "$database_id" >/dev/null; fi
   if [[ -n "$objects_id" ]]; then docker rm -f "$objects_id" >/dev/null; fi
   if [[ -n "$network_id" ]]; then docker network rm "$network_id" >/dev/null; fi
@@ -64,6 +69,7 @@ docker exec "$database_id" pg_isready -U execplus -d "$name" >/dev/null
 docker exec -i "$database_id" pg_restore --exit-on-error --no-owner \
   -U execplus -d "$name" < "$backup/database.dump"
 objects_id="$(docker run -d --name "${name}_objects" --network "$name" \
+  --network-alias "${dns_name}-objects" \
   --label execplus.recovery="$nonce" --memory 1g --cpus 2 \
   --env-file "$root/secrets/storage.env" \
   --mount "type=bind,source=$folder/objects,target=/data" \
@@ -73,15 +79,18 @@ docker run --rm --network "$name" --read-only --cap-drop ALL \
   --tmpfs /tmp:rw,size=1g,mode=1777 --env-file "$root/secrets/app.env" \
   "$image" python -c \
   'import sys,time,urllib.request
+failure="unknown"
 for attempt in range(30):
  try:
-  urllib.request.urlopen("http://"+sys.argv[1]+"_objects:9000/minio/health/ready", timeout=2); break
- except OSError: time.sleep(1)
-else: raise SystemExit("Isolated object store did not become ready")' "$name"
+  urllib.request.urlopen("http://"+sys.argv[1]+"-objects:9000/minio/health/ready", timeout=2); break
+ except OSError as error:
+  failure=type(error).__name__+":"+str(getattr(error,"code","unavailable")); time.sleep(1)
+else: raise SystemExit("Isolated object store did not become ready ("+failure+")")' "$dns_name"
 docker run --rm --network "$name" --read-only --cap-drop ALL \
   --security-opt no-new-privileges --memory 2g --cpus 2 \
   --tmpfs /tmp:rw,size=1g,mode=1777 --env-file "$root/secrets/app.env" \
-  "$image" python scripts/verify_recovery_snapshot.py --name "$name" \
+  --mount "type=bind,source=$root/source/scripts/verify_recovery_snapshot.py,target=/tmp/verify-recovery-snapshot.py,readonly" \
+  "$image" python /tmp/verify-recovery-snapshot.py --name "$name" \
   --expected-migration "$migration" --replay-limit 20 > "$folder/verification.json"
 python3 - "$folder" "$backup_id" "$release" "$started" <<'PY'
 import json, pathlib, sys, time
