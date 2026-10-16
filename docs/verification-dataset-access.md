@@ -56,8 +56,27 @@ connections use immediate lock failure to make regressions fail promptly instead
 of hanging. Policy changes and membership removal during I/O reject publication;
 failed document or file ingestion removes only its newly generated object.
 
-The repaired candidate still requires a fresh full backend run, image checks and
-private VPS verification. The existing VPS application remains `b3a1fb1` on 0018.
+The repaired `7c3272a` candidate passes **63 offline browser journeys**, with
+three model-dependent cases explicitly skipped, plus Ruff, mypy across 213 files,
+the production web build and restricted candidate-image checks. The first browser
+launch omitted its required test-database variable and stopped before testing;
+the corrected execution is retained separately.
+
+Its backend run reached **1,297 passes with no assertion failures**, then was
+interrupted on a second real lock cycle in product-usage reporting. The report
+held a workspace lock while a concurrent audit insert needed its foreign-key
+lock. Only the identified local test query was cancelled; no VPS query was touched.
+The repair releases workspace and staff locks before the single aggregate
+statement, then rechecks the exact policy, membership and staff grant before
+publishing. Staff reports preserve their existing success/denial audit behavior.
+Twenty focused cases pass, including nine new lock and revocation cases and the
+original concurrent-snapshot test. Removing and recreating membership under an
+unchanged full-access policy also rejects the in-flight report.
+
+Final coverage will combine the retained successful cases with every remaining
+case and fresh affected-report checks on the frozen repair. It will be reported
+as combined coverage, not a single clean full run. Fresh candidate-image and
+private VPS checks remain pending. The existing VPS application is `b3a1fb1` on 0018.
 
 Retained earlier failures distinguish application defects from test setup:
 
