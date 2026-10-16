@@ -13,13 +13,13 @@ and [production evidence](production-readiness.json).
 
 | IDs | What remains | Dependency and acceptance |
 | --- | --- | --- |
-| 1, 40, 47 | Customer signup, production login and secure onboarding | Select identity provider, obtain domain/HTTPS, implement verified account/workspace creation and test authentication, session lifecycle and tenant isolation. Existing operator tokens remain private-demo only. |
+| 1, 40, 47 | Customer signup, production login and secure onboarding | Implement verified account/workspace creation and test authentication, session lifecycle and tenant isolation. An external identity provider is optional; public domain/HTTPS, verified email and independent production review remain external setup. Existing operator tokens remain private-demo only. |
 | 13 | Complete PDF/Excel export scope | Verified protected PDF downloads cover completed saved calculations, exact returned tables and source-backed explanations with receipts, source/definition context and private access checks. Excel, chart images, full dashboard/report exports and pattern/forecast/scenario/diagram reports remain open; each needs exact-value, evidence, pagination/layout and authorization tests. This does not clear the separate email/report-delivery production gate. |
 | 14, 45 | Commercial metering, priced model costs and spend controls | Define paid plans and approved provider pricing/caps; enforce concurrent reservations, reconciliation and idempotent usage before billing claims. |
 | 24 | Real scheduled email delivery | Approved SMTP service/from address; test failure/retry, authorization, opt-out and duplicate handling. Disabled delivery is not evidence of live email. |
 | 33 | Root-cause analysis beyond observed differences | Pooled/within-group comparisons now supplement descriptive drivers. Causal claims still need explicit assumptions and representative validation for each new module. |
-| 42 | Complete recovery readiness | Latest-version restore drill, encrypted off-server copy, agreed retention/RPO/RTO and failure rehearsal. Current checked local VPS backups alone do not close disaster recovery. |
-| 43 | Operational error monitoring | Central fixed-code collection, bounded retention, alert routing and incident drill without source values or credentials. An alert recipient/channel is required. |
+| 42 | Complete recovery readiness | Current-version isolated restore and encrypted operator-workstation copy now pass; see `docs/recovery-rehearsal.md`. Approved independent key custody/destination, retention and recovery objectives remain open. |
+| 43 | Operational error monitoring | Central fixed-code collection, bounded retention, in-app incidents and failure/recovery checks can be implemented independently. External paging needs an approved recipient/channel. |
 | 44 | Representative AI evaluation | Approved real examples and correct-answer labels, quality/speed/cost comparison, retrieval/citation review and hosted-provider privacy approval. Fictional demo scores cannot substitute. |
 | 50 | Representative performance acceptance | Agreed user/data workload, sustained rehearsal, latency/error/resource thresholds and current data parity. Eight-user functional tests are not sustained-load proof. |
 | 57 | Advanced scenarios | Compound percentage drivers and explicit daily-change assumptions are deployed and verified for the private demo. Source-derived multi-measure models, uncertainty and broader constraints remain open. |
@@ -40,8 +40,10 @@ no existing Partial item becomes Done. All eight production gates remain unchang
 Dependency order: improve the existing onboarding experience; extend tested internal analytics under
 the authorized research sequence; complete exports/first controlled connectors;
 implement selected commercial providers and operational controls; run reviewed
-production acceptance. Broader Phase 6 remains Frozen except explicitly authorized
-bounded slices. Do not activate public access or clear gates from this plan.
+production acceptance. The October16 remaining-work instruction now authorizes
+independent implementations beyond the older bounded slices; see
+`docs/remaining-work-execution.md`. Do not activate public access or clear gates
+from this plan.
 
 In easy words, external inputs mean: the website address and HTTPS; the service
 users will use to log in; an email sender; the service that takes payments; and real

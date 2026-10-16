@@ -40,6 +40,38 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 16 — Conversational task repair
+
+- Application **b3a1fb1** is deployed on unchanged **0018**. Read
+  `docs/conversation-harness-repair.md` and `docs/verification-conversation-harness.md`.
+  The router's rejection of valid whole-file overview plans caused the two
+  reported generic menus. Both exact questions now receive accepted hosted
+  explanations; simpler follow-ups reuse current private context safely.
+- New tasks end old calculation context; genuine short numerical continuations
+  retain it. Reading context is rechecked before correction/publication and old
+  prose cannot restore forgotten memory. Model budgets/providers remain unchanged.
+  Full isolated backend/architecture: **1,545 passed**; overlapping focused suite:
+  168 passed; Ruff/mypy192, candidate builds/restricted images pass. Live exact
+  calculation/replay, follow-up grouping, twelve private denials and three browser
+  layouts pass. Initial checker/fixture failures remain in the ledger.
+- All 48 activation fingerprints/config match. Checkpoint:
+  `pre-integration-b3a1fb1-20261016`; checked backups `20261016T104413Z` and
+  `20261016T105008Z`. Sources, meanings, memory and old turns are preserved.
+  API/jobs/web remain loopback-only with unchanged models/timers.
+- Recovery helpers `64240dd` verify the post-release backup in an isolated
+  environment in22 seconds:86 uploads,88 revisions,27 documents/passages and20
+  exact receipt replays. A4,133,086-byte encrypted copy outside the VPS passes
+  in-memory decryption and manifest checks. Read `docs/recovery-rehearsal.md`;
+  initial hostname/transfer failures are retained. Feature42 remains Partial for
+  approved retention, independent custody/destination and production objectives.
+- The latest user instruction authorizes finishing independent Partial/Not yet
+  implementations; read `docs/remaining-work-execution.md`. This supersedes older
+  implementation deferrals, not external setup requirements or production gates.
+  Export, advanced forecast, access-policy and operations work remains **in progress**
+  in the working tree. Do not deploy its migration 0019 until the full permission
+  surface and compatibility checks pass. Counts remain **37 / 17 / 10** across
+  64 original IDs; all eight production gates remain blocked.
+
 ### October 16 — Domain tools, protected PDFs and saved-role repair
 
 - Application **`919dd0a`** is deployed on unchanged **0018**. The bounded release

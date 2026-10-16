@@ -161,7 +161,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Registered data/document tools retain evidence. Deployed field-diagram and PDF routing add bounded actions; named charts keep governed queries. Maps show membership, not causes. Private memory tailors explanations, never numerical filters.",
+      "note": "Registered data/document, diagram and PDF tools retain evidence. Whole-file understanding now shares one reading route; both reported paraphrases and simpler follow-ups pass live checks. New tasks end stale calculation context; genuine numerical follow-ups retain exact queries. Private context never changes numeric filters.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -180,7 +180,11 @@
         "docs/domain-agent-tools.md",
         "docs/verification-domain-agent-tools.md",
         "apps/api/tests/test_data_diagrams.py",
-        "apps/api/tests/test_report_conversations.py"
+        "apps/api/tests/test_report_conversations.py",
+        "docs/conversation-harness-repair.md",
+        "docs/verification-conversation-harness.md",
+        "apps/api/tests/test_understanding_routing.py",
+        "apps/api/tests/test_conversation_boundaries.py"
       ],
       "evidence_groups": [
         "E2",
@@ -191,7 +195,8 @@
         "E21",
         "E23",
         "E25",
-        "E26"
+        "E26",
+        "E27"
       ]
     },
     {
@@ -785,17 +790,22 @@
       "section": "Commercial readiness",
       "feature": "Backup and recovery",
       "status": "partial",
-      "note": "Daily backups and an earlier separate restore test exist. Recovery of the latest version, off-server copies and full production recovery targets still need verification.",
+      "note": "Latest private-demo backup restores in an isolated environment: all86uploads/88revisions/27documents and20receipt replays pass. An encrypted copy outside the VPS passes in-memory decryption/checksums. Approved retention, independent key custody/destination and production recovery objectives remain open.",
       "evidence": [
         "deploy/vps/backup.sh",
         "apps/api/tests/test_backup_worker_coordination.py",
         "docs/verification-vps-demo.md",
         "docs/verification-platform-foundation.md",
-        "docs/production-readiness.json"
+        "docs/production-readiness.json",
+        "deploy/vps/restore-drill.sh",
+        "scripts/verify_recovery_snapshot.py",
+        "apps/api/tests/test_recovery_verification.py",
+        "docs/recovery-rehearsal.md"
       ],
       "roadmap": "Phase 5",
       "evidence_groups": [
-        "E9"
+        "E9",
+        "E28"
       ]
     },
     {
@@ -1427,6 +1437,24 @@
         "apps/api/tests/test_pdf_exports.py",
         "apps/api/tests/test_pdf_rendering.py",
         "apps/web/e2e/domain-agent-tools.spec.ts"
+      ]
+    ],
+    "E27": [
+      "Verified conversational task routing and private continuation boundaries",
+      [
+        "docs/conversation-harness-repair.md",
+        "docs/verification-conversation-harness.md",
+        "apps/api/tests/test_understanding_routing.py",
+        "apps/api/tests/test_conversation_boundaries.py"
+      ]
+    ],
+    "E28": [
+      "Current private-demo restore and encrypted-copy rehearsal",
+      [
+        "docs/recovery-rehearsal.md",
+        "deploy/vps/restore-drill.sh",
+        "scripts/verify_recovery_snapshot.py",
+        "apps/api/tests/test_recovery_verification.py"
       ]
     ]
   },

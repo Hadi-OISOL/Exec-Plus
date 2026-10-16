@@ -19,6 +19,23 @@ authorization to commercialize code restricted to noncommercial use.
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 16 — Conversation repair and independent remaining work
+
+**Status:** Reported conversational task repair Complete for local/test and the
+private demo; broader remaining-feature instruction In progress.
+Application `b3a1fb1` on unchanged0018 repairs whole-file understanding and bounded
+continuations. The [contract](docs/conversation-harness-repair.md) and
+[verification](docs/verification-conversation-harness.md) record 1,545 full backend
+passes, hosted explanations for both reported questions, exact numerical
+continuations/replay, private denials, preserved sources and three browser layouts.
+
+The owner now authorizes independent implementations of the documented unfinished
+features, excluding actual external plugin/credential/input dependencies. The
+[execution plan](docs/remaining-work-execution.md) supersedes older implementation
+freezes. Public access, model-provider changes, automatic business assumptions and
+production-gate promotion remain outside that instruction. Counts stay 37 Done,
+17 Partial and10 Not yet until each feature has its own completion evidence.
+
 ## October 16 — Domain tools and protected saved-answer exports
 
 **Status:** Complete for the bounded local/test and private-demo slice.

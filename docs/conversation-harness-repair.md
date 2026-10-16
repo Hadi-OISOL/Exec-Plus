@@ -45,18 +45,20 @@ remain immutable. Numerical results still come from authorized executed queries.
 
 ## Verification state
 
-**Local targeted verification passed; private deployment and hosted verification
-are pending at this checkpoint.** The expanded routing/reading/memory/thread
-suite passes 168 cases with no failures or skips in 73.668 seconds, including 41
-new routing cases and the new persisted-context boundary tests. Static checks
-pass for the changed sources. Initial assertion/fixture errors and the legacy
-unknown-column shortcut failure are retained in the private evidence ledger.
+**Complete for the reported repair, local/test and the private demo.** Application
+`b3a1fb1` is deployed on unchanged 0018. The isolated full suite passes 1,545 cases;
+the overlapping routing/reading/memory/thread suite passes 168 cases in 73.668
+seconds. Ruff/mypy and candidate image checks pass. Both exact reported phrases,
+a simpler follow-up and an unseen retail paraphrase receive accepted hosted
+readings. Exact calculations, replay, twelve private denials and three browser
+layouts pass. The [verification ledger](verification-conversation-harness.md)
+retains initial failures, release preservation and practical limits.
 
 Tests include both reported phrases, unseen paraphrases, task changes, true
 measure replies, count/min/max/filter/document/chart conflicts, stale sources,
 private access, exact replay, forgotten/edited context and real durable job
 correction within three calls. They do not establish representative model quality.
-Actual hosted behavior must be verified after activation, with failures retained.
+Observed hosted success does not establish perfect routing for every wording.
 
 The broader independent-feature instruction is tracked in
 [remaining work execution](remaining-work-execution.md). This repair is not a

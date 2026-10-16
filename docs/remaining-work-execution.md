@@ -48,9 +48,14 @@ as a requirement for code that can be built locally.
 
 ## Evidence and status
 
-**In progress.** The conversation repair and export implementation are running
-in parallel. The full backlog audit is complete; its findings are the execution
-order above. This document is not evidence that the subsequent batches are done.
+**In progress.** The conversation repair is deployed and verified at`b3a1fb1` on
+unchanged0018; see its [ledger](verification-conversation-harness.md). Current
+isolated recovery and an encrypted off-VPS copy also pass the
+[declared rehearsal](recovery-rehearsal.md), with production custody/objectives
+still open. Exports, advanced forecast methods and consistent dataset access
+policies remain under integration tests; internal incident monitoring is being
+implemented. None of those unfinished batches is deployed yet. The full backlog
+audit is complete; its findings are the execution order above.
 
 Two reported questions are retained privately under
 `data/verification/2026-10-16/conversation-harness/`. Both are completed ambiguous

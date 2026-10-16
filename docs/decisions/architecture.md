@@ -37,6 +37,20 @@ relaxing the evidence rules. See [scope](../domain-agent-tools.md),
 [PDF contract](../pdf-export.md) and [verification](../verification-domain-agent-tools.md)
 for acceptance and release status.
 
+## October 16 task routing and private continuation boundaries
+
+Deterministic and model-selected dataset overviews share the same qualitative
+reading executor. Bounded request requirements prevent a calculation, record
+scope or artifact request from silently becoming prose. New orientation tasks end
+earlier numerical context, while genuine continuations retain it. Optional
+selection leaves room for reading plus one correction inside the existing durable
+job budget. An internal source/private-context digest permits bounded previous
+explanation text only while current definitions, notes, private goals and personal
+memory still match. Forgotten context cannot reenter through saved prose. This
+does not change public response schemas, numerical execution or model providers.
+See [contract](../conversation-harness-repair.md) and
+[verification](../verification-conversation-harness.md).
+
 ## October 16 imported chart engines and bounded reading recipes
 
 The web bundle now includes pinned Apache ECharts 6.1.0 with its SVG renderer.
