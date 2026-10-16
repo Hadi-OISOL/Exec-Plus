@@ -20,6 +20,29 @@ authorization to commercialize code restricted to noncommercial use.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
 
+## October 16 — Open Overview and accessible controls
+
+**Status:** Complete for the local/test and private-demo UI repair.
+Broader independent-tool delivery remains In progress.
+
+Web **5c48d3c** is live with API/jobs **867c5a0** and unchanged schema **0020**.
+Charts/dashboard controls and first findings stay open; a smooth native mode
+switch and actual pinned Radix Select **2.3.8** support keyboard and reduced-motion
+use. See [the contract and evidence](docs/overview-controls.md).
+
+All 59 frontend tests, types/lint and local/VPS builds pass. Twelve distinct
+focused browser journeys pass across eleven initial successes and one corrected
+recheck; the initial asynchronous-focus test failure is retained. Live checks pass
+six actual-data layouts and three menu layouts in 20.987 seconds, with no page
+errors or overflow and unchanged five source artifacts/private memory. Checkpoint:
+`pre-overview-5c48d3c-20261016`; checked backups: `20261016T134653Z` before and
+`20261016T135121Z` after. Both archive checksums and post-backup readiness pass.
+
+The larger **b817068 / 0024** backend candidate is **not deployed**. Its separate
+verification has 2,380 backend passes and 71 browser passes with three model skips;
+its future web build must retain this UI repair. The 64-item ledger remains
+**39 Done / 16 Partial / 9 Not yet**, and all eight production gates remain blocked.
+
 ## October 16 — Portable results, dataset policies and operational checks
 
 **Status:** Complete for this local/test and private-demo release; broader work In progress.

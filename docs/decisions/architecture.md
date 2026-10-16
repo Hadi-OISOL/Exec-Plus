@@ -3,6 +3,32 @@
 
 # ExecPlus Architecture
 
+## October 16 open Overview and accessible controls
+
+Live web **5c48d3c** keeps charts/dashboard controls and first findings mounted and
+visible in both Simple and Expert modes. The mode switch remains a native radio
+group; a finite 240 ms highlight transition preserves chart state and does not
+rerun calculations. Reduced-motion preferences disable transitions. Analysis focus
+uses actual pinned **Radix Select 2.3.8**, with keyboard navigation, managed focus,
+typeahead, Escape dismissal and viewport-aware positioning. Bundled dependency
+licenses and notices accompany the component. This changes presentation only;
+API/jobs remain **867c5a0**, schema **0020**, with unchanged evidence and permissions.
+
+The [contract and verification](../overview-controls.md) record 59 frontend tests,
+types/lint, local/VPS builds and twelve distinct focused browser passes across
+eleven initial successes and one corrected recheck. The initial asynchronous-focus
+test failure remains recorded. Live checks cover six actual-data layouts and three
+menu layouts in 20.987 seconds, without page errors or overflow and with all five
+source artifacts/private memory preserved. Checkpoint:
+`pre-overview-5c48d3c-20261016`; checked backups: `20261016T134653Z` before and
+`20261016T135121Z` after. Archive checksums, services and readiness pass.
+
+The larger **b817068 / 0024** backend candidate remains undeployed. Its 2,380 backend
+passes and 71 browser passes/three explicit model skips are separate candidate
+evidence, not a schema activation. Keep this UI repair in its future web build.
+The 64-item feature ledger remains 39 Done / 16 Partial / 9 Not yet; all eight
+production gates remain blocked.
+
 ## October 16 portable results and governed access
 
 Schema 0019 adds versioned dataset policies and actor grants; 0020 adds internal

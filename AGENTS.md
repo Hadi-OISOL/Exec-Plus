@@ -40,6 +40,30 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 16 — Open Overview and accessible controls
+
+- Web **5c48d3c** is live; API/jobs remain **867c5a0** on unchanged **0020**.
+  Read [the UI contract and evidence](docs/overview-controls.md). Charts/dashboard
+  controls and first findings stay open in both modes. The Simple/Expert switch
+  keeps native keyboard controls and reduced-motion support; Analysis focus uses
+  actual pinned **Radix Select 2.3.8**, with its licenses and dependency notices.
+- All **59 frontend tests**, types/lint and local/VPS builds pass. All twelve
+  distinct focused browser journeys pass across an eleven-pass run and one
+  corrected recheck; the initial asynchronous-focus test failure remains recorded.
+  Live checks pass six actual-data layouts and three menu layouts in **20.987
+  seconds**, with no page errors or overflow. Five source artifacts and private
+  memory remain unchanged. This is a web-only repair, not new backend acceptance.
+- Checkpoint: `pre-overview-5c48d3c-20261016`; checked pre-release backup:
+  `20261016T134653Z`; checked post-release backup: `20261016T135121Z`. Both archive
+  checksums pass; services, model/timers and six loopback listeners are healthy.
+  Preserve all saved work.
+- Larger backend candidate **b817068 / 0024 is not deployed**. Its fresh full
+  backend run passes **2,380 tests**; candidate browser evidence passes **71
+  journeys**, with three explicit model skips. Those results are separate from
+  this UI release. Keep this UI change in the candidate's future web build.
+  Counts remain **39 Done / 16 Partial / 9 Not yet**, with all eight production
+  gates blocked. Continue the authorized unfinished-work task from its ledger.
+
 ### October 16 — Portable results, dataset policies and operational checks
 
 - Application **867c5a0** is live on additive schema **0020**. Read

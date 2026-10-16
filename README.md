@@ -7,8 +7,21 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
+The latest [Overview repair](docs/overview-controls.md) is live as web **5c48d3c**;
+API/jobs remain **867c5a0** on schema **0020**. Charts and first findings stay open.
+The mode switch supports keyboard use and reduced motion, and Analysis focus uses
+the actual pinned Radix Select **2.3.8** dropdown. All 59 frontend tests,
+types/lint, local/VPS builds and twelve distinct focused browser journeys pass.
+Live checks cover six actual-data layouts and three menu layouts without page
+errors or overflow, preserving source artifacts and private memory.
+
+The larger **b817068 / 0024** backend candidate is not deployed. Its separate
+verification passes 2,380 backend tests and 71 browser journeys, with three model
+skips; its future web build must retain this UI change. Feature counts remain
+**39 Done / 16 Partial / 9 Not yet**, with all eight production gates blocked.
+
 The October 16 [remaining-work release](docs/verification-remaining-work-release.md)
-is live at `867c5a0` on schema **0020**. Supported saved answers, dashboards and
+provides the live backend at `867c5a0` on schema **0020**. Supported saved answers, dashboards and
 analyses now download as PDF, Excel, CSV/evidence bundles or chart PNG. Forecasts
 have opt-in advanced method selection, owners can define dataset row/field access,
 and internal staff can review collected incidents. Source evidence and current

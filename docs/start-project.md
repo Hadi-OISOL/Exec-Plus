@@ -10,7 +10,7 @@ Choose **A** to use the existing VPS demo. Choose **B** to run a separate copy o
 ### 1. Open a terminal in the project
 
 ```bash
-cd /home/it-admin/OISOL
+cd /home/hadiabbasisdev/Desktop/OISOL
 ```
 
 On another computer, use the folder where you saved the project and your assigned SSH key.
@@ -100,7 +100,7 @@ These commands are for Linux/macOS. You need **Python 3.10+**, **Node.js 22**, *
 Open the project folder; replace this path on another computer:
 
 ```bash
-cd /home/it-admin/OISOL
+cd /home/hadiabbasisdev/Desktop/OISOL
 python3 -m venv .venv
 source .venv/bin/activate
 test -f .env || cp .env.example .env
@@ -120,7 +120,11 @@ make migrate
 make init-storage
 ```
 
-Run `make migrate` after pulling changes; the current application requires migration **0018**. Existing data is retained. The new table stores explicit personal memory; downgrade refuses while saved memory revisions exist.
+Run `make migrate` after pulling changes. This checkout requires migration **0024**;
+the currently deployed private demo remains on **0020** until the pending release
+passes its checks. Existing data is retained. The new tables support usage,
+integrations, approved source imports and private company worksheets. Do not
+downgrade across retained saved work.
 
 If Docker needs sudo on Linux, use this instead of the first command:
 
