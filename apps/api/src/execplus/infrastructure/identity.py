@@ -1,6 +1,6 @@
-"""Use case: Supplies the explicitly local/test identity provider.
+"""Use case: Supplies database-backed opaque sessions for sign-in.
 
-What it does: Authenticates expiring opaque sessions using hashes stored in PostgreSQL.
+What it does: Authenticates expiring sessions by hash; the local variant is limited to local/test.
 """
 
 import hashlib
@@ -15,10 +15,8 @@ from execplus.domain.ingestion import IngestionError, User
 from execplus.infrastructure.persistence.schema import sessions, users
 
 
-class LocalSessionIdentity:
-    def __init__(self, engine: Engine, environment: str) -> None:
-        if environment not in {"local", "test"}:
-            raise ValueError("Local session identity is available only in local/test environments")
+class DatabaseSessionIdentity:
+    def __init__(self, engine: Engine) -> None:
         self.engine = engine
 
     def authenticate(self, token: str) -> User:
@@ -73,3 +71,10 @@ class LocalSessionIdentity:
                 )
             )
         return token
+
+
+class LocalSessionIdentity(DatabaseSessionIdentity):
+    def __init__(self, engine: Engine, environment: str) -> None:
+        if environment not in {"local", "test"}:
+            raise ValueError("Local session identity is available only in local/test environments")
+        super().__init__(engine)

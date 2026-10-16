@@ -1,0 +1,44 @@
+/* Use case: Styles the Google Sheets import controls inside the upload panel.
+What it does: Reuses the workspace colour tokens so the controls match the rest of the interface. */
+
+.google {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line, #e4e7ef);
+}
+.google h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.google p {
+  margin: 0 0 12px;
+  color: var(--muted, #667085);
+  font-size: 13px;
+}
+.row,
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+.tabs {
+  margin-top: 14px;
+}
+.tabs label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink, #222b3d);
+  font-size: 12px;
+  font-weight: 600;
+}
+.google button.secondary {
+  background: #fff;
+  color: var(--ink, #222b3d);
+  border: 1px solid var(--line, #e4e7ef);
+}
+.error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 13px;
+}

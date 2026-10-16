@@ -1,0 +1,99 @@
+/* Use case: Styles the platform connection cards inside the upload panel.
+What it does: Reuses the workspace colour tokens so the cards match the rest of the interface. */
+
+.connectors {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line, #e4e7ef);
+}
+.connectors h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.connectors p {
+  margin: 0 0 12px;
+  color: var(--muted, #667085);
+  font-size: 13px;
+}
+.list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 8px;
+}
+.card > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+.card strong {
+  font-size: 14px;
+}
+.card span,
+.card em {
+  color: var(--muted, #667085);
+  font-size: 12px;
+  font-style: normal;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: var(--paper, #f6f7fb);
+  border-radius: 8px;
+}
+.form label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink, #222b3d);
+  font-size: 12px;
+  font-weight: 600;
+}
+.browser {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--paper, #f6f7fb);
+  border-radius: 8px;
+}
+.browser nav {
+  display: flex;
+  flex-wrap: wrap;
+}
+.browser ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.connectors button.secondary {
+  background: #fff;
+  color: var(--ink, #222b3d);
+  border: 1px solid var(--line, #e4e7ef);
+}
+.connectors button.link {
+  background: transparent;
+  color: var(--muted, #667085);
+  border: 0;
+  padding-inline: 4px;
+}
+.error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 13px;
+}
