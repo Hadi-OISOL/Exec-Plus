@@ -35,3 +35,12 @@ The PDF adapter contains original project code, not Anthropic PDF skill or AIpoc
 HTML-to-PDF script code. See [its dependency and content boundary](docs/pdf-export.md).
 The pinned development-only pypdf 6.20.1 (BSD 3-Clause) is used to verify output,
 not included in the application runtime.
+
+The workspace choice control uses unmodified **@radix-ui/react-select 2.3.8**
+(MIT, WorkOS), with ExecPlus's controlled wrapper, accessible labels and teal/navy
+styling. Its 38 newly resolved packages are MIT; the existing tslib 2.8.1 helper
+is BSD-0-Clause. The [full dependency inventory](apps/web/public/third-party/radix-select/inventory.json)
+and [retained license texts](apps/web/public/third-party/radix-select/NOTICE.txt)
+include exact versions, integrity values and the official-source notice for
+react-remove-scroll-bar, whose npm archive omits its license file. No additional
+icon package or third-party example content is bundled.

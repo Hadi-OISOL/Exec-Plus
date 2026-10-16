@@ -1,0 +1,598 @@
+{
+  "use_case": "License inventory of Radix Select and its added transitive npm packages",
+  "responsibility": "Retains exact resolved versions, package integrity and full notice paths; existing React/ReactDOM peer runtimes remain separately supplied.",
+  "direct_dependency": "@radix-ui/react-select@2.3.8",
+  "new_package_count": 38,
+  "existing_runtime_helper": "tslib2.8.1 (BSD-0-Clause), reused by new transitive packages",
+  "packages": [
+    {
+      "package": "@floating-ui/core",
+      "version": "1.8.0",
+      "license": "MIT",
+      "repository": "https://github.com/floating-ui/floating-ui.git",
+      "npm_integrity": "sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==",
+      "licenses": [
+        {
+          "file": "floating-ui-core-LICENSE",
+          "sha256": "0e4c9a9b6c71019cbbea3bdc20b01223110a9035700f9c960c8fcbf78c2325ce"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@floating-ui/dom",
+      "version": "1.8.0",
+      "license": "MIT",
+      "repository": "https://github.com/floating-ui/floating-ui.git",
+      "npm_integrity": "sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg==",
+      "licenses": [
+        {
+          "file": "floating-ui-dom-LICENSE",
+          "sha256": "0e4c9a9b6c71019cbbea3bdc20b01223110a9035700f9c960c8fcbf78c2325ce"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@floating-ui/react-dom",
+      "version": "2.1.9",
+      "license": "MIT",
+      "repository": "https://github.com/floating-ui/floating-ui.git",
+      "npm_integrity": "sha512-JDjEFGCpImxDCA7JJKviA0M9+RtmJdj0m/NVU5IMgBK+AmZouAQQ7/+2GLH0GXXY0YMw9oXPB8hKdbPYg5QLYg==",
+      "licenses": [
+        {
+          "file": "floating-ui-react-dom-LICENSE",
+          "sha256": "0e4c9a9b6c71019cbbea3bdc20b01223110a9035700f9c960c8fcbf78c2325ce"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@floating-ui/utils",
+      "version": "0.2.12",
+      "license": "MIT",
+      "repository": "https://github.com/floating-ui/floating-ui.git",
+      "npm_integrity": "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==",
+      "licenses": [
+        {
+          "file": "floating-ui-utils-LICENSE",
+          "sha256": "0e4c9a9b6c71019cbbea3bdc20b01223110a9035700f9c960c8fcbf78c2325ce"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/number",
+      "version": "1.1.3",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-Road2bidD0uu/1BGDOWNdPI06g0lIRy6IF9GZcIrDK2KGItfor8IQwQa+yM2ERgHM1MmHxaxpTzk0/Jp42lNfA==",
+      "licenses": [
+        {
+          "file": "radix-ui-number-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/primitive",
+      "version": "1.1.7",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-rqWnm76nYT8HoNNqEjpgJ7Pw/DrBj5iBTrmEPo6HTX5+VJyBNOqTdv4g89G63HuR5g0AaENoAcH7Is5fF2kZ8Q==",
+      "licenses": [
+        {
+          "file": "radix-ui-primitive-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-arrow",
+      "version": "1.1.16",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-nXPI1tzJsnQw8oXvB2r49rO9TIbbJ8VFeaWDiBsqY8+iwO5xb7WjUsrXDagjAgPKTdhW8WODQnAltUhBx8I+sg==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-arrow-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-collection",
+      "version": "1.1.16",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-yEQrjfI5eBbeYEJXOASpm+gs9eNHY8+UjkZ81GzcuwdLrSMOlEM8jnGoGdeGo92oiBMkuwZUhHTsnsrDiJLcyA==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-collection-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-compose-refs",
+      "version": "1.1.5",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-+48PbAAbq3didjJxa+OaWY2ZwgAKsNiRGyeHKszblZMQ+kcpd9pAaT11cMkGEie0vsOi3QdeTE6d5Fe3Gn61kA==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-compose-refs-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-context",
+      "version": "1.2.2",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-RHCUGwKHDr0hDGg4X7ma4JG4/+12qxw8rkh5QKdDldlCvtja6nUx1Ef/8HVrJze81lEsgLQlqjzjGNHantgnQA==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-context-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-direction",
+      "version": "1.1.5",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-/NlO/rOqQabmg+GGr86vCmbJVhqTv85NfM9g6Gknf/JVygXeZ6e6HM/RW1omerW9HsFtecwNqgEAKV6UqDsvpA==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-direction-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-dismissable-layer",
+      "version": "1.1.20",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-35WHRrycfnj2m4LvPiKMKHGLM3Y2WvUA744CkRdxjs1BGDX1c8PVMfmiSGTUwnHRbqdtIoxveYTXvcJSt7VfgQ==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-dismissable-layer-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-focus-guards",
+      "version": "1.1.6",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-RNOJjfZMTyBM6xYmV3IVGXkPjIhcBAuv48POevAXwrGJhkWZ9p1rFoIS1JFooPuT193AZmRsCPhpoVJxx6OPoQ==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-focus-guards-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-focus-scope",
+      "version": "1.2.0",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-I5S7vsAOozx2lWSBAyuXjWIJ/A8qx4fjbv6115WoaRYQSb1yZDaeNHonUAQzXyE8oD+0whJHbQRl4HIE2gQ0Xw==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-focus-scope-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-id",
+      "version": "1.1.4",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-TMQp2llA+RYn7JcjnrMnz7wN4pcVttPZnRZo52PLQsoLVKzNlVwUeHmfePgTgRluXFvlD3GD5g5MOVVTJCO0qA==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-id-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-popper",
+      "version": "1.3.8",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-y92/9iIdG1FyNvow0Y0qP5WJZ7oRTAKDVKCy9kJnhZfItwIKYtt0KKQeOhBKfXz0ETizduKwDRbrQHrTQScs5A==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-popper-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-portal",
+      "version": "1.1.18",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-ygFIJ+QXNKf72AAq8x3hd22+ws7pYpmc1S0E4kW0Je+qD4qEb3FvxeKVQRGrVDMOkQaYfsB+Qs+KDh81a1gAOw==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-portal-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-presence",
+      "version": "1.1.11",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-Z7/atlkab36Z8hm+V8zYc79r0W+tiOB1o0tun1By94JyadkekLQmtEAnBSP9XKXBNQsStoStS4+gX10JpS5akA==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-presence-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-primitive",
+      "version": "2.1.11",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-RzcaSw5aKl0OPhBJ1wbolKSF6nVvN+0o/QLeIVq+09npiPdnCkPggy2k6gI6yetxl4ZyrlBPYFgCB8BQJZwXcQ==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-primitive-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-select",
+      "version": "2.3.8",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-Tz9xOpV9Rbca5WTk7pzmfAECV3zb++uScT9mP3Px7ziAhH7SlK53b0uwMw8VubPhRK4x7uDKCy5fwevT8I0fAg==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-select-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-slot",
+      "version": "1.4.0",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-IuMVHZ+Ah5fkctu3X3qeFrV/ZrBcuWuDTFUUPfS/L5hvoTjzhp/HdWGE14CsQombPdEidsa33HVlYZXi49PZ1Q==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-slot-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-use-callback-ref",
+      "version": "1.1.4",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-R6OUY2e2fA6Yn6s+VSx5KBV6Nx8LQEhu+cz7LCej18rQ1HLyg9PSC9jP/ZNx0o6FAIK9c0F1kHylzSxKsdlkrQ==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-use-callback-ref-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-use-controllable-state",
+      "version": "1.2.6",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-uEQJGT97ZA/TgP/Hydw47lHu+/vQj6z/0jA+WeTbK1o9Rx45GImjpD0tc3W5ad3D6XTSR6e1yEO0FvGq6WQfVQ==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-use-controllable-state-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-use-effect-event",
+      "version": "0.0.5",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-7cshFL8HGS/7HEiHH+9kL9HBwp2sa9yX18Knwek6KYWmXwM7pegMgta2AXMQKI+rq3JnfSj9x8wYqFMTdG1Jgg==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-use-effect-event-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-use-layout-effect",
+      "version": "1.1.4",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-K20DkRkUwDnxEYMBPcg3Y6voLkEy5p5QQmszZgLngKKiC7dzBR/aEuK3w1qlx2JWDUNH6FluahYdgR3BP+QbYw==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-use-layout-effect-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-use-previous",
+      "version": "1.1.4",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-XoSLhbRbqxFtgJoi2fNHA3C6pDlY34x508vUpUGoFZfvePfHXHbE1lC4FYFMnJWgiCRroSTw6fOsXQoVS9RwZg==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-use-previous-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-use-rect",
+      "version": "1.1.4",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-cSOCh6JlkmfjLyNcLiu2nB4v+nm+dkZ+Q5KHWk/soo4U7ZLiEQFKHK9/YmtBHjfCEaU43IBKQOc4/uJmCaiCTQ==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-use-rect-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-use-size",
+      "version": "1.1.5",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-V1McDQkMGzgivwqdu7u96APs7oi0Jvj9LTzgq3WWrDZqxWdAqU9yZnZQqk5OizGFR8badUQwZsrlao7MOlWYOA==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-use-size-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/react-visually-hidden",
+      "version": "1.2.12",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-/iPLVHRBzKWvekN+5xaDmXw80f+nleYYceomVORrGjuJe0LF2SCbSH4f/LG4hu32q92QSuPZx4hmSACYBVBfzQ==",
+      "licenses": [
+        {
+          "file": "radix-ui-react-visually-hidden-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "@radix-ui/rect",
+      "version": "1.1.3",
+      "license": "MIT",
+      "repository": "git+https://github.com/radix-ui/primitives.git",
+      "npm_integrity": "sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw==",
+      "licenses": [
+        {
+          "file": "radix-ui-rect-LICENSE",
+          "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "aria-hidden",
+      "version": "1.2.6",
+      "license": "MIT",
+      "repository": "git+https://github.com/theKashey/aria-hidden.git",
+      "npm_integrity": "sha512-ik3ZgC9dY/lYVVM++OISsaYDeg1tb0VtP5uL3ouh1koGOaUMDPpbFIei4JkFimWUFPn90sbMNMXQAIVOlnYKJA==",
+      "licenses": [
+        {
+          "file": "aria-hidden-LICENSE",
+          "sha256": "30f0cfddf483d1128e3610205020f2041a6c5e837aa999e0aa82e5576187d4a9"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "detect-node-es",
+      "version": "1.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/thekashey/detect-node",
+      "npm_integrity": "sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ==",
+      "licenses": [
+        {
+          "file": "detect-node-es-LICENSE",
+          "sha256": "54b32293ea560d22cd9b62af9b2cda1a030d910a48c6601d227c5ff2338d95f8"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "get-nonce",
+      "version": "1.0.1",
+      "license": "MIT",
+      "repository": "git@github.com:theKashey/get-nonce.git",
+      "npm_integrity": "sha512-FJhYRoDaiatfEkUK8HKlicmu/3SGFD51q3itKDGoSTysQJBnfOcxU5GxnhE1E6soB76MbT0MBtnKJuXyAx+96Q==",
+      "licenses": [
+        {
+          "file": "get-nonce-LICENSE",
+          "sha256": "acf3b087b348d2f2e731b9d4131af185aad694c1204ce14a46909483fd42da05"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "react-remove-scroll",
+      "version": "2.7.2",
+      "license": "MIT",
+      "repository": "https://github.com/theKashey/react-remove-scroll",
+      "npm_integrity": "sha512-Iqb9NjCCTt6Hf+vOdNIZGdTiH1QSqr27H/Ek9sv/a97gfueI/5h1s3yRi1nngzMUaOOToin5dI1dXKdXiF+u0Q==",
+      "licenses": [
+        {
+          "file": "react-remove-scroll-LICENSE",
+          "sha256": "30f0cfddf483d1128e3610205020f2041a6c5e837aa999e0aa82e5576187d4a9"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "react-remove-scroll-bar",
+      "version": "2.3.8",
+      "license": "MIT",
+      "repository": "https://github.com/theKashey/react-remove-scroll-bar",
+      "npm_integrity": "sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q==",
+      "licenses": [
+        {
+          "file": "react-remove-scroll-bar-LICENSE.txt",
+          "sha256": "a79aae0c0f21990d9d963bb3c5a79cdcea9a46f8523ba55c58d7fe776b6ebc84"
+        }
+      ],
+      "provenance": "npm package declares MIT but omits LICENSE. Text copied from official repository commit 8ca9ba5ea52de03308fe8ced94f7b159a44d28ff; published npm gitHead b3b1287aad81def2e2ae707274b74531b61ddbaf was unavailable (404).",
+      "new_lock_entry": true
+    },
+    {
+      "package": "react-style-singleton",
+      "version": "2.2.3",
+      "license": "MIT",
+      "repository": "https://github.com/theKashey/react-style-singleton",
+      "npm_integrity": "sha512-b6jSvxvVnyptAiLjbkWLE/lOnR4lfTtDAl+eUC7RZy+QQWc6wRzIV2CE6xBuMmDxc2qIihtDCZD5NPOFl7fRBQ==",
+      "licenses": [
+        {
+          "file": "react-style-singleton-LICENSE",
+          "sha256": "30f0cfddf483d1128e3610205020f2041a6c5e837aa999e0aa82e5576187d4a9"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "use-callback-ref",
+      "version": "1.3.3",
+      "license": "MIT",
+      "repository": "https://github.com/theKashey/use-callback-ref/",
+      "npm_integrity": "sha512-jQL3lRnocaFtu3V00JToYz/4QkNWswxijDaCVNZRiRTO3HQDLsdu1ZtmIUvV4yPp+rvWm5j0y0TG/S61cuijTg==",
+      "licenses": [
+        {
+          "file": "use-callback-ref-LICENSE",
+          "sha256": "30f0cfddf483d1128e3610205020f2041a6c5e837aa999e0aa82e5576187d4a9"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "use-sidecar",
+      "version": "1.1.3",
+      "license": "MIT",
+      "repository": "https://github.com/theKashey/use-sidecar",
+      "npm_integrity": "sha512-Fedw0aZvkhynoPYlA5WXrMCAMm+nSWdZt6lzJQ7Ok8S6Q+VsHmHpRWndVRJ8Be0ZbkfPc5LRYH+5XrzXcEeLRQ==",
+      "licenses": [
+        {
+          "file": "use-sidecar-LICENSE",
+          "sha256": "30f0cfddf483d1128e3610205020f2041a6c5e837aa999e0aa82e5576187d4a9"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": true
+    },
+    {
+      "package": "tslib",
+      "version": "2.8.1",
+      "license": "0BSD",
+      "repository": "https://github.com/Microsoft/tslib.git",
+      "npm_integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==",
+      "licenses": [
+        {
+          "file": "tslib-CopyrightNotice.txt",
+          "sha256": "da16ddb65f8ca390998fb99223d0112498b56b45784d00afd77ff8ce1ac4de8b"
+        },
+        {
+          "file": "tslib-LICENSE.txt",
+          "sha256": "210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751"
+        }
+      ],
+      "provenance": "Files copied unmodified from the installed npm package.",
+      "new_lock_entry": false
+    }
+  ]
+}
