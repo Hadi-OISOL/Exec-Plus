@@ -99,6 +99,7 @@ export function UnderstandingPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [refreshNeeded, setRefreshNeeded] = useState(false);
   const [historical, setHistorical] = useState<{
     version: number;
     definition: Definition;
@@ -127,7 +128,7 @@ export function UnderstandingPanel({
     setError("");
     setMessage("");
     try {
-      await request(
+      const saved = await request<Pick<Understanding, "revision_id" | "version" | "state" | "definition">>(
         `${root}/understanding`,
         post({
           revision_id: context.revision_id,
@@ -136,15 +137,23 @@ export function UnderstandingPanel({
           definition,
         }),
       );
-      const value = await request<Understanding>(`${root}/understanding`);
-      setContext(value);
-      setDefinition(value.definition);
+      setContext({ ...context, ...saved });
+      setDefinition(saved.definition);
       setMessage(
         state === "confirmed"
           ? "Business definitions confirmed. New analyses will use this version."
           : "Definition status updated. Confirm a reviewed version to resume calculations.",
       );
       onChange();
+      try {
+        const value = await request<Understanding>(`${root}/understanding`);
+        setContext(value);
+        setDefinition(value.definition);
+        setRefreshNeeded(false);
+      } catch {
+        setRefreshNeeded(true);
+        setError("Your definitions were saved, but the latest details could not be loaded. Reload them before editing again.");
+      }
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Could not save definitions.",
@@ -216,10 +225,19 @@ export function UnderstandingPanel({
       <h2>Data understanding</h2>
       <p>
         {context?.state === "confirmed"
-          ? "Your saved answers are in use. Edit them only when something changes; missing details are listed separately."
+          ? context.questions.some(question => question.trim())
+            ? "Your answers are saved. Complete the missing details below to use the analyses that need them."
+            : "Your saved answers are in use. Edit them only when something changes."
           : "Review what a row and each field mean. Confirmed definitions are shared with your workspace; your personal goal stays private."}
       </p>
-      {error && <p role="alert">{error}</p>}
+      {error && <div role="alert"><p>{error}</p>{refreshNeeded && <button type="button" disabled={busy} onClick={async () => {
+        setBusy(true);
+        try {
+          const value = await request<Understanding>(`${root}/understanding`);
+          setContext(value); setDefinition(value.definition); setRefreshNeeded(false); setError("");
+        } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not reload saved details."); }
+        finally { setBusy(false); }
+      }}>Reload saved details</button>}</div>}
       {message && <p role="status">{message}</p>}
       {!context || !definition ? (
         <p>Loading data meaning…</p>
@@ -237,19 +255,19 @@ export function UnderstandingPanel({
               retained; review them against this upload.
             </p>
           )}
-          {!!context.questions.length && (
-            <details>
+          {!refreshNeeded && context.questions.some(question => question.trim()) && (
+            <details className="missingDetailsReview" open>
               <summary>
                 Missing details ({context.questions.filter(question => question.trim()).length})
               </summary>
-              <ul>
+              <ul aria-label="Missing data details">
                 {context.questions.filter(question => question.trim()).map((question) => (
-                  <li key={question}>{question}</li>
+                  <li key={question}><span>{question}</span></li>
                 ))}
               </ul>
             </details>
           )}
-          {context.state === "confirmed" && onReviewMissing && <button type="button" onClick={onReviewMissing}>Complete missing details</button>}
+          {!refreshNeeded && context.state === "confirmed" && context.questions.some(question => question.trim()) && onReviewMissing && <button type="button" onClick={onReviewMissing}>Complete missing details</button>}
           <details open={context.state !== "confirmed"}>
             <summary>{context.state === "confirmed" ? "Edit saved definitions" : "Review business definitions"}</summary>
             <form
@@ -258,7 +276,7 @@ export function UnderstandingPanel({
                 void save("confirmed");
               }}
             >
-              <fieldset disabled={busy || !context.can_edit}>
+              <fieldset disabled={busy || !context.can_edit || refreshNeeded}>
                 <legend>Shared dataset meaning</legend>
                 <div className="understandingFields">
                   <label>
@@ -847,6 +865,8 @@ export function UnderstandingPanel({
                     post({ domain_hint: context.preference.domain_hint, goal }),
                   );
                   setMessage("Your private goal was saved.");
+                  setContext({ ...context, preference: { ...context.preference, goal } });
+                  onChange();
                 } catch (cause) {
                   setError(
                     cause instanceof Error

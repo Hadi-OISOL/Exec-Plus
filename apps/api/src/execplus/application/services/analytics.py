@@ -188,6 +188,7 @@ class AnalyticsService:
                 definition,
                 state,
                 preference.goal if preference else "",
+                repo.agent_memory(workspace_id, actor.id) if not source else None,
             )
             scope = WorkspaceScope(
                 workspace_id, actor.id, frozenset({member.role}), frozenset({dataset_id})

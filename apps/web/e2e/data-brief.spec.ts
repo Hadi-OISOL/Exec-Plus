@@ -71,9 +71,9 @@ test("a model reading opens at the top after upload and saves confirmed meaning 
   await expect(page.getByRole("region", { name: "Guided data review", exact: true })).toHaveCount(0);
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
-  await expect(panel).toContainText("What currency is amt in?");
+  await expect(panel).toContainText('What unit does "amt" use?');
   await panel.getByLabel(/What does this column mean\?/).fill("Order value after discount");
-  await panel.getByLabel("Unit, if you know it", { exact: true }).fill("PKR");
+  await panel.getByLabel("Unit of measurement (required)", { exact: true }).fill("PKR");
   await panel.getByRole("button", { name: "Use my answer", exact: true }).click();
   await expect(panel).toContainText("Does st mean state?");
   await panel.getByLabel(/What does this column mean\?/).fill("Order status: P paid, R refunded");
@@ -186,7 +186,7 @@ for (const partial of [false, true]) {
     await page.getByRole("button", { name: "Check what ExecPlus understood", exact: true }).click();
     await expect(reading).toContainText("Question 1 of 1");
     await expect(reading.getByRole("textbox", { name: "What does this column mean?", exact: true })).toHaveValue("Reviewed measure_19");
-    await reading.getByLabel("Unit, if you know it", { exact: true }).fill("mm");
+    await reading.getByLabel("Unit of measurement (required)", { exact: true }).fill("mm");
     await reading.getByRole("button", { name: "Use my answer", exact: true }).click();
     await reading.getByRole("button", { name: "Save as context for this data", exact: true }).click();
     await expect(reading.getByRole("button", { name: "Continue to my insights" })).toBeVisible();
@@ -207,11 +207,11 @@ test("focused reading keeps edits on Back, saves progress and retries only the f
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
   await panel.getByRole("textbox", { name: "What does this column mean?", exact: true }).fill("Amount actually received after discount");
-  await panel.getByLabel("Unit, if you know it", { exact: true }).fill("PKR");
+  await panel.getByLabel("Unit of measurement (required)", { exact: true }).fill("PKR");
   await panel.getByRole("button", { name: "Back", exact: false }).click();
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
   await expect(panel.getByRole("textbox", { name: "What does this column mean?", exact: true })).toHaveValue("Amount actually received after discount");
-  await expect(panel.getByLabel("Unit, if you know it", { exact: true })).toHaveValue("PKR");
+  await expect(panel.getByLabel("Unit of measurement (required)", { exact: true })).toHaveValue("PKR");
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);

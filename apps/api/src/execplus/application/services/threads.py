@@ -12,6 +12,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
+from execplus.application.memory_context import capture_memory
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.intent_router import (
     ClarificationContext,
@@ -264,6 +265,13 @@ class ThreadService:
         repo.workspace(wid, lock=True)
         self._thread(repo, actor, wid, turn.thread_id)
         self._authorize_evidence(repo, actor, wid, turn.evidence)
+        reference = turn.evidence.get("agent_memory")
+        if reference is not None and repo.agent_memory(wid, actor.id).reference() != reference:
+            raise IngestionError(
+                "memory_changed",
+                "Your personal memory changed. Ask again to use its latest version.",
+                409,
+            )
         if turn.evidence.get("patterns"):
             patterns = cast(dict[str, Any], turn.evidence["patterns"])
             for source in patterns["sources"]:
@@ -376,20 +384,21 @@ class ThreadService:
                 )
         answer: ConversationAnswer | None = None
         try:
-            answer = await asyncio.wait_for(
-                self.intent_router.ask(
-                    actor,
-                    wid,
-                    thread.dataset_id,
-                    thread.upload_id,
-                    turn.question,
-                    prior_lineage,
-                    prior_document_query,
-                    prior_guide,
-                    prior_clarification,
-                ),
-                timeout=100,
-            )
+            with capture_memory() as memory_use:
+                answer = await asyncio.wait_for(
+                    self.intent_router.ask(
+                        actor,
+                        wid,
+                        thread.dataset_id,
+                        thread.upload_id,
+                        turn.question,
+                        prior_lineage,
+                        prior_document_query,
+                        prior_guide,
+                        prior_clarification,
+                    ),
+                    timeout=100,
+                )
             evidence: dict[str, Any] = {}
             data = None
             if isinstance(answer, PatternAnswer):
@@ -483,4 +492,6 @@ class ThreadService:
                     "Start a new turn to try again."
                 ),
             )
+        if memory_use.reference is not None and turn.status in {"complete", "partial"}:
+            turn = replace(turn, evidence={**turn.evidence, "agent_memory": memory_use.reference})
         return answer, turn

@@ -5,9 +5,31 @@ What it does: Generates finance, sales and inventory CSV bytes without external 
 
 from datetime import date, timedelta
 
+from execplus.domain.demo_samples import actions_csv, retail_csv
 from execplus.domain.ingestion import IngestionError
 
 SAMPLES = (
+    {
+        "id": "retail-v1",
+        "name": "Retail demo",
+        "version": 1,
+        "description": (
+            "Entirely fictional daily retail operations: 1,095 rows, three regions and "
+            "365 complete days in 2025. Explore patterns, grouped relationships, unusual "
+            "support volumes, daily forecasts and explicit what-if assumptions. "
+            "Review units and meanings before calculating."
+        ),
+    },
+    {
+        "id": "actions-v1",
+        "name": "Decision demo",
+        "version": 1,
+        "description": (
+            "Six fictional actions with declared USD costs, assumed USD benefits and "
+            "staff hours. Try a budget of 1,000 USD, ten staff hours and at most one "
+            "of each action. Benefits are assumptions, not predictions."
+        ),
+    },
     {
         "id": "forecast-v1",
         "name": "Forecasting sample",
@@ -50,6 +72,10 @@ SAMPLES = (
 
 
 def sample_csv(sample_id: str) -> bytes:
+    if sample_id == "retail-v1":
+        return retail_csv()
+    if sample_id == "actions-v1":
+        return actions_csv()
     if sample_id == "forecast-v1":
         return (
             "date,revenue,orders,city\n"

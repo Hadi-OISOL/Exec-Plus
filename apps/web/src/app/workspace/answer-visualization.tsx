@@ -196,7 +196,7 @@ function Plot({
       ) : (
         <>
           <svg
-            viewBox="0 0 600 240"
+            viewBox="0 0 600 220"
             className={`trendSvg ${styles.lineChart}`}
             role="group"
             aria-label={`${title} ${connectLinePoints ? "line chart" : "observed points"}`}
@@ -270,13 +270,8 @@ function Plot({
                 </circle>
               );
             })}
-            <text x={18} y={235} className={styles.axisText}>
-              {points[0]?.label}
-            </text>
-            <text x={582} y={235} textAnchor="end" className={styles.axisText}>
-              {points.length > 1 ? points[points.length - 1]?.label : ""}
-            </text>
           </svg>
+          <div className={styles.axisRange} aria-label="Chart category range"><span>{points[0]?.label}</span><span>{points.length > 1 ? points[points.length - 1]?.label : ""}</span></div>
           <div className={`chartReadout ${styles.readout}`} aria-live="polite">
             <span>
               {active === null

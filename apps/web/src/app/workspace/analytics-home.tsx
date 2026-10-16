@@ -76,17 +76,20 @@ export function AnalyticsHome({
   }, [root, request]);
   return (
     <section className="analyticsHome" aria-label="Analytics home">
+      <div className="studioHomeTop">
+      <div className="studioQuestionSpace">
       <div className="homeWelcome">
-        <span className="homeAssistantMark"><Icon name="sparkle" size={26} /></span>
-        <h2>Your questions. A clearer picture.</h2>
-        <p>Meet your data partner. Explore an idea, find a pattern, or follow the evidence.</p>
+        <span className="studioEyebrow"><Icon name="sparkle" size={16} /> YOUR ANALYSIS STUDIO</span>
+        <h2>From a question<br />to a clearer next step.</h2>
+        <p>Understand what happened. Explore what connects. Decide what to look at next.</p>
       </div>
       <form className="homeComposer" onSubmit={(event) => {
         event.preventDefault();
         if (question.trim()) { onAsk(question.trim()); setQuestion(""); }
       }}>
         <label className="srOnly" htmlFor="home-question">Ask about your data</label>
-        <input id="home-question" value={question} onChange={(event) => setQuestion(event.target.value)}
+        <textarea id="home-question" rows={2} value={question} onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (question.trim()) { onAsk(question.trim()); setQuestion(""); } } }}
           placeholder="What would you like to know about your data?" maxLength={500} required />
         <div className="homeComposerFooter">
           <span className="homeSourcePill" title={filename}><Icon name="data" size={15} />{filename}</span>
@@ -104,13 +107,15 @@ export function AnalyticsHome({
         </button>)}
         <button type="button" onClick={() => onNavigate("forecasts")}><Icon name="forecasts" size={14} />Explore forecasts</button>
       </div>
-      {meaning && <GroupRelationshipForm key={root} understanding={meaning} onAsk={onAsk} onReview={onReview} />}
-      {meaning && (meaning.definition.description || meaning.preference.goal) ?
+      </div>
+      <aside className="studioSourceSpace" aria-label="Source context">
+      {meaning ?
         <section className="homeDataContext" aria-label="Saved context for this data">
           <header>
-            <div><span className="homeContextEyebrow">Your data, in context</span><h3>{filename}</h3></div>
-            <span className="homeContextStatus">{meaning.state === "confirmed" ? "Definitions confirmed" : "Definitions need review"}</span>
+            <span className="studioSourceIcon"><Icon name="data" size={22} /></span>
+            <div><span className="homeContextEyebrow">WORKING WITH</span><h3>{filename}</h3></div>
           </header>
+          <span className="homeContextStatus" data-confirmed={meaning.state === "confirmed"}><Icon name={meaning.state === "confirmed" ? "check" : "prepare"} size={13} />{meaning.state === "confirmed" ? "Definitions confirmed" : "Definitions need review"}</span>
           {meaning.definition.description && <p className="homeContextDescription">{meaning.definition.description}</p>}
           {meaning.state !== "confirmed" && <p className="homeContextNotice">This saved description is a draft. Review it before relying on it.</p>}
           {meaning.preference.goal && <div className="homeContextGoal"><span>Your goal · Private</span><p>{meaning.preference.goal}</p></div>}
@@ -119,7 +124,21 @@ export function AnalyticsHome({
             {meaning.preference.goal && <button type="button" onClick={() => onAsk("Analyze my data")}>Explore my goal</button>}
             <button type="button" onClick={onReview}>Review saved details</button>
           </div>
-        </section> : contextError ? <p className="homeContextNotice" role="status">{contextError}</p> : null}
+        </section> : <div className="homeDataContext"><span className="homeContextEyebrow">WORKING WITH</span><h3>{filename}</h3><p className="homeContextNotice" role="status">{contextError || "Loading your saved data context…"}</p></div>}
+      <button className="studioMemoryShortcut" type="button" onClick={() => onNavigate("memory")}><Icon name="memory" size={18} /><span><strong>Make it your data partner</strong><small>Set what ExecPlus remembers about you</small></span><Icon name="arrow" size={16} /></button>
+      </aside>
+      </div>
+      <section className="studioToolSection" aria-label="Analysis tools">
+        <header className="studioSectionHeading"><div><span className="studioEyebrow">A GOOD PLACE TO START</span><h3>Choose a direction</h3></div><p>Real tools. Answers you can inspect.</p></header>
+        <div className="studioToolGrid">
+          {[
+            { icon: "patterns", title: "Find the connections", description: "Explore relationships and differences in your data.", action: () => onAsk("Find patterns in my data"), label: "Find patterns in this data" },
+            { icon: "forecasts", title: "Look ahead", description: "Forecast over time or try an explicit what-if.", action: () => onNavigate("forecasts"), label: "Open forecasts and what-ifs" },
+            { icon: "decisions", title: "Plan your next move", description: "Find unusual values and compare resource choices.", action: () => onNavigate("decisions"), label: "Open anomalies and decisions" },
+          ].map(tool => <button className="studioToolCard" key={tool.title} type="button" aria-label={tool.label} onClick={tool.action}><span className="studioToolIcon"><Icon name={tool.icon} size={23} /></span><strong>{tool.title}</strong><span>{tool.description}</span><Icon name="arrow" size={17} /></button>)}
+        </div>
+        {meaning && <GroupRelationshipForm key={root} understanding={meaning} onAsk={onAsk} onReview={onReview} />}
+      </section>
       <div className="homeLibraryGrid">
         <section className="homeLibraryCard" aria-label="Saved for this data">
           <header><h3>Saved for this data</h3><button type="button" onClick={() => onNavigate("saved")}>View all <Icon name="arrow" size={14} /></button></header>

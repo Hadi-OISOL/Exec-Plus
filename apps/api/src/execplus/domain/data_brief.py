@@ -8,6 +8,7 @@ import re
 from collections import Counter
 from typing import Any
 
+from execplus.domain.agent_memory import MEMORY_PROMPT
 from execplus.domain.profiling import TableData
 from execplus.domain.understanding import GRAINS, ROLES, questions
 
@@ -66,7 +67,7 @@ SAMPLE_PROMPT = (
 
 
 def system_prompt(samples: dict[str, Any] | None) -> str:
-    return SYSTEM_PROMPT + (SAMPLE_PROMPT if samples else "")
+    return MEMORY_PROMPT + SYSTEM_PROMPT + (SAMPLE_PROMPT if samples else "")
 
 
 def _sensitive(name: str, role: str) -> bool:
@@ -140,8 +141,12 @@ def model_input(
     profile: dict[str, Any],
     definition: dict[str, Any],
     samples: dict[str, Any] | None = None,
+    personal_memory: dict[str, str] | None = None,
 ) -> str:
-    return json.dumps(model_metadata(profile, definition, samples), ensure_ascii=False)
+    return json.dumps(
+        {**model_metadata(profile, definition, samples), "personal_memory": personal_memory or {}},
+        ensure_ascii=False,
+    )
 
 
 def _allowed_numbers(

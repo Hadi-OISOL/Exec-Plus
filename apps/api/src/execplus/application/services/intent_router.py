@@ -14,6 +14,7 @@ from uuid import UUID
 
 from execplus.application.contracts import ModelMessage, ModelRequest
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer
+from execplus.application.memory_context import remember_usage
 from execplus.application.ports import LanguageModel
 from execplus.application.progress import activity, model_call, planned
 from execplus.application.services.analytics import AnalyticsService
@@ -264,6 +265,7 @@ class IntentRouterService:
             if (
                 current.view.sources != context.view.sources
                 or current.private_goal != context.private_goal
+                or current.agent_memory != context.agent_memory
                 or await self._reading_notes(actor, wid, did, uid) != notes
             ):
                 raise ClarificationRequiredError(
@@ -278,6 +280,7 @@ class IntentRouterService:
 
         await activity(JobStage.PLANNING, EventStatus.STARTED)
         route = "deterministic:dataset-guidance-v1"
+        remember_usage(context.agent_memory)
         try:
             reading, response, _ = await read_validated(
                 self.model,

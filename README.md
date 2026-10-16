@@ -7,12 +7,23 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
+The October 16 studio update adds a lighter workspace, explicit **My memory**
+preferences and two fictional examples for testing the existing analysis tools.
+Missing-unit review now saves the unit directly and clearly shows unfinished
+details. Personal memory guides new explanations and suggestions across files in
+one workspace; it does not change numerical planning or automatically learn every
+conversation. Run migration **0018** after pulling. See the
+[contract](docs/personal-agent-studio.md), [demo walkthrough](docs/demo-data-guide.md)
+and [verification ledger](docs/verification-personal-agent-studio.md) for release
+evidence and limitations. The selected development skills are project-local;
+they are not an arbitrary runtime plugin system.
+
 October 13 refines dashboard fonts, colours, chart controls, readable precise KPIs
 and conversation progress. Ask **Find patterns** for a focused follow-up, then choose
 a supported task from your actual file. Clear requests execute through the existing
 verified query engine; private thread context and source/version checks remain in force.
 See [the presentation/conversation contract](docs/interface-polish.md) and
-[verification](docs/verification-interface-polish.md). The private VPS is updated on 0017.
+[verification](docs/verification-interface-polish.md). That release used 0017.
 
 October 13 adds optional **Guided data review** after upload and through **Review
 this upload step by step**. Preview your corrections, save notes privately or save
@@ -27,7 +38,7 @@ explicitly granted internal staff. Staff can inspect operational metadata and ha
 support requests without acquiring access to private customer analyses. Usage reports
 show deliberate activity and completed-week return cohorts with their definitions.
 See the [operations contract](docs/operations-console-support.md) and
-[verification ledger](docs/verification-operations.md). Run migration **0017** after
+[verification ledger](docs/verification-operations.md). Run migration **0018** after
 pulling. Staff grants are operator-only; ordinary workspace ownership does not grant
 platform administration. Billing and public production readiness remain unfinished.
 
@@ -86,7 +97,7 @@ or shared dashboards, and separate department workspaces grouped by organization
 The private demo now also includes **Refresh & alerts**: validated staged-file
 replacement/append/merge, schedules, replayable observations, exact segment drivers
 and private KPI notifications. That slice introduced migration 0012; the current
-application requires **0017**. See the
+application requires **0018**. See the
 [4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
 [4B verification](docs/verification-phase4b.md). Schedules process files staged in
 ExecPlus. Forecast comparisons can use an accepted refresh without changing the

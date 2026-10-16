@@ -120,7 +120,7 @@ make migrate
 make init-storage
 ```
 
-Run `make migrate` after pulling changes; the current application requires migration **0017**. Existing data is retained.
+Run `make migrate` after pulling changes; the current application requires migration **0018**. Existing data is retained. The new table stores explicit personal memory; downgrade refuses while saved memory revisions exist.
 
 If Docker needs sudo on Linux, use this instead of the first command:
 

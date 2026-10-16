@@ -3,9 +3,9 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 
 .visualization {
   min-width: 0;
-  color: #202938;
+  color: var(--ink, #203f30);
   background: #fff;
-  border: 1px solid #e4e8ef;
+  border: 1px solid #e0e8dc;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -21,16 +21,16 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 }
 .header h3 {
   margin: 0;
-  color: #202938;
-  font-size: 15px;
+  color: var(--ink, #203f30);
+  font-size: 17px;
   font-weight: 650;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
 .fieldCaption {
   margin: 5px 0 0;
-  color: #657184;
-  font-size: 11px;
+  color: #5c6e52;
+  font-size: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -46,22 +46,22 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   border: 1px solid transparent;
   border-radius: 7px;
   background: transparent;
-  color: #657184;
+  color: #5c6e52;
   font-size: 12px;
   padding: 7px 10px;
   font-weight: 550;
-  min-height: 32px;
+  min-height: 38px;
   cursor: pointer;
 }
 .actions button:hover,
 .chartChoice button:hover,
 .pagination button:hover {
-  background: #e4f3f2;
-  color: #087f8c;
+  background: #edf4e9;
+  color: var(--green, #176b57);
 }
 .segmented {
   display: flex;
-  background: #f1f3f7;
+  background: #f1f5ee;
   border-radius: 7px;
   padding: 2px;
 }
@@ -70,7 +70,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 }
 .segmented button[aria-pressed="true"] {
   background: #fff;
-  color: #087f8c;
+  color: var(--green, #176b57);
   box-shadow: 0 1px 4px #172f5814;
 }
 .actions .expandButton {
@@ -85,27 +85,29 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   padding: 0 22px 4px;
 }
 .chartChoice button[aria-pressed="true"] {
-  color: #087f8c;
-  background: #e4f3f2;
+  color: var(--green, #176b57);
+  background: #edf4e9;
 }
 .plot {
-  padding: 4px 22px 14px;
+  padding: 14px 22px 20px;
+  background: #fcfdfb;
+  border-top: 1px solid #edf1e8;
 }
 .axisLabel {
   color: #43506a;
   margin: 3px 0 20px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .axisLabel span {
-  color: #657184;
+  color: #5c6e52;
   font-weight: 400;
 }
 .bars {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 0;
   margin: 0;
   list-style: none;
@@ -123,8 +125,8 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   border: 0;
   border-radius: 5px;
   text-align: left;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.55;
 }
 button.barRow:not(:disabled):hover {
   background: #f3f6fb;
@@ -150,7 +152,7 @@ button.barRow:disabled {
   top: 0;
   height: 18px;
   border-radius: 0 3px 3px 0;
-  background: #087f8c;
+  background: var(--green, #176b57);
   transform-origin: left center;
   animation: barReveal 420ms ease-out both;
 }
@@ -168,7 +170,7 @@ button.barRow:disabled {
 }
 .barValue {
   text-align: right;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -181,7 +183,7 @@ button.barRow:disabled {
   overflow: visible;
 }
 .gridLine {
-  stroke: #edf0f5;
+  stroke: #e6ece1;
   stroke-width: 1;
 }
 .zeroAxis {
@@ -189,13 +191,13 @@ button.barRow:disabled {
   stroke-width: 1;
 }
 .line {
-  stroke: #087f8c;
+  stroke: var(--green, #176b57);
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .point {
-  fill: #087f8c;
+  fill: var(--green, #176b57);
   stroke: white;
   stroke-width: 1.5;
 }
@@ -204,10 +206,17 @@ button.barRow:disabled {
   stroke: #132c79;
   stroke-width: 3;
 }
-.axisText {
-  font-size: 10px;
-  fill: #66748b;
+.axisRange {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  color: #5f7055;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  margin: 2px 0 14px;
 }
+.axisRange span:last-child { text-align: right; }
 .readout {
   display: flex;
   justify-content: space-between;
@@ -215,7 +224,7 @@ button.barRow:disabled {
   margin: 8px 0 0;
   min-height: 30px;
   color: #63718a;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .readout strong {
@@ -224,14 +233,14 @@ button.barRow:disabled {
 }
 .note,
 .plotNote {
-  font-size: 11px;
-  color: #6b788b;
+  font-size: 12px;
+  color: #64725b;
   line-height: 1.6;
   margin: 15px 0 0;
 }
 .plotNote {
-  color: #657184;
-  font-size: 10px;
+  color: #5c6e52;
+  font-size: 12px;
 }
 .tableView {
   min-width: 0;
@@ -256,7 +265,7 @@ button.barRow:disabled {
 .tableScroll th,
 .tableScroll td {
   padding: 12px 20px;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid #e6ece1;
   white-space: nowrap;
 }
 .tableScroll tbody tr:hover {
@@ -269,23 +278,23 @@ button.barRow:disabled {
   flex-wrap: wrap;
   gap: 8px;
   padding: 12px 20px;
-  font-size: 11px;
-  color: #657184;
+  font-size: 12px;
+  color: #5c6e52;
 }
 .pagination button:disabled {
   opacity: 0.4;
   cursor: default;
 }
 .sourceCount {
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid #e6ece1;
   padding: 12px 22px;
-  font-size: 11px;
-  color: #657184;
+  font-size: 12px;
+  color: #5c6e52;
   line-height: 1.6;
 }
 .empty {
   padding: 16px 22px;
-  color: #657184;
+  color: #5c6e52;
   font-size: 13px;
 }
 .dialog {
@@ -295,7 +304,7 @@ button.barRow:disabled {
   border: 1px solid #d9e0eb;
   border-radius: 14px;
   background: #fff;
-  color: #202938;
+  color: var(--ink, #203f30);
   overflow: auto;
   box-shadow: 0 30px 100px #07152b38;
 }
@@ -308,7 +317,7 @@ button.barRow:disabled {
   top: 0;
   z-index: 1;
   background: #fff;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid #e6ece1;
   padding: 20px 28px;
 }
 .dialog .plot {
@@ -325,7 +334,7 @@ button.barRow:disabled {
 }
 .visualization button:focus-visible,
 .visualization [tabindex="0"]:focus-visible {
-  outline: 2px solid #087f8c;
+  outline: 2px solid var(--green, #176b57);
   outline-offset: 3px;
 }
 .compact .header {
@@ -335,6 +344,7 @@ button.barRow:disabled {
   padding: 0 18px 14px;
 }
 @media (max-width: 650px) {
+  .actions button, .chartChoice button, .pagination button { min-height: 44px; min-width: 44px; }
   .header {
     flex-wrap: wrap;
     gap: 10px;

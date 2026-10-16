@@ -915,7 +915,7 @@ export function AskPanel({
           disabled={busy}
           onClick={() => void generateSummary()}
         >
-          <Icon name="sparkle" size={14} /> Generate AI summary
+          <Icon name="sparkle" size={14} /> Summarize dataset insights
         </button>
         <form
           onSubmit={(event) => {

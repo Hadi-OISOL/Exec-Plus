@@ -1098,7 +1098,7 @@ test("upload creates a dataset and opens an interactive responsive exploration",
   await finishInitialReview(page);
   await openFindings(page);
   await expect(
-    page.getByRole("heading", { name: "A clearer picture." }),
+    page.getByRole("region", { name: "Analytics home", exact: true }),
   ).toBeVisible();
   await reveal(page, "Review & refine data understanding");
   await page.getByText("Explore the column map", { exact: true }).click();

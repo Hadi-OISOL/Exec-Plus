@@ -3,6 +3,25 @@
 
 # ExecPlus Architecture
 
+## October 16 explicit personal context and studio review
+
+Migration 0018 adds membership-bound, actor-private `agent_memories`. Explicit
+versioned saves and forget tombstones use workspace locking; membership removal
+cascades active memory. Private audit events contain identifiers, not remembered
+text. New qualitative upload/chat readings receive bounded context and recheck
+its revision before correction and publication. Numerical planning and advisory
+selection do not receive this memory, preventing implicit population changes.
+Old replies remain immutable, and downgrade refuses retained memory revisions.
+
+The two versioned fictional samples use existing import and meaning-confirmation
+services. The studio remains a presentation layer over authorized operations.
+Missing-unit review writes the unit field directly, preserves meanings and reports
+the actual remaining questions. Separate save/read feedback prevents duplicate
+writes after a successful save followed by a failed reload. Original chart styles
+preserve numerical strings and missing-point gaps. Downloaded development skills
+are project-local tools, not a runtime plugin system or new model provider.
+See [contracts](../personal-agent-studio.md) and [reference review](../personal-agent-reference-audit.md).
+
 ## October 16 grouped relationships and constrained choices
 
 A registered `compare_group_relationship` step uses one private governed projection

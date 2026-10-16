@@ -12,6 +12,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from execplus.application.ports import FileParser, ObjectStorage, WorkspaceRepository
+from execplus.domain.agent_memory import AgentMemory, validate_memory
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.profiling import Revision, TableData, reconstruct
@@ -258,3 +259,52 @@ class UnderstandingService:
                 )
             )
             return preference
+
+    def memory(self, actor: User, workspace_id: UUID) -> AgentMemory:
+        with self.uow() as repo:
+            repo.membership(workspace_id, actor.id)
+            return repo.agent_memory(workspace_id, actor.id)
+
+    def save_memory(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        expected_version: int,
+        role: str = "",
+        focus: str = "",
+        explanation_style: str = "concise",
+        *,
+        forget: bool = False,
+    ) -> AgentMemory:
+        role, focus, explanation_style = validate_memory(role, focus, explanation_style)
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            repo.membership(workspace_id, actor.id)
+            current = repo.agent_memory(workspace_id, actor.id)
+            if current.version != expected_version:
+                raise IngestionError(
+                    "memory_conflict", "Your memory changed. Reload it before saving again.", 409
+                )
+            now = datetime.now(timezone.utc)
+            memory = AgentMemory(
+                workspace_id,
+                actor.id,
+                current.version + 1,
+                role,
+                focus,
+                explanation_style,
+                now,
+            )
+            repo.save_agent_memory(memory)
+            repo.add(
+                AuditEvent(
+                    uuid4(),
+                    workspace_id,
+                    actor.id,
+                    "agent_memory.forgotten" if forget else "agent_memory.updated",
+                    "user",
+                    actor.id,
+                    now,
+                )
+            )
+            return memory

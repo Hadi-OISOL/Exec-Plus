@@ -57,6 +57,24 @@ memberships = Table(
     CheckConstraint("role IN ('owner', 'admin', 'member')", name="membership_role"),
     Index("memberships_user", "user_id"),
 )
+agent_memories = Table(
+    "agent_memories",
+    metadata,
+    Column("workspace_id", Uuid, primary_key=True),
+    Column("user_id", Uuid, primary_key=True),
+    Column("version", Integer, nullable=False),
+    Column("role", String(300), nullable=False),
+    Column("focus", String(500), nullable=False),
+    Column("explanation_style", String(20), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "user_id"],
+        ["memberships.workspace_id", "memberships.user_id"],
+        ondelete="CASCADE",
+    ),
+    CheckConstraint("version > 0", name="agent_memory_version"),
+    CheckConstraint("explanation_style IN ('concise', 'step_by_step')", name="agent_memory_style"),
+)
 invitations = Table(
     "invitations",
     metadata,

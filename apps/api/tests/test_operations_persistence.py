@@ -38,6 +38,8 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
     )
     assert job.status_code == 202
     added = {"staff_grants", "staff_audit", "support_tickets", "support_events"}
+    later_added = {"analysis_runs", "analysis_reviews", "agent_memories"}
+    original_tables = set(s.metadata.tables) - added - later_added
 
     def snapshot():
         with env.engine.connect() as connection:
@@ -47,20 +49,24 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
                     for row in connection.execute(select(table)).mappings()
                 )
                 for name, table in s.metadata.tables.items()
-                if name not in added | {"analysis_runs", "analysis_reviews"}
+                if name in original_tables
             }
 
     before = snapshot()
     with env.engine.begin() as connection:
         env.config.attributes["connection"] = connection
         command.downgrade(env.config, "0014")
-    assert added.isdisjoint(inspect(env.engine).get_table_names())
+    assert set(inspect(env.engine).get_table_names()) == original_tables | {"alembic_version"}
     assert snapshot() == before
     with env.engine.begin() as connection:
         env.config.attributes["connection"] = connection
         command.upgrade(env.config, "head")
     assert snapshot() == before
-    assert added <= set(inspect(env.engine).get_table_names())
+    assert set(inspect(env.engine).get_table_names()) == set(s.metadata.tables) | {
+        "alembic_version"
+    }
+    with env.engine.connect() as connection:
+        assert connection.execute(select(s.agent_memories)).first() is None
     response = env.client.get(
         f"/workspaces/{wid}/datasets/{did}/forecasts/{forecast.json()['id']}", headers=headers
     )

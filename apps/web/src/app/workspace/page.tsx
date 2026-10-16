@@ -20,8 +20,13 @@ import { WorkspaceLoading } from "./workspace-loading";
 import "./analytics-shell.css";
 import "./product-polish.css";
 import "./focused-workspace.css";
+import "./studio-workspace.css";
 
 const loadingView = () => <WorkspaceLoading />;
+const AgentMemoryPanel = dynamic(
+  () => import("./agent-memory-panel").then(module => module.AgentMemoryPanel),
+  { loading: loadingView },
+);
 const GuidedReview = dynamic(
   () => import("./guided-review").then(module => module.GuidedReview),
   { loading: loadingView },
@@ -589,12 +594,29 @@ export default function WorkspacePage() {
     { id: "data", name: "Data library", group: "DATA WORKSPACE" },
     { id: "prepare", name: "Prepare data", group: "DATA WORKSPACE" },
     { id: "documents", name: "Documents", group: "DATA WORKSPACE" },
+    { id: "memory", name: "My memory", group: "MANAGE" },
     { id: "team", name: "Team & settings", group: "MANAGE" },
     { id: "audit", name: "Audit history", group: "MANAGE" },
     ...(manager ? [{ id: "usage", name: "Usage & retention", group: "MANAGE" }] : []),
     { id: "support", name: "Support", group: "MANAGE" },
     ...(staffRole ? [{ id: "admin", name: "Admin console", group: "MANAGE" }] : []),
   ];
+  function loadSample(kind: string) {
+    if (!workspace) return;
+    void run(async () => {
+      const stored = await request<Upload & { dataset_id: string }>(`/workspaces/${workspace.id}/samples/${kind}-v1`, { method: "POST" });
+      setDatasets(await request<Dataset[]>(`/workspaces/${workspace.id}/datasets`));
+      setDataset(stored.dataset_id);
+      setUploads([stored]);
+      setProfileUpload(stored.id);
+      setReviewOpen(false);
+      setDashboardOpen(false);
+      setStarterQuestions([]);
+      setAnalysisIntent("descriptive");
+      setSection("overview");
+      setMessage("Sample ready. Explore its findings or ask a question.");
+    });
+  }
   function navigate(next: string) {
     setToolSelection(null);
     setReviewOpen(false);
@@ -648,8 +670,8 @@ export default function WorkspacePage() {
         </nav>
         <div className="railNote">
           <Icon name="check" />
-          <strong>Every answer has a source.</strong>
-          <p>Explore the evidence behind your business numbers.</p>
+          <strong>Clarity, backed by evidence.</strong>
+          <p>Your questions. Your data. Your next step.</p>
           <span>Private demo</span>
         </div>
       </aside>
@@ -716,6 +738,14 @@ export default function WorkspacePage() {
               <p>
                 {section === "overview"
                   ? "Explore, ask and build on what you discover."
+                  : section === "memory"
+                    ? "Your private preferences for clearer explanations."
+                  : section === "ask"
+                    ? "Follow a question, explore the answer, check the evidence."
+                  : section === "forecasts"
+                    ? "Look ahead with your data and clearly stated assumptions."
+                  : section === "decisions"
+                    ? "Explore unusual values and compare the choices available to you."
                   : "Everything you need to explore, prepare and share your data."}
               </p>
             </div>
@@ -765,7 +795,7 @@ export default function WorkspacePage() {
             </section>
           ) : (
             <>
-              {workspace && section !== "admin" && (
+              {workspace && !["admin", "memory"].includes(section) && (
                 <section className="datasetToolbar" aria-label="Selected data">
                   <label>
                     Current workspace
@@ -1000,6 +1030,14 @@ export default function WorkspacePage() {
                 </section>
                 <section className="panel dataLibrarySidebar">
                   <h2>Your data library</h2>
+                  <section className="studioDemoPack" aria-label="Practice with demo data">
+                    <span className="studioEyebrow"><Icon name="sparkle" size={15} /> READY TO EXPLORE</span>
+                    <h3>A dataset made for your first discovery.</h3>
+                    <p>Fictional data with dates, clear units and patterns to explore. Each demo opens as a separate dataset.</p>
+                    <button type="button" disabled={busy || !workspace} onClick={() => loadSample("retail")}><Icon name="data" size={17} /><span><strong>Explore retail demo</strong><small>Daily sales, patterns & forecasts</small></span><Icon name="arrow" size={16} /></button>
+                    <button type="button" disabled={busy || !workspace} onClick={() => loadSample("actions")}><Icon name="decisions" size={17} /><span><strong>Try decision demo</strong><small>Six actions, budgets & selection rules</small></span><Icon name="arrow" size={16} /></button>
+                    {!workspace && <p>Create your workspace below to try a demo.</p>}
+                  </section>
                   {workspace ? (
                     <>
                       <CatalogPanel
@@ -1024,32 +1062,7 @@ export default function WorkspacePage() {
                           <button
                             key={kind}
                             disabled={busy}
-                            onClick={() =>
-                              void run(async () => {
-                                const stored = await request<
-                                  Upload & { dataset_id: string }
-                                >(
-                                  `/workspaces/${workspace.id}/samples/${kind}-v1`,
-                                  { method: "POST" },
-                                );
-                                setDatasets(
-                                  await request<Dataset[]>(
-                                    `/workspaces/${workspace.id}/datasets`,
-                                  ),
-                                );
-                                setDataset(stored.dataset_id);
-                                setUploads([stored]);
-                                setProfileUpload(stored.id);
-                                setReviewOpen(false);
-                                setDashboardOpen(false);
-                                setStarterQuestions([]);
-                                setAnalysisIntent("descriptive");
-                                setSection("overview");
-                                setMessage(
-                                  "Sample ready. Explore its findings or ask a question.",
-                                );
-                              })
-                            }
+                            onClick={() => loadSample(kind)}
                           >
                             {kind === "forecast"
                               ? "Try forecasting sample"
@@ -1323,6 +1336,7 @@ export default function WorkspacePage() {
                   </section>
                 )}
               </div>
+              {workspace && section === "memory" && <AgentMemoryPanel key={`${workspace.id}-${user.id}`} workspaceId={workspace.id} request={request} />}
               {workspace && section === "team" && (
                 <OrganizationPanel
                   key={workspace.id}
@@ -1599,7 +1613,7 @@ export default function WorkspacePage() {
                         <div className="expandedWorkspaceTools">
                           <button className="reviewDone" type="button" onClick={() => setReviewOpen(false)}>Back to overview</button>
                           <UnderstandingPanel
-                            key={`understanding-${root}-${revisionTick}`}
+                            key={`understanding-${root}`}
                             root={root}
                             request={request}
                             onReviewMissing={openBrief}

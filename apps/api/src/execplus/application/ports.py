@@ -16,6 +16,7 @@ from execplus.application.contracts import (
 )
 from execplus.application.reporting_ports import ReportingRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
+from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.analysis_plan import AnalysisPlan
 from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
@@ -282,6 +283,10 @@ class WorkspaceRepository(JobRepository, OperationsRepository, ReportingReposito
     ) -> DataPreference | None: ...
 
     def save_data_preference(self, preference: DataPreference) -> None: ...
+
+    def agent_memory(self, workspace_id: UUID, user_id: UUID) -> AgentMemory: ...
+
+    def save_agent_memory(self, memory: AgentMemory) -> None: ...
 
     def user(self, user_id: UUID) -> "User": ...
 

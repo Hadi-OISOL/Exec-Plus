@@ -17,6 +17,7 @@ from execplus.application.services.analytics import DashboardCard, DashboardSumm
 from execplus.application.services.summaries import SummaryService
 from execplus.domain.errors import UnverifiedAnswerError
 from execplus.domain.models import CalculationLineage, QueryResult
+from execplus.domain.samples import SAMPLES, sample_csv
 
 
 @pytest.fixture
@@ -31,6 +32,25 @@ async def test_eight_demo_users_share_fictional_data_without_duplicate_seeding(
 ):
     runtime = integration.runtime
     first = await demo_provisioner.provision(runtime)
+    first_headers = {"Authorization": f"Bearer {first['accounts'][0]['token']}"}
+    root = f"/workspaces/{first['workspace_id']}"
+    original_datasets = integration.client.get(root + "/datasets", headers=first_headers).json()
+    originals = {}
+    for dataset in original_datasets:
+        uploads = integration.client.get(
+            root + f"/datasets/{dataset['id']}/uploads", headers=first_headers
+        ).json()
+        assert len(uploads) == 1
+        upload = uploads[0]
+        source = root + f"/datasets/{dataset['id']}/uploads/{upload['id']}"
+        content = integration.client.get(source + "/content", headers=first_headers).content
+        assert content == sample_csv(upload["sample_id"])
+        meaning = integration.client.get(source + "/understanding", headers=first_headers).json()
+        if upload["sample_id"] in {"retail-v1", "actions-v1"}:
+            assert meaning["state"] == "inferred" and meaning["version"] == 0
+            assert all(not column["unit"] for column in meaning["definition"]["columns"])
+        originals[upload["sample_id"]] = (source, content, meaning)
+    assert set(originals) == {sample["id"] for sample in SAMPLES}
     second = await demo_provisioner.provision(runtime)
     assert first["workspace_id"] == second["workspace_id"]
     assert first["upload_id"] == second["upload_id"]
@@ -42,13 +62,19 @@ async def test_eight_demo_users_share_fictional_data_without_duplicate_seeding(
         assert (
             len(integration.client.get(f"/workspaces/{wid}/members", headers=headers).json()) == 8
         )
-        assert (
-            len(integration.client.get(f"/workspaces/{wid}/datasets", headers=headers).json()) == 5
-        )
+        datasets = integration.client.get(f"/workspaces/{wid}/datasets", headers=headers).json()
+        assert len(datasets) == len(SAMPLES)
+        assert {item["id"] for item in datasets} == {item["id"] for item in original_datasets}
         documents = integration.client.get(
             f"/workspaces/{wid}/datasets/{did}/documents", headers=headers
         )
         assert documents.status_code == 200 and len(documents.json()) == 6
+    second_headers = {"Authorization": f"Bearer {second['accounts'][0]['token']}"}
+    for source, content, meaning in originals.values():
+        response = integration.client.get(source + "/content", headers=second_headers)
+        assert response.content == content
+        current = integration.client.get(source + "/understanding", headers=second_headers)
+        assert current.json() == meaning
     outsider = runtime.identity.provision("unrelated@example.test")
     assert (
         integration.client.get(

@@ -15,6 +15,19 @@ Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A ph
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 16 — Personal data partner and studio
+
+**Status:** In progress through final browser and private-release verification.
+The [bounded contract](docs/personal-agent-studio.md) adds explicit private personal
+memory, two reproducible fictional samples and a lighter studio interface. It also
+repairs missing-unit entry, save/reopen feedback and visible unfinished questions.
+Migration 0018 preserves existing data and refuses destructive memory rollback.
+[Verification](docs/verification-personal-agent-studio.md) records actual tests,
+retained failures and release evidence. Downloaded design/EDA/scanner skills support
+project development; no arbitrary runtime plugin execution, provider switch or
+new production dependency is added. All 64 feature IDs and production gates retain
+their existing status.
+
 ## October 16 — Internal analytics depth and cross-feature reliability
 
 **Status:** Complete for the bounded local/test and private-demo phases.

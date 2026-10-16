@@ -4,10 +4,10 @@ What it does: Validates transport fields and delegates scoped, version-checked c
 """
 
 from dataclasses import asdict
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from execplus.application.services.understanding import UnderstandingService
@@ -83,3 +83,42 @@ async def version(
     workspace_id: UUID, dataset_id: UUID, understanding_id: UUID, actor: Actor, service: Service
 ) -> object:
     return asdict(service.version(actor, workspace_id, dataset_id, understanding_id))
+
+
+class MemoryInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: int = Field(ge=0, strict=True)
+    role: str = Field(default="", max_length=300)
+    focus: str = Field(default="", max_length=500)
+    explanation_style: Literal["concise", "step_by_step"] = "concise"
+
+
+@router.get("/workspaces/{workspace_id}/agent-memory")
+async def memory(workspace_id: UUID, actor: Actor, service: Service) -> object:
+    return asdict(service.memory(actor, workspace_id))
+
+
+@router.put("/workspaces/{workspace_id}/agent-memory")
+async def save_memory(
+    workspace_id: UUID, body: MemoryInput, actor: Actor, service: Service
+) -> object:
+    return asdict(
+        service.save_memory(
+            actor,
+            workspace_id,
+            body.expected_version,
+            body.role,
+            body.focus,
+            body.explanation_style,
+        )
+    )
+
+
+@router.delete("/workspaces/{workspace_id}/agent-memory")
+async def forget_memory(
+    workspace_id: UUID,
+    actor: Actor,
+    service: Service,
+    expected_version: Annotated[int, Query(ge=0)],
+) -> object:
+    return asdict(service.save_memory(actor, workspace_id, expected_version, forget=True))

@@ -86,6 +86,7 @@ class DataBriefService:
                 revision=revision,
                 saved=saved,
                 definition=definition,
+                agent_memory=repo.agent_memory(workspace_id, actor.id),
                 can_edit=member.role in {"owner", "admin"} or dataset.created_by == actor.id,
             )
 
@@ -108,6 +109,7 @@ class DataBriefService:
             revision != context["revision"]
             or upload.checksum != context["upload"].checksum
             or saved != context["saved"]
+            or repo.agent_memory(workspace_id, actor.id) != context["agent_memory"]
             or (member.role in {"owner", "admin"} or dataset.created_by == actor.id)
             != context["can_edit"]
         ):
@@ -202,7 +204,12 @@ class DataBriefService:
                 self.model,
                 (
                     ModelMessage("system", system_prompt(samples)),
-                    ModelMessage("user", model_input(profile, definition, samples)),
+                    ModelMessage(
+                        "user",
+                        model_input(
+                            profile, definition, samples, context["agent_memory"].context()
+                        ),
+                    ),
                 ),
                 lambda raw: parse_brief(raw, profile, definition, samples),
                 timeout_seconds=self.reading_timeout_seconds,

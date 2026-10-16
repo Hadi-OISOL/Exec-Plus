@@ -6,6 +6,8 @@ import type { ApiRequest } from "./profile-panel";
 
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, string> = {
+    memory: "M9 3H6v3 M15 3h3v3 M9 21H6v-3 M15 21h3v-3 M3 9v6 M21 9v6 M8 8h8v8H8z M12 10v4 M10 12h4",
+    patterns: "M5 6a2 2 0 1 0 0 .1 M17 4a2 2 0 1 0 0 .1 M19 17a2 2 0 1 0 0 .1 M7 18a2 2 0 1 0 0 .1 M7 6l8-2 M18 6l1 9 M17 18H9 M6 8l1 8 M7 7l10 9",
     search: "M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
     studies: "M3 3h8v8H3z M15 3h6v5h-6z M3 15h8v6H3z M15 12h6v9h-6z",
     refresh: "M20 7v5h-5 M4 17v-5h5 M5 7a8 8 0 0 1 13-2l2 3 M4 16l2 3a8 8 0 0 0 13-2",

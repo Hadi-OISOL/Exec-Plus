@@ -54,6 +54,7 @@ type Card = {
   quote: string;
   column?: BriefColumn;
   openByDefault: boolean;
+  needsUnit?: boolean;
 };
 type Answer = {
   text: string;
@@ -125,7 +126,7 @@ function buildCards(brief: Brief): Card[] {
       id: `column:${column.name}`,
       kind: "column",
       title: missingUnit
-        ? `${column.question || `What unit does "${column.name}" use?`} Use "unitless" if it has no unit.`
+        ? `What unit does "${column.name}" use? Use "unitless" if it has no unit.`
         : column.uncertain
         ? `I am not sure about "${column.name}". ${column.question}`
         : `I understood "${column.name}" as ${column.meaning || "a column I could not describe"}. Is that right?`,
@@ -137,9 +138,10 @@ function buildCards(brief: Brief): Card[] {
       quote: "",
       column,
       openByDefault: missingUnit || column.uncertain || !column.meaning,
+      needsUnit: missingUnit,
     });
   }
-  brief.questions.forEach((question, position) =>
+  brief.questions.filter(question => question.trim()).forEach((question, position) =>
     cards.push({
       id: `general:${position}`,
       kind: "general",
@@ -302,7 +304,7 @@ export function DataBriefReview({
     );
     if (savedParts.current.meaning) {
       done.push("Your reviewed meaning is already saved.");
-    } else if ((answered || brief.review_mode === "missing") && brief.can_edit) {
+    } else if (answered && brief.can_edit) {
         const definition: Definition = {
           ...brief.definition,
           description: summaryAnswer?.text.trim()
@@ -332,11 +334,17 @@ export function DataBriefReview({
           );
           didChange = true;
           savedParts.current.meaning = true;
-          done.push(
-            fullyReviewed
-              ? "Saved. This reading is now context for answers about this data."
-              : "Your answers are saved as a draft. Finish the skipped fields before confirming the whole dataset.",
-          );
+          try {
+            const refreshed = await request<{ questions: string[] }>(`${root}/understanding`);
+            const remaining = refreshed.questions.filter(question => question.trim()).length;
+            done.push(remaining
+              ? `Saved your reviewed answers. ${remaining} detail${remaining === 1 ? " still needs" : "s still need"} review; skipped details were not filled in.`
+              : fullyReviewed
+                ? "Saved. This reading is now context for answers about this data."
+                : "Your answers are saved as a draft. Finish the skipped fields before confirming the whole dataset.");
+          } catch {
+            done.push("Your reviewed answers were saved. The remaining-details check could not be refreshed; reopen Data understanding to check it.");
+          }
         } catch (cause) {
           failed = true;
           done.push(
@@ -422,7 +430,7 @@ export function DataBriefReview({
       <section className={styles.brief} aria-label="Data reading">
         {heading(
           phase === "save_error" ? "Some answers still need saving" : "Review save results",
-          phase === "save_error" ? "Your answers are still here. Retry saves only the parts that failed." : "Your answers are ready to use. Anything that still needs review is listed below.",
+          phase === "save_error" ? "Your answers are still here. Retry saves only the parts that failed." : "Here is what was saved and what still needs your attention.",
         )}
         <ul className={styles.summaryList} role={phase === "save_error" ? "alert" : undefined}>
           {results.map((item) => (
@@ -510,7 +518,7 @@ export function DataBriefReview({
     card.kind === "grain"
       ? draft.grain !== "unknown"
       : card.kind === "column"
-        ? Boolean(draft.text.trim() || draft.role === "ignored")
+        ? Boolean(draft.text.trim() || draft.role === "ignored") && (!card.needsUnit || draft.role !== "metric" || Boolean(draft.unit.trim()))
         : Boolean(draft.text.trim());
 
   return (
@@ -606,6 +614,20 @@ export function DataBriefReview({
           )}
           {card.kind === "column" && (
             <>
+              {draft.role === "metric" && (
+                <label>
+                  {card.needsUnit ? "Unit of measurement (required)" : "Unit, if you know it"}
+                  <input
+                    value={draft.unit}
+                    maxLength={40}
+                    aria-label={card.needsUnit ? "Unit of measurement (required)" : "Unit, if you know it"}
+                    required={card.needsUnit}
+                    aria-describedby={card.needsUnit ? "reading-unit-hint" : undefined}
+                    onChange={(event) => setDraft({ ...draft, edited: true, unit: event.target.value })}
+                  />
+                  {card.needsUnit && <span id="reading-unit-hint" className={styles.caption}>Answer the unit question here: for example USD, kg or hours. Use unitless only when no unit applies. Your column meaning stays in the separate field below.</span>}
+                </label>
+              )}
               <label>
                 What is this column really?
                 <select
@@ -619,16 +641,6 @@ export function DataBriefReview({
                   ))}
                 </select>
               </label>
-              {draft.role === "metric" && (
-                <label>
-                  Unit, if you know it
-                  <input
-                    value={draft.unit}
-                    maxLength={40}
-                    onChange={(event) => setDraft({ ...draft, edited: true, unit: event.target.value })}
-                  />
-                </label>
-              )}
             </>
           )}
           {card.kind !== "grain" && (

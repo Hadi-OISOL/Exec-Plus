@@ -154,9 +154,11 @@ def test_versioned_samples_have_fixed_shapes_and_reproducible_profiles(sample):
         "inventory-v1": (3, "100.00"),
         "cities-v1": (24, "100.00"),
         "forecast-v1": (90, "100.00"),
+        "retail-v1": (1095, "100.00"),
+        "actions-v1": (6, "100.00"),
     }
     assert (structure.row_count, result["quality_score"]) == expected[sample["id"]]
-    assert result["column_count"] == (6 if sample["id"] == "cities-v1" else 4)
+    assert result["column_count"] == {"retail-v1": 13, "cities-v1": 6}.get(sample["id"], 4)
 
 
 def test_no_op_preserves_headers_and_mixed_booleans_are_reported():

@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.semantics import DatasetView
 
@@ -30,6 +31,7 @@ class DescriptionContext:
     definition: dict[str, Any] | None
     state: str
     private_goal: str = ""
+    agent_memory: AgentMemory | None = None
 
 
 def words(text: str) -> str:

@@ -36,6 +36,38 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 16 — Personal agent, studio UI and saved-unit repair
+
+- Current slice is implemented and undergoing final browser/private-release checks.
+  Read `docs/personal-agent-studio.md`, `docs/verification-personal-agent-studio.md`,
+  `docs/demo-data-guide.md` and `docs/personal-agent-reference-audit.md`.
+- Migration **0018** adds explicit actor/workspace-private memory. It guides new
+  qualitative readings and suggestions, never numeric planning/filters. Forget
+  clears future active use; historical replies/backups remain. Membership removal
+  cascades memory. Version conflicts, source/context freshness and private audit
+  boundaries remain enforced. Downgrade refuses retained memory/tombstones.
+- Fictional `retail-v1` and `actions-v1` use normal import and meaning confirmation.
+  Local CSVs/visual guide live in ignored `data/demo-kit/`; the generator and
+  walkthrough are tracked. Five old samples retain their bytes. The retail file
+  covers 365 days and three regions; action benefits are explicit assumptions.
+- The reported confirmed-v3 source had two genuinely empty units in every saved
+  version. Review now targets the unit directly, preserves the description and
+  shows actual unfinished questions. Successful saves survive reopening/remount
+  avoidance; a failed follow-up read retries reading without resubmitting a write.
+  No real user definition has been inferred or overwritten.
+- Selected UI UX Pro Max, documd visuals, exploratory-data-analysis and Skill
+  Inspector instructions are installed only in ignored project skill directories.
+  Requested repositories are pinned under `data/agent-tools/references/`.
+  Lieflat is reference-only outside automatic discovery because its template-copy
+  workflow is noncommercial; product chart code remains original. oneDAL/SQL
+  references are research, not new runtime dependencies. Review adoption documents
+  before executing tools or changing this boundary. No global settings changed.
+- All 1,335 full-suite backend cases plus two later regressions have passing
+  executions (1,337 distinct); the two original fixture failures remain recorded.
+  Final UI/live results and deployment checkpoint will be added after verification.
+  Counts stay 37 Done / 16 Partial / 11 Not yet; all eight production gates blocked.
+
+
 ### October 16 — Group comparisons, selection rules and fixed evaluation
 
 - The user authorized continuing the remaining clean-experience phases. All four

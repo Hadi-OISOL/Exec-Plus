@@ -129,6 +129,7 @@ function ForecastChart({
   const selectedPoint = points.find((point) => point.period === selected);
   return (
     <div className="forecastChart" ref={container}>
+      <header className="studioChartHeading"><div><span className="studioEyebrow">OBSERVED & ESTIMATED</span><h4>{run.request.metric} <span>· {run.evidence.unit}</span></h4></div><span>{run.request.frequency === "daily" ? "By day" : "By month"}</span></header>
       <div className="forecastLegend">
         <span>
           <i className="actualKey" />
@@ -144,7 +145,7 @@ function ForecastChart({
         </span>
       </div>
       <svg
-        viewBox={`0 0 ${width} 250`}
+        viewBox={`0 0 ${width} 218`}
         role="img"
         aria-label="Observed history and saved forecast with uncertainty range; exact values follow in the table"
       >
@@ -182,19 +183,8 @@ function ForecastChart({
               )}
           </g>
         ))}
-        <text x="26" y="230" fontSize="12" fill="currentColor">
-          {points[0]?.period}
-        </text>
-        <text
-          x={width - 26}
-          y="230"
-          textAnchor="end"
-          fontSize="12"
-          fill="currentColor"
-        >
-          {points.at(-1)?.period}
-        </text>
       </svg>
+      <div className="studioChartRange" aria-label="Chart date range"><span>{points[0]?.period}</span><span>{points.at(-1)?.period}</span></div>
       <p className="chartCaption">
         Chart positions are approximate; all labels and tables retain the exact
         server values.{" "}

@@ -27,6 +27,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
+from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.ingestion import (
@@ -477,6 +478,31 @@ class SQLWorkspaceRepository(SQLJobRepository, SQLOperationsRepository, SQLRepor
             .on_conflict_do_update(
                 index_elements=["workspace_id", "dataset_id", "user_id"],
                 set_={"domain_hint": preference.domain_hint, "goal": preference.goal},
+            )
+        )
+
+    def agent_memory(self, workspace_id: UUID, user_id: UUID) -> AgentMemory:
+        row = (
+            self.connection.execute(
+                select(s.agent_memories).filter_by(workspace_id=workspace_id, user_id=user_id)
+            )
+            .mappings()
+            .first()
+        )
+        return AgentMemory(**row) if row else AgentMemory(workspace_id, user_id)
+
+    def save_agent_memory(self, memory: AgentMemory) -> None:
+        values = asdict(memory)
+        self.connection.execute(
+            insert(s.agent_memories)
+            .values(**values)
+            .on_conflict_do_update(
+                index_elements=["workspace_id", "user_id"],
+                set_={
+                    key: value
+                    for key, value in values.items()
+                    if key not in {"workspace_id", "user_id"}
+                },
             )
         )
 
