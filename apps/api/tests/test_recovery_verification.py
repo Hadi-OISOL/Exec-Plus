@@ -65,9 +65,50 @@ def test_recovered_objects_and_exact_receipts_verify_without_database_changes(in
     counts = recovery.verify_objects(env.runtime)
     receipts = asyncio.run(recovery.verify_receipts(env.runtime, 20))
     assert counts["uploads"] == counts["revisions"] == 1
-    assert receipts == {"eligible_receipts": 1, "replayed": 1, "operations": {"sum": 1}}
+    assert receipts == {
+        "eligible_receipts": 1,
+        "replayed": 1,
+        "operations": {"sum": 1},
+        "permission_denials_verified": 0,
+        "candidates_checked": 1,
+        "candidate_check_limit": 100,
+    }
     assert recovery.fingerprints(env.engine) == before
     assert "agent_memories" in before
+
+
+def test_recovery_checks_revoked_receipts_without_restoring_access(integration):
+    from test_dataset_access import fixture, query
+
+    env = integration
+    owner, _, member, _, _, _, _, root, policy_path, policy = fixture(env)
+    assert query(env, owner, root).status_code == 200
+    restricted = query(env, member, root)
+    assert restricted.status_code == 200
+    updated = {**policy, "expected_version": 1, "grants": policy["grants"][:1]}
+    assert env.client.put(policy_path, headers=owner, json=updated).status_code == 200
+    assert query(env, owner, root).status_code == 200
+    before = recovery.fingerprints(env.engine)
+    recovered = asyncio.run(recovery.verify_receipts(env.runtime, 20))
+    assert recovered["replayed"] == 1
+    assert recovered["permission_denials_verified"] == 2
+    assert recovered["candidates_checked"] == 3
+    assert recovery.fingerprints(env.engine) == before
+
+
+def test_recovery_still_fails_corrupted_authorized_receipt(integration):
+    from test_dataset_access import fixture, query
+
+    env = integration
+    _, _, member, _, _, _, _, root, _, _ = fixture(env)
+    assert query(env, member, root).status_code == 200
+    with env.engine.begin() as connection:
+        receipt = connection.execute(select(s.query_executions.c.receipt)).scalar_one()
+        receipt["sources"][0]["output_checksum"] = "0" * 64
+        connection.execute(update(s.query_executions).values(receipt=receipt))
+    with pytest.raises(IngestionError) as failure:
+        asyncio.run(recovery.verify_receipts(env.runtime, 20))
+    assert failure.value.code == "lineage_mismatch"
 
 
 @pytest.mark.parametrize("corruption", ["source", "revision"])

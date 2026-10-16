@@ -12,13 +12,15 @@ import re
 from io import BytesIO
 from typing import Any
 from urllib.parse import urlparse
+from uuid import UUID
 
 from sqlalchemy import Engine, select, text
 from sqlalchemy.engine import make_url
 
+from execplus.application.services.dataset_access import authorize_sources
 from execplus.bootstrap import Runtime, build_runtime
 from execplus.config import Settings
-from execplus.domain.ingestion import Upload, User
+from execplus.domain.ingestion import IngestionError, Upload, User
 from execplus.domain.knowledge import Document, document_text
 from execplus.domain.profiling import Revision, reconstruct
 from execplus.infrastructure.persistence import schema as s
@@ -147,12 +149,47 @@ async def verify_receipts(runtime: Runtime, limit: int) -> dict[str, Any]:
                 break
     chosen_ids = {row["id"] for row in chosen}
     chosen.extend(row for row in usable if row["id"] not in chosen_ids)
-    chosen = chosen[:limit]
     executed: dict[str, int] = {}
+    denied = 0
+    checked = 0
     for row in chosen:
-        await runtime.analytics.replay(users[row["actor_id"]], row["workspace_id"], row["id"])
+        if sum(executed.values()) >= limit or checked >= 100:
+            break
+        checked += 1
+        actor = users[row["actor_id"]]
+        sources = row["receipt"].get("sources")
+        if not isinstance(sources, list) or not sources:
+            raise ValueError("An executed recovery receipt has no recorded sources.")
+        with runtime.service.uow() as repo:
+            for source in sources:
+                repo.dataset(row["workspace_id"], UUID(source["dataset_id"]))
+            try:
+                authorize_sources(repo, actor, row["workspace_id"], sources)
+            except IngestionError as error:
+                if error.code != "not_found":
+                    raise
+                permission_denied = True
+            else:
+                permission_denied = False
+        if permission_denied:
+            try:
+                await runtime.analytics.replay(actor, row["workspace_id"], row["id"])
+            except IngestionError as error:
+                if error.code != "not_found":
+                    raise
+                denied += 1
+                continue
+            raise ValueError("A restored receipt bypassed its current access policy.")
+        await runtime.analytics.replay(actor, row["workspace_id"], row["id"])
         executed[row["aggregation"]] = executed.get(row["aggregation"], 0) + 1
-    return {"eligible_receipts": len(usable), "replayed": len(chosen), "operations": executed}
+    return {
+        "eligible_receipts": len(usable),
+        "replayed": sum(executed.values()),
+        "operations": executed,
+        "permission_denials_verified": denied,
+        "candidates_checked": checked,
+        "candidate_check_limit": 100,
+    }
 
 
 async def verify(settings: Settings, expected_migration: str, limit: int) -> dict[str, Any]:
