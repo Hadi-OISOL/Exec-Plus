@@ -1,6 +1,6 @@
 """Use case: Rehearses exact concurrent computation in the clean production image.
 
-What it does: Checks isolated broker and calendar forecasts without dataframe dependencies.
+What it does: Checks isolated broker/calendar calculations and declared solver dependencies.
 """
 
 import asyncio
@@ -8,6 +8,7 @@ import importlib
 import importlib.util
 from datetime import date, timedelta
 from decimal import Decimal
+from importlib.metadata import version
 from uuid import UUID, uuid4
 
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
@@ -92,9 +93,12 @@ async def run(index: int) -> tuple[UUID, ...]:
 
 
 async def main() -> None:
-    for name in ("pandas", "pyarrow"):
-        if importlib.util.find_spec(name) is not None:
-            raise RuntimeError("Run this check in the minimal production image")
+    if importlib.util.find_spec("pyarrow") is not None:
+        raise RuntimeError("Unexpected undeclared dataframe dependency in the production image")
+    if importlib.util.find_spec("pandas") is not None and (
+        version("pandas") != "2.3.3" or version("ortools") != "9.15.6755"
+    ):
+        raise RuntimeError("The optional solver dependencies do not match the tested versions")
     for module in ("execplus.main", "execplus.manage"):
         importlib.import_module(module)
     groups = await asyncio.gather(*(run(index) for index in range(1, 9)))
