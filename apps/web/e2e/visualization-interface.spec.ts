@@ -44,14 +44,11 @@ test("chart and table exploration preserve exact values, gaps, source filters an
     "-1.25",
   );
   expect(await page.evaluate(() => {
-    const controls = [...document.querySelectorAll('summary')].find(e => e.textContent?.includes('Charts & dashboard controls'));
+    const controls = document.querySelector('[aria-label="Charts & dashboard controls"]');
     const chat = document.querySelector('.askPanel');
     return Boolean(controls && chat && (controls.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING));
   })).toBe(true);
-  await page
-    .locator("summary")
-    .filter({ hasText: "Charts & dashboard controls" })
-    .click();
+  await expect(page.getByRole("region", { name: "Charts & dashboard controls", exact: true })).toBeVisible();
   const dashboard = page.getByRole("region", {
     name: "Dataset dashboard",
     exact: true,
@@ -227,7 +224,7 @@ test("bundled chart engines navigate every returned row without changing the cal
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   await finishInitialReview(page);
   await openFindings(page);
-  await page.locator("summary").filter({ hasText: "Charts & dashboard controls" }).click();
+  await expect(page.getByRole("region", { name: "Charts & dashboard controls", exact: true })).toBeVisible();
   const trend = page.locator('[data-visualization="Date trend"]');
   await expect(trend.getByLabel("Inspect returned row for Date trend").locator("option")).toHaveCount(45);
   let calculations = 0;

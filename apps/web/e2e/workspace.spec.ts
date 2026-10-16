@@ -568,6 +568,10 @@ async function signIn(page: Page, session: string, configureWorkspace = true) {
 
 async function reveal(page: Page, name: string) {
   if (name !== "Review & refine data understanding" && await page.getByRole("button", { name: "Back to overview", exact: true }).isVisible()) await page.getByRole("button", { name: "Back to overview", exact: true }).click();
+  if (name === "Charts & dashboard controls") {
+    await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
+    return;
+  }
   const summary = page.locator("summary").filter({ hasText: name });
   if (
     !(await summary.evaluate(

@@ -41,8 +41,10 @@ test("portable result downloads preserve exact rows and graphs with source evide
   const confirmed = await page.request.post(`http://127.0.0.1:8001${root}/understanding`, { headers, data: { revision_id: before.revision_id, expected_version: before.version, state: "confirmed", definition } });
   expect(confirmed.ok(), await confirmed.text()).toBe(true);
   const saved = await (await page.request.get(`http://127.0.0.1:8001${root}/understanding`, { headers })).json();
+  // The fixture updated meanings outside React; reopen the overview to load that version.
+  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Data library", exact: true }).click();
   await openFindings(page);
-  await page.locator("summary").filter({ hasText: "Charts & dashboard controls" }).click();
+  await expect(page.getByRole("region", { name: "Charts & dashboard controls", exact: true })).toBeVisible();
   const dashboard = page.getByRole("region", { name: "Dataset dashboard", exact: true });
   const controls = dashboard.locator("details").filter({ has: page.locator("summary", { hasText: "Download this dashboard" }) });
   await controls.locator(":scope > summary").click();

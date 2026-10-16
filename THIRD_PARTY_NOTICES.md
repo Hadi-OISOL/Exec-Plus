@@ -43,3 +43,12 @@ Abseil, Protobuf, RE2, Boost, zlib and bzip2. [The complete retained notices and
 locations](apps/web/public/third-party/ortools/NOTICE.txt) accompany the distribution.
 Only CP-SAT is invoked, in a bounded process; no arbitrary solver script or external action
 is exposed. See [the allocation method and dependency review](docs/large-allocation-method.md).
+
+The workspace choice control uses unmodified **@radix-ui/react-select 2.3.8**
+(MIT, WorkOS), with ExecPlus's controlled wrapper, accessible labels and teal/navy
+styling. Its 38 newly resolved packages are MIT; the existing tslib 2.8.1 helper
+is BSD-0-Clause. The [full dependency inventory](apps/web/public/third-party/radix-select/inventory.json)
+and [retained license texts](apps/web/public/third-party/radix-select/NOTICE.txt)
+include exact versions, integrity values and the official-source notice for
+react-remove-scroll-bar, whose npm archive omits its license file. No additional
+icon package or third-party example content is bundled.

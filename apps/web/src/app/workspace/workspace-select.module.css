@@ -1,0 +1,162 @@
+/* Use case: Keeps labelled workspace choices clear and comfortable on small screens.
+What it does: Themes the trigger and body-portalled menu with visible focus,
+44px targets, bounded scrolling and finite motion that respects user preferences. */
+
+.field,
+.content {
+  --select-ink: #16283f;
+  --select-muted: #54676f;
+  --select-accent: #176b57;
+  --select-border: #78988e;
+  --select-surface: #ffffff;
+  --select-highlight: #edf6f2;
+  font-family: var(--font-product), system-ui, sans-serif;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.field .label {
+  display: block;
+  min-width: 0;
+  color: var(--select-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.field .trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 11px 14px;
+  border: 1px solid var(--select-border);
+  border-radius: 12px;
+  background: var(--select-surface);
+  color: var(--select-ink);
+  box-shadow: 0 2px 4px rgb(22 40 63 / 3%);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.field .trigger:hover:not(:disabled),
+.field .trigger[data-state="open"] {
+  border-color: var(--select-accent);
+  background: #f7fbf9;
+  color: var(--select-ink);
+}
+
+.field .trigger:focus-visible {
+  outline: 3px solid var(--select-accent);
+  outline-offset: 3px;
+}
+
+.field .trigger:disabled {
+  background: #f2f5f4;
+  color: var(--select-muted);
+  border-color: #c5d2cd;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chevron {
+  display: inline-flex;
+  flex: 0 0 18px;
+  color: var(--select-accent);
+  transition: transform 140ms ease;
+}
+
+.trigger[data-state="open"] .chevron { transform: rotate(180deg); }
+
+.content {
+  z-index: 1100;
+  width: max(var(--radix-select-trigger-width), min(21rem, calc(100vw - 24px)));
+  max-width: min(var(--radix-select-content-available-width), calc(100vw - 24px));
+  max-height: min(25rem, var(--radix-select-content-available-height));
+  overflow: hidden;
+  border: 1px solid #c9d9d3;
+  border-radius: 14px;
+  background: var(--select-surface);
+  color: var(--select-ink);
+  box-shadow: 0 16px 44px rgb(22 40 63 / 14%), 0 3px 10px rgb(22 40 63 / 6%);
+  transform-origin: var(--radix-select-content-transform-origin);
+  box-sizing: border-box;
+}
+
+.content[data-state="open"] { animation: enter 140ms ease-out; }
+.content[data-state="closed"] { animation: exit 100ms ease-in; }
+
+.viewport {
+  padding: 6px;
+  max-height: inherit;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  min-height: 48px;
+  padding: 12px 38px 12px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  box-sizing: border-box;
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition: background-color 100ms ease, border-color 100ms ease;
+}
+
+.item + .item { margin-top: 4px; }
+.item[data-state="checked"] { background: #f4f9f6; }
+.item[data-highlighted] { border-color: var(--select-accent); background: var(--select-highlight); }
+.optionCopy { display: grid; gap: 3px; min-width: 0; }
+.optionLabel { color: var(--select-ink); font-size: 15px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.description { color: var(--select-muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.indicator { position: absolute; inset-inline-end: 12px; display: inline-flex; color: var(--select-accent); }
+.scrollButton { display: flex; align-items: center; justify-content: center; min-height: 44px; color: var(--select-accent); background: var(--select-surface); }
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(-3px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (max-width: 480px) {
+  .field .trigger { font-size: 16px; }
+  .optionLabel { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content[data-state], .field .trigger, .chevron, .item { animation: none; transition: none; }
+}

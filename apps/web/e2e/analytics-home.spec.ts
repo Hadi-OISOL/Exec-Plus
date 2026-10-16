@@ -150,3 +150,104 @@ test("a second home question becomes an explicit draft while the real first job 
     release();
   }
 });
+
+test("overview keeps charts and first findings open with keyboard view and focus controls", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const { root, headers } = await start(page);
+  const before = await (await page.request.get(`${api}${root}/understanding`, { headers })).json();
+  const dashboardSection = page.getByRole("region", { name: "Charts & dashboard controls", exact: true });
+  const findingsSection = page.getByRole("region", { name: "First findings from your file", exact: true });
+  const dashboard = dashboardSection.getByRole("region", { name: "Dataset dashboard", exact: true });
+  const findings = findingsSection.getByRole("region", { name: "First reading of your data", exact: true });
+  await expect(dashboardSection).toBeVisible();
+  await expect(findingsSection).toBeVisible();
+  await expect(findings.locator(".discoveryValue")).toHaveText(["0.1", "0.3", "0.2"]);
+  await expect(dashboard.locator('[data-chart-renderer="apache-echarts"] svg').first()).toBeVisible();
+  expect(await dashboardSection.evaluate(element => element.closest("details") === null)).toBe(true);
+  expect(await findingsSection.evaluate(element => element.closest("details") === null)).toBe(true);
+
+  let calculations = 0;
+  page.on("request", request => {
+    if (request.method() === "POST" && /\/(dashboard|discovery)$/.test(new URL(request.url()).pathname)) calculations += 1;
+  });
+  const simple = page.getByRole("radio", { name: "Simple", exact: true });
+  const expert = page.getByRole("radio", { name: "Expert", exact: true });
+  const indicator = page.locator(".analysisViewIndicator");
+  const transition = await indicator.evaluate(element => getComputedStyle(element).transitionDuration);
+  expect(Number.parseFloat(transition)).toBeGreaterThan(0);
+  expect(Number.parseFloat(transition)).toBeLessThanOrEqual(0.5);
+  expect(await dashboardSection.evaluate(element => getComputedStyle(element).animationIterationCount)).toBe("1");
+  await expect(simple).toBeChecked();
+  await simple.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(expert).toBeChecked();
+  await expect(dashboardSection).toBeVisible();
+  await expect(findingsSection).toBeVisible();
+
+  const focus = page.getByRole("combobox", { name: "Analysis focus", exact: true });
+  await focus.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await expect(page.getByRole("option", { name: "Descriptive · understand actual data", exact: true })).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(page.getByRole("option", { name: "Prescriptive · bounded budget allocation", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("option", { name: "All supported · explore and forecast", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(focus).toContainText("All supported");
+  await expect(page.locator("main")).toHaveAttribute("data-section", "overview");
+  await expect(focus).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("option", { name: "All supported · explore and forecast", exact: true })).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(page.getByRole("option", { name: "Descriptive · understand actual data", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(focus).toContainText("All supported");
+  await expect(focus).toBeFocused();
+
+  const screenshotRoot = "../../data/verification/2026-10-16/overview-ui";
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect.poll(() => indicator.evaluate(element => getComputedStyle(element).transitionDuration)).toBe("0s");
+    expect(await dashboardSection.evaluate(element => getComputedStyle(element).animationName)).toBe("none");
+    expect(await findingsSection.evaluate(element => getComputedStyle(element).animationName)).toBe("none");
+    await expert.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(simple).toBeChecked();
+    await expect(dashboardSection).toBeVisible();
+    await expect(findingsSection).toBeVisible();
+    await expect(findings.locator(".discoveryValue")).toHaveText(["0.1", "0.3", "0.2"]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await dashboardSection.screenshot({ path: `${screenshotRoot}/dashboard-simple-${width}.png`, animations: "disabled" });
+    await findingsSection.screenshot({ path: `${screenshotRoot}/findings-simple-${width}.png`, animations: "disabled" });
+    await simple.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(expert).toBeChecked();
+    await expect(dashboardSection).toBeVisible();
+    await expect(findingsSection).toBeVisible();
+    await expect(focus).toContainText("All supported");
+    await focus.click();
+    await expect(page.getByRole("option", { name: "All supported · explore and forecast", exact: true })).toHaveAttribute("aria-selected", "true");
+    const menu = page.getByRole("listbox");
+    const bounds = await menu.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+    await menu.screenshot({ path: `${screenshotRoot}/focus-menu-${width}.png`, animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(focus).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
+  expect(calculations).toBe(0);
+  await navigate(page, "Ask ExecPlus");
+  await expect(page.getByLabel("Your question", { exact: true })).toBeVisible();
+  await expect(dashboardSection).toBeHidden();
+  await expect(findingsSection).toBeHidden();
+  expect(calculations).toBe(0);
+  expect(await (await page.request.get(`${api}${root}/understanding`, { headers })).json()).toEqual(before);
+  expect(errors).toEqual([]);
+});

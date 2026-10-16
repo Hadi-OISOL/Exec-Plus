@@ -37,3 +37,10 @@ These unmodified Python dependencies support the protected saved-answer PDF tool
 The existing Manrope font is also embedded in PDFs under SIL OFL; its font/license
 are packaged in the API adapter assets and the web source fonts directory.
 No Anthropic PDF skill or AIpoch HTML-to-PDF script is distributed in this tool.
+
+Radix Select 2.3.8, Copyright (c)2022 WorkOS, MIT
+https://github.com/radix-ui/primitives/tree/main/packages/react/select
+Unmodified accessible selection primitives, with an original ExecPlus wrapper/theme.
+All 38 newly resolved packages are MIT. Reused tslib 2.8.1 is BSD-0-Clause.
+Full exact-version inventory and retained notices: radix-select/inventory.json and
+radix-select/NOTICE.txt. No external icon package is included.

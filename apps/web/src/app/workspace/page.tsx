@@ -4,6 +4,7 @@ What it does: Connects uploads, verified insights, conversations, preparation an
 "use client";
 
 import { allowedExportPath } from "./export-path";
+import { WorkspaceSelect } from "./workspace-select";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -24,6 +25,7 @@ import "./analytics-shell.css";
 import "./product-polish.css";
 import "./focused-workspace.css";
 import "./studio-workspace.css";
+import "./open-workspace.css";
 
 const loadingView = () => <WorkspaceLoading />;
 const SourcesPanel = dynamic(
@@ -172,8 +174,6 @@ export default function WorkspacePage() {
   const [uploadGoal, setUploadGoal] = useState("");
   const [reviewOpen, setReviewOpen] = useState(false);
   const [toolSelection, setToolSelection] = useState<{root: string; tool: string; metric?: string; scenario_mode?: "daily_change"} | null>(null);
-  const [dashboardOpen, setDashboardOpen] = useState(false);
-  const [findingsOpen, setFindingsOpen] = useState(false);
   const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
   const [expert, setExpert] = useState(false);
   const [analysisIntent, setAnalysisIntent] = useState("descriptive");
@@ -355,7 +355,6 @@ export default function WorkspacePage() {
     setBriefFor("");
     setBriefManual(false);
     setReviewOpen(false);
-    setFindingsOpen(false);
     setUploadTarget("new");
     setUploadDomain("auto");
     setUploadGoal("");
@@ -388,7 +387,6 @@ export default function WorkspacePage() {
     setSavedSelection(null);
     setAnalysisIntent("descriptive");
     setReviewOpen(false);
-    setDashboardOpen(false);
     setStarterQuestions([]);
     setUploadTarget("new");
     setDataset(datasetId);
@@ -556,7 +554,6 @@ export default function WorkspacePage() {
       setGuidedFor(stored.id);
       setBriefFor(stored.id);
       setReviewOpen(false);
-      setDashboardOpen(false);
       setStarterQuestions([]);
       setUploadTarget("new");
       setAnalysisIntent("descriptive");
@@ -652,7 +649,6 @@ export default function WorkspacePage() {
       setUploads([stored]);
       setProfileUpload(stored.id);
       setReviewOpen(false);
-      setDashboardOpen(false);
       setStarterQuestions([]);
       setAnalysisIntent("descriptive");
       setSection("overview");
@@ -675,6 +671,31 @@ export default function WorkspacePage() {
     setSection("ask");
     window.requestAnimationFrame(() => chat.current?.ask(text));
   }
+  const analysisFocusControl = (
+    <div className="analysisIntent">
+      <WorkspaceSelect
+        id="analysis-focus"
+        label="Analysis focus"
+        value={analysisIntent}
+        disabled={busy}
+        onValueChange={(value) => {
+          setAnalysisIntent(value);
+          setSection(value === "predictive" ? "forecasts" : value === "prescriptive" ? "decisions" : "overview");
+        }}
+        options={[
+          { value: "descriptive", label: "Descriptive · understand actual data", description: "Explore recorded values, groups and patterns." },
+          { value: "predictive", label: "Predictive · basic forecasts", description: "Estimate future periods when your data supports it." },
+          { value: "all", label: "All supported · explore and forecast", description: "Explore your data and see available forecasting tools." },
+          { value: "prescriptive", label: "Prescriptive · bounded budget allocation", description: "Compare allocations using your declared assumptions." },
+        ]}
+      />
+      <p>
+        {analysisIntent === "predictive"
+          ? "Basic daily or monthly forecasting requires reviewed meanings and complete periods."
+          : analysisIntent === "prescriptive" ? "Compare declared budget allocations with explicit per-unit costs, linear benefits and human review. No action runs automatically." : "Start with observed facts. Forecasting and unusual-value checks are optional; budget recommendations require declared assumptions."}
+      </p>
+    </div>
+  );
   return (
     <ExportDownloadContext.Provider value={downloadExport}><main
       className={`workspaceApp workbench analyticsShell ${user ? "isSignedIn" : "isSignedOut"}`}
@@ -895,7 +916,6 @@ export default function WorkspacePage() {
                         setSavedSelection(null);
                         setStarterQuestions([]);
                         setReviewOpen(false);
-                        setDashboardOpen(false);
                       }}
                     >
                       <option value="" disabled>
@@ -1461,48 +1481,15 @@ export default function WorkspacePage() {
                     onNavigate={navigate}
                     onReview={reviewUnderstanding}
                   />}
-                  {["overview", "forecasts"].includes(section) && !reviewing && expert && (
-                    <div className="analysisIntent">
-                      <label>
-                        Analysis focus
-                        <select
-                          value={analysisIntent}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setAnalysisIntent(value);
-                            setSection(
-                              value === "predictive" ? "forecasts" : value === "prescriptive" ? "decisions" : "overview",
-                            );
-                          }}
-                        >
-                          <option value="descriptive">
-                            Descriptive · understand actual data
-                          </option>
-                          <option value="predictive">
-                            Predictive · basic forecasts
-                          </option>
-                          <option value="all">
-                            All supported · explore and forecast
-                          </option>
-                          <option value="prescriptive">
-                            Prescriptive · bounded budget allocation
-                          </option>
-                        </select>
-                      </label>
-                      <p>
-                        {analysisIntent === "predictive"
-                          ? "Basic daily or monthly forecasting requires reviewed meanings and complete periods."
-                          : analysisIntent === "prescriptive" ? "Compare declared budget allocations with explicit per-unit costs, linear benefits and human review. No action runs automatically." : "Start with observed facts. Forecasting and unusual-value checks are optional; budget recommendations require declared assumptions."}
-                      </p>
-                    </div>
-                  )}
+                  {section === "forecasts" && !reviewing && expert && analysisFocusControl}
                   <div hidden={!["overview", "ask"].includes(section) || briefActive} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
                     <div className="analysisViewControls" hidden={reviewing}>
                       <div>
                         <strong>{section === "ask" ? "Your conversation" : "Explore further"}</strong>
                       </div>
-                      <fieldset className="analysisViewChoice">
+                      <fieldset className="analysisViewChoice" data-mode={expert ? "expert" : "simple"}>
                         <legend className="srOnly">Analysis view</legend>
+                        <span className="analysisViewIndicator" aria-hidden="true" />
                         <label>
                           <input
                             type="radio"
@@ -1523,6 +1510,7 @@ export default function WorkspacePage() {
                         </label>
                       </fieldset>
                     </div>
+                    {section === "overview" && !reviewing && expert && analysisFocusControl}
                     {root && !limitedUpload && section === "overview" && !reviewOpen && guidedFor !== profileUpload && (
                       <div className="reviewEntryActions">
                         <button type="button" disabled={busy} onClick={openBrief}>Check what ExecPlus understood</button>
@@ -1545,21 +1533,15 @@ export default function WorkspacePage() {
                         }}
                       />
                     )}
-                    <details
-                      className="workspaceDisclosure"
-                      hidden={section === "ask" || reviewing}
-                      open={dashboardOpen}
-                      onToggle={(event) =>
-                        setDashboardOpen(event.currentTarget.open)
-                      }
-                    >
-                      <summary>
-                        <Icon name="overview" /> Charts & dashboard controls
-                        <span>
-                          Explore trends, filters, saved cards and next steps
-                        </span>
-                      </summary>
-                      {dashboardOpen && (
+                    {section === "overview" && !reviewing && !briefActive && (
+                      <section className="workspaceSurface" aria-label="Charts & dashboard controls">
+                        <header className="workspaceSurfaceHeader">
+                          <Icon name="overview" />
+                          <div>
+                            <h2>Charts & dashboard controls</h2>
+                            <p>Explore trends, filters, saved cards and next steps</p>
+                          </div>
+                        </header>
                         <div className="expandedWorkspaceTools">
                           <DashboardPanel
                             key={`dashboard-${root}-${revisionTick}`}
@@ -1572,14 +1554,20 @@ export default function WorkspacePage() {
                             request={request}
                           />
                         </div>
-                      )}
-                    </details>
+                      </section>
+                    )}
                     <div className="exploreLayout discoveryLayout">
-                      <details className="workspaceDisclosure overviewFindings" hidden={section === "ask" || reviewing} open={findingsOpen} onToggle={event => setFindingsOpen(event.currentTarget.open)}>
-                        <summary><Icon name="overview" /> First findings from your file<span>Calculated ranges, groups and data checks</span></summary>
+                      <section className="workspaceSurface overviewFindings" aria-label="First findings from your file" hidden={section !== "overview" || reviewing}>
+                        <header className="workspaceSurfaceHeader">
+                          <Icon name="overview" />
+                          <div>
+                            <h2>First findings from your file</h2>
+                            <p>Calculated ranges, groups and data checks</p>
+                          </div>
+                        </header>
                         <div className="insightCanvas">
                         <DiscoveryPanel
-                          enabled={!busy && section === "overview" && !reviewing && findingsOpen}
+                          enabled={!busy && section === "overview" && !reviewing && !briefActive}
                           key={`discovery-${root}-${revisionTick}`}
                           root={root}
                           request={request}
@@ -1591,7 +1579,7 @@ export default function WorkspacePage() {
                           expert={expert}
                         />
                       </div>
-                      </details>
+                      </section>
                       <div className="conversationWorkspace" hidden={section !== "ask" || reviewing}>
                       <AskPanel
                         ref={chat}

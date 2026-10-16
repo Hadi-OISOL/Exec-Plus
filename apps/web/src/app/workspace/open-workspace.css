@@ -1,0 +1,133 @@
+/* Use case: Keeps the overview's charts and findings directly available.
+What it does: Styles open analytical sections, the keyboard-accessible mode switch and finite, reduced-motion-aware transitions. */
+
+.analyticsShell .workspaceSurface {
+  min-width: 0;
+  margin: 26px 0 32px;
+  animation: workspaceEnter 240ms ease-out both;
+}
+.analyticsShell .workspaceSurfaceHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 2px 18px;
+}
+.analyticsShell .workspaceSurfaceHeader > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--studio-secondary, #166e60);
+}
+.analyticsShell .workspaceSurfaceHeader h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -.025em;
+  line-height: 1.4;
+}
+.analyticsShell .workspaceSurfaceHeader p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.analyticsShell .workspaceSurface .expandedWorkspaceTools,
+.analyticsShell .workspaceSurface .insightCanvas {
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.analyticsShell .workspaceSurface .expandedWorkspaceTools > .panel {
+  margin-bottom: 18px;
+}
+.analyticsShell .analysisViewControls {
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-block: 20px 12px;
+}
+.analyticsShell .analysisViewControls strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+.analyticsShell .analysisViewChoice {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 204px;
+  max-width: 100%;
+  gap: 0;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #edf3f0;
+}
+.analyticsShell .analysisViewIndicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 2);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 1px 4px #163d2e18, 0 0 0 1px #163d2e0a;
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform 240ms cubic-bezier(.2, .75, .25, 1);
+}
+.analyticsShell .analysisViewChoice[data-mode="expert"] .analysisViewIndicator {
+  transform: translateX(100%);
+}
+.analyticsShell .analysisViewChoice label {
+  position: relative;
+  z-index: 1;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 160ms ease-out;
+}
+.analyticsShell .analysisViewChoice label:has(input:checked) {
+  color: #155f50;
+  background: transparent;
+}
+.analyticsShell .analysisViewChoice label:hover { color: #155f50; }
+.analyticsShell .analysisViewChoice label:has(input:focus-visible) {
+  outline: 2px solid #267b69;
+  outline-offset: 2px;
+}
+.analyticsShell .analysisViewChoice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.analyticsShell .analysisIntent {
+  gap: 20px;
+  padding: 16px;
+  border-radius: 12px;
+  animation: workspaceEnter 180ms ease-out both;
+}
+.analyticsShell .analysisIntent > :first-child { flex: 1; min-width: 0; }
+.analyticsShell .analysisIntent label { font-size: 13px; line-height: 1.5; }
+.analyticsShell .analysisIntent p { font-size: 12px; line-height: 1.65; }
+@media (max-width: 550px) {
+  .analyticsShell .workspaceSurface { margin-block: 22px 28px; }
+  .analyticsShell .workspaceSurfaceHeader { gap: 10px; padding-bottom: 14px; }
+  .analyticsShell .workspaceSurfaceHeader h2 { font-size: 17px; }
+  .analyticsShell .analysisViewControls { align-items: flex-start; }
+  .analyticsShell .analysisViewChoice { width: 190px; }
+  .analyticsShell .analysisIntent { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analyticsShell .workspaceSurface,
+  .analyticsShell .analysisIntent { animation: none; }
+  .analyticsShell .analysisViewIndicator,
+  .analyticsShell .analysisViewChoice label { transition: none; }
+}

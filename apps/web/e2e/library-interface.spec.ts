@@ -156,7 +156,7 @@ test("study and dashboard galleries filter real saved versions and retain pinned
 test("dashboard totals keep full normal amounts readable at desktop and mobile widths", async ({ page }) => {
   await start(page, session(), "date,region,revenue,ad_spend,delivery_hours,discount_pct,orders,returns\n2025-01-01,North,8235156.60,901678,36.318082191781,7.505936073059,141464,7309\n2025-01-02,South,0,0,36.318082191781,7.505936073059,0,0\n");
   await openFindings(page);
-  await page.locator("summary").filter({ hasText: "Charts & dashboard controls" }).click();
+  await expect(page.getByRole("region", { name: "Charts & dashboard controls", exact: true })).toBeVisible();
   const dashboard = page.getByRole("region", { name: "Dataset dashboard", exact: true });
   const figures = dashboard.getByLabel("Key figures", { exact: true });
   await expect(figures.locator(".kpiCard")).toHaveCount(6);
