@@ -3,6 +3,29 @@
 
 # ExecPlus Architecture
 
+## October 16 portable results and governed access
+
+Schema 0019 adds versioned dataset policies and actor grants; 0020 adds internal
+incidents. A source projection applies authorized row/field scope before profiling,
+planning or execution. Saved scoped receipts bind actor, source and policy revision;
+current grants and publication state are rechecked before replay or export. Owners
+can manage policy metadata but cannot bypass source grants. Legacy unscoped query
+receipts retain workspace sharing; private analysis records remain owner-only.
+
+Portable renderers receive typed, executed evidence and preserve exact numerical
+strings in PDF, XLSX and CSV/evidence bundles. PNG chart coordinates are approximate
+with exact source metadata. Report generation makes no model call or arbitrary
+network fetch. Bounded rendering and object reads run outside workspace row locks;
+short final transactions recheck source, policy, membership and retained results.
+Cleanup never deletes objects whose successful commit is uncertain.
+
+A fixed-code collector records bounded operational categories without prompts,
+source values or stack traces. Internal staff review/reconcile incidents without
+acquiring private analysis access. Advanced forecast candidates use chronological
+validation and a later holdout; saved methods, assumptions and empirical error
+ranges remain explicit. See [release evidence](../verification-remaining-work-release.md)
+and the linked contracts for exact bounds.
+
 ## October 16 domain-agent tools
 
 The conversation planner receives a frozen capability catalog for configured,

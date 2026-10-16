@@ -259,8 +259,8 @@
       "id": 13,
       "section": "Month 1",
       "feature": "PDF/Excel export",
-      "status": "partial",
-      "note": "Protected PDFs for saved calculations, tables and source-backed explanations pass local and live checks. Exact values and evidence stay attached. Excel, chart images and full dashboard reports remain unfinished.",
+      "status": "done",
+      "note": "Protected PDF, exact Excel, CSV/evidence bundles and chart PNG downloads cover supported saved answers, diagrams, patterns, dashboards, studies, forecasts/comparisons, scenarios and decisions. Current authorization and source evidence are rechecked; oversized outputs refuse explicitly. Scheduled email remains separate.",
       "evidence": [
         "ROADMAP.md",
         "README.md",
@@ -270,12 +270,15 @@
         "apps/api/src/execplus/application/services/pdf_exports.py",
         "apps/api/tests/test_pdf_exports.py",
         "apps/api/tests/test_pdf_rendering.py",
-        "apps/api/tests/test_report_conversations.py"
+        "apps/api/tests/test_report_conversations.py",
+        "docs/verification-remaining-work-release.md"
       ],
       "evidence_groups": [
         "E8",
-        "E26"
-      ]
+        "E26",
+        "E29"
+      ],
+      "roadmap": "October 16 tested local/private-demo release 867c5a0; production gates remain separate"
     },
     {
       "id": 14,
@@ -812,19 +815,21 @@
       "id": 43,
       "section": "Commercial readiness",
       "feature": "Error monitoring",
-      "status": "partial",
-      "note": "Health checks, safe failure logs, failed-query counts and job failure states exist. Central error collection, operational alerts and incident monitoring are not implemented.",
+      "status": "done",
+      "note": "Central fixed-code incident collection, bounded retention, staff-only review and acknowledge/resolve are tested. The live collector is healthy and staff revocation passes. No private prompts, source values or traces are collected; external paging and an uptime guarantee are outside this private-demo scope.",
       "evidence": [
         "apps/api/src/execplus/infrastructure/readiness.py",
         "apps/api/src/execplus/application/services/activation.py",
         "apps/api/src/execplus/manage.py",
         "apps/api/tests/test_job_cli_privacy.py",
-        "ROADMAP.md"
+        "ROADMAP.md",
+        "docs/verification-remaining-work-release.md"
       ],
-      "roadmap": "Phase 5",
+      "roadmap": "October 16 tested local/private-demo release 867c5a0; production gates remain separate",
       "evidence_groups": [
         "E6",
-        "E8"
+        "E8",
+        "E29"
       ]
     },
     {
@@ -1045,15 +1050,17 @@
       "id": 56,
       "section": "Integration with other Solutions",
       "feature": "Advanced forecasts",
-      "status": "missing",
-      "note": "Basic bounded forecasts are now delivered separately. Advanced forecasting methods, representative customer validation and broader decision workflows remain frozen or unimplemented.",
+      "status": "partial",
+      "note": "Opt-in advanced forecasts select naive, seasonal-naive, SES, Holt, damped or additive Holt-Winters candidates using chronological validation and a later holdout. Saved results, comparisons, policies and exports are verified. External regressors, calibrated uncertainty and representative customer acceptance remain open.",
       "evidence": [
         "docs/phase4-forecasting.md",
-        "ROADMAP.md"
+        "ROADMAP.md",
+        "docs/verification-remaining-work-release.md"
       ],
-      "roadmap": "Phase 6, Frozen",
+      "roadmap": "October 16 tested local/private-demo release 867c5a0; production gates remain separate",
       "evidence_groups": [
-        "E8"
+        "E8",
+        "E29"
       ]
     },
     {
@@ -1200,17 +1207,19 @@
       "section": "Integration with other Solutions",
       "feature": "Detailed permissions and audit logs",
       "status": "partial",
-      "note": "Workspace roles, private/shared items and audit records exist. Controls over individual rows/columns and regulated-customer audit requirements remain unfinished.",
+      "note": "Opt-in versioned row/column grants are applied before profiling, planning and calculation, and rechecked for saved results, exports and publication races. Owner/admin roles cannot bypass a source grant. Regulated-customer audit and independent production privacy acceptance remain open.",
       "evidence": [
         "apps/api/src/execplus/domain/ingestion.py",
         "apps/api/src/execplus/application/services/workspaces.py",
         "apps/api/tests/test_workspace_integration.py",
         "apps/api/tests/test_studies.py",
-        "ROADMAP.md"
+        "ROADMAP.md",
+        "docs/verification-remaining-work-release.md"
       ],
-      "roadmap": "Phase 6 regulated-customer controls",
+      "roadmap": "October 16 tested local/private-demo release 867c5a0; production gates remain separate",
       "evidence_groups": [
-        "E8"
+        "E8",
+        "E29"
       ]
     }
   ],
@@ -1456,10 +1465,23 @@
         "scripts/verify_recovery_snapshot.py",
         "apps/api/tests/test_recovery_verification.py"
       ]
+    ],
+    "E29": [
+      "Portable exports, advanced forecasts, scoped dataset access and internal incidents",
+      [
+        "docs/verification-remaining-work-release.md",
+        "docs/result-exports.md",
+        "docs/verification-result-exports.md",
+        "docs/advanced-forecasting.md",
+        "docs/verification-advanced-forecasting.md",
+        "docs/dataset-access-policies.md",
+        "docs/verification-dataset-access.md",
+        "docs/internal-incidents.md"
+      ]
     ]
   },
   "section_intros": {
-    "Month 1": "Core data analysis works. Four of the original Month 1 requests still need work, including signup, exports and payments.",
+    "Month 1": "Core analysis and protected PDF/Excel exports work. Company signup, priced plan operation and payments still require work or external configuration.",
     "Improve activation": "The upload-first experience and aggregate usage-reporting screens are delivered. Verified live email delivery and billing/upgrades remain unfinished.",
     "Growth-plan features": "Basic forecasting, accuracy checks, later-actual comparisons, grounded commentary and searchable audit history now join the delivered team, dashboard, refresh and alert features. Proven root-cause analysis remains open.",
     "Commercial readiness": "The private-demo admin console, support workflow and usage/retention reporting are delivered. Broader performance, paid-plan operation and production launch requirements remain open.",
@@ -1567,8 +1589,8 @@
   ],
   "narrative": {
     "p01": "A working private analytics demo exists. The owner confirms noncommercial use; historical commercial checklist entries remain for traceability, with broader integrations and production acceptance still unfinished.",
-    "p02": "Governed files, dashboards/chat, measured relationships, saved work, basic forecasts, refresh/alerts, audit, support/usage, unusual-value checks, budget decisions and explicit what-if comparisons. The bounded domain-agent extension adds saved-role field diagrams, optional private setup and protected saved-answer PDFs.",
-    "p03": "Customer self-signup and production login; full dashboard/analysis reports and Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
+    "p02": "Governed files, dashboards/chat, measured relationships, saved work, basic and opt-in advanced forecasts, refresh/alerts, audit, support/usage, anomaly checks, budget choices and explicit what-if scenarios. Field diagrams, private context, protected portable results and row/column policies are delivered.",
+    "p03": "Customer signup and production login; payments and paid plans; live external connectors; external embedding; representative advanced-method acceptance and complete production operations. The next locally tested implementation batch remains unreleased.",
     "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
     "p06": "“Company registration” means software account signup, not legal incorporation.",
@@ -1579,18 +1601,18 @@
     "p11": "Do not assume every vendor catalog tile is live: Polymer labels some connectors “Coming Soon”. The VC requested accounting and advanced-analysis features are not automatically capabilities of both target products. [P1]",
     "p12": "Most unfinished items are already planned or deliberately deferred. “Not yet” does not mean they were forgotten; it means no complete feature is available today.",
     "p13": "Replace operator-issued demo tokens with proper customer signup and production login, then complete the security and privacy review.",
-    "p14": "Basic forecasts and accuracy checks are delivered. A protected PDF tool now exports supported saved answers with exact tables and source evidence. Dashboard/analysis report layouts and Excel/CSV/PNG formats remain.",
+    "p14": "PDF dashboards/reports, exact Excel results, PNG charts and CSV/evidence bundles are delivered with authorization and preserved source evidence. Actual email delivery remains a separate external dependency.",
     "p15": "Start with read-only Google Sheets and an approved PostgreSQL source. Add accounting systems and BigQuery only after safe connection/refresh behavior is verified.",
     "p16": "Internal administration, support and usage reporting are delivered for the private demo. Payments, plans, upgrades, plan-specific limits and real email delivery remain unfinished.",
     "p17": "Representative evaluations, identity/security, recovery and provider privacy must pass. Private-demo evidence does not clear production launch gates.",
-    "p18": "Advanced analytics and external embedding remain gated. Exports, connectors and commercial readiness are unfinished; public deployment still needs reviewed production evidence.",
-    "p19": "The combined PDF/Excel request is now Partly done: supported private saved answers export to PDF, with exact values and evidence. Full reports and Excel remain unfinished in Phase 4D. Production account access, payments and paid-plan operation remain Phase 5 work against the original Month 1 checklist.",
+    "p18": "The independent remaining-work instruction is active. Advanced forecast methods, exports, dataset policies and internal incidents are deployed; additional integrations, advanced methods and operational engines remain under local verification. Public deployment requires reviewed production evidence.",
+    "p19": "The original combined PDF/Excel request is Done within the tested private-demo export scope. Company signup, payments and paid-plan configuration remain unfinished against the original Month 1 checklist.",
     "p20": "Representative customer examples and labels; retrieval/citation quality; a tested production search provider; backup/restore proof; model quality/speed/cost comparison; hosted-provider privacy; real email delivery; and production identity/security. A successful demo does not close these checks. [E7]",
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "October 16 application 919dd0a runs on unchanged schema 0018 with saved-role diagrams, registered tool selection, protected saved-answer PDFs and optional private setup. Existing attributed Lieflat/documd charts and EDA/SQL recipes remain. Personal phase2 includes phase3 data-reading commit 2a93080.",
-    "p25": "The full backend run passes 1,448 tests; final focused diagram/reading groups pass 104/84 cases, with overlapping rechecks reported separately. All 54 frontend cases, 59 offline browser journeys and static/build/restricted-image checks pass; three model-dependent browser cases remain skipped. Live diagrams, immutable old replay, three PDF downloads, twenty private denials and a fresh named chart pass. A separate hosted retail reading, exact total/replay and six denials pass. Chart compatibility passes three journeys/36 layouts after a retained connection reset. All 48 activation fingerprints/config match; all eight production gates remain blocked. The final UI passes five live journeys/21 layouts with two explicit PDFs and unchanged data/preferences. Backup details and retained failures are in the release ledger. [E26]",
+    "p24": "October 16 application 867c5a0 runs on additive schema 0020 with portable result downloads, advanced forecast selection, row/column policies and internal incidents. The repaired conversation harness and attributed chart engines remain. Personal phase2 includes phase3 data-reading commit 2a93080.",
+    "p25": "All 1,856 final application test cases have passing executions across retained runs, with affected services rechecked; this is not one clean full-suite run. Static/build/restricted-image checks, 55 frontend tests and 63 offline browser journeys pass, with 3 model-dependent skips. Live export/access, hosted rows, diagrams, forecast/comparison, refresh, incident and browser checks pass. Previous data/config and user source/memory snapshots are preserved; initial failures and exact counts are retained in E29. All 8 production gates stay blocked.",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

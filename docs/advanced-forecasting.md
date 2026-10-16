@@ -3,7 +3,7 @@
 
 # Advanced forecasting
 
-Status: implemented and verified locally, including the real-service browser workflow. Private-demo acceptance is pending. See [the verification ledger](verification-advanced-forecasting.md). This extends the existing forecasting feature. It does not prove accuracy on customer data or close the production evaluation gates.
+Status: verified locally and deployed on the private demo at `867c5a0`/0020, including real-service API/browser workflows. See [the verification ledger](verification-advanced-forecasting.md). This extends the existing forecasting feature. It does not prove accuracy on customer data or close the production evaluation gates.
 
 ## What a user can do
 

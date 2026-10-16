@@ -7,6 +7,14 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
+The October 16 [remaining-work release](docs/verification-remaining-work-release.md)
+is live at `867c5a0` on schema **0020**. Supported saved answers, dashboards and
+analyses now download as PDF, Excel, CSV/evidence bundles or chart PNG. Forecasts
+have opt-in advanced method selection, owners can define dataset row/field access,
+and internal staff can review collected incidents. Source evidence and current
+permissions are checked before results leave the app. The next local implementation
+batch is still under verification; it is not yet deployed.
+
 The October 16 [domain-agent tools](docs/domain-agent-tools.md) add real field
 diagrams, a registered capability catalog, optional private preference choices
 and protected PDF downloads for supported saved answers. Ask **Show a data
@@ -15,15 +23,15 @@ calculation such as **Show total revenue by category as a chart**. After a saved
 calculation, ask **Make a PDF of this answer**. See the
 [verification ledger](docs/verification-domain-agent-tools.md) for current release
 status, retained failures and tested limits. Diagrams show field membership; they
-do not invent causal relationships or joins. Full dashboard reports and the
-remaining export formats still need implementation.
+do not invent causal relationships or joins. The later portable-export release extends these downloads to dashboards and
+analysis reports.
 
 The October 16 studio update adds a lighter workspace, explicit **My memory**
 preferences and two fictional examples for testing the existing analysis tools.
 Missing-unit review now saves the unit directly and clearly shows unfinished
 details. Personal memory guides new explanations and suggestions across files in
 one workspace; it does not change numerical planning or automatically learn every
-conversation. Run migration **0018** after pulling. See the
+conversation. Run migrations through **0020** for this deployed release. See the
 [contract](docs/personal-agent-studio.md), [demo walkthrough](docs/demo-data-guide.md)
 and [verification ledger](docs/verification-personal-agent-studio.md) for release
 evidence and limitations. The selected development skills are project-local;
@@ -49,8 +57,7 @@ explicitly granted internal staff. Staff can inspect operational metadata and ha
 support requests without acquiring access to private customer analyses. Usage reports
 show deliberate activity and completed-week return cohorts with their definitions.
 See the [operations contract](docs/operations-console-support.md) and
-[verification ledger](docs/verification-operations.md). Run migration **0018** after
-pulling. Staff grants are operator-only; ordinary workspace ownership does not grant
+[verification ledger](docs/verification-operations.md). Run migrations through **0020** for this deployed release. Staff grants are operator-only; ordinary workspace ownership does not grant
 platform administration. Billing and public production readiness remain unfinished.
 
 Phase 4C is complete for the approved local/test and private-demo scope as of

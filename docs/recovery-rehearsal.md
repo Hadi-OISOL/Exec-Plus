@@ -16,6 +16,33 @@ exactly across sum, analysis, rows, average, maximum, minimum and count. There a
 that every receipt was executed again. All 47 application-table fingerprints are
 unchanged by verification; migration metadata independently reports 0018.
 
+## October 16 schema 0020 follow-up
+
+Application `867c5a0` and checked post-release backup `20261016T123757Z` pass
+an isolated restore in 24 seconds: 93 uploads, 95 revisions, 27 documents/passages,
+twenty exact query replays and one verified permission denial. Twenty-one receipt
+candidates are inspected within the 100-candidate cap. All table fingerprints stay
+unchanged during verification; the temporary internal network exposes no ports
+and mounts no live volumes. Evidence: `ops/restore-f78eb10177ce/verification.json`.
+
+The same backup also passes an encrypted off-VPS copy check: 4,169,320 bytes,
+in-memory decryption and matching database/object/manifest hashes, with no
+plaintext files created. Directory permissions remain 0700; ciphertext/key are
+0600. The helper now sets umask077 before creating ciphertext; the enclosing
+0700 directory already restricted access while the first transfer was active.
+Independent custody, automated retention and restore from that encrypted copy
+remain outside this rehearsal.
+
+Operator helpers `096b740` and `ee3a058` distinguish revoked access from damaged
+evidence and keep PostgreSQL read-only during replay. An initial rehearsal failed
+when a final permission check requested a write lock. Only the isolated snapshot
+repository now suppresses that lock; current access/source checks still execute,
+and production locking is unchanged. Fifteen local checks include real read-only
+PostgreSQL replay, revoked receipts and corrupted authorized evidence. Static
+checks pass. A direct invocation of the non-executable script also failed; the
+successful operator command invokes it with Bash. Both attempts remain recorded.
+
+
 ## Isolation and reproducibility
 
 `deploy/vps/restore-drill.sh <backup timestamp> <candidate commit> <schema>` checks

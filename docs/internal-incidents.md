@@ -14,6 +14,16 @@ support staff member or revoked platform administrator cannot read or change inc
 Every successful or denied administrator action is recorded in the existing staff audit.
 Updates use an expected version so a stale page cannot overwrite a new occurrence.
 
+## Final private-demo release
+
+Application `867c5a0` is deployed on schema `0020`. Combined final backend coverage,
+restricted images, live API/browser acceptance, preserved data/configuration and
+checked pre/post backups are recorded in the
+[release ledger](verification-remaining-work-release.md). Earlier pending-deployment
+statements below describe their historical checkpoints. Production acceptance
+remains separate; no production gate is cleared.
+
+
 ## Collection and privacy
 
 The API process queues HTTP responses with status 500 or higher and unhandled request

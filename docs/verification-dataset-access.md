@@ -3,6 +3,16 @@
 
 # Dataset access verification
 
+## Final private-demo release
+
+Application `867c5a0` is deployed on schema `0020`. Combined final backend coverage,
+restricted images, live API/browser acceptance, preserved data/configuration and
+checked pre/post backups are recorded in the
+[release ledger](verification-remaining-work-release.md). Earlier pending-deployment
+statements below describe their historical checkpoints. Production acceptance
+remains separate; no production gate is cleared.
+
+
 Status: focused implementation checks pass locally. The combined frozen suite,
 candidate image checks and private VPS release are still pending. No policy has
 been applied to an existing user dataset.

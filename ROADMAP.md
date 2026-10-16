@@ -19,6 +19,42 @@ authorization to commercialize code restricted to noncommercial use.
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+
+## October 16 — Portable results, dataset policies and operational checks
+
+**Status:** Complete for this local/test and private-demo release; broader work In progress.
+
+- Application **867c5a0** is live on additive schema **0020**. Read
+  `docs/verification-remaining-work-release.md` and its linked contracts. Portable
+  PDF/Excel/CSV-evidence/PNG downloads cover supported saved answers, dashboards
+  and analyses. Advanced forecasts use explicit method selection; dataset policies
+  enforce row/field scope, and internal staff can review collected incidents.
+- All 1,856 final backend cases have passing executions across retained runs;
+  this is combined coverage, not one clean full suite. Static/build/restricted-image
+  checks, 55 frontend tests and 63 offline browser journeys pass, with three model
+  skips. Live API checks cover actual exports, hosted record planning, diagrams,
+  forecast/comparison replay, staged refresh, privacy and source/memory preservation.
+  Live browser passes nine layouts and four downloads in 24.499 seconds.
+- All 47 prior business-table fingerprints/config match. Checkpoint:
+  `pre-integration-867c5a0-20261016`; checked backups: `20261016T121340Z` and
+  `20261016T123757Z`. Schema changes 0018 to 0020; saved work is preserved.
+  Models, timers and loopback-only access remain unchanged. A slow local SSH
+  connection was replaced without restarting the application; retained diagnostics
+  do not distinguish compression from the changed network path.
+- Operator helper **ee3a058** keeps isolated restored PostgreSQL read-only while
+  checking current receipt permissions. The 0020 restore passes in 24 seconds:
+  93 uploads, 95 revisions, 27 documents/passages, twenty exact replays and one
+  revoked-access denial. Initial locking/command failures remain in the recovery
+  ledger. Production custody, retention and recovery objectives remain open.
+- Feature ledger: **39 Done / 16 Partial / 9 Not yet**, preserving 64 original IDs.
+  IDs 13/43 close within the tested private-demo scope; advanced forecasting 56
+  becomes Partial. All eight production gates remain blocked.
+- Continue the authorized unfinished-work task. The next local batch contains
+  metering, scoped keys/webhooks/embedding, approved PostgreSQL import,
+  source-derived scenarios, calendar anomalies/drift, consolidation and larger
+  allocations. It is **not deployed** yet. External credentials, prices and
+  representative customer acceptance must not be invented.
+
 ## October 16 — Conversation repair and independent remaining work
 
 **Status:** Reported conversational task repair Complete for local/test and the
@@ -455,7 +491,7 @@ requirements remain mandatory in Phase 5. See [closure evidence](docs/verificati
 | --- | --- | --- |
 | 0–2 | Complete | Preserve foundation, ingestion and verified analytics contracts |
 | 3 — Data understanding, conversation and knowledge | Complete | Private-demo understanding, unified conversation, catalog and candidate assessments verified; production reviews remain in Phase 5 |
-| 4 — Connected analysis, studies, collaboration and export | In progress | 4A studies/dashboards, 4B refresh/alerts and 4C basic forecasts verified; audit history delivered; 4D exports and two controlled 4E connectors remain |
+| 4 — Connected analysis, studies, collaboration and export | In progress | 4A studies/dashboards, 4B refresh/alerts and 4C basic forecasts verified; audit history delivered; 4D exports verified; two controlled 4E connectors remain |
 | 5 — Commercial readiness, billing and alpha | In progress | Private-demo admin/support/reporting delivered; representative quality, production security, recovery, billing and customer onboarding remain |
 | 6 — Broader integrations and advanced decision support | Frozen | Expand connectors/formats and introduce separately validated advanced analysis |
 
@@ -863,11 +899,12 @@ See [contracts](docs/phase4-forecasting.md) and [verification](docs/verification
 
 ### 4D — Exports and user-visible evidence
 
-**Status:** In progress. October 16 adds a bounded protected PDF tool for saved
-private calculations, tables and source-backed explanations, plus private export
-audit events. See [PDF scope](docs/pdf-export.md) and
-[verification](docs/verification-domain-agent-tools.md) for release evidence.
-Dashboard/analysis reports, Excel, PNG and CSV remain unfinished. Searchable
+**Status:** Complete for supported local/test and private-demo result types.
+Application `867c5a0` delivers protected PDF, Excel, CSV/evidence bundles and chart
+PNG for saved answers, dashboards and analyses. Exact values, source versions,
+spreadsheet safety and current permissions are checked; oversized exports refuse
+explicitly. See [scope](docs/result-exports.md) and
+[release verification](docs/verification-remaining-work-release.md). Searchable
 user-visible audit history was delivered in the October 6 priority slice.
 See [audit visibility and API contracts](docs/audit-history.md).
 
