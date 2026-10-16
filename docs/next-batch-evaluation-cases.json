@@ -1,0 +1,320 @@
+{
+  "version": "analysis-evaluation-cases-v1",
+  "evaluation_id": "next-batch-fixed-failure-cases-2026-10-16",
+  "scope": "Original eighteen internal cases plus fixed source, usage, integration, consolidation, calendar and scenario failure cases. Fictional local data and scripted providers only. Excludes changing CP-SAT implementation and representative model, customer or production acceptance.",
+  "cases": [
+    {
+      "id": "saved-meaning",
+      "title": "Remember reviewed meanings",
+      "expected_behavior": "Reuse saved descriptions and preserve answered definitions instead of asking the same review again.",
+      "node_ids": [
+        "apps/api/tests/test_context_reuse.py::test_orientation_uses_saved_description_and_does_not_repeat_row_review",
+        "apps/api/tests/test_context_reuse.py::test_missing_only_reading_preserves_existing_answers_without_model"
+      ]
+    },
+    {
+      "id": "private-context",
+      "title": "Keep personal context private and source-bound",
+      "expected_behavior": "Only the owner's authorized goal and current-upload notes reach planning; other-upload notes do not substitute for current context.",
+      "node_ids": [
+        "apps/api/tests/test_context_reuse.py::test_owner_goal_and_authorized_notes_reach_planner_without_leaking",
+        "apps/api/tests/test_context_reuse.py::test_other_upload_reading_notes_are_not_used_for_current_planning"
+      ]
+    },
+    {
+      "id": "missing-unit",
+      "title": "Ask for the actual missing unit",
+      "expected_behavior": "A requested measure with no unit is not replaced by another measure; missing details are asked even when model exploration is empty.",
+      "node_ids": [
+        "apps/api/tests/test_context_reuse.py::test_named_measure_without_unit_does_not_fall_back_to_another_measure",
+        "apps/api/tests/test_reading_recovery.py::test_reading_with_no_model_exploration_still_asks_one_actual_missing_detail"
+      ]
+    },
+    {
+      "id": "no-date-alternative",
+      "title": "Offer honest alternatives without dates",
+      "expected_behavior": "Chat and forecasts agree that a time forecast needs dates; explicit daily assumptions retain exact results and warn rather than clip negative values.",
+      "node_ids": [
+        "apps/api/tests/test_context_reuse.py::test_chat_and_forecast_share_no_date_reason_and_preserve_history",
+        "apps/api/tests/test_daily_scenarios.py::test_daily_negative_path_warns_and_never_clips_values"
+      ]
+    },
+    {
+      "id": "malformed-reading",
+      "title": "Repair one invalid reading within unchanged validation",
+      "expected_behavior": "A malformed or twenty-field invalid reading gets one bounded correction without loosening the no-invented-numbers checks.",
+      "node_ids": [
+        "apps/api/tests/test_reading_recovery.py::test_twenty_column_count_failure_is_repaired_without_loosening_numeric_validation",
+        "apps/api/tests/test_reading_recovery.py::test_truncated_or_oversized_reply_has_one_short_correction[truncated]"
+      ]
+    },
+    {
+      "id": "repeated-invalid-reading",
+      "title": "Stop repeated invalid replies honestly",
+      "expected_behavior": "After two invalid returned replies, use explicit fallback and ask a real missing question rather than looping or publishing unchecked model prose.",
+      "node_ids": [
+        "apps/api/tests/test_reading_recovery.py::test_repeated_invalid_reply_falls_back_after_two_calls_with_a_real_question"
+      ]
+    },
+    {
+      "id": "bounded-reading-work",
+      "title": "Keep correction inside budget and deadline",
+      "expected_behavior": "Enforce the shared deadline and call budget; caller cancellation stops correction work.",
+      "node_ids": [
+        "apps/api/tests/test_reading_recovery.py::test_reading_repair_honors_model_call_budget_before_provider_call",
+        "apps/api/tests/test_reading_recovery.py::test_correction_shares_initial_deadline_and_cancels_provider_work",
+        "apps/api/tests/test_reading_recovery.py::test_caller_cancellation_never_starts_a_correction"
+      ]
+    },
+    {
+      "id": "changed-source",
+      "title": "Refuse changed source or meaning before publication",
+      "expected_behavior": "A changed reading revision or group-comparison source cannot publish stale results, and accepted refresh changes retain their source-changed failure reason.",
+      "node_ids": [
+        "apps/api/tests/test_reading_recovery.py::test_revision_changed_during_model_reading_is_not_returned",
+        "apps/api/tests/test_group_relationship_conversations.py::test_group_source_change_before_publication_clears_unpublished_evidence",
+        "apps/api/tests/test_pattern_publication.py::test_accepted_refresh_change_at_publication_gets_source_changed_status"
+      ]
+    },
+    {
+      "id": "revoked-permission",
+      "title": "Stop disclosure after permission revocation",
+      "expected_behavior": "Revocation blocks correction or fallback disclosure and prevents a new allocation recommendation from publishing.",
+      "node_ids": [
+        "apps/api/tests/test_reading_recovery.py::test_revoked_permission_prevents_retry_and_fallback_disclosure[invalid]",
+        "apps/api/tests/test_allocation_constraints_integration.py::test_rule_membership_revoked_during_compute_prevents_publication"
+      ]
+    },
+    {
+      "id": "group-direction",
+      "title": "Distinguish pooled and within-group relationships",
+      "expected_behavior": "Match independent Pearson and tied-rank oracles on balanced and uneven groups; highlight only directions that meet the declared display rule.",
+      "node_ids": [
+        "apps/api/tests/test_group_relationships.py::test_simpson_direction_reversal_matches_independent_unweighted_row_oracle[counts0]",
+        "apps/api/tests/test_group_relationships.py::test_simpson_direction_reversal_matches_independent_unweighted_row_oracle[counts1]",
+        "apps/api/tests/test_group_relationships.py::test_symmetric_nonlinear_groups_honestly_show_weak_scores_without_reversal"
+      ]
+    },
+    {
+      "id": "group-coverage",
+      "title": "Compare the same eligible rows",
+      "expected_behavior": "Missing, sparse and constant exclusions are disjoint; pooled scores use exactly eligible groups' complete pairs, and constant groups do not become zero-correlation evidence.",
+      "node_ids": [
+        "apps/api/tests/test_group_relationships.py::test_coverage_exclusions_are_disjoint_and_pool_uses_exactly_eligible_group_rows",
+        "apps/api/tests/test_group_relationships.py::test_all_constant_groups_have_explicit_coverage_without_false_zero_coefficient"
+      ]
+    },
+    {
+      "id": "precision-and-population",
+      "title": "Preserve exact ranks and complete populations",
+      "expected_behavior": "Float collapse withholds Pearson while valid Spearman remains; more than ten thousand matching rows is refused instead of silently sampled.",
+      "node_ids": [
+        "apps/api/tests/test_group_relationships.py::test_float_collapse_withholds_pearson_without_discarding_valid_spearman_groups",
+        "apps/api/tests/test_group_relationships.py::test_complete_population_guard_refuses_more_than_ten_thousand_rows"
+      ]
+    },
+    {
+      "id": "explicit-group-request",
+      "title": "Respect chosen fields and row restrictions",
+      "expected_behavior": "Ambiguous or filtered group requests clarify, stale clarification cannot execute, and the durable path uses one owner-private projection receipt.",
+      "node_ids": [
+        "apps/api/tests/test_group_relationship_conversations.py::test_ambiguous_group_request_clarifies_and_stale_choice_cannot_execute",
+        "apps/api/tests/test_group_relationship_conversations.py::test_group_job_keeps_one_private_receipt_and_reopens"
+      ]
+    },
+    {
+      "id": "allocation-oracle",
+      "title": "Verify exact constrained decisions independently",
+      "expected_behavior": "One- and two-resource rule selections match an independent exhaustive rational oracle, including exact ties and infeasible cases.",
+      "node_ids": [
+        "apps/api/tests/test_allocation_constraints.py::test_selection_decisions_match_independent_fraction_oracle[False]",
+        "apps/api/tests/test_allocation_constraints.py::test_selection_decisions_match_independent_fraction_oracle[True]"
+      ]
+    },
+    {
+      "id": "conflicting-rules",
+      "title": "Keep conflicts and the do-nothing baseline explicit",
+      "expected_behavior": "Conflicts may disable optional actions; contradictory mandatory rules yield infeasibility and refuse approval, while feasible zero-budget do-nothing stays available.",
+      "node_ids": [
+        "apps/api/tests/test_allocation_constraints.py::test_conflicting_rules_disable_optional_action_without_relaxing_rules",
+        "apps/api/tests/test_allocation_constraints.py::test_zero_budget_and_zero_additional_capacity_keep_feasible_do_nothing",
+        "apps/api/tests/test_allocation_constraints_integration.py::test_contradictory_mandatory_rules_save_only_infeasibility_and_refuse_approval"
+      ]
+    },
+    {
+      "id": "independent-verification",
+      "title": "Reject a corrupted solver proposal",
+      "expected_behavior": "The independent checker catches invalid quantities and selection-rule violations, and failed verification withholds a recommendation.",
+      "node_ids": [
+        "apps/api/tests/test_allocation_constraints.py::test_independent_checker_refuses_corrupted_solver_proposals[quantity]",
+        "apps/api/tests/test_allocation_constraints.py::test_independent_checker_rejects_rule_violation_even_with_correct_totals",
+        "apps/api/tests/test_allocation_constraints_integration.py::test_failed_independent_verification_withholds_recommendation"
+      ]
+    },
+    {
+      "id": "saved-compatibility",
+      "title": "Reopen private evidence and preserve older methods",
+      "expected_behavior": "New grouped and daily evidence replays exactly with owner privacy; absent new allocation rules preserve old one- and two-resource request/result serialization.",
+      "node_ids": [
+        "apps/api/tests/test_group_relationships_integration.py::test_new_group_comparison_keeps_typed_receipt_private_and_old_pattern_unchanged",
+        "apps/api/tests/test_daily_scenarios.py::test_daily_http_saved_replay_successor_and_private_evidence",
+        "apps/api/tests/test_allocation_constraints_integration.py::test_empty_new_fields_preserve_legacy_request_and_result_serialization[False]",
+        "apps/api/tests/test_allocation_constraints_integration.py::test_empty_new_fields_preserve_legacy_request_and_result_serialization[True]"
+      ]
+    },
+    {
+      "id": "cancel-before-publication",
+      "title": "Cancel computation and publication cleanly",
+      "expected_behavior": "Group computation cleanup finishes on cancellation; cancellation after pattern calculation clears unpublished answer evidence while retaining the private receipt.",
+      "node_ids": [
+        "apps/api/tests/test_group_relationships_integration.py::test_group_statistics_cancellation_waits_for_worker_cleanup",
+        "apps/api/tests/test_pattern_publication.py::test_pattern_cancellation_wins_after_calculation_and_keeps_private_receipt"
+      ]
+    },
+    {
+      "id": "source-completeness",
+      "title": "Retain complete exact source snapshots",
+      "expected_behavior": "A SELECT-only source yields exact retained values; concurrent commits do not mix snapshots and source rows remain unchanged.",
+      "node_ids": [
+        "apps/api/tests/test_postgres_source.py::test_source_snapshot_is_complete_exact_and_does_not_modify_customer_table",
+        "apps/api/tests/test_postgres_source.py::test_repeatable_read_keeps_one_complete_snapshot_when_source_commits_mid_read",
+        "apps/api/tests/test_postgres_source.py::test_binary_float_source_requires_an_explicit_normalization_before_import"
+      ]
+    },
+    {
+      "id": "source-publication",
+      "title": "Publish source imports atomically",
+      "expected_behavior": "Idempotent requests publish once, revoked authority publishes nothing and uncertain commits retain referenced bytes.",
+      "node_ids": [
+        "apps/api/tests/test_source_import_lifecycle.py::test_complete_import_is_exact_idempotent_private_and_unconfirmed",
+        "apps/api/tests/test_source_import_lifecycle.py::test_changed_import_authority_never_publishes_upload[policy]",
+        "apps/api/tests/test_source_import_lifecycle.py::test_uncertain_upload_commit_reopens_the_atomic_import_and_retains_bytes",
+        "apps/api/tests/test_source_import_lifecycle.py::test_concurrent_same_request_extracts_once_and_can_reopen",
+        "apps/api/tests/test_source_import_lifecycle.py::test_source_refresh_is_staged_then_explicitly_activated"
+      ]
+    },
+    {
+      "id": "source-deadline",
+      "title": "Bound source extraction work",
+      "expected_behavior": "A slow source lock or exhausted shared deadline fails safely without producing a partial snapshot.",
+      "node_ids": [
+        "apps/api/tests/test_postgres_source.py::test_source_lock_wait_has_a_bounded_safe_failure",
+        "apps/api/tests/test_postgres_source.py::test_shared_deadline_stops_before_count_after_slow_metadata",
+        "apps/api/tests/test_postgres_source.py::test_deadline_cannot_publish_after_last_cell_processing"
+      ]
+    },
+    {
+      "id": "usage-admission",
+      "title": "Reserve usage without oversubscription",
+      "expected_behavior": "Concurrent admission and repeated settlement preserve explicit limits and exact single accounting.",
+      "node_ids": [
+        "apps/api/tests/test_usage_metering_integration.py::test_concurrent_provider_admission_cannot_oversubscribe_allowances",
+        "apps/api/tests/test_usage_metering_integration.py::test_concurrent_idempotency_and_exact_reconciliation_append_only_once"
+      ]
+    },
+    {
+      "id": "usage-unknown",
+      "title": "Preserve unknown model exposure",
+      "expected_behavior": "Missing counts or prices never become zero cost; only evidence-backed operator reconciliation settles unknown exposure.",
+      "node_ids": [
+        "apps/api/tests/test_usage_metering_integration.py::test_unknown_usage_holds_exposure_and_only_operator_evidence_can_settle",
+        "apps/api/tests/test_usage_metering_integration.py::test_unconfigured_usage_stays_unknown_and_owner_summary_never_invents_a_bill",
+        "apps/api/tests/test_usage_metering_integration.py::test_summary_requires_owner_and_full_dataset_access",
+        "apps/api/tests/test_usage_metering_integration.py::test_new_spending_policy_never_treats_old_unpriced_or_other_currency_usage_as_zero[False]",
+        "apps/api/tests/test_usage_metering_integration.py::test_new_spending_policy_never_treats_old_unpriced_or_other_currency_usage_as_zero[True]"
+      ]
+    },
+    {
+      "id": "key-authority",
+      "title": "Keep scoped keys within issuer authority",
+      "expected_behavior": "A key cannot impersonate another member, become a session, revive after rejoining or bypass current dataset policy.",
+      "node_ids": [
+        "apps/api/tests/test_integration_access_integration.py::test_owner_cannot_mint_another_members_wider_authority[restricted]",
+        "apps/api/tests/test_integration_access_integration.py::test_scoped_key_preserves_exact_rows_policy_privacy_and_cannot_become_session",
+        "apps/api/tests/test_integration_access_integration.py::test_membership_readdition_does_not_reactivate_existing_key",
+        "apps/api/tests/test_integration_access_integration.py::test_policy_epoch_change_during_key_query_discards_old_scope",
+        "apps/api/tests/test_integration_access_integration.py::test_owner_cannot_mint_another_members_wider_authority[denied]"
+      ]
+    },
+    {
+      "id": "private-embed",
+      "title": "Bind embeds to host and current access",
+      "expected_behavior": "The declared host, single-use bootstrap and current permissions stay enforced without exposing secrets.",
+      "node_ids": [
+        "apps/api/tests/test_integration_access_integration.py::test_embed_exchange_exact_view_one_use_host_checks_no_secret_echo_and_revocation",
+        "apps/api/tests/test_integration_access_integration.py::test_embed_lifetime_cannot_extend_and_non_owner_cannot_issue"
+      ]
+    },
+    {
+      "id": "webhook-delivery",
+      "title": "Bound signed metadata delivery",
+      "expected_behavior": "Actual local transport receives signed metadata only after commit, and retries retain identity and stop after the declared limit.",
+      "node_ids": [
+        "apps/api/tests/test_webhooks_integration.py::test_actual_signed_delivery_is_metadata_only_idempotent_and_after_commit",
+        "apps/api/tests/test_webhooks_integration.py::test_retry_reuses_event_identity_rotated_secret_and_stale_lease_cannot_finish",
+        "apps/api/tests/test_webhooks_integration.py::test_six_actual_failed_attempts_stop_without_recollecting_same_event"
+      ]
+    },
+    {
+      "id": "consolidation-exactness",
+      "title": "Preserve declared consolidation layers",
+      "expected_behavior": "Complete mappings, exact rates and explicit eliminations reproduce saved worksheets, including large decimal values.",
+      "node_ids": [
+        "apps/api/tests/test_company_consolidation_integration.py::test_complete_ledger_mappings_exact_translation_elimination_and_immutable_reopen",
+        "apps/api/tests/test_company_consolidation_integration.py::test_large_decimal_and_uuid_external_party_retain_exact_identity",
+        "apps/api/tests/test_company_consolidation_integration.py::test_saved_run_and_receipt_tampering_is_refused"
+      ]
+    },
+    {
+      "id": "consolidation-privacy",
+      "title": "Recheck every company before release",
+      "expected_behavior": "Other members cannot open private worksheets, policy changes prevent publication and export revocation discards rendered output.",
+      "node_ids": [
+        "apps/api/tests/test_company_consolidation_integration.py::test_saved_worksheet_private_even_for_members_of_every_company",
+        "apps/api/tests/test_company_consolidation_integration.py::test_policy_change_during_projection_holds_no_company_lock_and_saves_nothing",
+        "apps/api/tests/test_company_consolidation_integration.py::test_export_policy_revocation_discards_rendered_bytes_without_workspace_locks",
+        "apps/api/tests/test_company_consolidation_integration.py::test_disjoint_company_requests_share_one_atomic_private_worksheet_limit"
+      ]
+    },
+    {
+      "id": "seasonal-evidence",
+      "title": "Keep seasonal references chronological",
+      "expected_behavior": "Independent rational calculations match findings; later data never refits earlier scores and zero spread is explicit.",
+      "node_ids": [
+        "apps/api/tests/test_temporal_anomalies.py::test_independent_fraction_oracle_for_fifty_residual_populations",
+        "apps/api/tests/test_temporal_anomalies.py::test_future_perturbation_and_extension_do_not_refit_or_rewrite_earlier_scores",
+        "apps/api/tests/test_temporal_anomalies.py::test_zero_spread_flags_declared_changes_without_statistical_score"
+      ]
+    },
+    {
+      "id": "drift-evidence",
+      "title": "Keep distribution evidence exact",
+      "expected_behavior": "Independent quantile oracles cover unequal samples; repeating decimals remain marked approximate and variance changes stay visible.",
+      "node_ids": [
+        "apps/api/tests/test_distribution_drift.py::test_fifty_independent_quantile_coupling_oracles_include_unequal_sample_sizes",
+        "apps/api/tests/test_distribution_drift.py::test_repeating_decimal_is_not_presented_as_an_exact_decimal",
+        "apps/api/tests/test_distribution_drift.py::test_variance_change_with_unchanged_median_remains_visible"
+      ]
+    },
+    {
+      "id": "calendar-publication",
+      "title": "Protect chronological result publication",
+      "expected_behavior": "Policy changes during computation publish nothing and historical saved results retain their original meaning.",
+      "node_ids": [
+        "apps/api/tests/test_calendar_analysis_integration.py::test_policy_change_during_calendar_math_blocks_publication",
+        "apps/api/tests/test_calendar_analysis_integration.py::test_old_snapshot_and_new_calendar_results_reopen_after_new_meaning"
+      ]
+    },
+    {
+      "id": "scenario-population",
+      "title": "Keep explicit scenario populations and basis",
+      "expected_behavior": "Per-row products retain exact results; required filters share one population and source-policy changes prevent publication.",
+      "node_ids": [
+        "apps/api/tests/test_source_scenarios_integration.py::test_source_model_replays_exact_projection_and_immutable_results[per_unit]",
+        "apps/api/tests/test_source_scenarios_integration.py::test_source_model_requires_one_shared_governed_population",
+        "apps/api/tests/test_source_scenarios_integration.py::test_source_policy_change_during_math_prevents_result_publication",
+        "apps/api/tests/test_source_scenarios_integration.py::test_source_scenario_receipts_runs_successors_and_reviews_are_private"
+      ]
+    }
+  ]
+}
