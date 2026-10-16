@@ -65,8 +65,10 @@ type Answer = {
 };
 type Turn = {
   id: number | string;
+  kind?: string;
   question: string;
   answer: Answer | null;
+  answerLoaded?: boolean;
   message: string;
   failed?: boolean;
   requestId?: string;
@@ -224,9 +226,11 @@ export function AskPanel({
           {
             ...turn,
             serverId: result.turn.id,
+            kind: result.turn.kind,
             status: result.turn.status,
             clarification: result.turn.clarification,
             answer: flatten(result.answer),
+            answerLoaded: true,
             message: result.turn.message ?? "",
             failed: ["failed", "expired"].includes(job.status),
             jobId: job.id,
@@ -323,6 +327,7 @@ export function AskPanel({
       const savedTurns: Turn[] = result.turns.map((turn) => ({
         id: turn.id,
         serverId: turn.id,
+        kind: turn.kind,
         clarification: turn.clarification,
         requestId: turn.request_id ?? undefined,
         status: turn.status,
@@ -392,6 +397,8 @@ export function AskPanel({
             ? {
                 ...item,
                 answer: flatten(answer),
+                answerLoaded: true,
+                failed: false,
                 job: job ?? undefined,
                 events: activity?.events,
                 message: answer
@@ -764,6 +771,8 @@ export function AskPanel({
               )}
               {turn.serverId &&
                 !turn.answer &&
+                !turn.answerLoaded &&
+                !["ambiguous", "unsupported"].includes(turn.kind ?? "") &&
                 ["complete", "partial"].includes(turn.status ?? "") && (
                   <button
                     type="button"

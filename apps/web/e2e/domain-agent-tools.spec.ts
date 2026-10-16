@@ -151,6 +151,11 @@ test("diagram requests render all declared fields and PDF actions reopen without
   await capture(page, "diagram");
   expect(errors).toEqual([]);
   await expect(page.locator(".conversationTurn").last().getByRole("button", { name: "Download PDF", exact: true })).toHaveCount(0);
+  await page.getByLabel("Your question", { exact: true }).fill("Make a PDF of this answer");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  const unsupportedPdf = page.locator(".conversationTurn").filter({ hasText: "PDF export currently supports saved calculations" });
+  await expect(unsupportedPdf).toBeVisible();
+  await expect(unsupportedPdf.getByRole("button", { name: "Load saved answer", exact: true })).toHaveCount(0);
   await page.getByLabel("Your question", { exact: true }).fill("Help me understand my data");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.locator(".conversationTurn").last().locator(".datasetGuidance")).toBeVisible();
@@ -174,9 +179,30 @@ test("diagram requests render all declared fields and PDF actions reopen without
   await page.getByRole("combobox", { name: "Saved conversation", exact: true }).selectOption({ index: 1 });
   await page.getByRole("button", { name: "Open conversation", exact: true }).click();
   const savedAnswers = page.getByRole("button", { name: "Load saved answer", exact: true });
+  await expect(unsupportedPdf).toBeVisible();
+  await expect(unsupportedPdf.getByRole("button", { name: "Load saved answer", exact: true })).toHaveCount(0);
+  await page.route("**/turns/*/answer", route => route.fulfill({ status: 503, json: { error: { message: "Temporary saved evidence failure" } } }));
+  await savedAnswers.first().click();
+  await expect(page.getByRole("alert").filter({ hasText: "Temporary saved evidence failure" })).toBeVisible();
+  await expect(savedAnswers.first()).toBeEnabled();
+  await page.unroute("**/turns/*/answer");
   for (let remaining = await savedAnswers.count(); remaining > 0; remaining--) { await savedAnswers.first().click(); await expect(savedAnswers).toHaveCount(remaining - 1); }
   await expect(page.getByRole("region", { name: "Requested PDF report", exact: true })).toBeVisible();
   expect(automaticDownloads).toBe(0);
   await expect(diagram).toBeVisible();
+  const threadId = await page.getByRole("combobox", { name: "Saved conversation", exact: true }).inputValue();
+  const threadUrl = `${api}/workspaces/${active.workspace}/threads/${threadId}`;
+  await page.route(threadUrl, async route => {
+    const response = await route.fetch();
+    const payload = await response.json();
+    await route.fulfill({ response, json: { ...payload, turns: payload.turns.map((turn: { kind: string }) => ({ ...turn, kind: turn.kind === "ambiguous" ? "overview" : turn.kind })) } });
+  });
+  await page.getByRole("button", { name: "Open conversation", exact: true }).click();
+  const nullAnswerButton = unsupportedPdf.getByRole("button", { name: "Load saved answer", exact: true });
+  await expect(nullAnswerButton).toBeVisible();
+  await nullAnswerButton.click();
+  await expect(nullAnswerButton).toHaveCount(0);
+  await expect(unsupportedPdf).toContainText("PDF export currently supports saved calculations");
+  await page.unroute(threadUrl);
   expect(errors).toEqual([]);
 });
