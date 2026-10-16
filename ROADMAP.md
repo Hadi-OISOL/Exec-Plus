@@ -19,10 +19,54 @@ authorization to commercialize code restricted to noncommercial use.
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
-## October 16 — Actual repository reuse and domain-agent follow-up
+## October 16 — Domain tools and protected saved-answer exports
 
-**Status:** Chart/template integration complete for bounded local/test and private
-demo scope at `7b46db2`; the hosted retail explanation failure remains open.
+**Status:** Complete for the bounded local/test and private-demo slice.
+Application **`919dd0a`** is deployed on unchanged **0018**, with final browser
+and checked post-release backup evidence. The [bounded contract](docs/domain-agent-tools.md),
+[PDF contract](docs/pdf-export.md) and
+[verification ledger](docs/verification-domain-agent-tools.md) define the delivered
+scope and retained failures.
+
+Registered structural diagrams preserve exact confirmed roles in version 2 while
+reopening version 1 unchanged. Unknown fields and row conditions clarify; value
+charts use governed queries. Protected PDF downloads export completed saved
+calculations, tables and source-backed explanations with original evidence and
+private audit. Optional upfront preferences save explicitly, and upload context
+saves before the first reading. This does not add causal maps, inferred joins,
+arbitrary skill execution, a new provider or silent learning from conversations.
+
+The full baseline passes 1,448 backend/architecture tests and 59 offline browser
+journeys with three model-dependent skips. Final diagram/report and reading/memory
+fixes pass 104 and 84 focused cases; 37 final correction rechecks overlap. All 54
+frontend cases, static checks, builds and restricted image checks pass. Live API
+evidence covers thirteen exact v2 fields, full v1 reopening, three protected PDFs,
+twenty private denials and a fresh hosted chart matching three exact rows. A
+separate hosted retail reading succeeds in twenty seconds with two suggestions,
+exact total/replay and six private denials. Earlier failures remain recorded;
+these are functional checks, not representative model-quality acceptance.
+
+Chart compatibility passes three journeys and 36 layouts in 45.884 seconds with
+zero errors/retries after a retained earlier GET `ECONNRESET`, with no observed
+application restart or OOM. Source records, meanings, private memory, all 48
+activation fingerprints and configuration remain unchanged. Checked pre-release
+backup: `20261016T095238Z`; checkpoint: `pre-integration-919dd0a-20261016`.
+The final domain browser passes five journeys / 21 layouts in 61.707 seconds,
+with two explicit PDFs, no automatic downloads or page errors, and unchanged
+source/memory. It also verifies removal of a no-op clarification load action.
+The backend is unchanged from 5372e95; hosted checks were not repeated for this
+UI-only patch. Checked post-release backup `20261016T095854Z` verifies database
+and object archive checksums and restarts services normally.
+
+ID 13 moves from Not yet to Partial: **37 Done / 17 Partial / 10 Not yet**, with all
+64 original IDs preserved. Phase 4D stays In progress for remaining dashboard and
+analysis reports, Excel, PNG and CSV. All eight production gates remain blocked.
+
+## October 16 — Actual repository reuse and domain-agent follow-up (earlier checkpoint)
+
+**Historical status:** Chart/template integration complete for bounded local/test
+and private-demo scope at `7b46db2`; the hosted retail explanation failure was
+still open at this checkpoint.
 Actual Lieflat G10 and documd options use bundled ECharts and preserve all returned
 rows, exact inspection and existing authorization. Curated EDA/SQL recipes improve
 reading context. The [verification ledger](docs/verification-repository-integration.md)
@@ -30,10 +74,11 @@ records 1,351 backend/49 frontend cases, 56 distinct passing offline journeys ac
 runs with three model skips, 36 live layouts, preserved data/config and backups.
 The failed reading is retained separately from successful charts and exact queries.
 
-The user additionally authorizes a [domain-agent tools slice](docs/domain-agent-tools.md):
+The user additionally authorized a [domain-agent tools slice](docs/domain-agent-tools.md):
 structural diagrams, explicit tool selection, saved-answer PDF export and optional
-private preference choices. **Status: In progress.** No broader export format,
-advanced method or production gate is declared complete from this instruction.
+private preference choices. Its current delivery and remaining acceptance are
+recorded above. No broader export format, advanced method or production gate is
+declared complete from that instruction.
 
 ## October 16 — Prepare data follow-up
 
@@ -801,8 +846,12 @@ See [contracts](docs/phase4-forecasting.md) and [verification](docs/verification
 
 ### 4D — Exports and user-visible evidence
 
-**Status:** Planned for exports. Searchable user-visible audit history was pulled
-forward into the October 6 priority slice; export-specific events follow exports.
+**Status:** In progress. October 16 adds a bounded protected PDF tool for saved
+private calculations, tables and source-backed explanations, plus private export
+audit events. See [PDF scope](docs/pdf-export.md) and
+[verification](docs/verification-domain-agent-tools.md) for release evidence.
+Dashboard/analysis reports, Excel, PNG and CSV remain unfinished. Searchable
+user-visible audit history was delivered in the October 6 priority slice.
 See [audit visibility and API contracts](docs/audit-history.md).
 
 - PDF dashboard and report export, Excel result export, PNG chart export, and CSV result export.

@@ -3,15 +3,12 @@
 
 # Domain agent tools
 
-Status: initial application `0d385b6` is deployed on unchanged schema 0018.
-Live verification found an incorrect identifier role in its map. The tested v2
-role repair is pending deployment; live acceptance remains incomplete. A fresh
-hosted reading also fell back after validation, so broader interpretation quality
-is not claimed as resolved.
-The October 16 user example asks for a diagram of how data converges and receives
-a generic profile instead. The user authorizes better tool selection, remembered
-preferences, simple upfront choices and PDF generation inside ExecPlus's domain.
-This extends repository/chart integration `7b46db2` on schema 0018.
+Status: application `919dd0a` is deployed on unchanged schema 0018. Live tool,
+PDF, named-chart and hosted-reading checks pass; the final responsive browser
+and backup evidence is recorded in the [verification ledger](verification-domain-agent-tools.md).
+The October 16 user example asked for a diagram of how data converges and received
+a generic profile. This slice adds tool selection, remembered preferences,
+simple upfront choices and PDF generation inside ExecPlus's existing boundaries.
 
 ## Requested behavior
 

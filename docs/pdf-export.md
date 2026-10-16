@@ -147,6 +147,9 @@ expectations were corrected to the existing `audit-history`, private 404 and
 `lineage_mismatch` contracts. Generated fictional PDF pages were rendered through
 Poppler and inspected visually; generated exports are not committed.
 
-This document records the implementation/local evidence. Deployment and the
-combined browser/live verification belong to the release ledger; they are not
-implied by a passing renderer test. Broader export and production gates remain open.
+Application `919dd0a` is deployed on unchanged schema 0018. Three real protected
+downloads pass exact-value, saved qualitative text, receipt and private-access
+checks. The first page of a deployed numeric PDF is rendered and visually
+inspected. The [combined release ledger](verification-domain-agent-tools.md)
+records browser checks, preserved data, earlier failures and backups. Broader
+export formats and production gates remain open.

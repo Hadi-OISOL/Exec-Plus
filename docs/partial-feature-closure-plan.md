@@ -4,8 +4,8 @@
 # Partial-feature closure plan — October 16
 
 The maintained feature ledger has 37 Done, 17 Partial and 10 Not yet items. The
-original 64 ordered IDs remain unchanged. ID 13 is now Partial for locally tested,
-protected saved-answer PDF export; live acceptance is still pending under E26.
+original 64 ordered IDs remain unchanged. ID 13 is now Partial for protected
+saved-answer PDF export, verified locally and on the private demo under E26.
 This is a bounded implementation score, not production readiness or a claim that
 all exports work. Existing onboarding improvements retain IDs 18 and 47's scores. Prior research and acceptance requirements are
 in [advanced analytics](advanced-analytics-research-plan.md), [ROADMAP](../ROADMAP.md)
@@ -14,7 +14,7 @@ and [production evidence](production-readiness.json).
 | IDs | What remains | Dependency and acceptance |
 | --- | --- | --- |
 | 1, 40, 47 | Customer signup, production login and secure onboarding | Select identity provider, obtain domain/HTTPS, implement verified account/workspace creation and test authentication, session lifecycle and tenant isolation. Existing operator tokens remain private-demo only. |
-| 13 | Complete PDF/Excel export scope | Locally tested protected PDF downloads cover completed saved calculations, exact returned tables and source-backed explanations with receipts, source/definition context and private access checks. Finish gated live acceptance first. Excel, chart images, full dashboard/report exports and pattern/forecast/scenario/diagram reports remain open; each needs exact-value, evidence, pagination/layout and authorization tests. This does not clear the separate email/report-delivery production gate. |
+| 13 | Complete PDF/Excel export scope | Verified protected PDF downloads cover completed saved calculations, exact returned tables and source-backed explanations with receipts, source/definition context and private access checks. Excel, chart images, full dashboard/report exports and pattern/forecast/scenario/diagram reports remain open; each needs exact-value, evidence, pagination/layout and authorization tests. This does not clear the separate email/report-delivery production gate. |
 | 14, 45 | Commercial metering, priced model costs and spend controls | Define paid plans and approved provider pricing/caps; enforce concurrent reservations, reconciliation and idempotent usage before billing claims. |
 | 24 | Real scheduled email delivery | Approved SMTP service/from address; test failure/retry, authorization, opt-out and duplicate handling. Disabled delivery is not evidence of live email. |
 | 33 | Root-cause analysis beyond observed differences | Pooled/within-group comparisons now supplement descriptive drivers. Causal claims still need explicit assumptions and representative validation for each new module. |
@@ -34,7 +34,7 @@ internal analytics depth and fixed-case/workload evidence. The
 [verification ledger](verification-internal-analytics-depth.md) retains limits.
 Representative evaluation, sustained performance and external dependencies remain
 open. The later [domain-agent tool slice](domain-agent-tools.md) adds the bounded
-PDF implementation under [E26's pending live verification](verification-domain-agent-tools.md);
+PDF implementation under [E26's release verification](verification-domain-agent-tools.md);
 no existing Partial item becomes Done. All eight production gates remain unchanged.
 
 Dependency order: improve the existing onboarding experience; extend tested internal analytics under

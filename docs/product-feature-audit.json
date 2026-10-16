@@ -161,7 +161,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Registered data/document tools retain evidence. Locally tested diagram and PDF routing adds bounded actions; live acceptance is pending. Maps show field membership, not causes. Private memory tailors explanations, never numerical filters.",
+      "note": "Registered data/document tools retain evidence. Deployed field-diagram and PDF routing add bounded actions; named charts keep governed queries. Maps show membership, not causes. Private memory tailors explanations, never numerical filters.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -255,7 +255,7 @@
       "section": "Month 1",
       "feature": "PDF/Excel export",
       "status": "partial",
-      "note": "Protected PDFs for saved calculations, tables and source-backed explanations are locally tested; live acceptance is pending. Exact values and evidence stay attached. Excel, chart images and full dashboard reports remain unfinished.",
+      "note": "Protected PDFs for saved calculations, tables and source-backed explanations pass local and live checks. Exact values and evidence stay attached. Excel, chart images and full dashboard reports remain unfinished.",
       "evidence": [
         "ROADMAP.md",
         "README.md",
@@ -339,7 +339,7 @@
       "section": "Improve activation",
       "feature": "Guided data-upload wizard",
       "status": "done",
-      "note": "One-question upload review preserves meanings and missing-field drafts. New optional private preferences save before the first reading; a failed save retains the upload. Skip/back behavior is locally tested; live acceptance is pending.",
+      "note": "One-question upload review preserves meanings and missing-field drafts. Optional private preferences save before the first reading; a failed save retains the upload. Save, skip, back and delay/failure behavior pass local browser checks; the implementation is deployed.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/web/e2e/workspace.spec.ts",
@@ -500,7 +500,7 @@
       "section": "Improve activation",
       "feature": "In-app onboarding",
       "status": "done",
-      "note": "Focused Home, chat and review guide the demo. New optional step-by-step personal setup is locally tested, with live acceptance pending. Explicit memory remains editable and forgettable; conversations do not automatically train it.",
+      "note": "Focused Home, chat and review guide the demo. Optional personal setup asks three simple choices with explicit save, skip and back. Private memory remains editable and forgettable; conversations do not automatically train it.",
       "evidence": [
         "apps/api/src/execplus/application/services/activation.py",
         "apps/web/src/app/workspace/activation-panel.tsx",
@@ -717,7 +717,7 @@
       "section": "Growth-plan features",
       "feature": "Audit history",
       "status": "done",
-      "note": "Searchable audit history filters authorized actions. New PDF generation records actor-private export events, hidden from other users and managers. These checks pass locally; live PDF acceptance is pending.",
+      "note": "Searchable audit history filters authorized actions. PDF generation records actor-private export events, hidden from other users and managers. Local private-audit tests and live protected-PDF checks pass.",
       "evidence": [
         "docs/verification-phase4c.md",
         "docs/audit-history.md",
@@ -757,7 +757,7 @@
       "section": "Commercial readiness",
       "feature": "Customer-data isolation",
       "status": "done",
-      "note": "Workspace/source and creator-private isolation remain. New diagram replay and PDF downloads recheck ownership and evidence; source/access changes during rendering refuse delivery. Local privacy tests pass; live tool acceptance is pending.",
+      "note": "Workspace/source and creator-private isolation remain. Diagram replay and PDF downloads recheck ownership and evidence; source/access changes during rendering refuse delivery. Local races and live tool-access denials pass.",
       "evidence": [
         "apps/api/tests/test_workspace_integration.py",
         "apps/api/tests/test_phase3_integration.py",
@@ -879,7 +879,7 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "partial",
-      "note": "Reading preserves meanings and recovers once from invalid AI output. New optional private setup saves before the first reading, with local tests and live acceptance pending. Shared definitions still need confirmation; production signup and paid onboarding remain absent.",
+      "note": "Reading preserves meanings and recovers once from invalid AI output. Optional private setup and pre-reading context saves are deployed. A fresh hosted retail reading passes after targeted correction guidance; broad model-quality acceptance, production signup and paid onboarding remain open.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
@@ -1417,7 +1417,7 @@
       ]
     ],
     "E26": [
-      "Bounded domain tools, private setup and saved-answer PDF; live acceptance pending",
+      "Verified bounded domain tools, private setup and saved-answer PDF",
       [
         "docs/domain-agent-tools.md",
         "docs/verification-domain-agent-tools.md",
@@ -1539,8 +1539,8 @@
   ],
   "narrative": {
     "p01": "A working private analytics demo exists. The owner confirms noncommercial use; historical commercial checklist entries remain for traceability, with broader integrations and production acceptance still unfinished.",
-    "p02": "Governed files, dashboards/chat, measured relationships, saved work, basic forecasts, refresh/alerts, audit, support/usage, unusual-value checks, budget decisions and explicit what-if comparisons.",
-    "p03": "Customer self-signup and production login; PDF/Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
+    "p02": "Governed files, dashboards/chat, measured relationships, saved work, basic forecasts, refresh/alerts, audit, support/usage, unusual-value checks, budget decisions and explicit what-if comparisons. The bounded domain-agent extension adds saved-role field diagrams, optional private setup and protected saved-answer PDFs.",
+    "p03": "Customer self-signup and production login; full dashboard/analysis reports and Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
     "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
     "p06": "“Company registration” means software account signup, not legal incorporation.",
@@ -1551,18 +1551,18 @@
     "p11": "Do not assume every vendor catalog tile is live: Polymer labels some connectors “Coming Soon”. The VC requested accounting and advanced-analysis features are not automatically capabilities of both target products. [P1]",
     "p12": "Most unfinished items are already planned or deliberately deferred. “Not yet” does not mean they were forgotten; it means no complete feature is available today.",
     "p13": "Replace operator-issued demo tokens with proper customer signup and production login, then complete the security and privacy review.",
-    "p14": "Basic forecasts and accuracy checks are delivered. Next, export verified results as PDF/Excel and preserve the evidence behind each output.",
+    "p14": "Basic forecasts and accuracy checks are delivered. A protected PDF tool now exports supported saved answers with exact tables and source evidence. Dashboard/analysis report layouts and Excel/CSV/PNG formats remain.",
     "p15": "Start with read-only Google Sheets and an approved PostgreSQL source. Add accounting systems and BigQuery only after safe connection/refresh behavior is verified.",
     "p16": "Internal administration, support and usage reporting are delivered for the private demo. Payments, plans, upgrades, plan-specific limits and real email delivery remain unfinished.",
     "p17": "Representative evaluations, identity/security, recovery and provider privacy must pass. Private-demo evidence does not clear production launch gates.",
     "p18": "Advanced analytics and external embedding remain gated. Exports, connectors and commercial readiness are unfinished; public deployment still needs reviewed production evidence.",
-    "p19": "PDF/Excel exports were placed in Phase 4D, while production account access, payments and paid-plan operation were placed in Phase 5. They remain unfinished against the VC’s Month 1 checklist even though earlier project phases are marked complete.",
+    "p19": "The combined PDF/Excel request is now Partly done: supported private saved answers export to PDF, with exact values and evidence. Full reports and Excel remain unfinished in Phase 4D. Production account access, payments and paid-plan operation remain Phase 5 work against the original Month 1 checklist.",
     "p20": "Representative customer examples and labels; retrieval/citation quality; a tested production search provider; backup/restore proof; model quality/speed/cost comparison; hosted-provider privacy; real email delivery; and production identity/security. A successful demo does not close these checks. [E7]",
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "October 16 application 7b46db2 runs on schema 0018 with actual attributed Lieflat/documd charts, bundled ECharts and curated EDA/SQL reading recipes. All returned rows are accessible. New diagram/PDF/domain-agent setup work is authorized and in progress, not deployed. Personal phase2 includes phase3 data-reading commit 2a93080.",
-    "p25": "1,351 backend and 49 frontend cases pass; 56 distinct offline browser journeys pass across full/focused runs with three model-dependent skips. Static checks, builds and restricted images pass. Live charts pass three journeys and 36 layouts with exact replay and source preservation. The first fresh hosted retail reading still falls back with invalid_response; six privacy denials and exact total/replay pass. All 48 activation fingerprints and configuration match, backups are checked, and all eight production gates remain blocked. [E25]",
+    "p24": "October 16 application 919dd0a runs on unchanged schema 0018 with saved-role diagrams, registered tool selection, protected saved-answer PDFs and optional private setup. Existing attributed Lieflat/documd charts and EDA/SQL recipes remain. Personal phase2 includes phase3 data-reading commit 2a93080.",
+    "p25": "The full backend run passes 1,448 tests; final focused diagram/reading groups pass 104/84 cases, with overlapping rechecks reported separately. All 54 frontend cases, 59 offline browser journeys and static/build/restricted-image checks pass; three model-dependent browser cases remain skipped. Live diagrams, immutable old replay, three PDF downloads, twenty private denials and a fresh named chart pass. A separate hosted retail reading, exact total/replay and six denials pass. Chart compatibility passes three journeys/36 layouts after a retained connection reset. All 48 activation fingerprints/config match; all eight production gates remain blocked. The final UI passes five live journeys/21 layouts with two explicit PDFs and unchanged data/preferences. Backup details and retained failures are in the release ledger. [E26]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

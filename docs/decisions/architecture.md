@@ -3,7 +3,7 @@
 
 # ExecPlus Architecture
 
-## October 16 domain-agent tools (implementation under verification)
+## October 16 domain-agent tools
 
 The conversation planner receives a frozen capability catalog for configured,
 implemented services. An explicit structural request routes to

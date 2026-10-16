@@ -40,7 +40,54 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
-### October 16 — Actual chart-template reuse and ongoing domain-agent work
+### October 16 — Domain tools, protected PDFs and saved-role repair
+
+- Application **`919dd0a`** is deployed on unchanged **0018**. The bounded release
+  is complete for local/test and the private demo, with final browser and checked
+  post-release backup evidence. Read `docs/domain-agent-tools.md`,
+  `docs/pdf-export.md` and `docs/verification-domain-agent-tools.md` before extending.
+  The earlier checkpoints below are historical and do not override this entry.
+- Structural requests now run a registered diagram tool. Version 2 preserves
+  confirmed identifier, ordinal, ignored and ordinary field roles; version 1
+  answers reopen unchanged with an earlier-role notice. Unknown fields and row
+  restrictions clarify. Numerical chart requests retain governed calculations.
+  Maps show file membership, not causes or inferred joins. Optional upfront
+  preferences use explicit private memory saves; upload context saves before reading.
+- Protected PDF downloads work for completed saved calculations, tables and
+  source-backed explanations, including an explicit chat request. Reopening a
+  report never downloads it automatically. Export rechecks ownership and source
+  evidence, records private audit activity and uses bounded serialized rendering.
+  Excel, chart/diagram images, broader analysis reports and whole-conversation
+  exports remain unfinished. No arbitrary skill executor or provider change was added.
+- Evidence: the full baseline passes 1,448 backend/architecture tests and 59 offline
+  browser journeys with three explicit model-dependent skips. Final fixes pass
+  104 diagram/report/conversation cases and 84 reading/private-memory cases; the
+  37 final correction rechecks overlap those tests. All 54 frontend tests, static
+  checks, local/VPS builds and restricted image computations pass. Do not add
+  overlapping focused counts to the full baseline as distinct tests.
+- The live API verifies all thirteen v2 fields, complete immutable v1 reopening,
+  three protected PDFs, twenty private denials and a first-request hosted named
+  chart with all three exact rows. A separate hosted retail reading now succeeds
+  in twenty seconds with two valid suggestions; exact total/replay, six private
+  denials and old evidence pass. This is observed functional success, not a model
+  quality guarantee. The earlier role defect and rejected readings remain recorded.
+- Chart compatibility passes three journeys and 36 layouts in 45.884 seconds with
+  zero errors or retries. Its earlier saved-answer GET `ECONNRESET` is retained;
+  no application restart or OOM was observed. The final domain browser passes five journeys /
+  21 layouts in 61.707 seconds, including no-op clarification-button removal and
+  two explicit PDFs, with zero page errors or automatic downloads. Its backend
+  source is unchanged from the successful 5372e95 hosted checks. Sources, private
+  memory, all 48 activation fingerprints and
+  configuration are preserved; existing real user definitions were not rewritten.
+- Checkpoint: `pre-integration-919dd0a-20261016`. Checked pre-release backup:
+  `20261016T095238Z`; checked post-release backup: `20261016T095854Z`.
+  Both database/object archive checksums pass and services restart normally. Preserve all newly
+  saved work on rollback. ID 13 is now Partial for bounded PDF delivery: counts
+  are **37 Done / 17 Partial / 10 Not yet**, preserving all 64 original IDs.
+  All eight production gates remain blocked. Broader export/connectors, advanced
+  methods and representative acceptance remain open.
+
+### October 16 — Actual chart-template reuse and ongoing domain-agent work (earlier checkpoint)
 
 - API/jobs/web `7b46db2` is deployed on unchanged **0018**. The owner explicitly
   confirmed noncommercial use. Actual attributed Lieflat G10 bars and separate
