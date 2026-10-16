@@ -9,14 +9,18 @@ import asyncio
 import hashlib
 import json
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
 from io import BytesIO
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
 from sqlalchemy import Engine, select, text
 from sqlalchemy.engine import make_url
 
+from execplus.application.ports import WorkspaceRepository
+from execplus.application.services.analytics import UnitOfWork
 from execplus.application.services.dataset_access import authorize_sources
 from execplus.bootstrap import Runtime, build_runtime
 from execplus.config import Settings
@@ -24,6 +28,27 @@ from execplus.domain.ingestion import IngestionError, Upload, User
 from execplus.domain.knowledge import Document, document_text
 from execplus.domain.profiling import Revision, reconstruct
 from execplus.infrastructure.persistence import schema as s
+
+
+def snapshot_reads(uow: UnitOfWork) -> UnitOfWork:
+    """Keep database read-only; an exclusive restored snapshot needs no write locks."""
+
+    class SnapshotRepository:
+        def __init__(self, repo: WorkspaceRepository) -> None:
+            self.repo = repo
+
+        def workspace(self, workspace_id: UUID, lock: bool = False) -> Any:
+            return self.repo.workspace(workspace_id, lock=False)
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self.repo, name)
+
+    @contextmanager
+    def transaction() -> Iterator[WorkspaceRepository]:
+        with uow() as repo:
+            yield cast(WorkspaceRepository, SnapshotRepository(repo))
+
+    return transaction
 
 
 def isolated_settings(settings: Settings, name: str) -> Settings:
@@ -193,7 +218,12 @@ async def verify_receipts(runtime: Runtime, limit: int) -> dict[str, Any]:
 
 
 async def verify(settings: Settings, expected_migration: str, limit: int) -> dict[str, Any]:
+    if not re.fullmatch(
+        r"execplus_restore_[a-f0-9]{12}", make_url(settings.database_url).database or ""
+    ):
+        raise ValueError("Snapshot replay requires an isolated restored database.")
     runtime = build_runtime(settings)
+    runtime.analytics.uow = snapshot_reads(runtime.analytics.uow)
     try:
         with runtime.engine.connect() as connection:
             version = connection.execute(

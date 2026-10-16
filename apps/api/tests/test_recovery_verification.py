@@ -14,11 +14,12 @@ import tarfile
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import create_engine, select, text, update
 
 from execplus.config import Settings
 from execplus.domain.ingestion import IngestionError
 from execplus.infrastructure.persistence import schema as s
+from execplus.infrastructure.persistence.repository import SQLUnitOfWork
 from test_conversational_explorer import ScriptedModel
 from test_dataset_guidance import ask, setup
 
@@ -109,6 +110,31 @@ def test_recovery_still_fails_corrupted_authorized_receipt(integration):
     with pytest.raises(IngestionError) as failure:
         asyncio.run(recovery.verify_receipts(env.runtime, 20))
     assert failure.value.code == "lineage_mismatch"
+
+
+def test_snapshot_replay_works_with_real_read_only_postgres(integration):
+    from test_dataset_access import fixture, query
+
+    env = integration
+    _, _, member, _, _, _, _, root, _, _ = fixture(env)
+    assert query(env, member, root).status_code == 200
+    with env.engine.connect() as connection:
+        schema = connection.execute(text("SELECT current_schema()")).scalar_one()
+    readonly = create_engine(
+        env.engine.url,
+        connect_args={"options": f"-csearch_path={schema} -cdefault_transaction_read_only=on"},
+    )
+    original = env.runtime.analytics.uow
+    before = recovery.fingerprints(env.engine)
+    try:
+        with readonly.connect() as connection:
+            assert connection.execute(text("SHOW transaction_read_only")).scalar_one() == "on"
+        env.runtime.analytics.uow = recovery.snapshot_reads(SQLUnitOfWork(readonly))
+        assert asyncio.run(recovery.verify_receipts(env.runtime, 20))["replayed"] == 1
+        assert recovery.fingerprints(env.engine) == before
+    finally:
+        env.runtime.analytics.uow = original
+        readonly.dispose()
 
 
 @pytest.mark.parametrize("corruption", ["source", "revision"])
