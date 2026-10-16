@@ -11,6 +11,7 @@ from uuid import UUID
 from execplus.application.ports import PatternStatistics
 from execplus.application.progress import activity
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
+from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.forecasts import read_complete
 from execplus.domain.decision_analysis import checksum
 from execplus.domain.errors import ClarificationRequiredError
@@ -38,7 +39,7 @@ class PatternService:
 
     def _current(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> None:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
+            dataset_access(repo, actor, wid, did)
             repo.upload(wid, did, uid)
             if any(
                 str(feed.source["upload_id"]) != str(uid) for feed in repo.refresh_feeds(wid, did)
@@ -117,6 +118,9 @@ class PatternService:
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
         )
         self._current(actor, wid, did, uid)
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            authorize_sources(repo, actor, wid, view.sources, did)
         return dict(
             version=GROUP_EVIDENCE_VERSION if grouped else EVIDENCE_VERSION,
             query_id=str(plan.query_id),
@@ -150,6 +154,8 @@ class PatternService:
                 raise invalid
             source = sources[0]
             did, uid = UUID(source["dataset_id"]), UUID(source["upload_id"])
+            with self.uow() as repo:
+                authorize_sources(repo, actor, wid, sources, did)
             context = await read_complete(
                 lambda: self.analytics.describe(actor, wid, did, uid, source)
             )
@@ -196,7 +202,8 @@ class PatternService:
             if result != evidence["result"] or checksum(result) != evidence["result_checksum"]:
                 raise invalid
             with self.uow() as repo:
-                repo.membership(wid, actor.id)
+                repo.workspace(wid, lock=True)
+                authorize_sources(repo, actor, wid, sources, did)
                 repo.upload(wid, did, uid)
             return evidence
         except (KeyError, TypeError, ValueError, IndexError):

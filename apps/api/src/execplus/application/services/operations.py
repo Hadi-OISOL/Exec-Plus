@@ -11,6 +11,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from execplus.application.ports import WorkspaceRepository
+from execplus.application.services.dataset_access import require_workspace_access
 from execplus.application.services.workspaces import UnitOfWork, normalized_email
 from execplus.domain.audit import audit_cursor, parse_audit_cursor
 from execplus.domain.errors import AuthorizationError
@@ -140,7 +141,22 @@ class OperationsService:
         before, q = page_input(limit, cursor, q)
         with self.staff_scope(actor, "admin.workspaces_listed", admin=True) as repo:
             values = repo.admin_workspaces(before=before, q=q, limit=limit + 1)
-            selected = values[:limit]
+            selected = []
+            for identifier in sorted((value["id"] for value in values[:limit]), key=str):
+                repo.workspace(identifier, lock=True)
+            for value in values[:limit]:
+                try:
+                    require_workspace_access(repo, actor, value["id"])
+                except IngestionError as error:
+                    if error.status not in {403, 404}:
+                        raise
+                    value = {
+                        **value,
+                        "uploads": None,
+                        "storage_bytes": None,
+                        "access_limited": True,
+                    }
+                selected.append(value)
             return {
                 "workspaces": [
                     {**value, "plan": {"id": "private_demo", "billing": "unconfigured"}}
@@ -156,6 +172,8 @@ class OperationsService:
         with self.staff_scope(
             actor, "admin.workspace_opened", workspace_id=wid, admin=True
         ) as repo:
+            repo.workspace(wid, lock=True)
+            require_workspace_access(repo, actor, wid)
             return {
                 **repo.admin_workspace(wid),
                 "plan": {"id": "private_demo", "billing": "unconfigured"},

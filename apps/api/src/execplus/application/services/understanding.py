@@ -12,11 +12,16 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from execplus.application.ports import FileParser, ObjectStorage, WorkspaceRepository
+from execplus.application.services.dataset_access import (
+    dataset_access,
+    require_full_access,
+    scope_snapshot,
+)
 from execplus.domain.agent_memory import AgentMemory, validate_memory
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.profiling import Revision, TableData, reconstruct
-from execplus.domain.semantics import DatasetView
+from execplus.domain.semantics import DatasetView, dataset_view
 from execplus.domain.understanding import (
     DOMAINS,
     DataPreference,
@@ -74,9 +79,11 @@ class UnderstandingService:
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> dict[str, Any]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             member = repo.membership(workspace_id, actor.id)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
-            revision, _ = self._snapshot(repo, workspace_id, dataset_id, upload_id)
+            revision, table = self._snapshot(repo, workspace_id, dataset_id, upload_id)
             saved = repo.latest_understanding(workspace_id, dataset_id)
             preference = repo.data_preference(workspace_id, dataset_id, actor.id)
             proposal = infer_definition(
@@ -93,6 +100,34 @@ class UnderstandingService:
                         old_columns.get(item["name"], item) for item in proposal["columns"]
                     ],
                 }
+            if access.restricted:
+                _, _, visible_profile, visible_definition = scope_snapshot(
+                    table, dataset_view(revision.profile), revision.profile, definition, access
+                )
+                revision = replace(revision, profile=visible_profile)
+                definition = visible_definition or infer_definition(visible_profile)
+                proposal = infer_definition(visible_profile)
+            paths = []
+            for path in repo.join_paths(workspace_id):
+                if dataset_id not in {path.left_dataset_id, path.right_dataset_id}:
+                    continue
+                try:
+                    require_full_access(repo, actor, workspace_id, path.left_dataset_id)
+                    require_full_access(repo, actor, workspace_id, path.right_dataset_id)
+                except IngestionError as error:
+                    if error.status not in {403, 404}:
+                        raise
+                    continue
+                paths.append(path)
+            allowed_paths = {str(path.id) for path in paths}
+            definition = {
+                **definition,
+                "relationships": [
+                    item
+                    for item in definition.get("relationships", [])
+                    if item["join_path_id"] in allowed_paths
+                ],
+            }
             return dict(
                 revision_id=str(revision.id),
                 column_types={
@@ -113,13 +148,14 @@ class UnderstandingService:
                         left_name=repo.dataset(workspace_id, path.left_dataset_id).name,
                         right_name=repo.dataset(workspace_id, path.right_dataset_id).name,
                     )
-                    for path in repo.join_paths(workspace_id)
+                    for path in (() if access.restricted else paths)
                     if dataset_id in {path.left_dataset_id, path.right_dataset_id}
                 ],
                 questions=questions(definition, revision.profile),
-                can_edit=member.role in {"owner", "admin"} or dataset.created_by == actor.id,
+                can_edit=not access.restricted
+                and (member.role in {"owner", "admin"} or dataset.created_by == actor.id),
                 preference=asdict(preference)
-                if preference
+                if preference and not access.restricted
                 else {"domain_hint": "auto", "goal": ""},
                 history=[
                     dict(
@@ -130,7 +166,11 @@ class UnderstandingService:
                         created_by=str(item.created_by),
                         created_at=item.created_at.isoformat(),
                     )
-                    for item in repo.understanding_history(workspace_id, dataset_id)
+                    for item in (
+                        ()
+                        if access.restricted
+                        else repo.understanding_history(workspace_id, dataset_id)
+                    )
                 ],
             )
 
@@ -148,6 +188,7 @@ class UnderstandingService:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             member = repo.membership(workspace_id, actor.id)
+            require_full_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
             if member.role not in {"owner", "admin"} and dataset.created_by != actor.id:
                 raise IngestionError(
@@ -166,6 +207,8 @@ class UnderstandingService:
             validated = validate_definition(definition, table, revision.profile, state)
             for relationship in validated["relationships"]:
                 path = repo.join_path(workspace_id, UUID(relationship["join_path_id"]))
+                require_full_access(repo, actor, workspace_id, path.left_dataset_id)
+                require_full_access(repo, actor, workspace_id, path.right_dataset_id)
                 if dataset_id not in {path.left_dataset_id, path.right_dataset_id}:
                     raise IngestionError(
                         "not_found", "Relationship not found for this dataset.", 404
@@ -227,7 +270,9 @@ class UnderstandingService:
         self, actor: User, workspace_id: UUID, dataset_id: UUID, understanding_id: UUID
     ) -> Understanding:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             repo.membership(workspace_id, actor.id)
+            require_full_access(repo, actor, workspace_id, dataset_id)
             repo.dataset(workspace_id, dataset_id)
             return repo.understanding(workspace_id, dataset_id, understanding_id)
 
@@ -241,7 +286,9 @@ class UnderstandingService:
                 422,
             )
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             repo.membership(workspace_id, actor.id)
+            dataset_access(repo, actor, workspace_id, dataset_id)
             repo.dataset(workspace_id, dataset_id)
             preference = DataPreference(
                 workspace_id, dataset_id, actor.id, domain_hint, goal.strip()

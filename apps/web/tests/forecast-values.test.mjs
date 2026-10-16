@@ -16,9 +16,19 @@ const javascript = ts.transpileModule(source, {
     target: ts.ScriptTarget.ES2022,
   },
 }).outputText;
-const { forecastRows } = await import(
+const { forecastRows, advancedMinimumHistory } = await import(
   `data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`
 );
+
+test("advanced history requirements include separate rolling and final test windows", () => {
+  assert.equal(advancedMinimumHistory("daily", 3, "auto"), 30);
+  assert.equal(advancedMinimumHistory("daily", 30, "holt"), 134);
+  assert.equal(advancedMinimumHistory("monthly", 3, "auto"), 18);
+  assert.equal(advancedMinimumHistory("monthly", 3, "holt_winters_additive"), 36);
+  assert.equal(advancedMinimumHistory("monthly", 12, "holt_winters_additive"), 72);
+  assert.equal(advancedMinimumHistory("daily", 0, "auto"), null);
+  assert.equal(advancedMinimumHistory("daily", NaN, "auto"), null);
+});
 const predictions = [
   {
     period: "2027-01-01",

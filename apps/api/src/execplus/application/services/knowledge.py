@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 from execplus.application.contracts import KnowledgeChunk
 from execplus.application.ports import DocumentStorage, PassageRanker, WorkspaceRepository
 from execplus.application.services.analytics import UnitOfWork
+from execplus.application.services.dataset_access import dataset_access, require_full_access
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.knowledge import Document, chunks, document_text
 
@@ -26,9 +27,11 @@ class KnowledgeService:
     ) -> Document:
         repo.membership(wid, actor.id)
         document = repo.document(wid, docid)
-        repo.dataset(wid, document.dataset_id)
         if not document.shared and document.owner_id != actor.id:
             raise IngestionError("not_found", "The document is unavailable.", 404)
+        if dataset_access(repo, actor, wid, document.dataset_id).restricted:
+            raise IngestionError("not_found", "The document is unavailable.", 404)
+        repo.dataset(wid, document.dataset_id)
         return document
 
     async def ingest(
@@ -53,6 +56,7 @@ class KnowledgeService:
                 repo.workspace(wid, lock=True)
                 repo.membership(wid, actor.id)
                 repo.dataset(wid, did)
+                require_full_access(repo, actor, wid, did)
                 if len(repo.documents(wid, did, actor.id)) >= 20:
                     raise IngestionError(
                         "document_limit",
@@ -77,8 +81,11 @@ class KnowledgeService:
 
     async def list_documents(self, actor: User, wid: UUID, did: UUID) -> list[dict[str, object]]:
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
             repo.dataset(wid, did)
+            if dataset_access(repo, actor, wid, did).restricted:
+                return []
             return [asdict(document) for document in repo.documents(wid, did, actor.id)]
 
     async def citation(
@@ -115,6 +122,8 @@ class KnowledgeService:
         with self.uow() as repo:
             repo.membership(wid, actor.id)
             repo.upload(wid, did, uid)
+            if dataset_access(repo, actor, wid, did).restricted:
+                return []
             documents = sorted(
                 (item for item in repo.documents(wid, did, actor.id) if item.name == name),
                 key=lambda item: item.created_at,
@@ -141,6 +150,7 @@ class KnowledgeService:
             repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
             repo.dataset(wid, did)
+            access_reference = require_full_access(repo, actor, wid, did).reference()
             documents = repo.documents(wid, did, actor.id)
             if len(documents) > 20:
                 raise IngestionError(
@@ -192,6 +202,10 @@ class KnowledgeService:
                     score=hit.score,
                 )
             )
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            if require_full_access(repo, actor, wid, did).reference() != access_reference:
+                raise IngestionError("not_found", "The requested documents are unavailable.", 404)
         return results
 
     async def delete(self, actor: User, wid: UUID, docid: UUID) -> None:

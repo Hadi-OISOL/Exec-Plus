@@ -1,10 +1,11 @@
-/* Use case: Makes basic forecasts and their limitations inspectable.
+/* Use case: Makes versioned forecasts and their limitations inspectable.
 What it does: Displays server-calculated estimates, holdout errors and comparison evidence without calculating business values in the browser. */
 
 import { useEffect, useId, useRef, useState } from "react";
 import styles from "./forecast.module.css";
 import { displayMetric } from "./visualization-values";
 import { RecordTable } from "./explore-components";
+import { ResultExportActions } from "./result-export-actions";
 import {
   forecastRows,
   type ForecastComparison,
@@ -235,9 +236,11 @@ export function ForecastChart({
 export function ForecastResults({
   run,
   comparison,
+  exportPath,
 }: {
   run: ForecastRun;
   comparison?: ForecastComparison;
+  exportPath?: string;
 }) {
   const result = run.result;
   const rows = forecastRows(result.predictions, comparison);
@@ -265,11 +268,14 @@ export function ForecastResults({
         Created {new Date(run.created_at).toLocaleString()} · Method:{" "}
         {result.method.id.replaceAll("_", " ")}
       </p>
+      {exportPath && <ResultExportActions path={`${exportPath}/export`} charts={["Observed values and forecast estimates"]} label="Download saved forecast" />}
+      {exportPath && comparison && <ResultExportActions path={`${exportPath}/comparisons/${comparison.id}/export`} charts={["Forecast versus later actuals"]} label="Download actual-data comparison" />}
       <p className="forecastUncertainty">
         {result.uncertainty.label}
         {!result.uncertainty.coverage_guaranteed &&
           " This range has no guaranteed coverage probability."}
       </p>
+      {result.version === "forecast-v2" && <p className="chartCaption">Advanced comparison · Three earlier windows choose the method. A separate later window measures its error. The simple baseline can still be the best choice.</p>}
       <ForecastChart
         key={`${run.id}-${comparison?.id ?? "forecast"}`}
         run={run}
@@ -370,6 +376,16 @@ export function ForecastResults({
           . Candidate comparison used validation data; held-out test errors are
           shown separately.
         </p>
+        {result.selection.folds && <>
+          <h3>Rolling validation windows</h3>
+          <RecordTable countLabel="earlier windows" data={{
+            columns: ["Training ends", "Training periods", "Validation starts", "Validation ends", "Validation periods"],
+            rows: result.selection.folds.map(fold => [fold.training.end, fold.training.count, fold.validation.start, fold.validation.end, fold.validation.count]),
+            records_analyzed: result.selection.folds.length,
+          }} />
+          <p>Registry: {result.selection.registry_version}. The parameter search is bounded and can finish without choosing an advanced method.</p>
+          {result.selection.excluded?.map((item, index) => <p key={index}>{item.method}: {item.reason}</p>)}
+        </>}
         <RecordTable
           countLabel="methods evaluated"
           data={{

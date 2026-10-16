@@ -38,7 +38,14 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
     )
     assert job.status_code == 202
     added = {"staff_grants", "staff_audit", "support_tickets", "support_events"}
-    later_added = {"analysis_runs", "analysis_reviews", "agent_memories"}
+    later_added = {
+        "analysis_runs",
+        "analysis_reviews",
+        "agent_memories",
+        "dataset_access_policies",
+        "incidents",
+        "incident_occurrences",
+    }
     original_tables = set(s.metadata.tables) - added - later_added
 
     def snapshot():
@@ -67,6 +74,9 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
     }
     with env.engine.connect() as connection:
         assert connection.execute(select(s.agent_memories)).first() is None
+        assert connection.execute(select(s.dataset_access_policies)).first() is None
+        assert connection.execute(select(s.incidents)).first() is None
+        assert connection.execute(select(s.incident_occurrences)).first() is None
     response = env.client.get(
         f"/workspaces/{wid}/datasets/{did}/forecasts/{forecast.json()['id']}", headers=headers
     )

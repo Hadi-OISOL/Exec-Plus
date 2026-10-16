@@ -12,6 +12,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from execplus.application.ports import WorkspaceRepository
+from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.workspaces import checked_name
 from execplus.domain.errors import AuthorizationError
 from execplus.domain.ingestion import AuditEvent, IngestionError, Membership, User
@@ -26,6 +27,16 @@ class SavedItemService:
 
     def _authorize(self, repo: WorkspaceRepository, actor: User, workspace_id: UUID) -> Membership:
         return repo.membership(workspace_id, actor.id)
+
+    def _accessible(
+        self, repo: WorkspaceRepository, actor: User, wid: UUID, item: SavedItem
+    ) -> None:
+        access = dataset_access(repo, actor, wid, item.dataset_id)
+        if item.payload.get("access_reference", {}) != access.reference():
+            raise IngestionError("not_found", "The saved item is unavailable.", 404)
+        if item.kind == "analysis":
+            execution = repo.query_execution(wid, UUID(str(item.payload["query_id"])))
+            authorize_sources(repo, actor, wid, execution.receipt.get("sources"), item.dataset_id)
 
     async def create(
         self,
@@ -72,7 +83,9 @@ class SavedItemService:
             now,
         )
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
             repo.upload(workspace_id, dataset_id, upload_id)
             if kind == "analysis":
                 try:
@@ -89,6 +102,7 @@ class SavedItemService:
                         404,
                     )
                 sources = execution.receipt.get("sources", [])
+                authorize_sources(repo, actor, workspace_id, sources, dataset_id)
                 if (
                     execution.receipt.get("outcome") != "executed"
                     or execution.dataset_id != dataset_id
@@ -101,6 +115,8 @@ class SavedItemService:
                     raise IngestionError(
                         "not_found", "This analysis does not belong to the upload.", 404
                     )
+            if access.policy is not None:
+                item.payload["access_reference"] = access.reference()
             repo.add(item)
             repo.add(
                 AuditEvent(
@@ -119,23 +135,39 @@ class SavedItemService:
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> tuple[SavedItem, ...]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            dataset_access(repo, actor, workspace_id, dataset_id)
             repo.upload(workspace_id, dataset_id, upload_id)
-            items = repo.saved_items(workspace_id, dataset_id, upload_id)
-        return tuple(item for item in items if item.shared or item.owner_id == actor.id)
+            visible = []
+            for item in repo.saved_items(workspace_id, dataset_id, upload_id):
+                if not item.shared and item.owner_id != actor.id:
+                    continue
+                try:
+                    self._accessible(repo, actor, workspace_id, item)
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                    continue
+                visible.append(item)
+            return tuple(visible)
 
     async def get_item(self, actor: User, workspace_id: UUID, item_id: UUID) -> SavedItem:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
             item = repo.saved_item(workspace_id, item_id)
-        if not item.shared and item.owner_id != actor.id:
-            raise AuthorizationError("This saved item is not shared with you")
-        return item
+            self._accessible(repo, actor, workspace_id, item)
+            if not item.shared and item.owner_id != actor.id:
+                raise AuthorizationError("This saved item is not shared with you")
+            return item
 
     async def delete_item(self, actor: User, workspace_id: UUID, item_id: UUID) -> None:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             member = self._authorize(repo, actor, workspace_id)
             item = repo.saved_item(workspace_id, item_id)
+            self._accessible(repo, actor, workspace_id, item)
             if item.owner_id != actor.id and member.role not in {"owner", "admin"}:
                 raise IngestionError(
                     "forbidden", "Only the owner or a manager can delete this saved item.", 403

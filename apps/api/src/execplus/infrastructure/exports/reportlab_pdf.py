@@ -5,6 +5,7 @@ checks glyph coverage, repeats table headers and refuses oversized output.
 """
 
 import re
+from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
 from threading import Lock
@@ -16,9 +17,18 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
+from reportlab.platypus import (
+    Image,
+    LongTable,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    TableStyle,
+)
 from reportlab.platypus.doctemplate import LayoutError
 
+from execplus.domain.exports import ExportChart
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.pdf_exports import (
     MAX_PDF_BYTES,
@@ -112,6 +122,19 @@ class ReportLabPdfRenderer:
             return Paragraph(literal_text(text), style)
 
         story: list[Any] = [paragraph(document.title, title)]
+        if document.charts:
+            from execplus.infrastructure.exports.chart_png import png_chart
+
+            for chart in (part for original in document.charts for part in chart_pages(original)):
+                encoded = png_chart(
+                    chart,
+                    {"title": document.title, "generated_at": document.generated_at.isoformat()},
+                )
+                figure = Image(BytesIO(encoded))
+                ratio = min(content_width / figure.imageWidth, 600 / figure.imageHeight)
+                figure.drawWidth = figure.imageWidth * ratio
+                figure.drawHeight = figure.imageHeight * ratio
+                story.extend((paragraph(chart.title, heading), figure, PageBreak()))
         for section in document.sections:
             story.append(paragraph(section.title, heading))
             story.extend(paragraph(text) for text in section.paragraphs)
@@ -205,3 +228,52 @@ class ReportLabPdfRenderer:
             )
             flowables.extend((rendered, Spacer(1, 12)))
         return flowables
+
+
+def chart_pages(chart: ExportChart) -> tuple[ExportChart, ...]:
+    if chart.kind == "bar":
+        return tuple(
+            replace(
+                chart,
+                title=(
+                    f"{chart.title} · rows {start + 1}-"
+                    f"{min(start + 12, len(chart.labels))} of {len(chart.labels)}"
+                ),
+                labels=chart.labels[start : start + 12],
+                series=tuple(
+                    replace(series, values=series.values[start : start + 12])
+                    for series in chart.series
+                ),
+            )
+            for start in range(0, len(chart.labels), 12)
+        )
+    if chart.kind == "diagram":
+        fields = [node for node in chart.nodes if node["kind"] == "field"]
+        result = []
+        for start in range(0, len(fields), 10):
+            selected = fields[start : start + 10]
+            ids = {node["id"] for node in selected}
+            groups = {edge["source"] for edge in chart.edges if edge["target"] in ids}
+            nodes = tuple(
+                node
+                for node in chart.nodes
+                if node["kind"] == "dataset" or node["id"] in ids | groups
+            )
+            all_ids = {node["id"] for node in nodes}
+            result.append(
+                replace(
+                    chart,
+                    title=(
+                        f"{chart.title} · fields {start + 1}-"
+                        f"{min(start + 10, len(fields))} of {len(fields)}"
+                    ),
+                    nodes=nodes,
+                    edges=tuple(
+                        edge
+                        for edge in chart.edges
+                        if edge["source"] in all_ids and edge["target"] in all_ids
+                    ),
+                )
+            )
+        return tuple(result)
+    return (chart,)

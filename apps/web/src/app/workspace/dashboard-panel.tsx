@@ -2,6 +2,7 @@
 What it does: Renders deterministic KPI cards, a trend line, and a clickable category
 breakdown that drills down into the underlying rows, each traceable to its lineage. */
 
+import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useRef, useState } from "react";
 import { displayMetric } from "./visualization-values";
 import { AnswerVisualization } from "./answer-visualization";
@@ -462,6 +463,7 @@ function DashboardContent({
       )}
       {dashboard && (
         <>
+          <ResultExportActions path={`${root.split("/datasets/")[0]}/exports/dashboard`} body={{ name: "Current dashboard", query_ids: [...dashboard.cards, ...[dashboard.trend, dashboard.breakdown].filter((value): value is Breakdown => value !== null)].map(value => value.lineage.query_id) }} charts={[dashboard.trend, dashboard.breakdown].filter((value): value is Breakdown => value !== null).map(value => value.lineage.metric)} label="Download this dashboard" />
           {dashboard.cards.length ? (
             <div className={`kpiGrid ${styles.metrics}`} aria-label="Key figures">
               {dashboard.cards.map((card) => (

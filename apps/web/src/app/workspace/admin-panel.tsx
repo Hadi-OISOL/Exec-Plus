@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { ProductUsagePanel } from "./product-usage";
+import { IncidentPanel } from "./incident-panel";
 import { SupportPanel } from "./support-panel";
 import type { StaffRole } from "./support-panel";
 
@@ -162,9 +163,10 @@ export function AdminPanel({
           >
             Support queue
           </button>
+          {role === "admin" && <button type="button" aria-pressed={tab === "incidents"} onClick={() => setTab("incidents")}>Service alerts</button>}
         </div>
       </section>
-      {tab === "support" ? (
+      {tab === "incidents" && role === "admin" ? <IncidentPanel request={request} /> : tab === "support" ? (
         <SupportPanel staff request={request} />
       ) : (
         role === "admin" && (

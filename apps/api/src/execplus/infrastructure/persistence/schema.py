@@ -5,6 +5,7 @@ What it does: Enforces tenant ownership, references, uniqueness, and seat bounds
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
@@ -102,6 +103,21 @@ datasets = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     UniqueConstraint("workspace_id", "id"),
+)
+dataset_access_policies = Table(
+    "dataset_access_policies",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("enabled", Boolean, nullable=False),
+    Column("grants", JSON, nullable=False),
+    Column("created_by", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(["workspace_id", "dataset_id"], ["datasets.workspace_id", "datasets.id"]),
+    UniqueConstraint("workspace_id", "dataset_id", "version"),
+    CheckConstraint("version > 0", name="dataset_access_version"),
 )
 uploads = Table(
     "uploads",
@@ -983,4 +999,60 @@ analysis_reviews = Table(
         "'investigate','data_issue','dismissed')",
         name="analysis_review_status",
     ),
+)
+
+incidents = Table(
+    "incidents",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("code", String(40), nullable=False, unique=True),
+    Column("component", String(20), nullable=False),
+    Column("severity", String(12), nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("version", BigInteger, nullable=False),
+    Column("occurrences", BigInteger, nullable=False),
+    Column("first_seen", DateTime(timezone=True), nullable=False),
+    Column("last_seen", DateTime(timezone=True), nullable=False),
+    Column("acknowledged_at", DateTime(timezone=True), nullable=True),
+    Column("resolved_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("status IN ('open','acknowledged','resolved')", name="incident_status"),
+    CheckConstraint("severity IN ('warning','error')", name="incident_severity"),
+    CheckConstraint("version > 0 AND occurrences > 0", name="incident_counts"),
+    CheckConstraint(
+        "component IN ('api','jobs','refresh','reports','collector')", name="incident_component"
+    ),
+    CheckConstraint(
+        "code IN ('http_failed','job_failed','job_timeout','job_interrupted','job_expired',"
+        "'refresh_failed','report_failed','queue_overflow','collector_recovered','retention_capacity')",
+        name="incident_code",
+    ),
+)
+incident_occurrences = Table(
+    "incident_occurrences",
+    metadata,
+    Column("source_kind", String(16), primary_key=True),
+    Column("source_id", Uuid, primary_key=True),
+    Column("occurred_at", DateTime(timezone=True), primary_key=True),
+    CheckConstraint(
+        "source_kind IN ('http','job','refresh','report','collector')", name="incident_source_kind"
+    ),
+    Index("incident_occurrence_retention", "occurred_at"),
+)
+Index(
+    "incident_failed_jobs",
+    jobs.c.updated_at,
+    jobs.c.id,
+    postgresql_where=jobs.c.status.in_(("failed", "expired")),
+)
+Index(
+    "incident_failed_reports",
+    report_deliveries.c.created_at,
+    report_deliveries.c.id,
+    postgresql_where=report_deliveries.c.status == "failed",
+)
+Index(
+    "incident_failed_refresh",
+    audit_events.c.created_at,
+    audit_events.c.id,
+    postgresql_where=audit_events.c.action == "refresh.activation_failed",
 )

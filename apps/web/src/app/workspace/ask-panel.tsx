@@ -1,6 +1,7 @@
 /* Use case: Provides a conversation with grounded answers about the selected upload.
 What it does: Keeps paired turns, renders exact results and record tables, and exposes execution evidence. */
 
+import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
 import { Icon, RecordTable } from "./explore-components";
@@ -889,7 +890,7 @@ export function AskPanel({
                   />
                 </details>
               )}
-              {downloadPdf && threadId && turn.serverId && turn.answer && !turn.answer.report && (turn.answer.lineage || turn.answer.guidance) && <AnswerPdfDownload path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export.pdf`} download={downloadPdf} />}
+              {threadId && turn.serverId && turn.answer && !turn.answer.report && (turn.answer.lineage || turn.answer.guidance || turn.answer.diagram || turn.answer.patterns) && <ResultExportActions path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export`} charts={turn.answer.diagram ? ["Data map"] : turn.answer.patterns ? ("pooled" in turn.answer.patterns ? (turn.answer.patterns.pooled ? ["Pooled relationship"] : []) : [...turn.answer.patterns.findings, ...(turn.answer.patterns.exploratory ?? [])].filter(value => value.chart.points.length > 0).map(value => value.title)) : turn.answer.rows && turn.answer.columns?.length === 2 ? ["Recorded comparison"] : []} />}
               <details className="saveQuestion">
                 <summary>Save question</summary>
                 <SaveControl

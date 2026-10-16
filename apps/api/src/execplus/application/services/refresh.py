@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
+from execplus.application.services.dataset_access import authorize_sources, require_full_access
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.domain.ingestion import IngestionError, Upload, User
 from execplus.domain.profiling import Revision, TableData, reconstruct
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 def editor(repo: WorkspaceRepository, actor: User, wid: UUID, did: UUID) -> None:
     member = repo.membership(wid, actor.id)
+    require_full_access(repo, actor, wid, did)
     dataset = repo.dataset(wid, did)
     if member.role not in {"owner", "admin"} and dataset.created_by != actor.id:
         fail("forbidden", "The dataset creator or an owner/admin manages refreshes.", 403)
@@ -138,6 +140,7 @@ class RefreshService:
                 output_checksum=revision.output_checksum,
                 definition_hash=fingerprint(meaning.definition),
                 **dates,
+                **require_full_access(repo, actor, wid, did).reference(),
             )
             feed = RefreshFeed(
                 prior.id if prior else uuid4(),
@@ -165,7 +168,9 @@ class RefreshService:
     def overview(self, actor: User, wid: UUID, did: UUID) -> dict[str, Any]:
         now = datetime.now(timezone.utc)
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
+            require_full_access(repo, actor, wid, did)
             dataset = repo.dataset(wid, did)
             feeds = repo.refresh_feeds(wid, did)
             member = repo.membership(wid, actor.id)
@@ -173,6 +178,7 @@ class RefreshService:
             if not feeds:
                 return dict(feed=None, candidates=[], can_edit=can_edit)
             feed = feeds[0]
+            authorize_sources(repo, actor, wid, [feed.source])
             return dict(
                 feed=asdict(feed),
                 candidates=[
@@ -280,6 +286,7 @@ class RefreshService:
                 if not feeds:
                     fail("refresh_not_configured", "Configure the active source first.", 409)
                 feed = feeds[0]
+                authorize_sources(repo, actor, wid, [feed.source])
                 candidates = repo.refresh_candidates(wid, feed.id)
                 existing = next((c for c in candidates if c.request_id == request_id), None)
                 if existing:
@@ -432,6 +439,7 @@ class RefreshService:
             candidate = repo.refresh_candidate(wid, cid)
             feed = repo.refresh_feed(wid, candidate.feed_id)
             editor(repo, actor, wid, feed.dataset_id)
+            authorize_sources(repo, actor, wid, [feed.source])
             if candidate.status not in {"queued", "needs_review"}:
                 fail("refresh_conflict", "Only a pending candidate can be reviewed.", 409)
             if reject:
@@ -479,6 +487,7 @@ class RefreshService:
             feed = repo.refresh_feed(wid, candidate.feed_id)
             editor(repo, actor, wid, feed.dataset_id)
             editor(repo, repo.user(candidate.created_by), wid, feed.dataset_id)
+            authorize_sources(repo, actor, wid, [feed.source])
             if candidate.status == "activated":
                 return candidate
             if candidate.status != "queued":
@@ -525,6 +534,7 @@ class RefreshService:
                 output_checksum=revision.output_checksum,
                 definition_hash=fingerprint(definition),
                 **candidate.details["dates"],
+                **require_full_access(repo, actor, wid, feed.dataset_id).reference(),
             )
             feed = replace(
                 feed,
@@ -556,6 +566,7 @@ class RefreshService:
                 actor = repo.user(feed.owner_id)
                 try:
                     editor(repo, actor, wid, feed.dataset_id)
+                    authorize_sources(repo, actor, wid, [feed.source])
                 except IngestionError:
                     repo.set_refresh_feed(
                         replace(feed, enabled=False, state="unauthorized", last_checked_at=now)

@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
+from execplus.application.services.dataset_access import authorize_sources, require_full_access
 from execplus.application.services.refresh import RefreshService, current, editor
 from execplus.application.services.workspaces import checked_name
 from execplus.domain.errors import ExecPlusError
@@ -146,15 +147,21 @@ class MonitoringService:
             repo.workspace(wid, lock=True)
             monitor = repo.monitor(wid, mid)
             feed = repo.refresh_feed(wid, monitor.feed_id)
+            require_full_access(repo, actor, wid, feed.dataset_id)
+            authorize_sources(repo, actor, wid, [feed.source])
             editor(repo, actor, wid, feed.dataset_id)
             repo.set_monitor(replace(monitor, enabled=False))
             self.refresh.audit(repo, actor, wid, "monitor.disabled", mid)
 
     def list_monitors(self, actor: User, wid: UUID, did: UUID) -> dict[str, Any]:
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
+            require_full_access(repo, actor, wid, did)
             repo.dataset(wid, did)
             feeds = repo.refresh_feeds(wid, did)
+            if feeds:
+                authorize_sources(repo, actor, wid, [feeds[0].source])
             monitors = repo.monitors(wid, feeds[0].id) if feeds else ()
             output = []
             for monitor in monitors:
@@ -333,6 +340,7 @@ class MonitoringService:
                 failure = None
                 try:
                     editor(repo, actor, wid, feed.dataset_id)
+                    authorize_sources(repo, actor, wid, [job.source])
                 except IngestionError:
                     failure = "unauthorized"
                 if not monitor.enabled:
@@ -442,6 +450,7 @@ class MonitoringService:
                         counts["skipped"] += 1
                         continue
                     editor(repo, actor, wid, feed.dataset_id)
+                    authorize_sources(repo, actor, wid, [job.source])
                     feed = repo.refresh_feed(wid, feed.id)
                     monitor = repo.monitor(wid, monitor.id)
                     self._deliver(repo, monitor, feed, job, finding, now)
@@ -485,7 +494,9 @@ class MonitoringService:
                 continue
             status = "delivered"
             try:
-                repo.membership(wid, rule.owner_id)
+                owner = repo.user(rule.owner_id)
+                require_full_access(repo, owner, wid, feed.dataset_id)
+                authorize_sources(repo, owner, wid, [job.source])
             except IngestionError:
                 status = "unauthorized"
                 repo.set_alert_rule(replace(rule, enabled=False))
@@ -532,6 +543,9 @@ class MonitoringService:
             repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
             monitor = repo.monitor(wid, mid)
+            feed = repo.refresh_feed(wid, monitor.feed_id)
+            require_full_access(repo, actor, wid, feed.dataset_id)
+            authorize_sources(repo, actor, wid, [feed.source])
             if not monitor.enabled:
                 fail("monitor_disabled", "Choose an active monitor.", 409)
             rules = [r for r in repo.alert_rules(wid, mid) if r.owner_id == actor.id and r.enabled]
@@ -586,10 +600,13 @@ class MonitoringService:
         self, actor: User, wid: UUID, oid: UUID
     ) -> tuple[dict[str, Any], dict[str, Result]]:
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
             job = repo.observation(wid, oid)
             monitor = repo.monitor(wid, job.monitor_id)
             feed = repo.refresh_feed(wid, monitor.feed_id)
+            require_full_access(repo, actor, wid, feed.dataset_id)
+            authorize_sources(repo, actor, wid, [job.source])
         if job.status != "complete":
             return dict(observation=asdict(job), monitor=asdict(monitor), finding=None), {}
         results = {}
@@ -599,8 +616,11 @@ class MonitoringService:
             results[key] = await self.analytics.replay(actor, wid, UUID(qid))
         finding = self._finding(job.evidence, results)
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
             feed = repo.refresh_feed(wid, monitor.feed_id)
+            require_full_access(repo, actor, wid, feed.dataset_id)
+            authorize_sources(repo, actor, wid, [job.source])
             if (
                 stale(job.source, feed.freshness_hours, datetime.now(timezone.utc))
                 and "stale_source" not in finding["limitations"]
@@ -615,9 +635,13 @@ class MonitoringService:
 
     async def ranked(self, actor: User, wid: UUID, did: UUID) -> list[dict[str, Any]]:
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
+            require_full_access(repo, actor, wid, did)
             repo.dataset(wid, did)
             feeds = repo.refresh_feeds(wid, did)
+            if feeds:
+                authorize_sources(repo, actor, wid, [feeds[0].source])
             monitors = repo.monitors(wid, feeds[0].id) if feeds else ()
             ids = []
             for monitor in monitors:

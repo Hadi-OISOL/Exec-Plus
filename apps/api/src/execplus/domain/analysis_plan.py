@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 from uuid import UUID
 
+from execplus.domain.dataset_access import ACCESS_KEYS
 from execplus.domain.guidance import GUIDANCE_FOCUSES
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.intent import RoutedIntent
@@ -50,7 +51,8 @@ class AnalysisPlan:
             if (
                 not isinstance(source, dict)
                 or not required <= set(source)
-                or set(source) - required - {"understanding_id"}
+                or set(source) - required - {"understanding_id"} - ACCESS_KEYS
+                or (set(source) & ACCESS_KEYS and not set(source) >= ACCESS_KEYS)
             ):
                 self._invalid()
             try:
@@ -58,6 +60,14 @@ class AnalysisPlan:
                     UUID(source[name])
                 if "understanding_id" in source:
                     UUID(source["understanding_id"])
+                if "access_policy_id" in source:
+                    UUID(source["access_policy_id"])
+                    UUID(source["access_actor_id"])
+                    if source["access_restricted"] not in {"true", "false"}:
+                        self._invalid()
+                    version = source["access_policy_version"]
+                    if not isinstance(version, str) or not version.isdecimal() or int(version) < 1:
+                        self._invalid()
             except (TypeError, ValueError, AttributeError):
                 self._invalid()
             if any(

@@ -59,10 +59,10 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   `20261016T105008Z`. Sources, meanings, memory and old turns are preserved.
   API/jobs/web remain loopback-only with unchanged models/timers.
 - Recovery helpers `64240dd` verify the post-release backup in an isolated
-  environment in22 seconds:86 uploads,88 revisions,27 documents/passages and20
-  exact receipt replays. A4,133,086-byte encrypted copy outside the VPS passes
+  environment in 22 seconds: 86 uploads, 88 revisions, 27 documents/passages and 20
+  exact receipt replays. A 4,133,086-byte encrypted copy outside the VPS passes
   in-memory decryption and manifest checks. Read `docs/recovery-rehearsal.md`;
-  initial hostname/transfer failures are retained. Feature42 remains Partial for
+  initial hostname/transfer failures are retained. Feature 42 remains Partial for
   approved retention, independent custody/destination and production objectives.
 - The latest user instruction authorizes finishing independent Partial/Not yet
   implementations; read `docs/remaining-work-execution.md`. This supersedes older

@@ -4,12 +4,18 @@ What it does: Defines immutable download actions and exact report content withou
 accepting HTML, file paths, model calculations or external rendering resources.
 """
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from execplus.domain.ingestion import IngestionError
+
+if TYPE_CHECKING:
+    from execplus.domain.exports import ExportChart
 
 MAX_PDF_ROWS = 1_000
 MAX_PDF_COLUMNS = 20
@@ -46,6 +52,7 @@ class PdfDocument:
     title: str
     generated_at: datetime
     sections: tuple[PdfSection, ...]
+    charts: tuple[ExportChart, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

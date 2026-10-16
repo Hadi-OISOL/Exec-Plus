@@ -3,10 +3,12 @@
 What it does: Authorizes observations, comparisons, checklists and aggregate usage signals.
 """
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
+from execplus.application.services.dataset_access import authorize_sources, require_workspace_access
 from execplus.domain.activation import Feedback, comparison, observations
 from execplus.domain.ingestion import AuditEvent, IngestionError, User, require_manager
 
@@ -23,13 +25,14 @@ class ActivationService:
     async def insights(
         self, actor: User, wid: UUID, did: UUID, uid: UUID
     ) -> list[dict[str, object]]:
+        snapshot, _, _ = self.analytics.descriptive_snapshot(actor, wid, did, uid)
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
-            repo.upload(wid, did, uid)
+            repo.workspace(wid, lock=True)
+            authorize_sources(repo, actor, wid, snapshot.view.sources)
             revision = repo.active_revision(wid, did, uid)
             if revision is None:
                 raise IngestionError("not_found", "Profile this upload first.", 404)
-            return observations(revision)
+            return observations(replace(revision, profile=snapshot.profile))
 
     async def compare(
         self, actor: User, wid: UUID, current_id: UUID, previous_id: UUID
@@ -78,7 +81,9 @@ class ActivationService:
 
     async def overview(self, actor: User, wid: UUID, *, manager: bool = False) -> dict[str, object]:
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             membership = repo.membership(wid, actor.id)
+            require_workspace_access(repo, actor, wid)
             if manager:
                 require_manager(membership.role)
             return repo.activation_overview(wid, manager=manager)

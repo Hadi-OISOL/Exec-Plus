@@ -1,10 +1,12 @@
-/* Use case: Creates and revisits governed basic time-series forecasts.
+/* Use case: Creates and revisits governed basic and advanced time-series forecasts.
 What it does: Collects complete-period declarations and displays persisted forecasts, later comparisons and server-grounded commentary. */
 
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { ForecastResults } from "./forecast-results";
+import styles from "./forecast.module.css";
+import { advancedMinimumHistory } from "./forecast-types";
 import type {
   ComparisonSummary,
   ForecastComparison,
@@ -61,6 +63,8 @@ export function ForecastPanel({
   const [frequency, setFrequency] = useState<"daily" | "monthly">("monthly");
   const [horizon, setHorizon] = useState(3);
   const [seasonal, setSeasonal] = useState(false);
+  const [engine, setEngine] = useState<"basic-v1" | "advanced-v2">("basic-v1");
+  const [methodFamily, setMethodFamily] = useState("auto");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -147,6 +151,7 @@ export function ForecastPanel({
             frequency,
             horizon,
             season_length: seasonal ? (frequency === "daily" ? 7 : 12) : null,
+            ...(engine === "advanced-v2" ? { engine, method_family: methodFamily } : {}),
             coverage_start: start,
             coverage_end: end,
             coverage_confirmed: true,
@@ -354,6 +359,28 @@ export function ForecastPanel({
                     />
                   </label>
                 </div>
+                <div className={`forecastCoverage ${styles.approach}`}>
+                  <h4>Choose a forecast approach</h4>
+                  <label>
+                    Forecast approach
+                    <select value={engine} disabled={!!pending} onChange={event => setEngine(event.target.value as "basic-v1" | "advanced-v2")}>
+                      <option value="basic-v1">Basic — compare simple methods</option>
+                      <option value="advanced-v2" disabled={!options.advanced_methods?.length}>Advanced — compare smoothing and trends</option>
+                    </select>
+                  </label>
+                  {engine === "advanced-v2" && <>
+                    <p>Try methods that follow a changing level, trend or repeating cycle. We compare them on three earlier time windows, then test the selected method on a later window it has not seen.</p>
+                    <label>
+                      Advanced method family
+                      <select value={methodFamily} disabled={!!pending} onChange={event => setMethodFamily(event.target.value)} aria-describedby="advanced-forecast-history">
+                        {options.advanced_methods?.map(method => <option key={method.id} value={method.id}>{method.label}</option>)}
+                      </select>
+                    </label>
+                    <p id="advanced-forecast-history">This choice needs at least {advancedMinimumHistory(frequency, horizon, methodFamily) ?? "a valid number of"} complete {frequency === "daily" ? "days" : "months"}. Simple baselines stay in the comparison; advanced methods do not always win.</p>
+                    {methodFamily === "holt_winters_additive" && !seasonal && <p role="status">Open “Forecast name and seasonal comparison” below and declare the repeating cycle before continuing.</p>}
+                    <p>Ranges show earlier forecast errors. They do not promise a probability of being right.</p>
+                  </>}
+                </div>
                 <div className="forecastCoverage">
                   <h4>Complete source coverage</h4>
                   <p>
@@ -424,7 +451,7 @@ export function ForecastPanel({
                     />
                     Also evaluate a{" "}
                     {frequency === "daily" ? "7-day" : "12-month"} seasonal
-                    baseline.
+                    {engine === "advanced-v2" ? " baseline and eligible seasonal smoothing." : " baseline."}
                   </label>
                   <p>
                     Seasonal comparison needs enough historical cycles. The
@@ -437,6 +464,7 @@ export function ForecastPanel({
                     !!pending ||
                     !confirmed ||
                     !metricName ||
+                    (engine === "advanced-v2" && methodFamily === "holt_winters_additive" && !seasonal) ||
                     !options.date_columns.length
                   }
                 >
@@ -514,6 +542,7 @@ export function ForecastPanel({
             key={selected.id}
             run={selected}
             comparison={comparison}
+            exportPath={`${datasetRoot}/forecasts/${selected.id}`}
           />
           <section
             className="panel forecastComparison"

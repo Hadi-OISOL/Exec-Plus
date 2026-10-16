@@ -17,6 +17,11 @@ from execplus.application.memory_context import capture_memory
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.progress import activity, planned
 from execplus.application.services.data_diagrams import DiagramAnswer
+from execplus.application.services.dataset_access import (
+    authorize_sources,
+    dataset_access,
+    require_full_access,
+)
 from execplus.application.services.intent_router import (
     ClarificationContext,
     ConversationAnswer,
@@ -54,6 +59,7 @@ class ThreadService:
         thread = repo.thread(wid, tid)
         if thread.owner_id != actor.id:
             raise IngestionError("not_found", "The conversation is unavailable.", 404)
+        dataset_access(repo, actor, wid, thread.dataset_id)
         repo.upload(wid, thread.dataset_id, thread.upload_id)
         return thread
 
@@ -87,6 +93,7 @@ class ThreadService:
         )
         with self.uow() as repo:
             repo.membership(workspace_id, actor.id)
+            dataset_access(repo, actor, workspace_id, dataset_id)
             repo.upload(workspace_id, dataset_id, upload_id)
             repo.add(thread)
         return thread
@@ -94,8 +101,19 @@ class ThreadService:
     def list_threads(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> tuple[Thread, ...]:
         with self.uow() as repo:
             repo.membership(wid, actor.id)
+            dataset_access(repo, actor, wid, did)
             repo.upload(wid, did, uid)
-            return repo.threads(wid, did, uid, actor.id)
+            visible = []
+            for thread in repo.threads(wid, did, uid, actor.id):
+                try:
+                    for turn in repo.thread_turns(wid, thread.id):
+                        self._authorize_turn(repo, actor, wid, thread, turn)
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                else:
+                    visible.append(thread)
+            return tuple(visible)
 
     async def get_thread(
         self, actor: User, workspace_id: UUID, thread_id: UUID
@@ -104,17 +122,35 @@ class ThreadService:
             repo.workspace(workspace_id, lock=True)
             thread = self._thread(repo, actor, workspace_id, thread_id)
             turns = self._expire(repo, workspace_id, repo.thread_turns(workspace_id, thread_id))
+            for turn in turns:
+                self._authorize_turn(repo, actor, workspace_id, thread, turn)
             return thread, turns
+
+    def _authorize_turn(
+        self, repo: WorkspaceRepository, actor: User, wid: UUID, thread: Thread, turn: ThreadTurn
+    ) -> None:
+        access = dataset_access(repo, actor, wid, thread.dataset_id)
+        if turn.evidence.get("access_reference", {}) != access.reference():
+            raise IngestionError(
+                "not_found", "The conversation is unavailable under current access.", 404
+            )
+        self._authorize_evidence(repo, actor, wid, turn.evidence)
+        if turn.query_id:
+            execution = repo.query_execution(wid, turn.query_id)
+            authorize_sources(repo, actor, wid, execution.receipt.get("sources"), thread.dataset_id)
 
     def _authorize_evidence(
         self, repo: WorkspaceRepository, actor: User, wid: UUID, evidence: dict[str, Any]
     ) -> None:
         repo.membership(wid, actor.id)
+        if evidence.get("sources"):
+            authorize_sources(repo, actor, wid, evidence["sources"])
         if evidence.get("guide") or evidence.get("diagram"):
             for source in evidence.get("sources", []):
                 repo.upload(wid, UUID(source["dataset_id"]), UUID(source["upload_id"]))
         for ref in evidence.get("citations", []):
             doc = repo.document(wid, UUID(ref["document_id"]))
+            require_full_access(repo, actor, wid, doc.dataset_id)
             repo.dataset(wid, doc.dataset_id)
             if not doc.shared and doc.owner_id != actor.id:
                 raise IngestionError(
@@ -294,6 +330,8 @@ class ThreadService:
         repo.workspace(wid, lock=True)
         thread = self._thread(repo, actor, wid, tid)
         prior = self._expire(repo, wid, repo.thread_turns(wid, tid))
+        for previous in prior:
+            self._authorize_turn(repo, actor, wid, thread, previous)
         existing = next((item for item in prior if item.request_id == request_id), None)
         if existing is not None:
             if existing.question != question:
@@ -327,13 +365,17 @@ class ThreadService:
             datetime.now(timezone.utc),
             request_id=request_id,
             status="running",
+            evidence={"access_reference": access.reference()}
+            if (access := dataset_access(repo, actor, wid, thread.dataset_id)).policy
+            else {},
         )
         repo.add_thread_turn(wid, turn)
         return thread, turn, True
 
     def publish(self, repo: WorkspaceRepository, actor: User, wid: UUID, turn: ThreadTurn) -> None:
         repo.workspace(wid, lock=True)
-        self._thread(repo, actor, wid, turn.thread_id)
+        thread = self._thread(repo, actor, wid, turn.thread_id)
+        self._authorize_turn(repo, actor, wid, thread, turn)
         self._authorize_evidence(repo, actor, wid, turn.evidence)
         if turn.evidence.get("report"):
             turns = tuple(
@@ -433,6 +475,7 @@ class ThreadService:
     async def run_turn(
         self, actor: User, wid: UUID, thread: Thread, turn: ThreadTurn
     ) -> tuple[ConversationAnswer | None, ThreadTurn]:
+        access_reference = turn.evidence.get("access_reference")
         prior_lineage = None
         prior_document_query = ""
         prior_guide = None
@@ -612,6 +655,8 @@ class ThreadService:
                     "Start a new turn to try again."
                 ),
             )
+        if access_reference is not None:
+            turn = replace(turn, evidence={**turn.evidence, "access_reference": access_reference})
         if memory_use.reference is not None and turn.status in {"complete", "partial"}:
             turn = replace(turn, evidence={**turn.evidence, "agent_memory": memory_use.reference})
         return answer, turn

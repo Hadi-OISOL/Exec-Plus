@@ -1,0 +1,31 @@
+/* Use case: Keeps dataset access rules readable on desktop and small screens.
+What it does: Groups people, field choices and row conditions with visible keyboard focus. */
+
+.panel { --access-border: var(--studio-border, #d5e1dc); --access-ink: var(--studio-ink, #243d35); --access-accent: var(--studio-accent, #176c64); color: var(--access-ink); }
+.panel p { max-width: 75ch; line-height: 1.6; }
+.heading h2 { margin-top: 8px; }
+.panel label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.panel select, .panel input:not([type="checkbox"]):not([type="radio"]) { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+.panel button { min-height: 44px; }
+.editor { margin-top: 24px; }
+.mode, .grant { border: 1px solid var(--access-border); border-radius: 12px; padding: 16px; margin: 16px 0; }
+.mode label { flex-direction: row; align-items: center; padding: 10px 0; min-height: 44px; }
+.mode input, .check input { flex: 0 0 auto; width: 18px; height: 18px; accent-color: var(--access-accent); }
+.mode small { display: block; margin-top: 4px; font-size: 14px; font-weight: 400; }
+.notice { padding: 14px 18px; color: var(--studio-ink, #243d35); background: var(--studio-wash, #f3f7f5); border-left: 3px solid var(--access-accent, var(--studio-accent, #176c64)); border-radius: 8px; }
+.grant summary { cursor: pointer; font-weight: 650; min-height: 44px; overflow-wrap: anywhere; }
+.grant summary span { display: block; margin-top: 6px; font-size: 13px; font-weight: 400; }
+.grant fieldset { border: 0; padding: 8px 0 0; min-width: 0; }
+.legend { padding-top: 12px; font-weight: 650; }
+.columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 8px; max-height: 280px; overflow: auto; margin-top: 12px; border: 1px solid var(--access-border); border-radius: 8px; padding: 12px; }
+.panel .check { flex-direction: row; align-items: center; min-height: 44px; overflow-wrap: anywhere; }
+.condition { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 12px; margin: 16px 0; padding: 16px 0; border-top: 1px solid var(--access-border); }
+.condition button { grid-column: 1 / -1; justify-self: start; }
+.actions, .add { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
+.add { align-items: end; }
+.add label { flex: 1 1 200px; }
+.actions span { font-size: 14px; }
+.success { color: var(--access-accent); font-weight: 600; }
+.panel [role="alert"] { color: var(--danger, #963e30); }
+.panel :focus-visible { outline: 3px solid var(--access-accent); outline-offset: 3px; }
+@media(max-width:600px) { .condition { grid-template-columns: 1fr; } .condition button { grid-column: auto; } .actions button, .add button { width: 100%; } .mode, .grant { padding: 12px; } }

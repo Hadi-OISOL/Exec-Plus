@@ -4,6 +4,7 @@ What it does: Selects disabled, local, or hosted model adapters at the applicati
 """
 
 from dataclasses import dataclass
+from functools import cached_property
 
 import boto3
 from botocore.config import Config
@@ -11,6 +12,7 @@ from sqlalchemy import Engine, create_engine
 
 from execplus import __version__
 from execplus.application.ports import IdentityProvider, LanguageModel
+from execplus.application.services.access_policies import AccessPolicyService
 from execplus.application.services.activation import ActivationService
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.answers import AnswerAssembler
@@ -22,6 +24,7 @@ from execplus.application.services.decision_analysis import DecisionAnalysisServ
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import ForecastService
 from execplus.application.services.health import HealthService
+from execplus.application.services.incidents import IncidentService
 from execplus.application.services.intent_router import IntentRouterService
 from execplus.application.services.jobs import JobService
 from execplus.application.services.joins import JoinService
@@ -33,6 +36,7 @@ from execplus.application.services.pdf_exports import PdfExportService
 from execplus.application.services.product_usage import ProductUsageService
 from execplus.application.services.refresh import RefreshService
 from execplus.application.services.reports import ReportService
+from execplus.application.services.result_exports import ResultExportService
 from execplus.application.services.saved_items import SavedItemService
 from execplus.application.services.studies import OrganizationService, StudyService
 from execplus.application.services.summaries import SummaryService
@@ -42,6 +46,7 @@ from execplus.application.services.workspaces import WorkspaceService
 from execplus.config import Settings
 from execplus.domain.compute import ComputeCapabilities, ComputeOperation, QueryBudget
 from execplus.infrastructure.email import DisabledEmailDelivery, SMTPEmailDelivery
+from execplus.infrastructure.exports.portable import PortableRenderer
 from execplus.infrastructure.exports.reportlab_pdf import ReportLabPdfRenderer
 from execplus.infrastructure.file_parser import StructuredFileParser
 from execplus.infrastructure.identity import LocalSessionIdentity
@@ -49,6 +54,7 @@ from execplus.infrastructure.knowledge import ReferenceHybridRanker
 from execplus.infrastructure.models.disabled import DisabledLanguageModel
 from execplus.infrastructure.models.openai_compatible import OpenAICompatibleLanguageModel
 from execplus.infrastructure.object_storage import S3ObjectStorage
+from execplus.infrastructure.persistence.incidents import SQLIncidentStore
 from execplus.infrastructure.persistence.repository import SQLUnitOfWork
 from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 from execplus.infrastructure.readiness import DatabaseProbe, StorageProbe
@@ -238,3 +244,23 @@ class Runtime:
     decision_analysis: DecisionAnalysisService
     data_brief: DataBriefService
     pdf_exports: PdfExportService
+
+    @cached_property
+    def incidents(self) -> IncidentService:
+        return IncidentService(SQLIncidentStore(self.engine))
+
+    @cached_property
+    def access_policies(self) -> AccessPolicyService:
+        return AccessPolicyService(SQLUnitOfWork(self.engine))
+
+    @cached_property
+    def result_exports(self) -> ResultExportService:
+        return ResultExportService(
+            SQLUnitOfWork(self.engine),
+            self.pdf_exports,
+            self.analytics,
+            self.studies,
+            self.forecasts,
+            self.decision_analysis,
+            PortableRenderer(),
+        )

@@ -23,7 +23,7 @@ authorization to commercialize code restricted to noncommercial use.
 
 **Status:** Reported conversational task repair Complete for local/test and the
 private demo; broader remaining-feature instruction In progress.
-Application `b3a1fb1` on unchanged0018 repairs whole-file understanding and bounded
+Application `b3a1fb1` on unchanged 0018 repairs whole-file understanding and bounded
 continuations. The [contract](docs/conversation-harness-repair.md) and
 [verification](docs/verification-conversation-harness.md) record 1,545 full backend
 passes, hosted explanations for both reported questions, exact numerical
@@ -34,7 +34,7 @@ features, excluding actual external plugin/credential/input dependencies. The
 [execution plan](docs/remaining-work-execution.md) supersedes older implementation
 freezes. Public access, model-provider changes, automatic business assumptions and
 production-gate promotion remain outside that instruction. Counts stay 37 Done,
-17 Partial and10 Not yet until each feature has its own completion evidence.
+17 Partial and 10 Not yet until each feature has its own completion evidence.
 
 ## October 16 — Domain tools and protected saved-answer exports
 

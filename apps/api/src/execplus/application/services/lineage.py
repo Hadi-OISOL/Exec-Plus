@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from execplus.application.ports import WorkspaceRepository
+from execplus.application.services.dataset_access import authorize_sources
 from execplus.domain.ingestion import AuditEvent, User
 from execplus.domain.models import CalculationLineage, QueryExecution
 
@@ -21,6 +22,9 @@ def persist_query_execution(uow: UnitOfWork, actor: User, lineage: CalculationLi
     with uow() as repo:
         repo.workspace(lineage.workspace_id, lock=True)
         repo.membership(lineage.workspace_id, actor.id)
+        authorize_sources(
+            repo, actor, lineage.workspace_id, lineage.receipt.get("sources"), lineage.dataset_id
+        )
         repo.add(
             QueryExecution(
                 id=lineage.query_id,

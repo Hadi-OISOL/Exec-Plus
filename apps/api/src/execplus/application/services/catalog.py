@@ -9,6 +9,11 @@ from typing import Any
 from uuid import UUID
 
 from execplus.application.services.analytics import UnitOfWork
+from execplus.application.services.dataset_access import (
+    dataset_access,
+    require_full_access,
+    scoped_definition,
+)
 from execplus.domain.artifacts import (
     TABULAR_CAPABILITIES,
     ArtifactKind,
@@ -30,8 +35,23 @@ class CatalogService:
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
-            paths = repo.join_paths(wid)
+            paths = []
+            for path in repo.join_paths(wid):
+                try:
+                    require_full_access(repo, actor, wid, path.left_dataset_id)
+                    require_full_access(repo, actor, wid, path.right_dataset_id)
+                except IngestionError as error:
+                    if error.status not in {403, 404}:
+                        raise
+                    continue
+                paths.append(path)
             for dataset in repo.datasets(wid):
+                try:
+                    access = dataset_access(repo, actor, wid, dataset.id)
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                    continue
                 uploads = repo.uploads(wid, dataset.id)
                 upload = max(uploads, key=lambda item: (item.created_at, item.id), default=None)
                 feeds = repo.refresh_feeds(wid, dataset.id)
@@ -40,18 +60,23 @@ class CatalogService:
                 revision = repo.active_revision(wid, dataset.id, upload.id) if upload else None
                 saved = repo.latest_understanding(wid, dataset.id)
                 definition = saved.definition if saved else {}
+                if access.restricted and definition:
+                    names = tuple(column["name"] for column in definition["columns"])
+                    definition = (
+                        scoped_definition(definition, access, access.columns or names)[0] or {}
+                    )
                 state = saved.state if saved else "inferred"
                 if saved and (revision is None or saved.revision_id != revision.id):
                     state = "needs_review"
-                documents = repo.documents(wid, dataset.id, actor.id)
+                documents = () if access.restricted else repo.documents(wid, dataset.id, actor.id)
                 artifact_refs = []
-                if upload:
+                if upload and not access.restricted:
                     artifact_refs.append(
                         ArtifactRef(
                             wid, dataset.id, ArtifactKind.RAW_ASSET, upload.id, upload.id
                         ).record()
                     )
-                if revision:
+                if revision and not access.restricted:
                     artifact_refs.extend(
                         ArtifactRef(wid, dataset.id, kind, revision.id, revision.upload_id).record()
                         for kind in (
@@ -72,13 +97,15 @@ class CatalogService:
                     revision_id=str(revision.id) if revision else None,
                     source_revised_at=revision.created_at.isoformat() if revision else None,
                     understanding_id=str(saved.id) if saved else None,
-                    definition_version=saved.version if saved else 0,
+                    definition_version=0 if access.restricted else saved.version if saved else 0,
                     state=state,
                     description=definition.get("description", ""),
                     grain=definition.get("grain", "unknown"),
                     columns=definition.get("columns", []),
                     metrics=definition.get("metrics", []),
-                    relationships=[
+                    relationships=[]
+                    if access.restricted
+                    else [
                         dict(
                             id=str(path.id),
                             left_dataset_id=str(path.left_dataset_id),
@@ -89,7 +116,11 @@ class CatalogService:
                         for path in paths
                         if dataset.id in {path.left_dataset_id, path.right_dataset_id}
                     ],
-                    reviewed_relationships=definition.get("relationships", []),
+                    reviewed_relationships=[
+                        item
+                        for item in definition.get("relationships", [])
+                        if item["join_path_id"] in {str(path.id) for path in paths}
+                    ],
                     documents=[
                         dict(id=str(doc.id), name=doc.name, uploaded_at=doc.created_at.isoformat())
                         for doc in documents

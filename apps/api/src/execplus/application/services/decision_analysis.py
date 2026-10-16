@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
+from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.forecasts import ForecastService, read_complete
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
@@ -173,18 +174,27 @@ class DecisionAnalysisService:
 
     def _owned(self, actor: User, wid: UUID, did: UUID, rid: UUID) -> AnalysisRun:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
-            repo.dataset(wid, did)
+            dataset_access(repo, actor, wid, did)
             run = repo.analysis_run(wid, rid, actor.id)
             if run.dataset_id != did:
                 raise AuthorizationError("Analysis source mismatch")
             repo.upload(wid, did, run.upload_id)
+            authorize_sources(repo, actor, wid, run.evidence.get("sources"), did)
             return run
 
     def list(self, actor: User, wid: UUID, did: UUID) -> list[dict[str, Any]]:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
-            repo.dataset(wid, did)
+            repo.workspace(wid, lock=True)
+            dataset_access(repo, actor, wid, did)
+            allowed = []
+            for run in repo.analysis_runs(wid, did, actor.id):
+                try:
+                    authorize_sources(repo, actor, wid, run.evidence.get("sources"), did)
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                else:
+                    allowed.append(run)
             return [
                 dict(
                     id=str(r.id),
@@ -193,7 +203,7 @@ class DecisionAnalysisService:
                     created_at=r.created_at,
                     upload_id=str(r.upload_id),
                 )
-                for r in repo.analysis_runs(wid, did, actor.id)
+                for r in allowed
             ]
 
     async def create(
@@ -366,6 +376,7 @@ class DecisionAnalysisService:
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
             self._current(actor, wid, did, uid, raw)
+            authorize_sources(repo, actor, wid, evidence["sources"], did)
             if len(repo.analysis_runs(wid, did, actor.id)) >= 50:
                 raise IngestionError(
                     "analysis_limit", "Use at most 50 saved analyses per dataset/person.", 409
@@ -381,7 +392,10 @@ class DecisionAnalysisService:
         except ClarificationRequiredError:
             current = False
         with self.uow() as repo:
-            repo.membership(run.workspace_id, actor.id)
+            repo.workspace(run.workspace_id, lock=True)
+            authorize_sources(
+                repo, actor, run.workspace_id, run.evidence.get("sources"), run.dataset_id
+            )
             reviews = repo.analysis_reviews(run.workspace_id, run.id, actor.id)
         decisions = [r for r in reviews if r.target == "decision"]
         status = decisions[-1].status if decisions else "pending"
@@ -528,6 +542,7 @@ class DecisionAnalysisService:
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
             self._owned(actor, wid, did, rid)
+            authorize_sources(repo, actor, wid, run.evidence.get("sources"), did)
             history = repo.analysis_reviews(wid, rid, actor.id)
             if len(history) != raw["expected_version"] or len(history) >= 200:
                 raise IngestionError(

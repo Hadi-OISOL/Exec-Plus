@@ -80,6 +80,7 @@ class JobService:
         turn = next(
             item for item in repo.thread_turns(wid, job.thread_id) if item.id == job.turn_id
         )
+        self.threads._authorize_turn(repo, actor, wid, repo.thread(wid, job.thread_id), turn)
         if job.payload_hash != _fingerprint(
             {"question": turn.question, "thread_id": str(job.thread_id)}
         ):
@@ -238,7 +239,9 @@ class JobService:
                     current,
                     status="failed",
                     query_id=None,
-                    evidence={},
+                    evidence={"access_reference": current.evidence["access_reference"]}
+                    if "access_reference" in current.evidence
+                    else {},
                     message=messages.get(
                         code or "", "This request could not complete. Start a new turn to retry."
                     ),

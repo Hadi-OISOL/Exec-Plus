@@ -1,6 +1,7 @@
 /* Use case: Turns confirmed meanings into interactive, reproducible investigations.
 What it does: Runs supported studies, reopens versions and manages permission-aware six-pin dashboards. */
 
+import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useId, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { Icon, RecordTable, type Cell } from "./explore-components";
@@ -91,7 +92,7 @@ export const studyJson = (method: string, value: object): RequestInit => ({
   body: JSON.stringify(value),
 });
 
-export function StudyResult({ value }: { value: Result }) {
+export function StudyResult({ value, workspacePath }: { value: Result; workspacePath?: string }) {
   return (
     <article
       className={`studyResult ${styles.result}`}
@@ -105,6 +106,7 @@ export function StudyResult({ value }: { value: Result }) {
         </span>
       </div>
       <p>{value.version.question}</p>
+      {workspacePath && <ResultExportActions path={`${workspacePath}/study-versions/${value.version.id}/export`} charts={["bar", "line", "distribution"].includes(value.version.evidence.component) ? [value.version.question] : []} />}
       <p className="chartCaption">
         {value.sample_count} matching records · Unit: {value.unit} · Source
         uploaded{" "}
@@ -510,7 +512,7 @@ function StudyLibrary({ root, request, actorId, onReview }: {
       )}
       {result && (
         <>
-          <StudyResult value={result} />
+          <StudyResult value={result} workspacePath={workspacePath} />
           <div className="studyActions">
             <label>
               Pin to dashboard
@@ -719,8 +721,8 @@ function StudyLibrary({ root, request, actorId, onReview }: {
             />
           )}
           <div className="studyComparison">
-            <StudyResult value={comparison.before} />
-            <StudyResult value={comparison.after} />
+            <StudyResult value={comparison.before} workspacePath={workspacePath} />
+            <StudyResult value={comparison.after} workspacePath={workspacePath} />
           </div>
         </div>
       )}
@@ -828,11 +830,12 @@ function StudyLibrary({ root, request, actorId, onReview }: {
             <div><span className={styles.eyebrow}>Saved evidence dashboard</span><h3>{board.board.name}</h3></div>
             <span className={styles.badge}>{board.board.shared ? "Workspace" : "Private"} · {board.studies.length}/6 pins</span>
           </div>
+          {board.studies.length > 0 && <ResultExportActions path={`${workspacePath}/study-boards/${board.board.id}/export`} charts={board.studies.filter(item => ["bar", "line", "distribution"].includes(item.version.evidence.component)).map(item => item.study.name)} label="Download saved dashboard" />}
           <p className={styles.boardSummary}>Each card retains its saved source and study version. Opening this dashboard verifies its evidence; it does not silently rerun the studies.</p>
           {!board.studies.length && <p>Run a study and pin a result here.</p>}
           <div className="studyPinnedGrid">
             {board.studies.map((item) => (
-              <StudyResult key={item.version.id} value={item} />
+              <StudyResult key={item.version.id} value={item} workspacePath={workspacePath} />
             ))}
           </div>
         </section>

@@ -1,0 +1,12 @@
+/* Use case: Styles compact, accessible result download controls.
+What it does: Keeps format choice and feedback readable without crowding analysis results. */
+.export { margin: 16px 0; padding: 14px 18px; border: 1px solid #d5e1dc; border-radius: 14px; background: #f8faf9; color: #253d35; }
+.export summary { min-height: 28px; cursor: pointer; font-size: 14px; font-weight: 650; }
+.export .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; }
+.export .controls label { display: flex; flex: 1 1 180px; flex-direction: column; gap: 6px; font-size: 14px; }
+.export .controls select, .export .controls button { min-height: 44px; font: inherit; border-radius: 8px; }
+.export .controls select { width: 100%; min-width: 0; flex: 0 0 auto; padding: 8px; background: #fff; color: #253d35; border: 1px solid #b8c9c1; }
+.export p { max-width: 78ch; font-size: 13px; line-height: 1.6; color: #4b6157; }
+.export [role="alert"] { color: #973e30; }
+.export :focus-visible { outline: 3px solid #176c64; outline-offset: 3px; }
+@media(max-width:600px) { .export .controls select { font-size: 16px; } .export .controls button { width: 100%; } }

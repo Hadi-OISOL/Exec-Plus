@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import insert
 from execplus.application.ports import WorkspaceRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
 from execplus.domain.agent_memory import AgentMemory
+from execplus.domain.dataset_access import DatasetAccessPolicy
 from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.ingestion import (
@@ -480,6 +481,27 @@ class SQLWorkspaceRepository(SQLJobRepository, SQLOperationsRepository, SQLRepor
                 set_={"domain_hint": preference.domain_hint, "goal": preference.goal},
             )
         )
+
+    def dataset_access_policy(
+        self, workspace_id: UUID, dataset_id: UUID
+    ) -> DatasetAccessPolicy | None:
+        row = (
+            self.connection.execute(
+                select(s.dataset_access_policies)
+                .where(
+                    s.dataset_access_policies.c.workspace_id == workspace_id,
+                    s.dataset_access_policies.c.dataset_id == dataset_id,
+                )
+                .order_by(s.dataset_access_policies.c.version.desc())
+                .limit(1)
+            )
+            .mappings()
+            .first()
+        )
+        return DatasetAccessPolicy(**row) if row is not None else None
+
+    def add_dataset_access_policy(self, policy: DatasetAccessPolicy) -> None:
+        self.connection.execute(s.dataset_access_policies.insert().values(**asdict(policy)))
 
     def agent_memory(self, workspace_id: UUID, user_id: UUID) -> AgentMemory:
         row = (

@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from execplus.application.ports import EmailDelivery, WorkspaceRepository
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
+from execplus.application.services.saved_items import SavedItemService
 from execplus.domain.activation import ReportDelivery, ReportSchedule
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 
@@ -25,6 +26,7 @@ class ReportService:
     def _item(self, repo: WorkspaceRepository, actor: User, wid: UUID, itemid: UUID) -> UUID:
         repo.membership(wid, actor.id)
         item = repo.saved_item(wid, itemid)
+        SavedItemService(self.uow)._accessible(repo, actor, wid, item)
         if (not item.shared and item.owner_id != actor.id) or item.kind != "analysis":
             raise IngestionError("not_found", "Choose an accessible saved analysis.", 404)
         return UUID(str(item.payload["query_id"]))
@@ -67,7 +69,17 @@ class ReportService:
     async def list_schedules(self, actor: User, wid: UUID) -> tuple[ReportSchedule, ...]:
         with self.uow() as repo:
             repo.membership(wid, actor.id)
-            return repo.report_schedules(wid, actor.id)
+            repo.workspace(wid, lock=True)
+            visible = []
+            for schedule in repo.report_schedules(wid, actor.id):
+                try:
+                    self._item(repo, actor, wid, schedule.item_id)
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                    continue
+                visible.append(schedule)
+            return tuple(visible)
 
     async def unsubscribe(self, actor: User, wid: UUID, scheduleid: UUID) -> None:
         with self.uow() as repo:

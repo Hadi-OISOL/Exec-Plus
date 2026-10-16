@@ -15,6 +15,7 @@ from starlette.concurrency import run_in_threadpool
 
 from execplus.application.ports import IdentityProvider
 from execplus.application.services.workspaces import WorkspaceService
+from execplus.domain.dataset_access import ScopedUploadMetadata
 from execplus.domain.ingestion import IngestionError, Upload, User
 from execplus.domain.profiling import Cleaning
 from execplus.domain.samples import SAMPLES
@@ -60,9 +61,9 @@ class InvitationInput(BaseModel):
     role: str = "member"
 
 
-def public_upload(upload: Upload) -> dict[str, object]:
+def public_upload(upload: Upload | ScopedUploadMetadata) -> dict[str, object]:
     result: dict[str, object] = asdict(upload)
-    result.pop("storage_key")
+    result.pop("storage_key", None)
     return result
 
 

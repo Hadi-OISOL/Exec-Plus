@@ -15,8 +15,21 @@ from typing import Any, TypeVar
 from uuid import UUID, uuid4
 
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
+from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
+from execplus.domain.advanced_forecasting import (
+    ENGINE as ADVANCED_ENGINE,
+)
+from execplus.domain.advanced_forecasting import (
+    METHOD_CATALOG,
+    advanced_forecast,
+    compare_advanced_forecast,
+    minimum_history,
+)
+from execplus.domain.advanced_forecasting import (
+    VERSION as ADVANCED_VERSION,
+)
 from execplus.domain.analysis_readiness import forecast_options
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt, result_evidence, scalar_record
@@ -53,6 +66,41 @@ def digest(value: dict[str, Any]) -> str:
     ).hexdigest()
 
 
+def engine_version(raw: dict[str, Any]) -> str:
+    engine = raw.get("engine", "basic-v1")
+    if engine not in {"basic-v1", ADVANCED_ENGINE}:
+        raise IngestionError("forecast_engine", "Choose a supported forecast engine.", 422)
+    if engine == "basic-v1" and raw.get("method_family", "auto") != "auto":
+        raise IngestionError(
+            "forecast_method", "Specific smoothing methods require Advanced forecasting.", 422
+        )
+    if engine == ADVANCED_ENGINE:
+        minimum_history(
+            ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length")),
+            raw.get("method_family", "auto"),
+        )
+    return ADVANCED_VERSION if engine == ADVANCED_ENGINE else VERSION
+
+
+def calculate_forecast(points: tuple[ForecastPoint, ...], raw: dict[str, Any]) -> dict[str, Any]:
+    request = ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length"))
+    return (
+        advanced_forecast(points, request, raw.get("method_family", "auto"))
+        if engine_version(raw) == ADVANCED_VERSION
+        else forecast(points, request)
+    ).to_record()
+
+
+def calculate_comparison(
+    result: dict[str, Any], points: tuple[ForecastPoint, ...]
+) -> dict[str, Any]:
+    return (
+        compare_advanced_forecast(result, points)
+        if result.get("version") == ADVANCED_VERSION
+        else compare_forecast(result, points)
+    )
+
+
 def commentary(result: dict[str, Any], metric: str, unit: str) -> list[str]:
     last = result["history"][-1]
     first = result["predictions"][0]
@@ -62,6 +110,9 @@ def commentary(result: dict[str, Any], metric: str, unit: str) -> list[str]:
         context.prec = 128
         change = Decimal(last["actual"]) - Decimal(previous["actual"])
     direction = "increased by" if change > 0 else "decreased by" if change < 0 else "changed by"
+    range_label = (
+        "empirical validation-error" if result["version"] == ADVANCED_VERSION else "heuristic"
+    )
     return [
         f"The last complete period ({last['period']}) recorded "
         f"{last['actual']} {unit} for {metric}.",
@@ -69,7 +120,7 @@ def commentary(result: dict[str, Any], metric: str, unit: str) -> list[str]:
         f"the actual {direction} {format(abs(change), 'f')} {unit}. "
         "This is a measured period difference, not an explanation of its cause.",
         f"The next-period estimate ({first['period']}) is {first['estimate']} {unit}, using "
-        f"{result['method']['id'].replace('_', ' ')}. Its heuristic range is "
+        f"{result['method']['id'].replace('_', ' ')}. Its {range_label} range is "
         f"{first['lower']} to {first['upper']} {unit}; it is not guaranteed.",
         f"On {accuracy['count']} untouched historical test periods, mean absolute error was "
         f"{accuracy['mae']} {unit}. This describes past test error, "
@@ -101,11 +152,11 @@ class ForecastService:
 
     async def options(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> dict[str, Any]:
         context = await read_complete(lambda: self.analytics.describe(actor, wid, did, uid))
-        return forecast_options(context)
+        return {**forecast_options(context), "advanced_methods": list(METHOD_CATALOG)}
 
     def _current(self, actor: User, wid: UUID, did: UUID, uid: UUID, raw: dict[str, Any]) -> None:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
+            dataset_access(repo, actor, wid, did)
             repo.upload(wid, did, uid)
             revision = repo.active_revision(wid, did, uid)
             meaning = repo.latest_understanding(wid, did)
@@ -123,12 +174,12 @@ class ForecastService:
 
     def _owned(self, actor: User, wid: UUID, did: UUID, fid: UUID) -> ForecastRun:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
-            repo.dataset(wid, did)
+            dataset_access(repo, actor, wid, did)
             run = repo.forecast_run(wid, fid, actor.id)
             if run.dataset_id != did:
                 raise AuthorizationError("Forecast source mismatch")
             repo.upload(wid, did, run.upload_id)
+            authorize_sources(repo, actor, wid, run.evidence.get("sources"), did)
             return run
 
     async def _series(
@@ -229,8 +280,17 @@ class ForecastService:
 
     def list_forecasts(self, actor: User, wid: UUID, did: UUID) -> list[dict[str, Any]]:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
-            repo.dataset(wid, did)
+            repo.workspace(wid, lock=True)
+            dataset_access(repo, actor, wid, did)
+            allowed = []
+            for run in repo.forecast_runs(wid, did, actor.id):
+                try:
+                    authorize_sources(repo, actor, wid, run.evidence.get("sources"), did)
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                else:
+                    allowed.append(run)
             return [
                 dict(
                     id=str(r.id),
@@ -243,13 +303,14 @@ class ForecastService:
                     method_version=r.method_version,
                     request=r.request,
                 )
-                for r in repo.forecast_runs(wid, did, actor.id)
+                for r in allowed
             ]
 
     async def create(
         self, actor: User, wid: UUID, did: UUID, uid: UUID, raw: dict[str, Any]
     ) -> ForecastRun:
         name = checked_name(raw["name"])
+        engine_version(raw)
         if len(self.list_forecasts(actor, wid, did)) >= 50:
             raise IngestionError(
                 "forecast_limit",
@@ -260,9 +321,7 @@ class ForecastService:
         points = tuple(
             ForecastPoint(period, value) for period, value in series_values(results, raw)
         )
-        result = forecast(
-            points, ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length"))
-        ).to_record()
+        result = await read_complete(lambda: calculate_forecast(points, raw))
         result["commentary"] = commentary(result, raw["metric"], evidence["unit"])
         evidence["result_checksum"] = digest(result)
         value = ForecastRun(
@@ -284,6 +343,7 @@ class ForecastService:
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
             self._current(actor, wid, did, uid, raw)
+            authorize_sources(repo, actor, wid, evidence["sources"], did)
             if len(repo.forecast_runs(wid, did, actor.id)) >= 50:
                 raise IngestionError("forecast_limit", "The saved forecast limit was reached.", 409)
             repo.add(value)
@@ -365,8 +425,16 @@ class ForecastService:
 
     async def open(self, actor: User, wid: UUID, did: UUID, fid: UUID) -> ForecastRun:
         value = self._owned(actor, wid, did, fid)
-        if value.method_version != VERSION or value.method != value.result.get("method", {}).get(
-            "id"
+        try:
+            version = engine_version(value.request)
+        except (IngestionError, KeyError, TypeError, ValueError):
+            raise IngestionError(
+                "lineage_mismatch", "The saved forecast method is inconsistent.", 409
+            ) from None
+        if (
+            value.method_version != version
+            or value.result.get("version") != value.method_version
+            or value.method != value.result.get("method", {}).get("id")
         ):
             raise IngestionError(
                 "lineage_mismatch", "The saved forecast method is inconsistent.", 409
@@ -376,14 +444,7 @@ class ForecastService:
             ForecastPoint(period, actual)
             for period, actual in series_values(results, value.request)
         )
-        rebuilt = forecast(
-            points,
-            ForecastRequest(
-                value.request["frequency"],
-                value.request["horizon"],
-                value.request.get("season_length"),
-            ),
-        ).to_record()
+        rebuilt = await read_complete(lambda: calculate_forecast(points, value.request))
         rebuilt["commentary"] = commentary(rebuilt, value.request["metric"], value.evidence["unit"])
         if digest(rebuilt) != value.evidence["result_checksum"] or rebuilt != value.result:
             raise IngestionError(
@@ -391,7 +452,8 @@ class ForecastService:
             )
         self._owned(actor, wid, did, fid)
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
+            repo.workspace(wid, lock=True)
+            authorize_sources(repo, actor, wid, value.evidence.get("sources"), did)
             audit(repo, actor, wid, "forecast.opened", fid)
         return value
 
@@ -408,7 +470,7 @@ class ForecastService:
             ForecastPoint(period, value)
             for period, value in series_values(results, request, allow_missing=True)
         )
-        result = compare_forecast(original.result, points)
+        result = calculate_comparison(original.result, points)
         result["commentary"] = comparison_commentary(result, evidence["unit"])
         evidence["result_checksum"] = digest(result)
         value = ForecastComparison(
@@ -428,6 +490,7 @@ class ForecastService:
             repo.workspace(wid, lock=True)
             self._current(actor, wid, did, uid, raw)
             self._owned(actor, wid, did, fid)
+            authorize_sources(repo, actor, wid, evidence["sources"], did)
             if len(repo.forecast_comparisons(wid, fid, actor.id)) >= 50:
                 raise IngestionError(
                     "forecast_limit", "At most 50 comparisons per forecast are supported.", 409
@@ -437,8 +500,19 @@ class ForecastService:
         return value
 
     def comparisons(self, actor: User, wid: UUID, did: UUID, fid: UUID) -> list[dict[str, Any]]:
-        self._owned(actor, wid, did, fid)
+        original = self._owned(actor, wid, did, fid)
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            authorize_sources(repo, actor, wid, original.evidence.get("sources"), did)
+            allowed = []
+            for comparison in repo.forecast_comparisons(wid, fid, actor.id):
+                try:
+                    authorize_sources(repo, actor, wid, comparison.evidence.get("sources"), did)
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                else:
+                    allowed.append(comparison)
             return [
                 dict(
                     id=str(c.id),
@@ -446,7 +520,7 @@ class ForecastService:
                     upload_id=str(c.upload_id),
                     created_at=c.created_at,
                 )
-                for c in repo.forecast_comparisons(wid, fid, actor.id)
+                for c in allowed
             ]
 
     async def open_comparison(
@@ -463,6 +537,7 @@ class ForecastService:
             value = repo.forecast_comparison(wid, cid, actor.id)
             if value.forecast_id != fid or value.dataset_id != did:
                 raise AuthorizationError("Forecast comparison mismatch")
+            authorize_sources(repo, actor, wid, value.evidence.get("sources"), did)
         if value.evidence["definition"] != original.evidence["definition"]:
             raise IngestionError(
                 "lineage_mismatch", "The comparison meaning differs from its forecast.", 409
@@ -488,11 +563,15 @@ class ForecastService:
                 results, value.evidence["request"], allow_missing=True
             )
         )
-        rebuilt = compare_forecast(original.result, points)
+        rebuilt = calculate_comparison(original.result, points)
         rebuilt["commentary"] = comparison_commentary(rebuilt, value.evidence["unit"])
         if digest(rebuilt) != value.evidence["result_checksum"] or rebuilt != value.result:
             raise IngestionError(
                 "lineage_mismatch", "The saved comparison failed evidence verification.", 409
             )
         self._owned(actor, wid, did, fid)
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            authorize_sources(repo, actor, wid, original.evidence.get("sources"), did)
+            authorize_sources(repo, actor, wid, value.evidence.get("sources"), did)
         return value

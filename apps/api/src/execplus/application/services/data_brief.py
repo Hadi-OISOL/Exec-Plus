@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 from execplus.application.contracts import ModelMessage
 from execplus.application.ports import FileParser, LanguageModel, ObjectStorage, WorkspaceRepository
+from execplus.application.services.dataset_access import require_full_access
 from execplus.application.services.forecasts import read_complete
 from execplus.application.services.structured_reading import (
     READING_TIMEOUT_SECONDS,
@@ -57,7 +58,9 @@ class DataBriefService:
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> dict[str, Any]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             member = repo.membership(workspace_id, actor.id)
+            access = require_full_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
             revision = repo.active_revision(workspace_id, dataset_id, upload_id)
@@ -78,6 +81,7 @@ class DataBriefService:
                     ],
                 }
             return dict(
+                access_reference=access.reference(),
                 upload=upload,
                 revision=revision,
                 saved=saved,
@@ -97,12 +101,14 @@ class DataBriefService:
     ) -> None:
         repo.workspace(workspace_id, lock=True)
         member = repo.membership(workspace_id, actor.id)
+        access = require_full_access(repo, actor, workspace_id, dataset_id)
         dataset = repo.dataset(workspace_id, dataset_id)
         upload = repo.upload(workspace_id, dataset_id, upload_id)
         revision = repo.active_revision(workspace_id, dataset_id, upload_id)
         saved = repo.latest_understanding(workspace_id, dataset_id)
         if (
-            revision != context["revision"]
+            access.reference() != context["access_reference"]
+            or revision != context["revision"]
             or upload.checksum != context["upload"].checksum
             or saved != context["saved"]
             or repo.agent_memory(workspace_id, actor.id) != context["agent_memory"]
@@ -219,8 +225,7 @@ class DataBriefService:
         except (ProviderUnavailableError, UnverifiedAnswerError, TimeoutError, ValueError) as error:
             brief = fallback_brief(profile, definition)
             result["notice"] = (
-                reading_failure_notice(error)
-                + " Your file is still available. "
+                reading_failure_notice(error) + " Your file is still available. "
                 "These questions use its profile and saved answers."
             )
         with self.uow() as repo:

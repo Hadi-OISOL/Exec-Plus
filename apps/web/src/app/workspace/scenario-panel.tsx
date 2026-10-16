@@ -1,5 +1,6 @@
 /* Use case: Explores conditional aggregate changes while preserving original records.
 What it does: Shows exact scenario comparisons, private successors and evidence replay. */
+import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
@@ -111,6 +112,7 @@ export function ScenarioPanel({ root, request, onReview, initialMetric = "", ini
     </form>}
     <section aria-label="Private scenario history"><h3>Your saved comparisons</h3>{history.length ? <ul>{history.map(r => <li key={r.id}><button disabled={busy} onClick={() => open(r.id)}>{r.name}</button></li>)}</ul> : <p>No saved comparisons yet.</p>}</section>
     {selected && result && <section aria-label="Saved scenario result"><h3>{selected.run.name}</h3>
+      <ResultExportActions path={`${root.split("/uploads/")[0]}/analyses/${selected.run.id}/export?kind=scenario`} charts={[...result.alternatives.filter(value => value.path).map(value => `${value.name}: hypothetical checkpoints`), "Baseline and conditional alternatives"]} />
       <p>{selected.current ? "Current source and meanings." : "Historical source or meanings; create a new comparison against current data."} {result.sample_count} complete records. Baseline {result.aggregation} of {result.metric}: {result.baseline} {selected.run.evidence.units[result.metric]}.</p>
       <div className="buttonRow"><button disabled={busy} onClick={() => open(selected.run.id)}>Replay comparison evidence</button><button disabled={busy} onClick={successor}>Create successor comparison</button></div>
       {result.parent_run_id && <p>Successor of your saved comparison. <button disabled={busy} onClick={() => open(result.parent_run_id!)}>Open prior comparison</button></p>}

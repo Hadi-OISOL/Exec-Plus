@@ -13,7 +13,9 @@ from uuid import UUID, uuid4
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.analytics import AnalyticsService
+from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.workspaces import checked_name
+from execplus.domain.dataset_access import denied
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
@@ -53,9 +55,33 @@ def audit(repo: WorkspaceRepository, actor: User, wid: UUID, action: str, resour
 def visible(repo: WorkspaceRepository, actor: User, wid: UUID, study_id: UUID) -> Study:
     repo.membership(wid, actor.id)
     study = repo.study(wid, study_id)
-    repo.dataset(wid, study.dataset_id)
+    access = dataset_access(repo, actor, wid, study.dataset_id)
     if not study.shared and study.owner_id != actor.id:
         raise AuthorizationError("This study is private")
+    if access.policy is not None and not visible_versions(repo, actor, wid, study):
+        raise denied()
+    return study
+
+
+def visible_versions(
+    repo: WorkspaceRepository, actor: User, wid: UUID, study: Study
+) -> list[StudyVersion]:
+    result = []
+    for version in repo.study_versions(wid, study.id):
+        try:
+            authorize_sources(repo, actor, wid, version.evidence.get("sources"), study.dataset_id)
+        except IngestionError as error:
+            if error.status != 404:
+                raise
+        else:
+            result.append(version)
+    return result
+
+
+def visible_pin(repo: WorkspaceRepository, actor: User, wid: UUID, pin: UUID) -> Study:
+    version = repo.study_version(wid, pin)
+    study = visible(repo, actor, wid, version.study_id)
+    authorize_sources(repo, actor, wid, version.evidence.get("sources"), study.dataset_id)
     return study
 
 
@@ -71,7 +97,7 @@ class StudyService:
 
     def suggest(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> dict[str, Any]:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
+            dataset_access(repo, actor, wid, did)
             repo.upload(wid, did, uid)
             revision = repo.active_revision(wid, did, uid)
             meaning = repo.latest_understanding(wid, did)
@@ -92,13 +118,17 @@ class StudyService:
         if view.sources[0].get("understanding_id") != str(meaning.id):
             raise ClarificationRequiredError("Meaning changed. Reload recommendations.")
         choices = recommendations(view, preference.goal if preference else "")
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            authorize_sources(repo, actor, wid, view.sources, did)
+        dismissed = [item for item in dismissed if item in {choice["id"] for choice in choices}]
         return dict(
             state="ready",
-            domain=meaning.definition["domain"],
+            domain=(view.definition or {})["domain"],
             revision_id=str(revision.id),
             understanding_id=str(meaning.id),
             dismissed=dismissed,
-            columns=meaning.definition["columns"],
+            columns=(view.definition or {})["columns"],
             recommendations=[item for item in choices if item["id"] not in dismissed],
             limitations=[
                 "Only descriptive views are supported. Confirm units for metric suggestions."
@@ -114,6 +144,8 @@ class StudyService:
         understanding_id: UUID,
         values: list[str],
     ) -> None:
+        with self.uow() as repo:
+            access_reference = dataset_access(repo, actor, wid, did).reference()
         suggested = self.suggest(actor, wid, did, uid)
         allowed = {item["id"] for item in suggested["recommendations"]} | set(
             suggested.get("dismissed", [])
@@ -122,7 +154,8 @@ class StudyService:
             raise IngestionError("invalid_dismissal", "Dismiss only current recommendations.", 422)
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
-            repo.membership(wid, actor.id)
+            if dataset_access(repo, actor, wid, did).reference() != access_reference:
+                raise denied()
             meaning = repo.latest_understanding(wid, did)
             if not meaning or meaning.id != understanding_id:
                 raise IngestionError("definition_conflict", "Reload current recommendations.", 409)
@@ -133,24 +166,30 @@ class StudyService:
 
     def list_studies(self, actor: User, wid: UUID, did: UUID) -> list[dict[str, Any]]:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
-            repo.dataset(wid, did)
-            return [
-                {
-                    **asdict(item),
-                    "versions": [
-                        dict(
-                            id=str(version.id),
-                            number=version.number,
-                            upload_id=str(version.upload_id),
-                            created_at=version.created_at.isoformat(),
-                        )
-                        for version in repo.study_versions(wid, item.id)
-                    ],
-                }
-                for item in repo.studies(wid, did)
-                if item.shared or item.owner_id == actor.id
-            ]
+            repo.workspace(wid, lock=True)
+            access = dataset_access(repo, actor, wid, did)
+            result = []
+            for item in repo.studies(wid, did):
+                if not item.shared and item.owner_id != actor.id:
+                    continue
+                versions = visible_versions(repo, actor, wid, item)
+                if access.policy is not None and not versions:
+                    continue
+                result.append(
+                    {
+                        **asdict(item),
+                        "versions": [
+                            dict(
+                                id=str(version.id),
+                                number=version.number,
+                                upload_id=str(version.upload_id),
+                                created_at=version.created_at.isoformat(),
+                            )
+                            for version in versions
+                        ],
+                    }
+                )
+            return result
 
     async def run(
         self,
@@ -173,7 +212,7 @@ class StudyService:
                 "invalid_study", "Provide a question of up to 500 characters.", 422
             )
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
+            dataset_access(repo, actor, wid, did)
             if study_id:
                 study = visible(repo, actor, wid, study_id)
                 owns(study.owner_id, actor)
@@ -277,7 +316,8 @@ class StudyService:
         now = datetime.now(timezone.utc)
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
-            repo.membership(wid, actor.id)
+            access = dataset_access(repo, actor, wid, did)
+            authorize_sources(repo, actor, wid, view.sources, did)
             revision = repo.active_revision(wid, did, uid)
             meaning = repo.latest_understanding(wid, did)
             if (
@@ -316,15 +356,20 @@ class StudyService:
                     method_version="descriptive-v1",
                     query_ids=[str(item[0].query_id) for item in results],
                     sources=list(view.sources),
-                    preparation=revision.recipe,
+                    preparation=[] if access.restricted else revision.recipe,
                     preparation_version=revision.algorithm,
-                    definition=meaning.definition,
+                    definition=view.definition,
                     source_uploaded_at=upload.created_at.isoformat(),
                     component=self._component(method, view),
                     limitations=[
                         "Descriptive snapshot results; no causal or population inference.",
                         "A saved snapshot is historical and does not automatically refresh.",
-                    ],
+                    ]
+                    + (
+                        ["Preparation details outside this restricted view are omitted."]
+                        if access.restricted
+                        else []
+                    ),
                 ),
                 actor.id,
                 now,
@@ -348,14 +393,15 @@ class StudyService:
         with self.uow() as repo:
             repo.membership(wid, actor.id)
             version = repo.study_version(wid, version_id)
-            study = visible(repo, actor, wid, version.study_id)
+            study = visible_pin(repo, actor, wid, version_id)
         results = []
         for value in version.evidence["query_ids"]:
             with self.uow() as repo:
-                visible(repo, actor, wid, version.study_id)
+                visible_pin(repo, actor, wid, version_id)
             results.append(await self.analytics.replay(actor, wid, UUID(value)))
         with self.uow() as repo:
-            study = visible(repo, actor, wid, version.study_id)
+            repo.workspace(wid, lock=True)
+            study = visible_pin(repo, actor, wid, version_id)
             audit(repo, actor, wid, "study.opened", version.id)
         return study, version, results
 
@@ -369,10 +415,23 @@ class StudyService:
 
     def boards(self, actor: User, wid: UUID) -> tuple[StudyBoard, ...]:
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             repo.membership(wid, actor.id)
-            return tuple(
-                item for item in repo.study_boards(wid) if item.shared or item.owner_id == actor.id
-            )
+            result = []
+            for item in repo.study_boards(wid):
+                if not item.shared and item.owner_id != actor.id:
+                    continue
+                try:
+                    for pin in item.pins:
+                        visible_pin(repo, actor, wid, UUID(pin))
+                except AuthorizationError:
+                    continue
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                else:
+                    result.append(item)
+            return tuple(result)
 
     def save_board(
         self,
@@ -404,8 +463,7 @@ class StudyService:
                     "board_conflict", "A new dashboard starts at version zero.", 409
                 )
             for pin in pins:
-                version = repo.study_version(wid, UUID(pin))
-                study = visible(repo, actor, wid, version.study_id)
+                study = visible_pin(repo, actor, wid, UUID(pin))
                 if shared and not study.shared:
                     raise IngestionError(
                         "private_pin",
@@ -439,6 +497,8 @@ class StudyService:
             board = repo.study_board(wid, board_id)
             if not board.shared and board.owner_id != actor.id:
                 raise AuthorizationError("This dashboard is private")
+            for pin in board.pins:
+                visible_pin(repo, actor, wid, UUID(pin))
         results = [await self.open(actor, wid, UUID(pin)) for pin in board.pins]
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
@@ -446,8 +506,8 @@ class StudyService:
             current = repo.study_board(wid, board_id)
             if current != board:
                 raise IngestionError("board_conflict", "This dashboard changed. Reload it.", 409)
-            for study, _, _ in results:
-                visible(repo, actor, wid, study.id)
+            for _, version, _ in results:
+                visible_pin(repo, actor, wid, version.id)
             audit(repo, actor, wid, "dashboard.opened", board.id)
         return board, results
 
@@ -481,7 +541,9 @@ class StudyService:
                         )
                     )
         with self.uow() as repo:
-            visible(repo, actor, wid, left[0].id)
+            repo.workspace(wid, lock=True)
+            visible_pin(repo, actor, wid, left[1].id)
+            visible_pin(repo, actor, wid, right[1].id)
             audit(repo, actor, wid, "study.compared", right[1].id)
         return dict(
             before=left,

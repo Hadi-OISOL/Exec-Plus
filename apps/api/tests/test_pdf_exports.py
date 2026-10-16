@@ -184,8 +184,10 @@ def test_revocation_during_render_prevents_download(integration, monkeypatch):
 def test_unsupported_and_incomplete_saved_answers_never_download(integration):
     env = integration
     owner, _, _, _, path, answer, url, _ = setup(env)
-    diagram = ask(env, owner, path, "Draw a diagram")
-    unsupported = env.client.get(path + f"/turns/{diagram['turn']['id']}/export.pdf", headers=owner)
+    clarification = ask(env, owner, path, "Make a PDF of every answer")
+    unsupported = env.client.get(
+        path + f"/turns/{clarification['turn']['id']}/export.pdf", headers=owner
+    )
     assert unsupported.status_code == 422
     assert unsupported.json()["error"]["code"] == "pdf_export_unsupported"
     with env.engine.begin() as conn:

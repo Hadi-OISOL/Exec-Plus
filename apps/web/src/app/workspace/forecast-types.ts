@@ -44,6 +44,12 @@ export type ForecastResult = {
       parameters: object;
       metrics: ForecastMetrics;
     }[];
+    registry_version?: string;
+    requested_family?: string;
+    folds?: { training: Window; validation: Window }[];
+    excluded?: { method: string; reason: string }[];
+    state_updates_bound?: number;
+    state_updates_limit?: number;
   };
   uncertainty: {
     method: string;
@@ -77,6 +83,8 @@ export type ForecastRun = {
   method: string;
   method_version: string;
   request: {
+    engine?: "basic-v1" | "advanced-v2";
+    method_family?: string;
     metric: string;
     time_column: string;
     aggregation: string;
@@ -121,6 +129,7 @@ export type ComparisonSummary = Pick<
   "id" | "forecast_id" | "created_at" | "upload_id"
 >;
 export type ForecastOptions = {
+  advanced_methods?: { id: string; label: string; requires_season: boolean }[];
   meaning_state?: string;
   blockers?: { code: string; message: string }[];
   state: "ready" | "needs_review" | "unsupported";
@@ -131,6 +140,18 @@ export type ForecastOptions = {
   limitations: string[];
   defaults: { coverage_start: string | null; coverage_end: string | null };
 };
+
+export function advancedMinimumHistory(
+  frequency: "daily" | "monthly",
+  horizon: number,
+  method: string,
+): number | null {
+  if (!Number.isInteger(horizon) || horizon < 1) return null;
+  const training = method === "holt_winters_additive"
+    ? (frequency === "daily" ? 14 : 24)
+    : (frequency === "daily" ? 14 : 6);
+  return training + 4 * Math.max(horizon, frequency === "daily" ? 4 : 3);
+}
 
 export function forecastRows(
   predictions: ForecastPoint[],

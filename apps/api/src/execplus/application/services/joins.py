@@ -13,6 +13,7 @@ from io import BytesIO
 from uuid import UUID, uuid4
 
 from execplus.application.ports import FileParser, ObjectStorage, QueryExecutor, WorkspaceRepository
+from execplus.application.services.dataset_access import require_full_access
 from execplus.application.services.lineage import persist_query_execution
 from execplus.application.services.understanding import current_meaning
 from execplus.domain.errors import ClarificationRequiredError
@@ -90,8 +91,9 @@ class JoinService:
         )
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id)
-            repo.dataset(workspace_id, left_dataset_id)
-            repo.dataset(workspace_id, right_dataset_id)
+            repo.workspace(workspace_id, lock=True)
+            require_full_access(repo, actor, workspace_id, left_dataset_id)
+            require_full_access(repo, actor, workspace_id, right_dataset_id)
             repo.add(join_path)
             repo.add(
                 AuditEvent(
@@ -109,7 +111,18 @@ class JoinService:
     async def list_join_paths(self, actor: User, workspace_id: UUID) -> tuple[JoinPath, ...]:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id)
-            return repo.join_paths(workspace_id)
+            repo.workspace(workspace_id, lock=True)
+            visible = []
+            for path in repo.join_paths(workspace_id):
+                try:
+                    require_full_access(repo, actor, workspace_id, path.left_dataset_id)
+                    require_full_access(repo, actor, workspace_id, path.right_dataset_id)
+                except IngestionError as error:
+                    if error.status not in {403, 404}:
+                        raise
+                    continue
+                visible.append(path)
+            return tuple(visible)
 
     async def run_join_query(
         self,
@@ -122,13 +135,30 @@ class JoinService:
     ) -> tuple[QueryResult, CalculationLineage]:
         with self.uow() as repo:
             member = self._authorize(repo, actor, workspace_id)
+            repo.workspace(workspace_id, lock=True)
             join_path = repo.join_path(workspace_id, join_path_id)
+            left_access = require_full_access(repo, actor, workspace_id, join_path.left_dataset_id)
+            right_access = require_full_access(
+                repo, actor, workspace_id, join_path.right_dataset_id
+            )
             left_dataset = repo.dataset(workspace_id, join_path.left_dataset_id)
             right_dataset = repo.dataset(workspace_id, join_path.right_dataset_id)
             left_upload = repo.upload(workspace_id, join_path.left_dataset_id, left_upload_id)
             right_upload = repo.upload(workspace_id, join_path.right_dataset_id, right_upload_id)
             left_table, left_view = self._snapshot(repo, left_upload)
             right_table, right_view = self._snapshot(repo, right_upload)
+            left_view = replace(
+                left_view,
+                sources=tuple(
+                    {**source, **left_access.reference()} for source in left_view.sources
+                ),
+            )
+            right_view = replace(
+                right_view,
+                sources=tuple(
+                    {**source, **right_access.reference()} for source in right_view.sources
+                ),
+            )
 
         for view, table, column, is_right in (
             (left_view, left_table, join_path.left_column, False),

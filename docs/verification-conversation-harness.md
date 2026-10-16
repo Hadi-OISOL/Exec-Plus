@@ -60,7 +60,7 @@ Earlier local fixture/assertion failures and the legacy unknown-column routing
 failure remain in the private ledger. The first isolated recovery attempt used a
 storage hostname containing underscores, which the object store rejected with
 HTTP 400. The recovery helper now uses a valid DNS alias and retains temporary
-store diagnostics on failure. Its follow-up twelve tests and a22-second isolated
+store diagnostics on failure. Its follow-up twelve tests and a 22-second isolated
 restore pass; see the [recovery rehearsal](recovery-rehearsal.md). The first
 encrypted copy was interrupted after administrative connection checks timed out;
 its incomplete ciphertext is retained. The completed retry passes an in-memory

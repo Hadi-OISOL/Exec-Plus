@@ -9,6 +9,7 @@ from uuid import UUID
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.analytics import UnitOfWork
+from execplus.application.services.dataset_access import authorize_sources, require_full_access
 from execplus.application.services.studies import visible
 from execplus.domain.artifacts import (
     TABULAR_CAPABILITIES,
@@ -34,7 +35,7 @@ class ArtifactService:
 
     def _authorize(self, repo: WorkspaceRepository, actor: User, reference: ArtifactRef) -> None:
         repo.membership(reference.workspace_id, actor.id)
-        repo.dataset(reference.workspace_id, reference.dataset_id)
+        require_full_access(repo, actor, reference.workspace_id, reference.dataset_id)
 
     def _revision(self, repo: WorkspaceRepository, reference: ArtifactRef) -> Revision:
         if reference.upload_id is None:
@@ -56,6 +57,8 @@ class ArtifactService:
     ) -> tuple[ArtifactRef, ...]:
         if not isinstance(sources, list) or len(sources) > 4:
             raise IngestionError("lineage_mismatch", "Source references are unsupported.", 409)
+        if sources:
+            authorize_sources(repo, actor, wid, sources)
         refs: list[ArtifactRef] = []
         try:
             for source in sources:

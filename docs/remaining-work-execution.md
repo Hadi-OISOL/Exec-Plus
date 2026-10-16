@@ -48,7 +48,7 @@ as a requirement for code that can be built locally.
 
 ## Evidence and status
 
-**In progress.** The conversation repair is deployed and verified at`b3a1fb1` on
+**In progress.** The conversation repair is deployed and verified at `b3a1fb1` on
 unchanged0018; see its [ledger](verification-conversation-harness.md). Current
 isolated recovery and an encrypted off-VPS copy also pass the
 [declared rehearsal](recovery-rehearsal.md), with production custody/objectives

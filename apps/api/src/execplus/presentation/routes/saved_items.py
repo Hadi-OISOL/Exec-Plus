@@ -74,7 +74,7 @@ def _saved_item_body(item: SavedItem) -> dict[str, object]:
         "kind": item.kind,
         "name": item.name,
         "description": item.description,
-        "payload": item.payload,
+        "payload": {key: value for key, value in item.payload.items() if key != "access_reference"},
         "shared": item.shared,
         "created_at": item.created_at.isoformat(),
         "updated_at": item.updated_at.isoformat(),
@@ -153,7 +153,9 @@ async def run_saved_item(
             )
             return numerical_answer_body(answer)
         try:
-            body = MetricQueryInput.model_validate(item.payload)
+            body = MetricQueryInput.model_validate(
+                {key: value for key, value in item.payload.items() if key != "access_reference"}
+            )
         except ValueError:
             raise IngestionError(
                 "invalid_saved_item", "The saved query configuration is invalid.", 422
@@ -163,7 +165,9 @@ async def run_saved_item(
         )
         return query_body(result, lineage)
     try:
-        body_dashboard = DashboardInput.model_validate(item.payload)
+        body_dashboard = DashboardInput.model_validate(
+            {key: value for key, value in item.payload.items() if key != "access_reference"}
+        )
     except ValueError:
         raise IngestionError(
             "invalid_saved_item", "The saved dashboard configuration is invalid.", 422

@@ -1,5 +1,6 @@
 /* Use case: Explores unusual values and explicitly constrained recommendations.
 What it does: Shows private replayable evidence, assumptions and human review without executing actions. */
+import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
@@ -215,6 +216,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
       {history.filter(item => item.kind !== "scenario_comparison").length ? <ul>{history.filter(item => item.kind !== "scenario_comparison").map((item) => <li key={item.id}><button type="button" disabled={Boolean(pending)} onClick={() => open(item.id)}>{item.name} · {item.kind === "robust_distribution" ? "Unusual values" : "Allocation"}</button></li>)}</ul> : <p>No saved analyses yet.</p>}
     </section>
     {selected && <section aria-label="Saved analysis result"><h3>{selected.run.name}</h3>
+      <ResultExportActions path={`${datasetRoot}/analyses/${selected.run.id}/export?kind=${selected.run.kind === "robust_distribution" ? "anomaly" : "allocation"}`} charts={anomaly?.findings.length ? ["Flagged values"] : allocation ? ["Selected actions"] : []} />
       <p>{selected.current ? "Current source and meanings." : "Historical source or meanings: review against current data before acting."} Method: {selected.run.method_version}.</p>
       <button type="button" disabled={Boolean(pending)} onClick={() => open(selected.run.id)}>Replay original evidence</button>
       {anomaly && <><p>{anomaly.flagged_records} of {anomaly.sample_count} records flagged. Median reference: {anomaly.baseline ?? "Separate baseline for each group"}. Method: {anomaly.method}.</p>

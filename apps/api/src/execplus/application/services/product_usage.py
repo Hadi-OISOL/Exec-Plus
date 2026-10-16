@@ -6,6 +6,7 @@ What it does: Checks workspace management or explicit staff grants around metada
 from datetime import datetime, timezone
 from uuid import UUID
 
+from execplus.application.services.dataset_access import require_workspace_access
 from execplus.application.services.operations import OperationsService
 from execplus.application.services.workspaces import UnitOfWork
 from execplus.domain.ingestion import User, require_manager
@@ -22,6 +23,8 @@ class ProductUsageService:
         start = report_start(now, weeks)
         with self.uow() as repo:
             require_manager(repo.membership(wid, actor.id).role)
+            repo.workspace(wid, lock=True)
+            require_workspace_access(repo, actor, wid)
             facts = repo.product_usage_facts(wid, start, now)
             require_manager(repo.membership(wid, actor.id).role)
         return usage_report(wid, now, weeks, facts)
@@ -33,5 +36,7 @@ class ProductUsageService:
             actor, "admin.product_usage", workspace_id=wid, admin=True
         ) as repo:
             repo.workspace(wid)
+            repo.workspace(wid, lock=True)
+            require_workspace_access(repo, actor, wid)
             facts = repo.product_usage_facts(wid, start, now)
         return usage_report(wid, now, weeks, facts)

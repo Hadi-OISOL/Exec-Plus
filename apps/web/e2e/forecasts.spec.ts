@@ -17,6 +17,63 @@ test.afterEach(async ({ page }) => {
   expect(pageErrors.get(page) ?? []).toEqual([]);
 });
 
+test("advanced smoothing keeps rolling evidence, exact saved estimates and portable exports", async ({ page }) => {
+  test.setTimeout(150_000);
+  await signIn(page, session());
+  await upload(page, 50);
+  await page.getByLabel("Analysis focus").selectOption("predictive");
+  await review(page);
+  await page.getByRole("combobox", { name: "Period", exact: true }).selectOption("daily");
+  await page.getByRole("combobox", { name: "Forecast approach", exact: true }).selectOption("advanced-v2");
+  await expect(page.getByText(/This choice needs at least 30 complete days/)).toBeVisible();
+  await page.getByLabel("Advanced method family").selectOption("holt_winters_additive");
+  await page.getByLabel("I confirm the source covers every complete period in this range.").check();
+  await expect(page.getByRole("button", { name: "Create forecast", exact: true })).toBeDisabled();
+  await expect(page.getByText(/declare the repeating cycle before continuing/)).toBeVisible();
+  await page.getByLabel("Advanced method family").selectOption("auto");
+  const created = page.waitForResponse(response => response.request().method() === "POST" && /\/uploads\/[^/]+\/forecasts$/.test(new URL(response.url()).pathname));
+  await page.getByRole("button", { name: "Create forecast", exact: true }).click();
+  const response = await created;
+  expect(response.status()).toBe(201);
+  const run = await response.json();
+  expect(run.result.version).toBe("forecast-v2");
+  expect(run.result.method.id).toBe("holt");
+  expect(Number(run.result.predictions[0].estimate)).toBe(5.1);
+  expect(run.result.selection.folds).toHaveLength(3);
+  const result = page.getByRole("article", { name: "Forecast result: amount forecast", exact: true });
+  await expect(result).toContainText("Empirical validation-error range");
+  await expect(result).toContainText("A separate later window measures its error");
+  await expect(result.locator(".verifiedBadge")).toHaveCount(0);
+  await result.getByLabel("Inspect a forecast period").selectOption(run.result.predictions[0].period);
+  await expect(result.getByRole("status").first()).toContainText(run.result.predictions[0].estimate);
+  await result.getByText("Method, backtest and source evidence", { exact: true }).click();
+  await expect(result.getByRole("heading", { name: "Rolling validation windows", exact: true })).toBeVisible();
+  await expect(result).toContainText("smoothing-grid-v1");
+  await expect(result).toContainText(run.evidence.query_ids[0]);
+  await result.getByText("Method, backtest and source evidence", { exact: true }).click();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    expect(await result.locator(".forecastChart").evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    const choice = await page.getByLabel("Advanced method family").boundingBox();
+    expect(choice?.height).toBeGreaterThanOrEqual(44);
+    expect(choice?.height).toBeLessThanOrEqual(64);
+    await result.screenshot({ path: `../../data/verification/2026-10-16/remaining-work/advanced-forecast-${width}.png` });
+  }
+  await result.getByText("Download saved forecast", { exact: true }).click();
+  await result.getByRole("combobox", { name: "File type", exact: true }).selectOption("xlsx");
+  const download = page.waitForEvent("download");
+  await result.getByRole("button", { name: "Download Excel", exact: true }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/\.xlsx$/);
+  expect(await file.failure()).toBeNull();
+  await page.getByRole("combobox", { name: "Saved forecast", exact: true }).selectOption(run.id);
+  const reopened = page.waitForResponse(value => value.request().method() === "GET" && value.url().endsWith(`/forecasts/${run.id}`));
+  await page.getByRole("button", { name: "Open saved forecast", exact: true }).click();
+  expect((await (await reopened).json()).result).toEqual(run.result);
+});
+
 function session() {
   return execFileSync(
     "python3",

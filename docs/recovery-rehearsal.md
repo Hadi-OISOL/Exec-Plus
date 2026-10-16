@@ -14,7 +14,7 @@ checks and passage boundaries/checksums pass. Twenty executed receipts replay
 exactly across sum, analysis, rows, average, maximum, minimum and count. There are
 4,332 eligible executed receipts; this is a bounded replay sample, not a claim
 that every receipt was executed again. All 47 application-table fingerprints are
-unchanged by verification; migration metadata independently reports0018.
+unchanged by verification; migration metadata independently reports 0018.
 
 ## Isolation and reproducibility
 
@@ -34,7 +34,7 @@ read-only transactions, verifies every retained object/revision/passage and comp
 table fingerprints before and after replay. It does not connect to live services.
 
 The first attempts failed because the temporary storage hostname contained
-underscores; the object store returned HTTP400. The corrected DNS alias passes.
+underscores; the object store returned HTTP 400. The corrected DNS alias passes.
 Twelve local checks also pass after the repair, including traversal/symlink
 refusal, unsafe target rejection and source/revision corruption detection. Earlier
 failures and temporary diagnostic logs are retained privately.
@@ -43,10 +43,10 @@ failures and temporary diagnostic logs are retained privately.
 
 The same database dump, object archive and checksum manifest were streamed
 directly into an AES256 encrypted archive on the operator workstation. Its size
-is4,133,086 bytes. Verification decrypted the stream in memory, checked all three
+is 4,133,086 bytes. Verification decrypted the stream in memory, checked all three
 members and matched both data archives to the checked VPS manifest. No plaintext
 backup files were created on the workstation. The ignored private directory is
-mode0700; archive and local passphrase file are mode0600. The first transfer was
+mode 0700; archive and local passphrase file are mode 0600. The first transfer was
 interrupted after administrative connection checks timed out; its incomplete
 ciphertext remains clearly labelled and is not counted as a valid backup.
 
@@ -55,7 +55,7 @@ integrity-checked encrypted copy. It does not claim a restore initiated from tha
 encrypted copy, automatic external retention or independent key custody. The
 archive and local key are on the same operator machine; production requires an
 approved destination, separate key custody, retention and agreed recovery-point
-and recovery-time objectives. Feature42 remains Partial and the production
+and recovery-time objectives. Feature 42 remains Partial and the production
 recovery gate stays blocked.
 
 Evidence is retained under

@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from execplus.application.services.forecasts import ForecastService
 from execplus.presentation.routes.workspaces import Actor
@@ -45,6 +45,18 @@ class ForecastInput(CoverageInput):
     frequency: Literal["daily", "monthly"]
     horizon: int = Field(ge=1, le=30, strict=True)
     season_length: int | None = Field(default=None, ge=1, le=12, strict=True)
+    engine: Literal["basic-v1", "advanced-v2"] = "basic-v1"
+    method_family: Literal[
+        "auto", "simple_exponential", "holt", "damped_holt", "holt_winters_additive"
+    ] = "auto"
+
+    @model_validator(mode="after")
+    def compatible_engine(self) -> "ForecastInput":
+        if self.engine == "basic-v1" and self.method_family != "auto":
+            raise ValueError("Specific smoothing methods require the advanced engine.")
+        if self.method_family == "holt_winters_additive" and self.season_length is None:
+            raise ValueError("Declare the seasonal cycle for this method.")
+        return self
 
 
 class ComparisonInput(CoverageInput):
@@ -67,11 +79,11 @@ async def create(
     actor: Actor,
     forecasts: Service,
 ) -> object:
-    return asdict(
-        await forecasts.create(
-            actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-        )
-    )
+    raw = body.model_dump(mode="json")
+    if body.engine == "basic-v1":
+        raw.pop("engine")
+        raw.pop("method_family")
+    return asdict(await forecasts.create(actor, workspace_id, dataset_id, upload_id, raw))
 
 
 @router.get(RUNS)

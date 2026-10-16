@@ -18,7 +18,7 @@ terms. These notices do not change the independent licenses of other components.
 | SQL Data Analytics Project, Baraa Khatib Salkini | [b99f16a](https://github.com/DataWithBaraa/sql-data-analytics-project/tree/b99f16a26197ff0d36131867af319238aec23dd8) | Reading progression adapted from date-range, measures and magnitude exploration; no upstream dataset or unrestricted SQL execution | [MIT](apps/web/public/third-party/sql-analytics-LICENSE.txt), ©2025 Baraa Khatib Salkini |
 
 | ReportLab | [5.0.1](https://pypi.org/project/reportlab/5.0.1/) | Pinned unmodified PDF runtime; ExecPlus supplies protected saved-answer content and a bounded renderer | [BSD](apps/web/public/third-party/reportlab-LICENSE.txt) |
-| Pillow | 12.3.0 in the verified PDF build | ReportLab dependency; no user images or arbitrary image loading are exposed by the export adapter | [MIT-CMU and bundled notices](apps/web/public/third-party/pillow-LICENSE.txt) |
+| Pillow | 12.3.0, pinned directly | Trusted server chart drawing and ReportLab image support; no user images, arbitrary image paths or remote loading are exposed | [MIT-CMU and bundled notices](apps/web/public/third-party/pillow-LICENSE.txt) |
 | charset-normalizer | 3.5.2 in the verified PDF build | ReportLab dependency | [MIT](apps/web/public/third-party/charset-normalizer-LICENSE.txt) |
 | Manrope by Mikhail Sharanda and Mirko Velimirović | Existing ExecPlus font; SHA-256 `3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6` | Unmodified duplicate packaged for offline PDF embedding with checked glyph coverage | [SIL OFL](apps/api/src/execplus/infrastructure/exports/assets/OFL.txt) |
 

@@ -18,6 +18,7 @@ from execplus.application.reporting_ports import ReportingRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
 from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.analysis_plan import AnalysisPlan
+from execplus.domain.dataset_access import DatasetAccessPolicy
 from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.ingestion import (
@@ -287,6 +288,12 @@ class WorkspaceRepository(JobRepository, OperationsRepository, ReportingReposito
     def agent_memory(self, workspace_id: UUID, user_id: UUID) -> AgentMemory: ...
 
     def save_agent_memory(self, memory: AgentMemory) -> None: ...
+
+    def dataset_access_policy(
+        self, workspace_id: UUID, dataset_id: UUID
+    ) -> DatasetAccessPolicy | None: ...
+
+    def add_dataset_access_policy(self, policy: DatasetAccessPolicy) -> None: ...
 
     def user(self, user_id: UUID) -> "User": ...
 

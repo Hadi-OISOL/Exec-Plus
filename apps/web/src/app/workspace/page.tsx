@@ -12,6 +12,8 @@ import type { ChatHandle } from "./ask-panel";
 import { CatalogPanel } from "./catalog-panel";
 import { DatasetMap, Icon } from "./explore-components";
 import { AskPanel } from "./ask-panel";
+import { DatasetAccessNotice } from "./dataset-access-notice";
+import { ExportDownloadContext, type ExportDownload } from "./result-export-actions";
 import { UnderstandingPanel, domains } from "./understanding-panel";
 import { DiscoveryPanel } from "./discovery-panel";
 import type { StaffRole } from "./support-panel";
@@ -23,6 +25,10 @@ import "./focused-workspace.css";
 import "./studio-workspace.css";
 
 const loadingView = () => <WorkspaceLoading />;
+const DatasetAccessPanel = dynamic(
+  () => import("./dataset-access-panel").then(module => module.DatasetAccessPanel),
+  { loading: loadingView },
+);
 const AgentMemoryPanel = dynamic(
   () => import("./agent-memory-panel").then(module => module.AgentMemoryPanel),
   { loading: loadingView },
@@ -112,7 +118,8 @@ type Upload = {
   id: string;
   filename: string;
   sample_id: string | null;
-  size: number;
+  size: number | null;
+  access_limited?: boolean;
   row_count: number;
   column_count: number;
   status: string;
@@ -164,6 +171,7 @@ export default function WorkspacePage() {
   const [busy, setBusy] = useState(false);
   const role = members.find((member) => member.user_id === user?.id)?.role;
   const manager = role === "owner" || role === "admin";
+  const limitedUpload = uploads.find(item => item.id === profileUpload)?.access_limited === true;
 
   function reviewUnderstanding() {
     setSection("overview");
@@ -219,19 +227,22 @@ export default function WorkspacePage() {
     return response.status === 204 ? (undefined as T) : response.json();
   }, [authorizedResponse]);
 
-  const downloadPdf = useCallback(async (path: string, signal: AbortSignal) => {
-    const ids = path.match(/^\/workspaces\/([0-9a-f-]{36})\/threads\/([0-9a-f-]{36})\/turns\/([0-9a-f-]{36})\/export\.pdf$/i);
-    if (!ids) throw new Error("This report download is unavailable.");
-    const response = await authorizedResponse(path, { signal, headers: { Accept: "application/pdf" } });
-    if (!response.headers.get("Content-Type")?.toLowerCase().startsWith("application/pdf")) throw new Error("The server did not return a PDF. Please try again.");
+  const downloadExport = useCallback<ExportDownload>(async (path, format, signal, body) => {
+    const [route] = path.split("?");
+    if (!/^\/workspaces\/[0-9a-f-]{36}\/(?:threads\/[0-9a-f-]{36}\/turns\/[0-9a-f-]{36}\/export\.(?:pdf|xlsx|csv|png)|datasets\/[0-9a-f-]{36}\/(?:forecasts|analyses)\/[0-9a-f-]{36}(?:\/comparisons\/[0-9a-f-]{36})?\/export\.(?:pdf|xlsx|csv|png)|(?:study-versions|study-boards)\/[0-9a-f-]{36}\/export\.(?:pdf|xlsx|csv|png)|exports\/dashboard)$/.test(route)) throw new Error("This download is unavailable.");
+    const media = { pdf: "application/pdf", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "application/zip", png: "image/png" }[format];
+    const response = await authorizedResponse(path, { signal, ...(body ? { method: "POST", body: JSON.stringify(body) } : {}), headers: { Accept: media, ...(body ? { "Content-Type": "application/json" } : {}) } });
+    if (!response.headers.get("Content-Type")?.toLowerCase().startsWith(media)) throw new Error("The server did not return the selected file type. Please try again.");
     const blob = await response.blob();
     if (signal.aborted) return;
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url; link.download = `execplus-answer-${ids[3]}.pdf`;
+    const filename = response.headers.get("Content-Disposition")?.match(/filename="([a-zA-Z0-9.-]+)"/)?.[1];
+    link.href = url; link.download = filename ?? `execplus-result.${format === "csv" ? "zip" : format}`;
     document.body.appendChild(link); link.click(); link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 10000);
   }, [authorizedResponse]);
+  const downloadPdf = useCallback((path: string, signal: AbortSignal) => downloadExport(path, "pdf", signal), [downloadExport]);
 
   function json(method: string, body: object): RequestInit {
     return {
@@ -260,7 +271,7 @@ export default function WorkspacePage() {
   }
 
   useEffect(() => {
-    if (!profileUpload || !user) return;
+    if (!profileUpload || !user || limitedUpload) return;
     let seen = skippedBriefs.current.has(profileUpload);
     try {
       seen = seen || Boolean(window.localStorage.getItem(`execplus.brief.${profileUpload}`));
@@ -275,7 +286,7 @@ export default function WorkspacePage() {
     return () => {
       active = false;
     };
-  }, [profileUpload, user]);
+  }, [profileUpload, user, limitedUpload]);
 
   function closeBrief(changed: boolean, finished: boolean) {
     if (finished) {
@@ -294,6 +305,10 @@ export default function WorkspacePage() {
   }
 
   function openBrief() {
+    if (limitedUpload) {
+      reviewUnderstanding();
+      return;
+    }
     setBriefManual(true);
     setReviewOpen(false);
     setGuidedFor("");
@@ -595,8 +610,8 @@ export default function WorkspacePage() {
     workspace && dataset && profileUpload
       ? `/workspaces/${workspace.id}/datasets/${dataset}/uploads/${profileUpload}`
       : "";
-  const briefActive = Boolean(root && user && briefFor === profileUpload && !reviewOpen);
-  const guidedActive = Boolean(root && user && guidedFor === profileUpload && !briefActive && !reviewOpen);
+  const briefActive = Boolean(root && user && !limitedUpload && briefFor === profileUpload && !reviewOpen);
+  const guidedActive = Boolean(root && user && !limitedUpload && guidedFor === profileUpload && !briefActive && !reviewOpen);
   const reviewing = ["overview", "ask"].includes(section) && (briefActive || guidedActive || reviewOpen);
   const sections = [
     { id: "overview", name: "Overview", group: "INSIGHTS" },
@@ -650,7 +665,7 @@ export default function WorkspacePage() {
     window.requestAnimationFrame(() => chat.current?.ask(text));
   }
   return (
-    <main
+    <ExportDownloadContext.Provider value={downloadExport}><main
       className={`workspaceApp workbench analyticsShell ${user ? "isSignedIn" : "isSignedOut"}`}
       data-section={section}
       data-reviewing={reviewing}
@@ -887,7 +902,7 @@ export default function WorkspacePage() {
                       <strong>
                         {selectedUpload.row_count.toLocaleString()}
                       </strong>{" "}
-                      source rows
+                      {selectedUpload.access_limited ? "rows in your view" : "source rows"}
                       <span>
                         {selectedUpload.sample_id
                           ? "Fictional sample"
@@ -897,6 +912,7 @@ export default function WorkspacePage() {
                   )}
                 </section>
               )}
+              {workspace && dataset && !["admin", "memory", "team"].includes(section) && <DatasetAccessNotice root={`/workspaces/${workspace.id}/datasets/${dataset}`} view={section} request={request} />}
               <div hidden={section !== "data"} className="dataLibraryGrid">
                 <section
                   className="panel uploadStart"
@@ -1016,7 +1032,7 @@ export default function WorkspacePage() {
                             {uploads.map((item) => (
                               <tr key={item.id}>
                                 <td>{item.filename}</td>
-                                <td>{item.size.toLocaleString()} bytes</td>
+                                <td>{item.size === null ? "Original file restricted" : `${item.size.toLocaleString()} bytes`}</td>
                                 <td>{item.row_count}</td>
                                 <td>{item.column_count}</td>
                                 <td>
@@ -1144,6 +1160,9 @@ export default function WorkspacePage() {
                     <button disabled={busy}>Accept invitation</button>
                   </form>
                 </section>
+                {workspace && role === "owner" && (
+                  <DatasetAccessPanel key={workspace.id} workspaceId={workspace.id} request={request} />
+                )}
                 {workspace && manager && (
                   <section className="panel">
                     <h2>Workspace usage</h2>
@@ -1477,13 +1496,13 @@ export default function WorkspacePage() {
                         </label>
                       </fieldset>
                     </div>
-                    {root && section === "overview" && !reviewOpen && guidedFor !== profileUpload && (
+                    {root && !limitedUpload && section === "overview" && !reviewOpen && guidedFor !== profileUpload && (
                       <div className="reviewEntryActions">
                         <button type="button" disabled={busy} onClick={openBrief}>Check what ExecPlus understood</button>
                         <details><summary>Other review options</summary><button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button></details>
                       </div>
                     )}
-                    {root && user && guidedFor === profileUpload && briefFor !== profileUpload && !reviewOpen && (
+                    {root && user && !limitedUpload && guidedFor === profileUpload && briefFor !== profileUpload && !reviewOpen && (
                       <GuidedReview
                         key={`guided-${user.id}-${root}-${revisionTick}`}
                         root={root}
@@ -1748,6 +1767,6 @@ export default function WorkspacePage() {
           </footer>
         </div>
       </div>
-    </main>
+    </main></ExportDownloadContext.Provider>
   );
 }

@@ -1,0 +1,27 @@
+/* Use case: Presents internal service incidents as readable accessible cards.
+What it does: Separates collector status, failure evidence and explicit staff actions across screen sizes. */
+
+.panel { --incident-border: var(--studio-border, #d5e1dc); --incident-ink: var(--studio-ink, #243d35); --incident-accent: var(--studio-accent, #176c64); color: var(--incident-ink); }
+.panel p { line-height: 1.6; max-width: 78ch; }
+.heading, .cardHeading, .actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.heading h2 { margin: 8px 0; }
+.panel button, .panel select, .details summary { min-height: 44px; }
+.filter { margin: 24px 0; max-width: 340px; }
+.filter label { display: flex; flex-direction: column; gap: 8px; }
+.filter select { font-size: 16px; width: 100%; }
+.health { padding: 18px; border: 1px solid var(--incident-border); border-radius: 12px; background: var(--studio-wash, #f3f7f5); display: grid; gap: 8px; margin-bottom: 24px; line-height: 1.5; }
+.health[role="alert"] { border-left: 4px solid var(--danger, #963e30); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr)); gap: 20px; }
+.card { min-width: 0; border: 1px solid var(--incident-border); border-radius: 12px; padding: 22px; }
+.cardHeading { font-size: 13px; }
+.cardHeading strong { text-transform: capitalize; }
+.card h3 { font-size: 19px; line-height: 1.4; margin: 18px 0; }
+.card dl { display: grid; gap: 16px; margin: 20px 0; }
+.card dt { font-size: 13px; }
+.card dd { font-size: 16px; margin: 4px 0 0; overflow-wrap: anywhere; }
+.actions { justify-content: flex-start; margin-top: 24px; }
+.details { margin-top: 28px; border-top: 1px solid var(--incident-border); padding-top: 20px; }
+.details summary { cursor: pointer; font-weight: 600; }
+.error { color: var(--danger, #963e30); }
+.panel :focus-visible { outline: 3px solid var(--incident-accent); outline-offset: 3px; }
+@media(max-width:600px) { .card { padding: 18px; } .actions button { width: 100%; } .heading { align-items: flex-start; } }

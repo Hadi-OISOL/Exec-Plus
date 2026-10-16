@@ -11,9 +11,10 @@ from uuid import UUID
 from execplus.application.contracts import ModelMessage, ModelRequest
 from execplus.application.ports import LanguageModel
 from execplus.application.progress import activity, model_call
+from execplus.application.services.dataset_access import require_full_access
 from execplus.application.services.knowledge import KnowledgeService
 from execplus.domain.errors import ProviderUnavailableError
-from execplus.domain.ingestion import User
+from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.jobs import EventStatus, JobStage
 from execplus.domain.models import ModelTier
 
@@ -26,6 +27,8 @@ class DocumentAnswerService:
     async def answer(
         self, actor: User, wid: UUID, did: UUID, query: str
     ) -> tuple[tuple[dict[str, Any], ...], str, str]:
+        with self.knowledge.uow() as repo:
+            reference = require_full_access(repo, actor, wid, did).reference()
         await activity(JobStage.RETRIEVAL, EventStatus.STARTED)
         hits = await self.knowledge.search(actor, wid, did, query, 5)
         await activity(JobStage.RETRIEVAL, EventStatus.COMPLETED)
@@ -94,4 +97,8 @@ class DocumentAnswerService:
             if current["checksum"] != hit["checksum"]:
                 raise ProviderUnavailableError("Document evidence changed during selection.")
             citations.append(dict(current, citation_url=hit["citation_url"]))
+        with self.knowledge.uow() as repo:
+            repo.workspace(wid, lock=True)
+            if require_full_access(repo, actor, wid, did).reference() != reference:
+                raise IngestionError("not_found", "The requested documents are unavailable.", 404)
         return tuple(citations), coverage, f"{response.provider}:{response.model}"

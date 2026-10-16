@@ -18,6 +18,11 @@ from uuid import UUID, uuid4
 from execplus.application.ports import FileParser, ObjectStorage, QueryExecutor, WorkspaceRepository
 from execplus.application.progress import activity
 from execplus.application.services.answers import AnswerAssembler
+from execplus.application.services.dataset_access import (
+    authorize_sources,
+    dataset_access,
+    scope_snapshot,
+)
 from execplus.application.services.lineage import persist_query_execution
 from execplus.application.services.understanding import current_meaning
 from execplus.domain.dashboard_templates import TEMPLATES, DashboardTemplate, applicable_templates
@@ -147,7 +152,9 @@ class AnalyticsService:
         source: dict[str, str] | None = None,
     ) -> tuple[DescriptionContext, TableData, WorkspaceScope]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
             revision = (
@@ -175,6 +182,9 @@ class AnalyticsService:
                 )
                 if state == "confirmed":
                     view = apply_definition(view, saved.definition)
+            table, view, visible_profile, definition = scope_snapshot(
+                table, view, revision.profile, definition, access
+            )
             if source and view.sources != (source,):
                 raise IngestionError("lineage_mismatch", "The explanation source changed.", 409)
             member = self._authorize(repo, actor, workspace_id)
@@ -183,11 +193,11 @@ class AnalyticsService:
             )
             context = DescriptionContext(
                 dataset.name,
-                revision.profile,
+                visible_profile,
                 view,
                 definition,
                 state,
-                preference.goal if preference else "",
+                preference.goal if preference and not access.restricted else "",
                 repo.agent_memory(workspace_id, actor.id) if not source else None,
             )
             scope = WorkspaceScope(
@@ -204,6 +214,7 @@ class AnalyticsService:
         upload_id: UUID,
     ) -> tuple[Upload, tuple[dict[str, str], ...]]:
         self._authorize(repo, actor, workspace_id)
+        access = dataset_access(repo, actor, workspace_id, dataset_id)
         repo.dataset(workspace_id, dataset_id)
         upload = repo.upload(workspace_id, dataset_id, upload_id)
         revision = repo.active_revision(workspace_id, dataset_id, upload_id)
@@ -221,6 +232,7 @@ class AnalyticsService:
         }
         if saved:
             source["understanding_id"] = str(saved.id)
+        source.update(access.reference())
         return upload, (source,)
 
     def recheck_description(
@@ -233,6 +245,7 @@ class AnalyticsService:
     ) -> None:
         message = "The file or its meaning changed. Reload the discovery."
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             upload, before = self._current_description_source(
                 repo, actor, workspace_id, dataset_id, upload_id
             )
@@ -251,10 +264,13 @@ class AnalyticsService:
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> tuple[str, WorkspaceScope, TableData, DatasetView]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             member = self._authorize(repo, actor, workspace_id)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.dataset(workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
             table, view = self._snapshot(repo, upload)
+            table, view, _, _ = scope_snapshot(table, view, {}, view.definition, access)
         scope = WorkspaceScope(
             workspace_id, actor.id, frozenset({member.role}), frozenset({dataset_id})
         )
@@ -267,8 +283,11 @@ class AnalyticsService:
         self, actor: User, workspace_id: UUID, source: dict[str, str]
     ) -> tuple[str, WorkspaceScope, TableData, DatasetView]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             member = self._authorize(repo, actor, workspace_id)
             did, uid = UUID(source["dataset_id"]), UUID(source["upload_id"])
+            authorize_sources(repo, actor, workspace_id, [source])
+            access = dataset_access(repo, actor, workspace_id, did)
             dataset = repo.dataset(workspace_id, did)
             upload = repo.upload(workspace_id, did, uid)
             revision = repo.revision(workspace_id, did, uid, UUID(source["revision_id"]))
@@ -302,6 +321,9 @@ class AnalyticsService:
             view = apply_definition(
                 replace(dataset_view(revision.profile), sources=(frozen_source,)),
                 meaning.definition,
+            )
+            table, view, _, _ = scope_snapshot(
+                table, view, revision.profile, meaning.definition, access
             )
             self._authorize(repo, actor, workspace_id)
         return (
@@ -409,6 +431,9 @@ class AnalyticsService:
         with self.uow() as repo:
             self._authorize(repo, actor, workspace_id)
             execution = repo.query_execution(workspace_id, query_id)
+            authorize_sources(
+                repo, actor, workspace_id, execution.receipt.get("sources"), execution.dataset_id
+            )
             if execution.aggregation == "analysis" and execution.actor_id != actor.id:
                 raise IngestionError("not_found", "The private query is unavailable.", 404)
         return execution.lineage()
@@ -729,8 +754,13 @@ class AnalyticsService:
         tables: list[TableData] = []
         views: list[DatasetView] = []
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             member = self._authorize(repo, actor, workspace_id)
+            authorize_sources(repo, actor, workspace_id, sources)
             for source in sources:
+                access = dataset_access(repo, actor, workspace_id, UUID(source["dataset_id"]))
+                if len(sources) > 1:
+                    access.require_full()
                 upload = repo.upload(
                     workspace_id, UUID(source["dataset_id"]), UUID(source["upload_id"])
                 )
@@ -748,7 +778,7 @@ class AnalyticsService:
                 self.parser.parse(
                     content, upload.filename, upload.content_type, stored_format=upload.format
                 )
-                tables.append(reconstruct(self.parser.read_table(content, upload.format), revision))
+                table = reconstruct(self.parser.read_table(content, upload.format), revision)
                 view = dataset_view(revision.profile)
                 if source.get("understanding_id"):
                     meaning = repo.understanding(
@@ -761,6 +791,10 @@ class AnalyticsService:
                             409,
                         )
                     view = apply_definition(view, meaning.definition)
+                table, view, _, _ = scope_snapshot(
+                    table, view, revision.profile, view.definition, access
+                )
+                tables.append(table)
                 views.append(view)
         scope = WorkspaceScope(
             workspace_id,
@@ -778,11 +812,14 @@ class AnalyticsService:
             tuple(scalar_from_record(value) for value in parameters),
         )
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            authorize_sources(repo, actor, workspace_id, sources)
         if len(tables) == 1:
             result = await self.executor.execute(plan, scope, tables[0], views[0])
         elif len(tables) == 2 and "join_path_id" in evidence:
             with self.uow() as repo:
+                repo.workspace(workspace_id, lock=True)
                 path = repo.join_path(workspace_id, UUID(str(evidence["join_path_id"])))
             result = await self.executor.execute_join(
                 plan, scope, path, tables[0], views[0], tables[1], views[1]
@@ -790,7 +827,9 @@ class AnalyticsService:
         else:
             raise IngestionError("replay_unavailable", "Unsupported snapshot receipt.", 409)
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            authorize_sources(repo, actor, workspace_id, sources)
         if result_evidence(result)["checksum"] != evidence["result_checksum"]:
             raise IngestionError(
                 "lineage_mismatch", "The replay did not reproduce the recorded answer.", 409
@@ -811,6 +850,14 @@ class AnalyticsService:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
             executions = [repo.query_execution(workspace_id, UUID(key)) for key in evidence_ids]
+            for execution in executions:
+                authorize_sources(
+                    repo,
+                    actor,
+                    workspace_id,
+                    execution.receipt.get("sources"),
+                    execution.dataset_id,
+                )
             if any(item.aggregation == "analysis" for item in executions):
                 raise IngestionError(
                     "unsupported_summary", "Review this evidence in Anomalies & decisions.", 422

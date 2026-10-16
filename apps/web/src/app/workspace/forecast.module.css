@@ -41,6 +41,7 @@ What it does: Separates observed and estimated regions with readable scales and 
 .controls select { min-height: 44px; max-width: 100%; }
 .controls > div { display: flex; gap: 8px; }
 .controls button { min-width: 44px; min-height: 44px; padding: 8px; }
+.approach select { min-height: 44px; width: 100%; max-width: 100%; flex: none; }
 .chart :global(.forecastActual), .chart :global(.forecastEstimate), .chart :global(.forecastBand) { animation: reveal 300ms ease-out both; }
 @keyframes reveal { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 520px) {

@@ -9,13 +9,21 @@ import re
 import unicodedata
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import BinaryIO
 from uuid import UUID, uuid4
 
 from execplus.application.ports import FileParser, ObjectStorage, WorkspaceRepository
+from execplus.application.services.dataset_access import (
+    dataset_access,
+    require_full_access,
+    require_workspace_access,
+    scope_snapshot,
+)
 from execplus.domain.audit import MANAGER_ACTIONS, SHARED_ACTIONS, audit_cursor, parse_audit_cursor
+from execplus.domain.dataset_access import DatasetAccess, ScopedUploadMetadata
 from execplus.domain.ingestion import (
     AuditEvent,
     Dataset,
@@ -41,6 +49,7 @@ from execplus.domain.profiling import (
     transform,
 )
 from execplus.domain.samples import SAMPLES, sample_csv
+from execplus.domain.semantics import dataset_view
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 logger = logging.getLogger(__name__)
@@ -287,12 +296,24 @@ class WorkspaceService:
 
     def list_datasets(self, actor: User, workspace_id: UUID) -> tuple[Dataset, ...]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
-            return repo.datasets(workspace_id)
+            visible = []
+            for item in repo.datasets(workspace_id):
+                try:
+                    dataset_access(repo, actor, workspace_id, item.id)
+                except IngestionError as error:
+                    if error.status != 404:
+                        raise
+                else:
+                    visible.append(item)
+            return tuple(visible)
 
     def get_dataset(self, actor: User, workspace_id: UUID, dataset_id: UUID) -> Dataset:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            dataset_access(repo, actor, workspace_id, dataset_id)
             return repo.dataset(workspace_id, dataset_id)
 
     def create_dataset(self, actor: User, workspace_id: UUID, name: str) -> Dataset:
@@ -311,18 +332,23 @@ class WorkspaceService:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            require_full_access(repo, actor, workspace_id, dataset_id)
             dataset = repo.rename_dataset(workspace_id, dataset_id, checked_name(name))
             self._audit(repo, actor, workspace_id, "dataset.renamed", "dataset", dataset_id)
             return dataset
 
-    def list_uploads(self, actor: User, workspace_id: UUID, dataset_id: UUID) -> tuple[Upload, ...]:
+    def list_uploads(
+        self, actor: User, workspace_id: UUID, dataset_id: UUID
+    ) -> tuple[Upload | ScopedUploadMetadata, ...]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
             repo.dataset(workspace_id, dataset_id)
             uploads = repo.uploads(workspace_id, dataset_id)
             feeds = repo.refresh_feeds(workspace_id, dataset_id)
             if not feeds:
-                return uploads
+                return self._visible_uploads(repo, uploads, access)
             active = feeds[0].source["upload_id"]
             staged = {
                 c.details.get(key)
@@ -330,19 +356,63 @@ class WorkspaceService:
                 for key in ("input_upload_id", "output_upload_id")
                 if c.status != "activated"
             }
-            return tuple(
+            selected = tuple(
                 sorted(
                     (u for u in uploads if str(u.id) not in staged or str(u.id) == active),
                     key=lambda u: str(u.id) != active,
                 )
             )
+            return self._visible_uploads(repo, selected, access)
 
     def get_upload(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
-    ) -> Upload:
+    ) -> Upload | ScopedUploadMetadata:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
-            return repo.upload(workspace_id, dataset_id, upload_id)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
+            return self._visible_upload(
+                repo, repo.upload(workspace_id, dataset_id, upload_id), access
+            )
+
+    def _visible_uploads(
+        self, repo: WorkspaceRepository, uploads: tuple[Upload, ...], access: DatasetAccess
+    ) -> tuple[Upload | ScopedUploadMetadata, ...]:
+        visible = []
+        for upload in uploads:
+            try:
+                visible.append(self._visible_upload(repo, upload, access))
+            except IngestionError as error:
+                if error.status != 404:
+                    raise
+        return tuple(visible)
+
+    def _visible_upload(
+        self, repo: WorkspaceRepository, upload: Upload, access: DatasetAccess
+    ) -> Upload | ScopedUploadMetadata:
+        if not access.restricted:
+            return upload
+        revision = repo.active_revision(upload.workspace_id, upload.dataset_id, upload.id)
+        if revision is None:
+            raise IngestionError("not_found", "The requested upload is unavailable.", 404)
+        table = reconstruct(self._table(upload), revision)
+        table, _, _, _ = scope_snapshot(
+            table, dataset_view(revision.profile), revision.profile, None, access
+        )
+        return ScopedUploadMetadata(
+            upload.id,
+            upload.workspace_id,
+            upload.dataset_id,
+            upload.filename,
+            upload.content_type,
+            upload.status,
+            upload.format,
+            len(table.rows),
+            len(table.headers),
+            upload.created_by,
+            upload.created_at,
+            upload.sample_id,
+        )
 
     def upload(
         self,
@@ -358,6 +428,8 @@ class WorkspaceService:
     ) -> Upload:
         if _sample_dataset is None:
             self.get_dataset(actor, workspace_id, dataset_id)
+            with self.uow() as repo:
+                require_full_access(repo, actor, workspace_id, dataset_id)
         else:
             with self.uow() as repo:
                 self._authorize(repo, actor, workspace_id)
@@ -410,6 +482,7 @@ class WorkspaceService:
                     repo.add(_sample_dataset)
                     self._audit(repo, actor, workspace_id, "dataset.created", "dataset", dataset_id)
                 repo.dataset(workspace_id, dataset_id)
+                require_full_access(repo, actor, workspace_id, dataset_id)
                 attempted = True
                 self.storage.put(upload, content)
                 repo.add(upload)
@@ -437,6 +510,7 @@ class WorkspaceService:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            require_full_access(repo, actor, workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
             content = self.storage.read(upload)
             self._audit(repo, actor, workspace_id, "upload.downloaded", "upload", upload_id)
@@ -444,7 +518,9 @@ class WorkspaceService:
 
     def audit_events(self, actor: User, workspace_id: UUID) -> tuple[AuditEvent, ...]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id, manager=True)
+            require_workspace_access(repo, actor, workspace_id)
             return repo.visible_audit_events(
                 workspace_id, actor.id, SHARED_ACTIONS + MANAGER_ACTIONS
             )
@@ -479,7 +555,9 @@ class WorkspaceService:
                 "invalid_audit_filter", "The end date must follow the start date.", 422
             )
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             member = self._authorize(repo, actor, workspace_id)
+            require_workspace_access(repo, actor, workspace_id)
             shared = SHARED_ACTIONS + (MANAGER_ACTIONS if member.role in {"owner", "admin"} else ())
             records = repo.visible_audit_events(
                 workspace_id,
@@ -547,15 +625,39 @@ class WorkspaceService:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
-            return self._root(repo, actor, upload)
+            revision = self._root(repo, actor, upload)
+            return self._visible_revision(upload, revision, access)
+
+    def _visible_revision(
+        self, upload: Upload, revision: Revision, access: DatasetAccess
+    ) -> Revision:
+        if not access.restricted:
+            return revision
+        table = reconstruct(self._table(upload), revision)
+        table, _, visible, _ = scope_snapshot(
+            table, dataset_view(revision.profile), revision.profile, None, access
+        )
+        return replace(
+            revision,
+            profile=visible,
+            recipe=[],
+            parent_id=None,
+            source_checksum="",
+            output_checksum=table.checksum(),
+        )
 
     def revision_history(
         self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
     ) -> tuple[Revision, ...]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
-            repo.upload(workspace_id, dataset_id, upload_id)
+            access = dataset_access(repo, actor, workspace_id, dataset_id)
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            if access.restricted:
+                return (self._visible_revision(upload, self._root(repo, actor, upload), access),)
             return repo.revisions(workspace_id, dataset_id, upload_id)
 
     def clean(
@@ -572,6 +674,7 @@ class WorkspaceService:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            require_full_access(repo, actor, workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
             active = self._root(repo, actor, upload)
             if active.id != expected_revision_id:
@@ -626,6 +729,7 @@ class WorkspaceService:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            require_full_access(repo, actor, workspace_id, dataset_id)
             upload = repo.upload(workspace_id, dataset_id, upload_id)
             active = self._root(repo, actor, upload)
             if active.id != expected_revision_id:
@@ -662,7 +766,9 @@ class WorkspaceService:
 
     def usage(self, actor: User, workspace_id: UUID) -> dict[str, object]:
         with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id, manager=True)
+            require_workspace_access(repo, actor, workspace_id)
             return {
                 **repo.usage_totals(workspace_id, datetime.now(timezone.utc)),
                 "events": repo.usage_events(workspace_id),

@@ -14,8 +14,15 @@ from uuid import UUID, uuid4
 
 from execplus.application.export_ports import PdfRenderer, SavedAnswerResolver
 from execplus.application.ports import WorkspaceRepository
+from execplus.application.services.data_diagrams import DiagramAnswer
+from execplus.application.services.dataset_access import (
+    authorize_sources,
+    dataset_access,
+    scoped_definition,
+)
 from execplus.application.services.forecasts import read_complete
-from execplus.application.services.intent_router import DatasetGuide
+from execplus.application.services.intent_router import DatasetGuide, PatternAnswer
+from execplus.application.services.thread_export_documents import extended_sections, thread_charts
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, Scalar, VerifiedMetricAnswer
 from execplus.domain.pdf_exports import (
@@ -26,6 +33,7 @@ from execplus.domain.pdf_exports import (
     ReportAnswer,
     validate_document,
 )
+from execplus.domain.public_evidence import public_evidence
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 
@@ -77,11 +85,12 @@ class PdfExportService:
             with self.uow() as repo:
                 repo.workspace(wid, lock=True)
                 repo.membership(wid, actor.id)
+                authorize_sources(repo, actor, wid, sources)
                 thread = repo.thread(wid, tid)
                 if thread.owner_id != actor.id:
                     raise IngestionError("not_found", "The conversation is unavailable.", 404)
                 repo.upload(wid, thread.dataset_id, thread.upload_id)
-                final_sources = self._source_sections(repo, wid, sources)
+                final_sources = self._source_sections(repo, actor, wid, sources)
                 if final_sources != document.sections[-len(final_sources) :]:
                     raise IngestionError(
                         "source_changed", "The source changed. Please prepare the PDF again.", 409
@@ -100,6 +109,8 @@ class PdfExportService:
         tid: UUID,
         turn_id: UUID,
         generated_at: datetime | None = None,
+        *,
+        validate_pdf: bool = True,
     ) -> tuple[PdfDocument, tuple[dict[str, str], ...]]:
         _, turns = await self.resolver.get_thread(actor, wid, tid)
         turn = next((item for item in turns if item.id == turn_id), None)
@@ -170,12 +181,20 @@ class PdfExportService:
             if answer.suggestions:
                 sections.append(PdfSection("Suggested questions, not results", answer.suggestions))
             sources = answer.sources
+        elif isinstance(answer, DiagramAnswer | PatternAnswer):
+            sections.extend(extended_sections(answer))
+            sources = (
+                answer.sources
+                if isinstance(answer, DiagramAnswer)
+                else tuple(answer.evidence["sources"])
+            )
         else:
             raise IngestionError(
                 "pdf_export_unsupported",
-                "PDF export currently supports saved calculations, result tables and "
-                "source-backed data explanations. Open one of those answers first. "
-                "Patterns, document answers, diagrams and other reports are not included yet.",
+                (
+                    "Open an executed calculation, diagram, measured pattern or source-backed "
+                    "explanation."
+                ),
                 422,
             )
         if lineage is not None:
@@ -209,22 +228,34 @@ class PdfExportService:
                     PdfSection("Executed query", (lineage.sql,)),
                     PdfSection(
                         "Execution receipt",
-                        (json.dumps(receipt, ensure_ascii=False, sort_keys=True, indent=2),),
+                        (
+                            json.dumps(
+                                public_evidence(receipt),
+                                ensure_ascii=False,
+                                sort_keys=True,
+                                indent=2,
+                            ),
+                        ),
                     ),
                 )
             )
         with self.uow() as repo:
             repo.membership(wid, actor.id)
-            sections.extend(self._source_sections(repo, wid, sources))
+            sections.extend(self._source_sections(repo, actor, wid, sources))
         document = PdfDocument(
-            "ExecPlus - saved answer", generated_at or datetime.now(timezone.utc), tuple(sections)
+            "ExecPlus - saved answer",
+            generated_at or datetime.now(timezone.utc),
+            tuple(sections),
+            thread_charts(answer),
         )
-        validate_document(document)
+        if validate_pdf:
+            validate_document(document)
         return document, sources
 
     def _source_sections(
-        self, repo: WorkspaceRepository, wid: UUID, sources: tuple[dict[str, str], ...]
+        self, repo: WorkspaceRepository, actor: User, wid: UUID, sources: tuple[dict[str, str], ...]
     ) -> tuple[PdfSection, ...]:
+        authorize_sources(repo, actor, wid, sources)
         sections = []
         for index, source in enumerate(sources, 1):
             did, uid, rid = (
@@ -253,16 +284,21 @@ class PdfExportService:
             state = (
                 "Current recorded source at generation" if current else "Historical source snapshot"
             )
+            access = dataset_access(repo, actor, wid, did)
+            definition = meaning.definition if meaning else None
+            if definition and access.restricted:
+                headers = access.columns or tuple(item["name"] for item in definition["columns"])
+                definition = scoped_definition(definition, access, headers)[0]
             paragraphs = (
                 f"File: {upload.filename}",
                 f"Freshness: {state}. No claim about data outside the imported file is made.",
                 f"Definition version: {meaning.version if meaning else 'not recorded'}; "
                 f"state: {meaning.state if meaning else 'inferred'}",
-                json.dumps(source, ensure_ascii=False, sort_keys=True, indent=2),
+                json.dumps(public_evidence(source), ensure_ascii=False, sort_keys=True, indent=2),
             ) + (
                 (
                     "Saved business definitions and units:",
-                    json.dumps(meaning.definition, ensure_ascii=False, sort_keys=True, indent=2),
+                    json.dumps(definition, ensure_ascii=False, sort_keys=True, indent=2),
                 )
                 if meaning
                 else ("No saved business definitions are recorded for this answer.",)
