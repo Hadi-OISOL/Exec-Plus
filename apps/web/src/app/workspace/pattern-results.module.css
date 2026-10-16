@@ -34,8 +34,8 @@ What it does: Gives records, comparison scales and exact-value inspectors a cons
 .pointInspection dl > div { min-width: 0; }
 .pointInspection dt { color: #53685f; font-size: 12px; overflow-wrap: anywhere; }
 .pointInspection dd { margin: 4px 0 0; color: #213a32; font-weight: 650; font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.recordPicker { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: #53685f; font-size: 12px; margin-bottom: 14px; }
-.recordPicker select { min-height: 44px; max-width: 100%; flex: 1 1 145px; padding: 8px; }
+.results .recordPicker.recordPicker { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 8px; color: #53685f; font-size: 12px; margin-bottom: 14px; }
+.recordPicker select { min-height: 44px; width: 100%; max-width: 100%; flex: none; padding: 8px; }
 .results .scatter figcaption small { font-size: 12px; line-height: 1.5; color: #53685f; }
 .results :global(.patternBarChart), .results :global(.patternCategoryChart) { gap: 18px; }
 .results :global(.patternBarLabel) { font-size: 14px; color: #213a32; gap: 6px 12px; }

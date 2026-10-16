@@ -2,7 +2,7 @@
 What it does: Exercises metadata-only search, layout choices, exact replay, stale-result removal and immutable study pins. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, openFindings } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -151,4 +151,38 @@ test("study and dashboard galleries filter real saved versions and retain pinned
   await expect(observations.locator(".chartPoint")).toHaveCount(2);
   await expect(observations.locator("svg polyline")).toHaveCount(0);
   await mobile(page);
+});
+
+test("dashboard totals keep full normal amounts readable at desktop and mobile widths", async ({ page }) => {
+  await start(page, session(), "date,region,revenue,ad_spend,delivery_hours,discount_pct,orders,returns\n2025-01-01,North,8235156.60,901678,36.318082191781,7.505936073059,141464,7309\n2025-01-02,South,0,0,36.318082191781,7.505936073059,0,0\n");
+  await openFindings(page);
+  await page.locator("summary").filter({ hasText: "Charts & dashboard controls" }).click();
+  const dashboard = page.getByRole("region", { name: "Dataset dashboard", exact: true });
+  const figures = dashboard.getByLabel("Key figures", { exact: true });
+  await expect(figures.locator(".kpiCard")).toHaveCount(6);
+  const revenue = figures.locator(".kpiCard").filter({ has: page.locator(".kpiLabel", { hasText: /revenue/i }) }).locator(".kpiValue");
+  await expect(revenue).toHaveText("8,235,156.6");
+  await expect(revenue).toHaveAttribute("title", /^8235156\.6000/);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await figures.scrollIntoViewIfNeeded();
+    const measurements = await figures.evaluate(element => ({
+      available: element.getBoundingClientRect().width,
+      pageWidth: document.documentElement.scrollWidth,
+      cards: Array.from(element.querySelectorAll<HTMLElement>(".kpiCard")).map(card => {
+        const value = card.querySelector<HTMLElement>(".kpiValue")!;
+        const range = document.createRange();
+        range.selectNodeContents(value);
+        return { width: card.getBoundingClientRect().width, lines: range.getClientRects().length, value: value.textContent, visibleWidth: value.clientWidth, contentWidth: value.scrollWidth };
+      }),
+    }));
+    expect(measurements.pageWidth, JSON.stringify(measurements)).toBeLessThanOrEqual(width + 1);
+    for (const card of measurements.cards) {
+      expect(card.width, JSON.stringify(measurements)).toBeGreaterThanOrEqual(Math.min(260, measurements.available) - 1);
+      expect(card.lines, JSON.stringify(card)).toBe(1);
+      expect(card.contentWidth, JSON.stringify(card)).toBeLessThanOrEqual(card.visibleWidth + 1);
+    }
+    await figures.screenshot({ path: `../../data/verification/2026-10-16/chart-experience/kpi-layout-${width}.png`, animations: "disabled" });
+  }
 });

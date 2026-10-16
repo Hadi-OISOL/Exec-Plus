@@ -6,7 +6,8 @@
 Scope follows [the contract](chart-experience.md) and
 [the reference audit](chart-experience-reference-audit.md). This is a web-only
 change over existing deterministic results, saved evidence and permissions.
-Application release is pending final checks. Schema remains 0018, with no API,
+Initial web release `879d90f` is deployed; final live checks identify a dashboard
+layout issue that is being corrected. Schema remains 0018, with no API,
 jobs, provider or numerical-method change.
 
 ## Implementation and reference evidence
@@ -65,8 +66,13 @@ layouts, increased root font size, reduced motion and original exact values.
 Desktop/narrow screenshots are inspected; current copies are retained in the
 release folder even where older test helpers use historical screenshot paths.
 
-The final local production build passes. Private-release evidence follows after
-completion.
+The first local production build passes. After the live layout review, the
+scoped KPI grid/font and pattern picker repairs pass their two browser checks in
+22.3 seconds at desktop and narrow widths. The new large-value KPI case raises
+the local total to **13 distinct browser journeys with passing executions**. It
+checks full numeric text, one-line normal values, card widths and no overflow;
+the pattern check requires a 44–60 pixel picker that fits its parent. Final
+static/build and private-release evidence follow below.
 No full backend or model-quality evaluation is claimed for this presentation work.
 Private logs and screenshots remain in
 `data/verification/2026-10-16/chart-experience/`.
@@ -80,6 +86,25 @@ requests. This failed helper result is retained. Source review establishes that
 the matching confirmed definition returns before model/sampling/audit; the helper
 now permits only that exact confirmed-source route. No production source,
 definition or memory writes are permitted by the helper.
+
+Initial deployment builds and activates the web image successfully, with backend
+container IDs/images/start times and environment checksum unchanged. Readiness
+and the workspace recover after the expected initial connection-refused startup
+retry. All five reported-source artifacts remain unchanged. A direct artifact
+copy cannot traverse the root-owned ops directory; the same evidence is retrieved
+through the established administrator sudo channel. The first live dashboard
+screenshot reveals an actual CSS precedence bug: inherited grid rules squeeze
+large KPI values into narrow cards. This is retained as a release failure pending
+a scoped repair and new browser/build/release checks. The first expanded live
+helper also stops on an overly strict forecast-picker selector after nine layouts;
+the semantic combobox selector is corrected without changing expectations. The
+retry passes three journeys and 27 layouts in 55.199 seconds, with both fictional
+sources unchanged and no page errors or prohibited writes. Visual inspection
+still rejects the KPI layout and a 145-pixel-tall pattern record picker caused
+by inherited label direction. Both get scoped CSS repairs. The added KPI browser
+case initially times out on “Revenue” versus the existing “Total revenue” label;
+the frozen corrected selector is used in the final rerun. Other three cases in
+that run pass; these failures are not removed from the record.
 
 The checked pre-release backup is `20261016T075401Z`; database and objects archive
 checksums pass and services restart healthy. Fresh snapshots of the user's

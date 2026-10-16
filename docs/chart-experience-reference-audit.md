@@ -84,8 +84,9 @@ Python is executed to draw a result.
 | Forecasts | Separate observed points from estimates, preserve the uncertainty band and make period/value inspection easier | No line across a missing observation; no false precision in the band; if history is visually shortened, disclose that and retain complete exact tables |
 | Scenarios and decisions | Reuse clear value/source presentation where shared components apply; keep baseline and supplied assumptions easy to identify | Assumed changes and additive benefits remain assumptions, not observed outcomes or causal predictions. This chart work adds no new scenario or allocation method |
 
-Chart coordinates may use bounded approximate numbers for geometry. Displayed
-values and evidence must retain the original strings. A geometry fallback should
+Chart coordinates may use bounded approximate numbers for geometry. Exact tables,
+point labels and inspectors retain original strings; axis and headline values may
+group digits and trim insignificant trailing zeros without changing numeric value. A geometry fallback should
 remain explicit; it must not erase a nonzero value, present a missing cell as zero,
 or fabricate a ranking between values that cannot be plotted distinctly.
 

@@ -64,6 +64,12 @@ test("measured patterns replay privately and no-date forecasts lead to explicit 
   await patterns.locator(".patternDetails summary").first().click();
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
+    const picker = chart.getByLabel("Inspect a plotted record");
+    const pickerSize = await picker.boundingBox();
+    expect(pickerSize).not.toBeNull();
+    expect(pickerSize!.height).toBeGreaterThanOrEqual(44);
+    expect(pickerSize!.height).toBeLessThanOrEqual(60);
+    expect(await picker.evaluate(element => element.getBoundingClientRect().width <= element.parentElement!.clientWidth + 1)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await patterns.locator(".patternOverview").scrollIntoViewIfNeeded();
     await page.screenshot({ path: `../../data/verification/2026-10-14/patterns/patterns-${width}.png`, fullPage: true });
