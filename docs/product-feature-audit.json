@@ -161,7 +161,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Supported data/document questions use registered tools and retained evidence. Explicit private memory tailors new qualitative readings and suggestions; it cannot add calculation filters or guarantee model accuracy.",
+      "note": "Registered data/document tools retain evidence. Locally tested diagram and PDF routing adds bounded actions; live acceptance is pending. Maps show field membership, not causes. Private memory tailors explanations, never numerical filters.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -176,7 +176,11 @@
         "docs/measured-patterns.md",
         "docs/verification-measured-patterns.md",
         "docs/verification-personal-agent-studio.md",
-        "docs/verification-repository-integration.md"
+        "docs/verification-repository-integration.md",
+        "docs/domain-agent-tools.md",
+        "docs/verification-domain-agent-tools.md",
+        "apps/api/tests/test_data_diagrams.py",
+        "apps/api/tests/test_report_conversations.py"
       ],
       "evidence_groups": [
         "E2",
@@ -186,7 +190,8 @@
         "E20",
         "E21",
         "E23",
-        "E25"
+        "E25",
+        "E26"
       ]
     },
     {
@@ -249,15 +254,22 @@
       "id": 13,
       "section": "Month 1",
       "feature": "PDF/Excel export",
-      "status": "missing",
-      "note": "PDF and Excel analysis exports are not available yet. They remain planned for Phase 4D.",
+      "status": "partial",
+      "note": "Protected PDFs for saved calculations, tables and source-backed explanations are locally tested; live acceptance is pending. Exact values and evidence stay attached. Excel, chart images and full dashboard reports remain unfinished.",
       "evidence": [
         "ROADMAP.md",
         "README.md",
-        "docs/verification-platform-foundation.md"
+        "docs/verification-platform-foundation.md",
+        "docs/pdf-export.md",
+        "docs/verification-domain-agent-tools.md",
+        "apps/api/src/execplus/application/services/pdf_exports.py",
+        "apps/api/tests/test_pdf_exports.py",
+        "apps/api/tests/test_pdf_rendering.py",
+        "apps/api/tests/test_report_conversations.py"
       ],
       "evidence_groups": [
-        "E8"
+        "E8",
+        "E26"
       ]
     },
     {
@@ -327,7 +339,7 @@
       "section": "Improve activation",
       "feature": "Guided data-upload wizard",
       "status": "done",
-      "note": "Guided upload review asks one question at a time, preserves saved meanings and writes missing units to the correct field. Skipped details remain visible; saving and reload failures are distinguished.",
+      "note": "One-question upload review preserves meanings and missing-field drafts. New optional private preferences save before the first reading; a failed save retains the upload. Skip/back behavior is locally tested; live acceptance is pending.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/web/e2e/workspace.spec.ts",
@@ -335,13 +347,18 @@
         "apps/web/src/app/workspace/guided-review.tsx",
         "apps/web/e2e/guided-review.spec.ts",
         "docs/verification-onboarding-merge.md",
-        "docs/verification-personal-agent-studio.md"
+        "docs/verification-personal-agent-studio.md",
+        "docs/domain-agent-tools.md",
+        "docs/verification-domain-agent-tools.md",
+        "apps/web/src/app/workspace/agent-setup.tsx",
+        "apps/web/e2e/domain-agent-tools.spec.ts"
       ],
       "evidence_groups": [
         "E10",
         "E16",
         "E21",
-        "E23"
+        "E23",
+        "E26"
       ]
     },
     {
@@ -483,17 +500,22 @@
       "section": "Improve activation",
       "feature": "In-app onboarding",
       "status": "done",
-      "note": "Focused Home, chat and review views guide the private-demo workflow. Optional per-user memory is editable and forgettable; it is not automatic learning from every conversation.",
+      "note": "Focused Home, chat and review guide the demo. New optional step-by-step personal setup is locally tested, with live acceptance pending. Explicit memory remains editable and forgettable; conversations do not automatically train it.",
       "evidence": [
         "apps/api/src/execplus/application/services/activation.py",
         "apps/web/src/app/workspace/activation-panel.tsx",
         "apps/api/tests/test_phase3_integration.py",
         "apps/web/e2e/workspace.spec.ts",
-        "docs/verification-personal-agent-studio.md"
+        "docs/verification-personal-agent-studio.md",
+        "docs/domain-agent-tools.md",
+        "docs/verification-domain-agent-tools.md",
+        "apps/web/src/app/workspace/agent-setup.tsx",
+        "apps/web/e2e/domain-agent-tools.spec.ts"
       ],
       "evidence_groups": [
         "E3",
-        "E23"
+        "E23",
+        "E26"
       ]
     },
     {
@@ -695,16 +717,20 @@
       "section": "Growth-plan features",
       "feature": "Audit history",
       "status": "done",
-      "note": "Searchable audit history shows authorized actions with date, action and resource filters. Private forecast, conversation and other private activity remains hidden from other users, including workspace managers.",
+      "note": "Searchable audit history filters authorized actions. New PDF generation records actor-private export events, hidden from other users and managers. These checks pass locally; live PDF acceptance is pending.",
       "evidence": [
         "docs/verification-phase4c.md",
         "docs/audit-history.md",
         "apps/web/src/app/workspace/audit-panel.tsx",
-        "apps/api/tests/test_audit_history.py"
+        "apps/api/tests/test_audit_history.py",
+        "docs/pdf-export.md",
+        "docs/verification-domain-agent-tools.md",
+        "apps/api/tests/test_pdf_exports.py"
       ],
       "roadmap": "Priority audit-history view delivered with Phase 4C; finer enterprise controls remain separate",
       "evidence_groups": [
-        "E11"
+        "E11",
+        "E26"
       ]
     },
     {
@@ -731,7 +757,7 @@
       "section": "Commercial readiness",
       "feature": "Customer-data isolation",
       "status": "done",
-      "note": "Workspace/source isolation and creator-private analyses are tested. Personal memory is actor/workspace-private with membership removal, conflict and freshness checks; forget does not erase historical replies or backups.",
+      "note": "Workspace/source and creator-private isolation remain. New diagram replay and PDF downloads recheck ownership and evidence; source/access changes during rendering refuse delivery. Local privacy tests pass; live tool acceptance is pending.",
       "evidence": [
         "apps/api/tests/test_workspace_integration.py",
         "apps/api/tests/test_phase3_integration.py",
@@ -739,12 +765,19 @@
         "apps/api/tests/test_artifacts.py",
         "apps/api/tests/test_conversation_jobs.py",
         "docs/verification-platform-foundation.md",
-        "docs/verification-personal-agent-studio.md"
+        "docs/verification-personal-agent-studio.md",
+        "docs/domain-agent-tools.md",
+        "docs/pdf-export.md",
+        "docs/verification-domain-agent-tools.md",
+        "apps/api/tests/test_data_diagrams.py",
+        "apps/api/tests/test_pdf_exports.py",
+        "apps/api/tests/test_report_conversations.py"
       ],
       "evidence_groups": [
         "E6",
         "E7",
-        "E23"
+        "E23",
+        "E26"
       ]
     },
     {
@@ -846,7 +879,7 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "partial",
-      "note": "Focused reading preserves saved meanings and resumes actual missing details. Invalid AI output can recover once or show an honest profile fallback. Explicit confirmation remains required; production signup and paid-plan onboarding are absent.",
+      "note": "Reading preserves meanings and recovers once from invalid AI output. New optional private setup saves before the first reading, with local tests and live acceptance pending. Shared definitions still need confirmation; production signup and paid onboarding remain absent.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
@@ -856,14 +889,19 @@
         "apps/web/e2e/guided-review.spec.ts",
         "docs/verification-onboarding-merge.md",
         "docs/verification-context-reuse.md",
-        "docs/verification-meaning-first.md"
+        "docs/verification-meaning-first.md",
+        "docs/domain-agent-tools.md",
+        "docs/verification-domain-agent-tools.md",
+        "apps/web/src/app/workspace/agent-setup.tsx",
+        "apps/web/e2e/domain-agent-tools.spec.ts"
       ],
       "roadmap": "Phase 5 commercial onboarding",
       "evidence_groups": [
         "E10",
         "E16",
         "E19",
-        "E21"
+        "E21",
+        "E26"
       ]
     },
     {
@@ -1377,6 +1415,19 @@
         "THIRD_PARTY_NOTICES.md",
         "apps/web/tests/echarts-renderer.test.mjs"
       ]
+    ],
+    "E26": [
+      "Bounded domain tools, private setup and saved-answer PDF; live acceptance pending",
+      [
+        "docs/domain-agent-tools.md",
+        "docs/verification-domain-agent-tools.md",
+        "docs/pdf-export.md",
+        "apps/api/tests/test_data_diagrams.py",
+        "apps/api/tests/test_report_conversations.py",
+        "apps/api/tests/test_pdf_exports.py",
+        "apps/api/tests/test_pdf_rendering.py",
+        "apps/web/e2e/domain-agent-tools.spec.ts"
+      ]
     ]
   },
   "section_intros": {
@@ -1471,7 +1522,7 @@
       "Share and export",
       "Documents board sharing/embedding and advertises PDF/PPT reporting. [P3, P4, P5]",
       "Documents PDF/CSV/Excel downloads and embedding tools. [T5, T6]",
-      "Sharing within authorized workspaces works. PDF/Excel export and third-party dashboard embedding are missing."
+      "Authorized workspace sharing works. Protected saved-answer PDFs are locally tested; live acceptance is pending. Excel, full dashboard reports and external embedding remain unfinished."
     ],
     [
       "Reports and alerts",

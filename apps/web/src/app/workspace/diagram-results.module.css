@@ -7,6 +7,7 @@ What it does: Keeps the diagram, exact field inspector and source details readab
 .panel p { font-size: 14px; line-height: 1.65; }
 .panel header p { margin: 0; max-width: 65ch; }
 .description { padding-top: 12px; }
+.legacy { padding: 12px; border: 1px solid #d9d1b8; border-radius: 8px; background: #faf6e9; color: #65532f; }
 .facts { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 16px 0; color: #536961; font-size: 12px; }
 .panel .branch, .panel .inspector { display: grid; gap: 7px; font-size: 13px; margin: 18px 0 0; min-width: 0; }
 .panel select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid #c9d8ce; border-radius: 8px; background: white; color: #23483d; font-size: 14px; }

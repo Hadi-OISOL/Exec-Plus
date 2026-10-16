@@ -184,3 +184,14 @@ with an explicit local skill directory and a fresh private JSON output path. It
 passes no provider credentials, disables tracing, requests static-only checks and
 retains findings/incomplete coverage as nonzero outcomes. Its syntax and dry-run
 paths were checked; unchanged targets were not rescanned merely to add the wrapper.
+
+## Domain-agent runtime tools
+
+The [domain-agent slice](domain-agent-tools.md) exposes only configured, registered
+ExecPlus operations to planning. The ECharts tree draws source-backed field maps;
+ReportLab creates authenticated PDFs from supported immutable saved answers.
+[PDF research and licenses](pdf-export.md#research-and-dependencies) distinguish
+reviewed upstream workflow guidance from the BSD library actually integrated.
+No downloaded skill can execute arbitrary code or acquire additional workspace
+access through this catalog. Private preferences shape qualitative explanations;
+they do not silently change numerical filters or definitions.

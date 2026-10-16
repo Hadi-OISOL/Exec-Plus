@@ -28,11 +28,163 @@ from execplus.domain.semantics import DatasetView, SemanticColumn
 from execplus.infrastructure.persistence import schema as s
 from execplus.presentation.routes.analytics import get_intent_router_service
 from test_conversation_jobs import job_path, process, submit
+from test_conversational_explorer import ScriptedModel
+from test_conversational_explorer import prepare as prepare_conversation
 from test_dataset_guidance import ask, description
 from test_dataset_reading import prepare
 from test_pattern_conversations import setup as job_setup
 from test_studies import add_member
 from test_understanding import confirm, context
+
+
+def prepare_saved_roles(env):
+    model = ScriptedModel()
+    owner, wid, root = prepare_conversation(
+        env,
+        model,
+        content=(
+            b"Record_ID,rating,internal_note,category,revenue\n"
+            b"R1,1,private-one,North,10\nR2,2,private-two,South,20\n"
+        ),
+    )
+    current = context(env, owner, root)
+    roles = ("identifier", "ordinal", "ignored", "dimension", "metric")
+    for column, role in zip(current["definition"]["columns"], roles, strict=True):
+        column["role"] = role
+        column["meaning"] = "Confirmed " + column["name"]
+        column["unit"] = "units" if role == "metric" else ""
+    response = confirm(env, owner, root, current)
+    assert response.status_code == 201, response.text
+    tid = env.client.post(root + "/threads", headers=owner).json()["id"]
+    return owner, root, f"/workspaces/{wid}/threads/{tid}", model
+
+
+def test_v2_maps_every_saved_role_without_query_role_normalization(integration):
+    env = integration
+    owner, root, path, model = prepare_saved_roles(env)
+    before = context(env, owner, root)
+    result = ask(env, owner, path, "can you show me a diagram of how our data converge")
+    answer = result["answer"]
+    assert answer["model_route"] == "deterministic:dataset-structure-v2"
+    diagram = answer["diagram"]
+    assert diagram["version"] == "dataset-structure-v2"
+    fields = {node["label"]: node for node in diagram["nodes"] if node["kind"] == "field"}
+    for column in before["definition"]["columns"]:
+        field = fields[column["name"]]
+        assert field["role"] == column["role"]
+        assert field["meaning"] == column["meaning"]
+        assert field["unit"] == column["unit"]
+        assert {
+            "source": "role-" + column["role"],
+            "target": field["id"],
+            "relation": "contains",
+        } in diagram["edges"]
+    assert "private-one" not in json.dumps(answer)
+    assert context(env, owner, root) == before and not model.requests
+    assert (
+        env.client.get(path + f"/turns/{result['turn']['id']}/answer", headers=owner).json()
+        == answer
+    )
+
+
+@pytest.mark.parametrize(
+    "role_words,expected",
+    [
+        ("identifiers", "Record_ID"),
+        ("ordered categories", "rating"),
+        ("ordinal fields", "rating"),
+        ("ignored fields", "internal_note"),
+        ("categories", "category"),
+        ("measures", "revenue"),
+    ],
+)
+def test_role_subset_uses_confirmed_roles_instead_of_query_groups(
+    integration, role_words, expected
+):
+    owner, _, path, model = prepare_saved_roles(integration)
+    answer = ask(integration, owner, path, "Draw a diagram for " + role_words)["answer"]
+    assert answer["diagram"]["shown_fields"] == 1
+    assert answer["diagram"]["scope"] == "selected_fields"
+    assert [node["label"] for node in answer["diagram"]["nodes"] if node["kind"] == "field"] == [
+        expected
+    ]
+    assert not model.requests
+
+
+def test_v1_saved_answer_reopens_with_exact_legacy_graph_and_model_route(integration):
+    env = integration
+    owner, root, path, _ = prepare_saved_roles(env)
+    result = ask(env, owner, path, "Draw a diagram")
+    legacy = copy.deepcopy(result["answer"])
+    legacy["model_route"] = "deterministic:dataset-structure-v1"
+    diagram = legacy["diagram"]
+    diagram["version"] = "dataset-structure-v1"
+    nodes = {node["id"]: node for node in diagram["nodes"]}
+    nodes["field-0"]["role"] = nodes["field-1"]["role"] = "dimension"
+    diagram["nodes"] = [
+        nodes[node_id]
+        for node_id in (
+            "dataset",
+            "role-dimension",
+            "field-0",
+            "field-1",
+            "role-ignored",
+            "field-2",
+            "field-3",
+            "role-metric",
+            "field-4",
+        )
+    ]
+    diagram["edges"] = [
+        {"source": source, "target": target, "relation": "contains"}
+        for source, target in (
+            ("dataset", "role-dimension"),
+            ("role-dimension", "field-0"),
+            ("role-dimension", "field-1"),
+            ("dataset", "role-ignored"),
+            ("role-ignored", "field-2"),
+            ("role-dimension", "field-3"),
+            ("dataset", "role-metric"),
+            ("role-metric", "field-4"),
+        )
+    ]
+    turn_id = UUID(result["turn"]["id"])
+    with env.engine.begin() as connection:
+        evidence = copy.deepcopy(
+            connection.execute(
+                select(s.thread_turns.c.evidence).where(s.thread_turns.c.id == turn_id)
+            ).scalar_one()
+        )
+        evidence["diagram"]["result"] = diagram
+        connection.execute(
+            update(s.thread_turns)
+            .where(s.thread_turns.c.id == turn_id)
+            .values(evidence=evidence, model_route=legacy["model_route"])
+        )
+    current = context(env, owner, root)
+    current["definition"]["columns"][0]["role"] = "ignored"
+    assert confirm(env, owner, root, current).status_code == 201
+    reopened = env.client.get(path + f"/turns/{turn_id}/answer", headers=owner)
+    assert reopened.status_code == 200, reopened.text
+    assert reopened.json() == legacy
+    with env.engine.begin() as connection:
+        evidence["diagram"]["result"]["version"] = "dataset-structure-v999"
+        connection.execute(
+            update(s.thread_turns).where(s.thread_turns.c.id == turn_id).values(evidence=evidence)
+        )
+    assert env.client.get(path + f"/turns/{turn_id}/answer", headers=owner).status_code == 409
+
+
+def test_unconfirmed_saved_roles_are_not_displayed_as_confirmed(integration):
+    env = integration
+    owner, root, path, _ = prepare_saved_roles(env)
+    current = context(env, owner, root)
+    assert confirm(env, owner, root, current, state="inferred").status_code == 201
+    answer = ask(env, owner, path, "Draw a diagram")["answer"]
+    fields = [node for node in answer["diagram"]["nodes"] if node["kind"] == "field"]
+    assert all(node["role"] == "unreviewed" and node["meaning"] == "" for node in fields)
+    subset = ask(env, owner, path, "Draw a diagram for identifiers")
+    assert subset["answer"] is None and "not been confirmed" in subset["turn"]["message"]
 
 
 @pytest.mark.parametrize(

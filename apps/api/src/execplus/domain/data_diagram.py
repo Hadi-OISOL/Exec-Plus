@@ -12,7 +12,8 @@ from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.guidance import DescriptionContext, mentioned_columns, words
 
 MAX_DIAGRAM_FIELDS = 80
-DIAGRAM_VERSION = "dataset-structure-v1"
+DIAGRAM_VERSION = "dataset-structure-v2"
+LEGACY_DIAGRAM_VERSION = "dataset-structure-v1"
 ROLE_LABELS = {
     "metric": "Measures",
     "dimension": "Categories",
@@ -24,7 +25,8 @@ ROLE_LABELS = {
 STRUCTURE_REQUEST_VOCABULARY = (
     "a an the this that these those my our your their its s selected current uploaded "
     "file files data dataset source table column columns field fields measures categories "
-    "identifiers diagram diagrams flowchart flowcharts mindmap mindmaps map schema structure "
+    "identifiers ordinal ordered ignored diagram diagrams flowchart flowcharts mindmap mindmaps "
+    "map schema structure "
     "structural arrangement hierarchy organization organisation organized organised layout "
     "representation visual visually interactive overview simple basic clear clean "
     "can could will would you please "
@@ -47,6 +49,16 @@ class DiagramClarification(ClarificationRequiredError):
     def __init__(self, message: str, choices: tuple[str, ...]) -> None:
         super().__init__(message)
         self.choices = choices
+
+
+def confirmed_diagram_roles(context: DescriptionContext) -> dict[str, str]:
+    if context.state != "confirmed" or not context.definition:
+        return {}
+    return {
+        column["name"]: column["role"]
+        for column in context.definition.get("columns", [])
+        if column.get("role") in ROLE_LABELS
+    }
 
 
 def unmatched_structure_words(question: str, context: DescriptionContext) -> str:
@@ -134,11 +146,14 @@ def diagram_request(question: str, context: DescriptionContext) -> DiagramReques
         (
             key
             for word, key in (
+                ("ordered categories", "ordinal"),
+                ("ordinal", "ordinal"),
+                ("ignored", "ignored"),
                 ("measures", "metric"),
                 ("categories", "dimension"),
                 ("identifiers", "identifier"),
             )
-            if word in normalized.split()
+            if re.search(r"\b" + re.escape(word) + r"\b", normalized)
         ),
         None,
     )
@@ -148,7 +163,10 @@ def diagram_request(question: str, context: DescriptionContext) -> DiagramReques
                 "The field roles have not been confirmed. I can show all field names first.",
                 ("Show a data structure diagram",),
             )
-        selected = tuple(column.name for column in context.view.columns if column.role == role)
+        roles = confirmed_diagram_roles(context)
+        selected = tuple(
+            column.name for column in context.view.columns if roles.get(column.name) == role
+        )
         if not selected:
             raise DiagramClarification(
                 "No fields have that saved role. I can show the full file structure.",
@@ -205,7 +223,11 @@ class DataDiagram:
         return asdict(self)
 
 
-def build_diagram(context: DescriptionContext, request: DiagramRequest) -> DataDiagram:
+def build_diagram(
+    context: DescriptionContext, request: DiagramRequest, *, version: str = DIAGRAM_VERSION
+) -> DataDiagram:
+    if version not in {LEGACY_DIAGRAM_VERSION, DIAGRAM_VERSION}:
+        raise ValueError("The saved diagram version is unsupported.")
     names = tuple(column.name for column in context.view.columns)
     selected = request.columns or names
     if (
@@ -218,6 +240,7 @@ def build_diagram(context: DescriptionContext, request: DiagramRequest) -> DataD
     confirmed = context.state == "confirmed"
     definition = context.definition if confirmed and context.definition else {}
     saved = {column["name"]: column for column in definition.get("columns", [])}
+    saved_roles = confirmed_diagram_roles(context)
     nodes = [DiagramNode("dataset", "dataset", "This file")]
     edges = []
     groups = set()
@@ -225,7 +248,11 @@ def build_diagram(context: DescriptionContext, request: DiagramRequest) -> DataD
         if column.name not in selected:
             continue
         meaning = saved.get(column.name, {})
-        role = column.role if confirmed and column.role in ROLE_LABELS else "unreviewed"
+        role = (
+            (column.role if confirmed and column.role in ROLE_LABELS else "unreviewed")
+            if version == LEGACY_DIAGRAM_VERSION
+            else saved_roles.get(column.name, "unreviewed")
+        )
         group_id = "role-" + role
         if role not in groups:
             nodes.append(DiagramNode(group_id, "group", ROLE_LABELS[role], role=role))
@@ -257,7 +284,7 @@ def build_diagram(context: DescriptionContext, request: DiagramRequest) -> DataD
             "business roles and meanings still need review."
         )
     return DataDiagram(
-        DIAGRAM_VERSION,
+        version,
         "How this file is organised",
         definition.get("description", ""),
         definition.get("grain", ""),

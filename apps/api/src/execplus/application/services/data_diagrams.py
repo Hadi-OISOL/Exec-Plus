@@ -60,11 +60,21 @@ class DataDiagramService:
             )
         )
         try:
-            diagram = build_diagram(context, DiagramRequest(tuple(evidence["columns"])))
+            result = evidence.get("result")
+            if not isinstance(result, dict) or not isinstance(result.get("version"), str):
+                raise ValueError("The saved diagram has no recorded version.")
+            diagram = build_diagram(
+                context, DiagramRequest(tuple(evidence["columns"])), version=result["version"]
+            )
         except (ValueError, TypeError) as error:
             raise IngestionError(
                 "lineage_mismatch", "The saved diagram is inconsistent.", 409
             ) from error
         if json.loads(json.dumps(diagram.body())) != evidence.get("result"):
             raise IngestionError("lineage_mismatch", "The saved diagram evidence changed.", 409)
-        return DiagramAnswer(diagram, tuple(evidence["columns"]), tuple(sources))
+        return DiagramAnswer(
+            diagram,
+            tuple(evidence["columns"]),
+            tuple(sources),
+            "deterministic:" + diagram.version,
+        )

@@ -132,6 +132,7 @@ test("diagram requests render all declared fields and PDF actions reopen without
   await expect(diagram.locator('[data-diagram-renderer="apache-echarts-tree"]')).toHaveAttribute("data-engine-ready", "true");
   await expect(diagram.locator("svg")).toBeVisible();
   await expect(diagram).toContainText("24 of 24 fields included");
+  await expect(diagram).not.toContainText("This earlier map uses analysis groups");
   await expect.poll(() => diagram.getByRole("heading", { name: "How this file is organised", exact: true }).evaluate(heading => {
     const log = heading.closest(".conversationLog")!.getBoundingClientRect();
     const title = heading.getBoundingClientRect();
@@ -141,6 +142,7 @@ test("diagram requests render all declared fields and PDF actions reopen without
   await expect(inspector).toBeVisible();
   await inspector.selectOption({ label: "measure_20" });
   await expect(diagram.getByLabel("Diagram item details", { exact: true })).toContainText("Saved meaning of measure_20");
+  await expect(diagram.getByLabel("Diagram item details", { exact: true })).toContainText("Saved role");
   await expect(diagram).toContainText("21–22 of 22");
   await diagram.getByRole("button", { name: "Previous diagram fields", exact: true }).click();
   await expect(diagram).toContainText("11–20 of 22");

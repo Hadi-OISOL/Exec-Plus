@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import * as echarts from "echarts/core";
 import { TreeChart } from "echarts/charts";
 import { SVGRenderer } from "echarts/renderers";
@@ -15,10 +17,10 @@ const require = createRequire(import.meta.url);
 const source = await readFile(new URL("../src/app/workspace/diagram-results.tsx", import.meta.url), "utf8");
 const compiled = { exports: {} };
 new Function("require", "module", "exports", ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText)(path => path.endsWith(".module.css") ? { default: {} } : require(path), compiled, compiled.exports);
-const { makeDiagramOption } = compiled.exports;
+const { DiagramResults, makeDiagramOption } = compiled.exports;
 const node = (id, kind, label) => ({ id, kind, label, data_type: "", role: "", meaning: "", unit: "", currency: "" });
 const diagram = {
-  version: "dataset-structure-v1", title: "How this file is organised", description: "", row_meaning: "", definition_state: "needs_review", scope: "all_fields", total_fields: 23, shown_fields: 23,
+  version: "dataset-structure-v2", title: "How this file is organised", description: "", row_meaning: "", definition_state: "needs_review", scope: "all_fields", total_fields: 23, shown_fields: 23,
   nodes: [node("dataset", "dataset", "This file"), node("role-metric", "group", "Measures"), ...Array.from({ length: 23 }, (_, i) => node(`field-${i}`, "field", i === 22 ? "<img onerror=alert(1)>" : `Measure ${i + 1}`)), node("unlinked", "field", "Not linked")],
   edges: [{ source: "dataset", target: "role-metric", relation: "contains" }, ...Array.from({ length: 23 }, (_, i) => ({ source: "role-metric", target: `field-${i}`, relation: "contains" }))], limitations: [],
 };
@@ -63,4 +65,17 @@ test("a diagram can replace its root and visible field window on the same render
       assert.equal(chart.getOption().series[0].data[0].id, branch && width < 500 ? branch : "dataset");
     }
   } finally { chart.dispose(); }
+});
+
+test("earlier saved diagrams distinguish analysis roles from current saved field roles", () => {
+  const field = { ...node("field-id", "field", "Record_ID"), role: "identifier" };
+  const current = { ...diagram, nodes: [field, ...diagram.nodes], definition_state: "confirmed" };
+  const markup = renderToStaticMarkup(createElement(DiagramResults, { diagram: current }));
+  assert.match(markup, /<dt>Saved role<\/dt><dd>identifier<\/dd>/);
+  assert.doesNotMatch(markup, /This earlier map|Earlier analysis role/);
+  const earlier = { ...current, version: "dataset-structure-v1", nodes: [{ ...field, role: "dimension" }, ...diagram.nodes] };
+  const legacy = renderToStaticMarkup(createElement(DiagramResults, { diagram: earlier }));
+  assert.match(legacy, /This earlier map uses analysis groups. Ask again for a map of your saved field roles./);
+  assert.match(legacy, /<dt>Earlier analysis role<\/dt><dd>dimension<\/dd>/);
+  assert.doesNotMatch(legacy, /<dt>Saved role<\/dt>/);
 });

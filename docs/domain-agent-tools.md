@@ -3,11 +3,15 @@
 
 # Domain agent tools
 
-Status: implemented locally; verification and private-demo release in progress.
+Status: initial application `0d385b6` is deployed on unchanged schema 0018.
+Live verification found an incorrect identifier role in its map. The tested v2
+role repair is pending deployment; live acceptance remains incomplete. A fresh
+hosted reading also fell back after validation, so broader interpretation quality
+is not claimed as resolved.
 The October 16 user example asks for a diagram of how data converges and receives
 a generic profile instead. The user authorizes better tool selection, remembered
 preferences, simple upfront choices and PDF generation inside ExecPlus's domain.
-This extends deployed repository/chart integration `7b46db2` on schema 0018.
+This extends repository/chart integration `7b46db2` on schema 0018.
 
 ## Requested behavior
 
@@ -65,12 +69,26 @@ field subsets remain explicit. An over-wide source asks for a smaller subset
 rather than dropping fields. Saved roles/units/meanings come from the recorded
 definitions; unconfirmed fields are labeled as awaiting review.
 
+New maps use `dataset-structure-v2`: confirmed identifiers, ordinal fields and
+ignored fields retain their saved roles rather than adopting the query planner's
+broader analysis groups. Role-based subset requests use those saved roles too.
+Previously saved `dataset-structure-v1` maps reopen with their original graph and
+model route. The UI labels their role as an earlier analysis role and asks the user
+to request a fresh map for saved field roles; it does not rewrite history. This
+compatibility repair is locally verified and awaits its private-demo release.
+
 The optional setup asks for perspective, usual aim and explanation style one at
 a time, then presents an explicit save. It uses the existing actor/workspace
 memory and version conflicts. My memory still supports editing and forgetting.
 Source-specific notes, saved definitions and existing private conversation context
 retain their separate roles. This is controlled personalization, not automatic
 learning of every message or authority to change numerical filters.
+
+Reading validation records fixed diagnostic codes and provides bounded correction
+hints without retaining rejected model prose or private prompt text. The deployed
+hosted retail probe still returned safe guidance after a `prose_evidence` rejection.
+Further diagnostic/prompt work is in progress under the existing provider and
+budget; a working diagram or export does not establish general model reliability.
 
 The first PDF tool supports completed saved calculations, tables and source-backed
 explanations. It preserves every returned row within explicit caps and includes

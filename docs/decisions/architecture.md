@@ -10,8 +10,10 @@ implemented services. An explicit structural request routes to
 `map_dataset_structure`; a validated model route covers other wording. Calculated
 charts retain governed queries. Unsupported row scopes, causal links and joins
 clarify instead of becoming field-membership diagrams. A typed
-`dataset-structure-v1` result records fields, roles and source versions; private
-reopening reconstructs and compares that evidence. Publication checks current
+`dataset-structure-v2` result records fields, saved roles and source versions; private
+reopening reconstructs and compares that evidence. Confirmed roles come from saved
+definitions rather than query-normalized categories. Earlier v1 maps retain their
+original result and route, with a visible historical-role notice. Publication checks current
 source, accepted refresh and ownership. No migration or arbitrary skill execution
 is required. Bundled ECharts Tree renders bounded field windows with an exact,
 keyboard-accessible inspector and complete included-field list.
@@ -194,7 +196,7 @@ The deployable units are:
 - Conversation worker: PostgreSQL-backed private jobs, fenced attempts, cancellation and recorded activity; Foundation A is verified locally and deployed to the private demo.
 - Bounded operator worker: scheduled staged-file activation, observation queries and in-app alerts. Asynchronous ingestion/export responsibilities remain future work.
 - PostgreSQL: identity references, workspaces, permissions, metadata, threads, lineage, private forecasts/comparisons, decision analyses/reviews and audit records.
-- Object storage: original uploads, documents and retained derived snapshots. Generated exports remain planned.
+- Object storage: original uploads, documents and retained derived snapshots. The bounded saved-answer PDF tool renders in memory; persisted or queued exports remain planned.
 - DuckDB: exact analytical execution over a workspace-authorized dataset snapshot.
 - Configurable models: local or hosted language-model providers behind one port.
 - Configurable retrieval: an optional embedding store behind one port; no vendor is selected in Phase 0.

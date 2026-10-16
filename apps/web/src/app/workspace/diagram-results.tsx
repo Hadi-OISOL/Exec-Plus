@@ -22,7 +22,7 @@ export type DiagramNode = {
   unit_column?: string;
 };
 export type DatasetDiagram = {
-  version: "dataset-structure-v1";
+  version: "dataset-structure-v1" | "dataset-structure-v2";
   title: string;
   description: string;
   row_meaning: string;
@@ -121,6 +121,7 @@ export function DiagramResults({ diagram, sources = [] }: { diagram: DatasetDiag
 
   return <section className={styles.panel} aria-label="Data organisation diagram">
     <header><span className={styles.eyebrow}>YOUR DATA, MAPPED</span><h3>{diagram.title}</h3><p>This map shows which fields belong to your file. Lines show membership, not causes or data joins.</p></header>
+    {diagram.version === "dataset-structure-v1" && <p className={styles.legacy}>This earlier map uses analysis groups. Ask again for a map of your saved field roles.</p>}
     {diagram.description && <p className={styles.description}>{diagram.description}</p>}
     <div className={styles.facts}><span>{diagram.shown_fields} of {diagram.total_fields} fields included</span><span>{diagram.definition_state === "confirmed" ? "Saved definitions" : "Definitions need review"}</span>{diagram.row_meaning && <span>One row: {diagram.row_meaning.replaceAll("_", " ")}</span>}</div>
     <label className={styles.branch}>Diagram view<select value={branch} onChange={event => { setBranch(event.target.value); setFirst(0); setSelectedId(event.target.value || diagram.nodes.find(node => node.kind === "dataset")?.id || ""); }}><option value="">Whole file · field groups</option>{groups.map(group => <option key={group.id} value={group.id}>{group.label}</option>)}</select></label>
@@ -128,7 +129,7 @@ export function DiagramResults({ diagram, sources = [] }: { diagram: DatasetDiag
     <div ref={host} className={styles.canvas} style={{ height }} data-diagram-renderer="apache-echarts-tree" data-reduced-motion={String(reducedMotion)} aria-hidden="true" />
     {branch && members.length > 10 && <div className={styles.navigation}><button type="button" disabled={first === 0} onClick={() => setFirst(value => Math.max(0, value - 10))}>Previous diagram fields</button><button type="button" disabled={first + 10 >= members.length} onClick={() => setFirst(value => value + 10)}>Next diagram fields</button></div>}
     <label className={styles.inspector} htmlFor={inspectorId}>Inspect a field or group<select id={inspectorId} value={selected?.id ?? ""} onChange={event => inspect(event.target.value)}>{diagram.nodes.map(node => <option key={node.id} value={node.id}>{node.label}</option>)}</select></label>
-    {selected && <div className={styles.detail} aria-label="Diagram item details" aria-live="polite"><h4>{selected.label}</h4><dl><div><dt>Part of the map</dt><dd>{selected.kind}</dd></div>{selected.data_type && <div><dt>Stored type</dt><dd>{selected.data_type}</dd></div>}{selected.role && <div><dt>Saved role</dt><dd>{selected.role.replaceAll("_", " ")}</dd></div>}{selected.unit && <div><dt>Unit</dt><dd>{selected.unit}</dd></div>}{selected.currency && <div><dt>Currency</dt><dd>{selected.currency}</dd></div>}{selected.unit_column && <div><dt>Unit for each row is in</dt><dd>{selected.unit_column}</dd></div>}</dl>{selected.meaning && <p>{selected.meaning}</p>}{selected.kind === "field" && !selected.meaning && <p>No confirmed description for this field.</p>}</div>}
+    {selected && <div className={styles.detail} aria-label="Diagram item details" aria-live="polite"><h4>{selected.label}</h4><dl><div><dt>Part of the map</dt><dd>{selected.kind}</dd></div>{selected.data_type && <div><dt>Stored type</dt><dd>{selected.data_type}</dd></div>}{selected.role && <div><dt>{diagram.version === "dataset-structure-v1" ? "Earlier analysis role" : "Saved role"}</dt><dd>{selected.role.replaceAll("_", " ")}</dd></div>}{selected.unit && <div><dt>Unit</dt><dd>{selected.unit}</dd></div>}{selected.currency && <div><dt>Currency</dt><dd>{selected.currency}</dd></div>}{selected.unit_column && <div><dt>Unit for each row is in</dt><dd>{selected.unit_column}</dd></div>}</dl>{selected.meaning && <p>{selected.meaning}</p>}{selected.kind === "field" && !selected.meaning && <p>No confirmed description for this field.</p>}</div>}
     {diagram.limitations.length > 0 && <ul className={styles.limitations}>{diagram.limitations.map((item, index) => <li key={index}>{item}</li>)}</ul>}
     <details className={styles.evidence}><summary>All included fields & source</summary>{groups.map(group => <section key={group.id}><h4>{group.label}</h4><ul>{diagram.nodes.filter(node => node.kind === "field" && diagram.edges.some(edge => edge.source === group.id && edge.target === node.id)).map(node => <li key={node.id}><strong>{node.label}</strong>{node.meaning && <span>{node.meaning}</span>}{(node.unit || node.currency) && <span>{[node.unit, node.currency].filter(Boolean).join(" · ")}</span>}</li>)}</ul></section>)}{sources.map(source => <p key={source.revision_id}>Source revision: {source.revision_id}{source.understanding_id ? ` · Definition: ${source.understanding_id}` : ""}</p>)}</details>
   </section>;

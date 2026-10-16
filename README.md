@@ -7,6 +7,17 @@ ExecPlus is a self-serve analytics platform that turns structured business data 
 
 ## Current status
 
+The October 16 [domain-agent tools](docs/domain-agent-tools.md) add real field
+diagrams, a registered capability catalog, optional private preference choices
+and protected PDF downloads for supported saved answers. Ask **Show a data
+structure diagram**, then use the exact field inspector; for numbers, ask a named
+calculation such as **Show total revenue by category as a chart**. After a saved
+calculation, ask **Make a PDF of this answer**. See the
+[verification ledger](docs/verification-domain-agent-tools.md) for current release
+status, retained failures and tested limits. Diagrams show field membership; they
+do not invent causal relationships or joins. Full dashboard reports and the
+remaining export formats still need implementation.
+
 The October 16 studio update adds a lighter workspace, explicit **My memory**
 preferences and two fictional examples for testing the existing analysis tools.
 Missing-unit review now saves the unit directly and clearly shows unfinished
@@ -101,7 +112,8 @@ application requires **0018**. See the
 [4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
 [4B verification](docs/verification-phase4b.md). Schedules process files staged in
 ExecPlus. Forecast comparisons can use an accepted refresh without changing the
-original forecast. Exports remain Phase 4D and live connectors remain Phase 4E.
+original forecast. Phase 4D now has bounded saved-answer PDF export; broader reports
+and other formats remain unfinished. Live connectors remain Phase 4E.
 All eight production gates remain blocked; private-demo evidence does not clear them.
 
 For a guided trial, choose **Try forecasting sample** in Data library, review its

@@ -9,7 +9,10 @@ from enum import Enum
 
 class ReadingIssue(str, Enum):
     TEXT_BOUNDS = "text_bounds"
-    PROSE_EVIDENCE = "prose_evidence"
+    PROSE_NUMBERS = "prose_numbers"
+    PROSE_LINKS = "prose_links"
+    PROSE_MARKUP = "prose_markup"
+    PROSE_CONTROL = "prose_control"
     SHAPE = "shape"
     CONNECTIONS = "connections"
     CONNECTION = "connection"
@@ -25,14 +28,35 @@ class ReadingValidationError(ValueError):
         self.issue = issue
 
 
+READING_PROSE_RULES = (
+    "Write summary and each connection meaning as one short, single-line plain sentence. "
+    "Do not put digits, dates, numerical quantities, URLs, backticks, angle brackets, "
+    "tabs, newlines or other control characters in those prose strings. "
+    "Do not repeat counts or dates from the saved description or notes. "
+    "Put exact field identifiers in connections.columns and explore.metric/group_by; "
+    "explain their purpose in prose instead of repeating identifiers. "
+)
+
+
 READING_CORRECTIONS = {
     ReadingIssue.TEXT_BOUNDS: (
         "Use nonempty plain strings: summary at most 360 characters and each "
         "connection meaning at most 200 characters. Prefer one short sentence."
     ),
-    ReadingIssue.PROSE_EVIDENCE: (
-        "Prose must contain no numerical quantities, dates, markup, links or line breaks. "
-        "Only an exact supplied field name may contain digits."
+    ReadingIssue.PROSE_NUMBERS: (
+        "Remove digits and dates from summary and connection meanings, including counts "
+        "copied from descriptions or notes. Keep field identifiers in columns and explore."
+    ),
+    ReadingIssue.PROSE_LINKS: (
+        "Remove URLs from summary and connection meanings. Do not put source links there."
+    ),
+    ReadingIssue.PROSE_MARKUP: (
+        "Use plain text in summary and connection meanings: no backticks, angle brackets, "
+        "HTML or code."
+    ),
+    ReadingIssue.PROSE_CONTROL: (
+        "Use one single-line sentence for summary and each connection meaning. "
+        "Remove line breaks, tabs and other control characters."
     ),
     ReadingIssue.SHAPE: "Use exactly the summary, connections and explore keys at the top level.",
     ReadingIssue.CONNECTIONS: "Supply one to three connection objects in the connections array.",
