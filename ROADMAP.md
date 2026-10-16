@@ -19,6 +19,22 @@ authorization to commercialize code restricted to noncommercial use.
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
+## October 16 — Actual repository reuse and domain-agent follow-up
+
+**Status:** Chart/template integration complete for bounded local/test and private
+demo scope at `7b46db2`; the hosted retail explanation failure remains open.
+Actual Lieflat G10 and documd options use bundled ECharts and preserve all returned
+rows, exact inspection and existing authorization. Curated EDA/SQL recipes improve
+reading context. The [verification ledger](docs/verification-repository-integration.md)
+records 1,351 backend/49 frontend cases, 56 distinct passing offline journeys across
+runs with three model skips, 36 live layouts, preserved data/config and backups.
+The failed reading is retained separately from successful charts and exact queries.
+
+The user additionally authorizes a [domain-agent tools slice](docs/domain-agent-tools.md):
+structural diagrams, explicit tool selection, saved-answer PDF export and optional
+private preference choices. **Status: In progress.** No broader export format,
+advanced method or production gate is declared complete from this instruction.
+
 ## October 16 — Prepare data follow-up
 
 **Status:** Complete for the bounded local/test and private-demo repair;

@@ -3,7 +3,9 @@
 
 # Repository integration verification
 
-Status: implementation and verification in progress; no final release claim.
+Status: chart/template integration is verified for local/test and the private
+demo at `7b46db2`; the hosted retail-reading fallback remains open. The subsequent
+domain-agent tools and targeted correction work are tracked separately.
 The user clarified that actual reusable code/tools should drive the app, then
 explicitly confirmed on October 16 that the project will remain noncommercial.
 See [the integration map](repository-integration.md),
@@ -99,22 +101,50 @@ grouped/allocation check. New reading imports and shipped notices also pass.
 Upstream license files preserve their original bytes, including CRLF/EOF whitespace;
 `git diff --check` flags those verbatim assets, not application-code whitespace.
 
-Private release checks will be recorded here after execution. Private evidence lives under
+Private release results follow below. Private evidence lives under
 `data/verification/2026-10-16/runtime-tool-adoption/` and
 `data/verification/2026-10-16/chart-experience/`.
 
 ## Private release
 
+Application **7b46db2** is activated for API/jobs/web on unchanged **0018**.
+All **48 table fingerprints**, including migration metadata, and the environment
+checksum match across activation. Checkpoint:
+`pre-integration-7b46db2-20261016`. Candidate `f16dc5f` was built but superseded
+before activation by the discovery-caption/test correction; it was never activated.
+
 Checked backups `20261016T083202Z` and fresh pre-activation
 `20261016T084552Z` pass database/object checksums and restart services successfully.
-Before activation, a source comparison detects a real saved-definition update:
+Before activation, source monitoring detects an actual saved-definition update:
 version 3 becomes version 4, both units are filled and no questions remain. Source
 bytes/profile/revisions stay unchanged. Original snapshots and the failed comparison
-are retained; a new pre-activation baseline preserves the latest definitions rather
-than overwriting them. Pending: unchanged 0018 activation with
-all table fingerprints/config preserved; hosted retail reading and exact/privacy
-checks; browser/visual checks; post-release backup and healthy services.
-Earlier failure reasons are not retrospectively invented. A successful new
-synthetic reading does not prove every dataset will receive a valid explanation.
+are retained; the new pre-activation baseline preserves the latest definitions.
+All five reported-source artifacts match that baseline after activation and backup.
+
+Three live browser journeys pass **36 layouts at 1440/390/320 widths in 46.336
+seconds**, with no page errors, prohibited requests or horizontal overflow. They
+exercise actual Lieflat bars, documd lines and ECharts dots, all 365 returned daily
+rows, keyboard/end/previous selection, zoom/Show all, every exact table row, authorized
+drill, saved forecasts and saved pattern/group comparisons. Root visually inspects
+the live dashboard and mobile line capture. KPI values fit and record pickers retain
+44px height. Three publicly served license/attribution assets match tracked bytes.
+
+The first fresh hosted retail-reading probe **fails** with the retained
+`invalid_response` category and returns saved guidance. Exact total **8235156.60**,
+old receipt replay, immutable old reading, six privacy denials, source definitions
+and personal memory all pass. There is no blind second retry and no claim that the
+earlier retail fallback is resolved. The broad category does not identify the
+particular validation rule; the next agent-tools slice adds fixed issue codes and
+targeted correction hints without logging model prose or weakening validation.
+
+Checked post-release backup **20261016T085923Z** retains the live saved work.
+After restart, five containers run with zero restarts, readiness and workspace
+return successfully, six listeners remain loopback-only, and model/refresh/backup
+units are active. The runtime check observes no application-error lines in its
+thirty-minute window; the separately retained reading fallback still occurred.
+No model provider, configuration or public exposure changed.
+
 All 64 original feature IDs, counts 37/16/11 and eight production gates remain
-unchanged; this does not establish full competitor or predictive capability.
+unchanged. Functional synthetic results do not establish representative model
+quality, sustained load, complete competitor capability or acceptance of the
+user's existing browser tab. The earlier tab mismatch remains undiagnosed.

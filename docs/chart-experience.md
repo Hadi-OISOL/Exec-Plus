@@ -10,7 +10,7 @@ answer charts, measured-pattern cards and forecast results. The first original i
 layout repair is `47977a8`. The user then explicitly clarified that actual upstream
 code/tool reuse is required and confirmed that ExecPlus will remain noncommercial.
 The active follow-up integrates Lieflat G10, a separate documd line preset, bundled
-ECharts and attributed reading recipes. Final integration verification is in progress. See the
+ECharts and attributed reading recipes. The chart integration is deployed at `7b46db2`; a hosted reading fallback remains open. See the
 [current ledger](verification-repository-integration.md); the
 [original ledger](verification-chart-experience.md) retains earlier results.
 

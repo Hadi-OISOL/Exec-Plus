@@ -109,7 +109,7 @@
       "section": "Month 1",
       "feature": "Descriptive dashboards",
       "status": "done",
-      "note": "The light studio presents measured patterns, readable charts, exact-value tables and source context. Observed and forecast points remain distinct; broad chart/export support is bounded.",
+      "note": "Actual Lieflat bars and documd lines use bundled ECharts, with zoom, exact tables, keyboard selection and all returned rows. Dedicated pattern/forecast evidence remains intact; broad chart/export support is bounded.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/web/src/app/workspace/dashboard-panel.tsx",
@@ -123,7 +123,8 @@
         "docs/verification-meaning-first.md",
         "docs/measured-patterns.md",
         "docs/verification-measured-patterns.md",
-        "docs/verification-personal-agent-studio.md"
+        "docs/verification-personal-agent-studio.md",
+        "docs/verification-repository-integration.md"
       ],
       "evidence_groups": [
         "E2",
@@ -131,7 +132,8 @@
         "E17",
         "E19",
         "E20",
-        "E23"
+        "E23",
+        "E25"
       ]
     },
     {
@@ -139,17 +141,19 @@
       "section": "Month 1",
       "feature": "KPI cards and trend analysis",
       "status": "done",
-      "note": "Precise grouped KPI display and observed trends use matching columns. Nulls/signs stay distinct; forecasting is separate.",
+      "note": "Readable KPI cards and observed trends preserve exact source values. All 365 returned sample periods are navigable; missing cells and zero stay distinct. Forecasting remains separate.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/api/src/execplus/domain/semantics.py",
         "apps/api/tests/test_analytics_integration.py",
         "apps/web/src/app/workspace/dashboard-panel.tsx",
-        "docs/verification-interface-polish.md"
+        "docs/verification-interface-polish.md",
+        "docs/verification-repository-integration.md"
       ],
       "evidence_groups": [
         "E2",
-        "E17"
+        "E17",
+        "E25"
       ]
     },
     {
@@ -171,7 +175,8 @@
         "docs/verification-meaning-first.md",
         "docs/measured-patterns.md",
         "docs/verification-measured-patterns.md",
-        "docs/verification-personal-agent-studio.md"
+        "docs/verification-personal-agent-studio.md",
+        "docs/verification-repository-integration.md"
       ],
       "evidence_groups": [
         "E2",
@@ -180,7 +185,8 @@
         "E19",
         "E20",
         "E21",
-        "E23"
+        "E23",
+        "E25"
       ]
     },
     {
@@ -1361,6 +1367,16 @@
         "apps/web/e2e/workspace.spec.ts",
         "apps/web/e2e/data-brief.spec.ts"
       ]
+    ],
+    "E25": [
+      "Actual attributed chart templates and bounded reading recipes",
+      [
+        "docs/repository-integration.md",
+        "docs/verification-repository-integration.md",
+        "docs/chart-experience.md",
+        "THIRD_PARTY_NOTICES.md",
+        "apps/web/tests/echarts-renderer.test.mjs"
+      ]
     ]
   },
   "section_intros": {
@@ -1471,7 +1487,7 @@
     ]
   ],
   "narrative": {
-    "p01": "A working private analytics demo exists. Commercial launch requirements and broader integrations still need substantial work.",
+    "p01": "A working private analytics demo exists. The owner confirms noncommercial use; historical commercial checklist entries remain for traceability, with broader integrations and production acceptance still unfinished.",
     "p02": "Governed files, dashboards/chat, measured relationships, saved work, basic forecasts, refresh/alerts, audit, support/usage, unusual-value checks, budget decisions and explicit what-if comparisons.",
     "p03": "Customer self-signup and production login; PDF/Excel exports; payments and paid plans; live external connectors; embedded dashboards; and complete production operations.",
     "p04": "Done means the basic requested function is implemented and supported by tests in the private-demo scope. Partly done means a subset works, or a needed screen, live setup or acceptance step is unfinished. Not yet means the requested end-to-end capability is absent. Every row states its limits.",
@@ -1494,8 +1510,8 @@
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "October 16 web aded714 simplifies Prepare data and recovers safely after a saved cleaning change cannot reload. API/jobs remain 327ba7d on schema 0018, retaining explicit private memory, fictional samples and missing-unit repair. Personal phase2 includes phase3 data-reading commit 2a93080. A fresh browser sees the new UI; the user’s existing-tab mismatch remains unverified.",
-    "p25": "Latest web-only repair: 29 frontend tests, four distinct focused browser journeys, five architecture checks, types/lint and local/VPS builds pass. Live read-only verification passes nine layouts with source/definitions unchanged and no page/HTTP errors. A selector failure is retained. Earlier studio evidence includes 1,337 backend cases, 54 distinct offline browser journeys and three model-dependent skips; these were not all rerun for this repair. The earlier retail-reading fallback remains unresolved. All eight production gates stay blocked. [E23, E24]",
+    "p24": "October 16 application 7b46db2 runs on schema 0018 with actual attributed Lieflat/documd charts, bundled ECharts and curated EDA/SQL reading recipes. All returned rows are accessible. New diagram/PDF/domain-agent setup work is authorized and in progress, not deployed. Personal phase2 includes phase3 data-reading commit 2a93080.",
+    "p25": "1,351 backend and 49 frontend cases pass; 56 distinct offline browser journeys pass across full/focused runs with three model-dependent skips. Static checks, builds and restricted images pass. Live charts pass three journeys and 36 layouts with exact replay and source preservation. The first fresh hosted retail reading still falls back with invalid_response; six privacy denials and exact total/replay pass. All 48 activation fingerprints and configuration match, backups are checked, and all eight production gates remain blocked. [E25]",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

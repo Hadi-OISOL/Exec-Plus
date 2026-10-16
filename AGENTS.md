@@ -40,6 +40,42 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 16 — Actual chart-template reuse and ongoing domain-agent work
+
+- API/jobs/web `7b46db2` is deployed on unchanged **0018**. The owner explicitly
+  confirmed noncommercial use. Actual attributed Lieflat G10 bars and separate
+  documd line options run through bundled ECharts 6.1.0, themed for ExecPlus.
+  Every returned row remains reachable through zoom, keyboard and exact inspection;
+  the live retail check reaches all 365 periods. Read `docs/repository-integration.md`,
+  `docs/chart-experience.md` and `docs/verification-repository-integration.md`.
+- Curated MIT EDA/SQL recipes guide qualitative readings through existing supported
+  operations. Truncated replies get one bounded fresh correction; no provider or
+  numerical-method change occurs. UIUX and SkillSpector are actual development
+  tools; oneDAL remains reviewed-only. Full licenses/notices ship with the app.
+- Checks: 1,351 backend cases, 49 frontend cases, Ruff/mypy (180 files), types/lint,
+  local/VPS builds and restricted image computations pass. All 56 distinct offline
+  browser journeys have passing executions across full/focused runs; three model
+  cases remain skipped. Initial formatting/selector/renderer warnings are retained.
+  Three live browser journeys pass 36 layouts in 46.336 seconds, without page
+  errors or overflow. Root inspects live desktop/mobile captures.
+- The fresh hosted retail reading still falls back with `invalid_response`; exact
+  total/replay, six private denials, source state and memory pass. Do not claim it
+  resolved or blindly retry. A later in-progress slice adds fixed validation issue
+  codes and targeted correction hints without private prompt/reply logging.
+- All 48 activation fingerprints/config match. Checkpoint
+  `pre-integration-7b46db2-20261016`; checked backups `20261016T084552Z` before and
+  `20261016T085923Z` after. The reported file acquired v4 definitions and both units
+  before activation; retain that legitimate update. Its five latest artifacts match
+  after release/backup. Five containers, readiness/web, model/timers and six loopback
+  listeners pass. Preserve all live saved work on rollback.
+- New user instruction: implement domain-agent tools for structural diagrams,
+  appropriate chart/query routing, authenticated PDF reports and optional upfront
+  preference choices. This work is **in progress**, not deployed. Read
+  `docs/domain-agent-tools.md` and `docs/verification-domain-agent-tools.md`.
+  It must preserve typed evidence, private ownership, source freshness and explicit
+  memory saves. Do not stop at the preceding chart release. All 64 feature IDs,
+  37/16/11 counts and eight blocked production gates remain unchanged for now.
+
 ### October 16 — Prepare data repair after delivery feedback
 
 - Web `aded714` is deployed on unchanged **0018**; API/jobs remain `327ba7d`.
