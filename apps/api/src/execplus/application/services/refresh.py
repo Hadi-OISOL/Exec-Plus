@@ -5,6 +5,7 @@ What it does: Enforces tenant policy, idempotency, schema review and atomic moni
 
 import hashlib
 import logging
+from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
@@ -358,6 +359,8 @@ class RefreshService:
         as_of: datetime,
         coverage_start: date | None,
         coverage_end: date | None,
+        *,
+        _publication_guard: Callable[[WorkspaceRepository, RefreshCandidate], None] | None = None,
     ) -> RefreshCandidate:
         now = datetime.now(timezone.utc)
         dates = source_dates(as_of, coverage_start, coverage_end, now)
@@ -507,6 +510,8 @@ class RefreshService:
                 )
                 repo.add(candidate)
                 self.audit(repo, actor, wid, f"refresh.{status}", candidate.id)
+                if _publication_guard is not None:
+                    _publication_guard(repo, candidate)
             published = True
             return candidate
         finally:

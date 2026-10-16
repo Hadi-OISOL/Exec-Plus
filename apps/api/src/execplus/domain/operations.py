@@ -43,6 +43,11 @@ JOB_FAILURE_CODES = frozenset(
         "interrupted",
         "lease_lost",
         "job_budget",
+        "usage_attempt_limit",
+        "usage_concurrency",
+        "usage_spend_limit",
+        "usage_window",
+        "usage_unresolved",
         "execution_failed",
     }
 )

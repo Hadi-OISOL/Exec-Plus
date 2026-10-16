@@ -15,6 +15,7 @@ from execplus.application.contracts import (
     RetrievalHit,
 )
 from execplus.application.reporting_ports import ReportingRepository
+from execplus.application.source_metadata_ports import SourceMetadataRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
 from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.analysis_plan import AnalysisPlan
@@ -204,7 +205,9 @@ class OperationsRepository(Protocol):
     def admin_workspace(self, workspace_id: UUID) -> dict[str, Any]: ...
 
 
-class WorkspaceRepository(JobRepository, OperationsRepository, ReportingRepository, Protocol):
+class WorkspaceRepository(
+    JobRepository, OperationsRepository, ReportingRepository, SourceMetadataRepository, Protocol
+):
     def analysis_runs(
         self, workspace_id: UUID, dataset_id: UUID, owner_id: UUID
     ) -> tuple[AnalysisRun, ...]: ...

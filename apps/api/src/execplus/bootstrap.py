@@ -3,8 +3,9 @@
 What it does: Selects disabled, local, or hosted model adapters at the application edge.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
+from pathlib import Path
 
 import boto3
 from botocore.config import Config
@@ -18,13 +19,16 @@ from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.artifacts import ArtifactService
 from execplus.application.services.catalog import CatalogService
+from execplus.application.services.company_consolidation import CompanyConsolidationService
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
+from execplus.application.services.consolidation_exports import ConsolidationExportService
 from execplus.application.services.data_brief import DataBriefService
 from execplus.application.services.decision_analysis import DecisionAnalysisService
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import ForecastService
 from execplus.application.services.health import HealthService
 from execplus.application.services.incidents import IncidentService
+from execplus.application.services.integration_access import IntegrationAccessService
 from execplus.application.services.intent_router import IntentRouterService
 from execplus.application.services.jobs import JobService
 from execplus.application.services.joins import JoinService
@@ -38,32 +42,44 @@ from execplus.application.services.refresh import RefreshService
 from execplus.application.services.reports import ReportService
 from execplus.application.services.result_exports import ResultExportService
 from execplus.application.services.saved_items import SavedItemService
+from execplus.application.services.source_imports import SourceImportService
 from execplus.application.services.studies import OrganizationService, StudyService
 from execplus.application.services.summaries import SummaryService
 from execplus.application.services.threads import ThreadService
 from execplus.application.services.understanding import UnderstandingService
+from execplus.application.services.usage_metering import UsageMeteringService
+from execplus.application.services.webhooks import WebhookService
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.config import Settings
 from execplus.domain.compute import ComputeCapabilities, ComputeOperation, QueryBudget
+from execplus.infrastructure.allocation.cp_sat import CpSatAllocationSolver
 from execplus.infrastructure.email import DisabledEmailDelivery, SMTPEmailDelivery
 from execplus.infrastructure.exports.portable import PortableRenderer
 from execplus.infrastructure.exports.reportlab_pdf import ReportLabPdfRenderer
 from execplus.infrastructure.file_parser import StructuredFileParser
 from execplus.infrastructure.identity import LocalSessionIdentity
+from execplus.infrastructure.integrations.webhook_http import PinnedWebhookTransport
 from execplus.infrastructure.knowledge import ReferenceHybridRanker
 from execplus.infrastructure.models.disabled import DisabledLanguageModel
 from execplus.infrastructure.models.openai_compatible import OpenAICompatibleLanguageModel
 from execplus.infrastructure.object_storage import S3ObjectStorage
+from execplus.infrastructure.persistence.consolidations import SQLConsolidationStore
 from execplus.infrastructure.persistence.incidents import SQLIncidentStore
+from execplus.infrastructure.persistence.integrations import SQLIntegrationStore
 from execplus.infrastructure.persistence.repository import SQLUnitOfWork
+from execplus.infrastructure.persistence.usage_metering import SQLUsageUnitOfWork
 from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 from execplus.infrastructure.readiness import DatabaseProbe, StorageProbe
 from execplus.infrastructure.release_gate import require_production_evidence
+from execplus.infrastructure.sources.postgres import controlled_extractor
 from execplus.infrastructure.statistics.scipy_patterns import ScipyPatternStatistics
 
 
 def build_language_model(
-    settings: Settings, max_output_tokens: int | None = None, timeout_seconds: float = 60.0
+    settings: Settings,
+    max_output_tokens: int | None = None,
+    timeout_seconds: float = 60.0,
+    metering: UsageMeteringService | None = None,
 ) -> LanguageModel:
     if settings.llm_mode == "disabled":
         return DisabledLanguageModel()
@@ -77,10 +93,13 @@ def build_language_model(
         max_output_tokens=max_output_tokens or settings.llm_max_output_tokens,
         reasoning_effort=settings.llm_reasoning_effort,
         json_mode=settings.llm_json_mode,
+        metering=metering,
     )
 
 
-def build_selection_model(settings: Settings) -> LanguageModel | None:
+def build_selection_model(
+    settings: Settings, metering: UsageMeteringService | None = None
+) -> LanguageModel | None:
     if not settings.llm_selection_model:
         return None
     return OpenAICompatibleLanguageModel(
@@ -94,6 +113,7 @@ def build_selection_model(settings: Settings) -> LanguageModel | None:
         json_mode=True,
         timeout_seconds=20,
         max_attempts=1,
+        metering=metering,
     )
 
 
@@ -139,8 +159,9 @@ def build_runtime(settings: Settings) -> "Runtime":
         AnswerAssembler(),
         settings.query_row_limit,
     )
-    model = build_language_model(settings)
-    selector = build_selection_model(settings)
+    usage_metering = UsageMeteringService(SQLUsageUnitOfWork(engine))
+    model = build_language_model(settings, metering=usage_metering)
+    selector = build_selection_model(settings, metering=usage_metering)
     knowledge = KnowledgeService(SQLUnitOfWork(engine), storage, ReferenceHybridRanker())
     intent_router = IntentRouterService(
         model,
@@ -202,16 +223,24 @@ def build_runtime(settings: Settings) -> "Runtime":
         ForecastService(SQLUnitOfWork(engine), analytics),
         operations,
         ProductUsageService(SQLUnitOfWork(engine), operations),
-        DecisionAnalysisService(SQLUnitOfWork(engine), analytics),
+        DecisionAnalysisService(SQLUnitOfWork(engine), analytics, CpSatAllocationSolver()),
         DataBriefService(
             SQLUnitOfWork(engine),
-            build_language_model(settings, settings.data_brief_max_output_tokens, 120.0),
+            build_language_model(
+                settings, settings.data_brief_max_output_tokens, 120.0, usage_metering
+            ),
             storage,
             parser,
             settings.data_brief_sample_values,
             settings.llm_mode != "disabled",
         ),
         pdf_exports,
+        usage_metering,
+        settings.integration_allow_loopback,
+        settings.webhook_master_secret,
+        settings.webhook_destinations,
+        source_secret_directory=settings.source_secret_directory,
+        source_allow_test_loopback=settings.source_allow_test_loopback,
     )
 
 
@@ -244,6 +273,49 @@ class Runtime:
     decision_analysis: DecisionAnalysisService
     data_brief: DataBriefService
     pdf_exports: PdfExportService
+    usage_metering: UsageMeteringService
+    integration_allow_loopback: bool = False
+    webhook_master_secret: str = field(default="", repr=False)
+    webhook_destinations: dict[str, str] | None = None
+
+    source_secret_directory: str = field(default="/run/execplus/source-secrets", repr=False)
+    source_allow_test_loopback: bool = False
+
+    @cached_property
+    def source_imports(self) -> SourceImportService:
+        url = self.engine.url
+        extractor = controlled_extractor(
+            Path(self.source_secret_directory),
+            url.host or "localhost",
+            url.port or 5432,
+            url.database or "execplus",
+            local_test=self.source_allow_test_loopback,
+        )
+        return SourceImportService(
+            SQLUnitOfWork(self.engine), extractor, self.service, self.refresh
+        )
+
+    @cached_property
+    def integration_access(self) -> IntegrationAccessService:
+        return IntegrationAccessService(
+            SQLIntegrationStore(self.engine),
+            self.studies,
+            allow_local_origins=self.integration_allow_loopback,
+        )
+
+    @cached_property
+    def webhooks(self) -> WebhookService:
+        destinations = self.webhook_destinations or {}
+        transport = PinnedWebhookTransport(
+            destinations, allow_local=self.integration_allow_loopback
+        )
+        return WebhookService(
+            SQLIntegrationStore(self.engine),
+            transport,
+            self.webhook_master_secret.encode(),
+            tuple(transport.destinations),
+            allow_local=self.integration_allow_loopback,
+        )
 
     @cached_property
     def incidents(self) -> IncidentService:
@@ -264,3 +336,11 @@ class Runtime:
             self.decision_analysis,
             PortableRenderer(),
         )
+
+    @cached_property
+    def consolidations(self) -> CompanyConsolidationService:
+        return CompanyConsolidationService(SQLConsolidationStore(self.engine), self.analytics)
+
+    @cached_property
+    def consolidation_exports(self) -> ConsolidationExportService:
+        return ConsolidationExportService(self.consolidations, self.result_exports)

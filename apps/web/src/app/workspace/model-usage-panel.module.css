@@ -1,0 +1,31 @@
+/* Use case: Makes AI usage readable without mixing costs and unknown amounts.
+What it does: Keeps summary cards, allowances and detailed evidence responsive and accessible. */
+
+.panel { color: var(--studio-ink, #243d35); }
+.panel p { max-width: 75ch; line-height: 1.6; }
+.header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: 16px; }
+.header h2 { margin: 8px 0; }
+.panel button, .panel select, .switch button { min-height: 44px; }
+.period { display: flex; flex-direction: column; gap: 8px; max-width: 260px; margin: 24px 0 16px; }
+.period select { font-size: 16px; width: 100%; }
+.caption { font-size: 14px; color: var(--studio-muted, #50635b); overflow-wrap: anywhere; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 24px 0 12px; }
+.metrics > div { border: 1px solid var(--studio-border, #d5e1dc); background: var(--studio-wash, #f3f7f5); border-radius: 12px; padding: 20px; }
+.panel dt { line-height: 1.5; }
+.panel dd { margin: 8px 0 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.metrics dd { font-size: clamp(24px, 3vw, 36px); font-weight: 650; }
+.block { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--studio-border, #d5e1dc); }
+.costs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px; }
+.cost { border: 1px solid var(--studio-border, #d5e1dc); border-radius: 12px; padding: 20px; }
+.cost h4 { margin: 0 0 20px; font-size: 18px; }
+.cost dl > div + div { margin-top: 18px; }
+.cost dd, .allowance dd { font-weight: 600; }
+.notice { padding: 16px; border-left: 3px solid var(--studio-accent, #176c64); background: var(--studio-wash, #f3f7f5); border-radius: 8px; }
+.allowance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 24px 0; }
+.allowance small { display: block; margin-top: 6px; font-size: 14px; font-weight: 400; }
+.details { margin-top: 28px; border-top: 1px solid var(--studio-border, #d5e1dc); padding-top: 16px; }
+.details summary { cursor: pointer; min-height: 44px; padding: 12px 0; font-weight: 600; }
+.panel :focus-visible, .switch :focus-visible { outline: 3px solid var(--studio-accent, #176c64); outline-offset: 3px; }
+.switch { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.switch button[aria-pressed="true"] { background: var(--studio-accent, #176c64); border-color: var(--studio-accent, #176c64); color: white; }
+@media (max-width: 600px) { .metrics, .allowance { grid-template-columns: 1fr; } .metrics > div, .cost { padding: 16px; } .header > button { width: 100%; } .period { max-width: none; } }

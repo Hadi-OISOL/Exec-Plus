@@ -218,6 +218,27 @@ class JobService:
         elif current.status == "running":
             messages = {
                 "cancelled": "This request was cancelled. No completed answer is available.",
+                "usage_attempt_limit": (
+                    "This workspace reached its model request allowance. "
+                    "Ask the workspace owner to review usage."
+                ),
+                "usage_concurrency": (
+                    "This workspace already has active model requests. "
+                    "Wait for one to finish, then try again."
+                ),
+                "usage_spend_limit": (
+                    "This workspace reached its reserved model spending limit. "
+                    "Ask the workspace owner to review usage."
+                ),
+                "usage_window": (
+                    "This workspace model allowance is not active. "
+                    "Ask the workspace owner to review usage."
+                ),
+                "usage_unresolved": (
+                    "Earlier model usage needs cost evidence "
+                    "before this spending allowance can be used. "
+                    "Ask the workspace owner to review usage."
+                ),
                 "source_changed": (
                     "The file or its meaning changed while this request was waiting. "
                     "Ask again using the current version."
@@ -505,7 +526,16 @@ class JobService:
         except IngestionError as error:
             failure = (
                 error.code
-                if error.code in {"job_budget", "source_changed"}
+                if error.code
+                in {
+                    "job_budget",
+                    "source_changed",
+                    "usage_attempt_limit",
+                    "usage_concurrency",
+                    "usage_spend_limit",
+                    "usage_window",
+                    "usage_unresolved",
+                }
                 else "unauthorized"
                 if error.status == 404
                 else "execution_failed"

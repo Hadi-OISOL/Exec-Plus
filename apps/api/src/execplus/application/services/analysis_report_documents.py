@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
+from execplus.domain.calendar_anomaly_requests import CALENDAR_METHODS
 from execplus.domain.exports import (
     ExportChart,
     ExportContent,
@@ -29,6 +30,7 @@ from execplus.domain.pdf_exports import (
     PdfTable,
 )
 from execplus.domain.public_evidence import public_evidence
+from execplus.domain.source_scenarios import METHOD as SOURCE_SCENARIO_METHOD
 
 
 def _json(value: Any) -> str:
@@ -258,12 +260,24 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
     report.text("Limitations", *result.get("limitations", []))
     if result.get("assumptions"):
         report.text("Declared model assumptions", *result["assumptions"])
-    excluded = {"limitations", "assumptions", "alternatives", "allocations", "findings", "groups"}
+    excluded = {
+        "limitations",
+        "assumptions",
+        "alternatives",
+        "allocations",
+        "findings",
+        "groups",
+        "history",
+        "distribution",
+        "observations",
+    }
     report.metadata(
         "Recorded summary and coverage",
         {key: value for key, value in result.items() if key not in excluded},
     )
-    if kind == "scenario":
+    if kind == "scenario" and result.get("version") == SOURCE_SCENARIO_METHOD:
+        _source_scenario(report, run, result)
+    elif kind == "scenario":
         alternatives = result["alternatives"]
         scenario_notes = (
             "Hypothetical outcomes under the saved assumptions, not observed or causal effects.",
@@ -311,6 +325,8 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
                 notes=scenario_notes,
             )
         )
+    elif kind == "anomaly" and run["method_version"] in CALENDAR_METHODS:
+        _calendar_anomaly(report, run, result)
     elif kind == "anomaly":
         report.objects(
             "Unusual values (not proof of errors)",
@@ -351,13 +367,27 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
             tuple(dict.fromkeys(key for row in result["allocations"] for key in row))
             or ("candidate", "quantity", "cost", "benefit"),
         )
+        if result.get("version") == "multi-resource-allocation-v1":
+            report.objects("Every declared resource limit and exact use", result["resources"])
+            report.objects(
+                "Per-action resource contributions",
+                [
+                    {"candidate": row["candidate"], "quantity": row["quantity"], **resource}
+                    for row in result["allocations"]
+                    for resource in row["resources"]
+                ],
+                ("candidate", "quantity", "column", "per_unit", "used"),
+            )
         if result["allocations"]:
+            measure = str(run["request"]["benefit_column"])
+            larger_method = result.get("version") == "multi-resource-allocation-v1"
+            unit = run.get("evidence", {}).get("units", {}).get(measure, "")
             report.charts.append(
                 ExportChart(
                     "bar",
                     "Declared benefit by selected candidate",
                     "Candidate",
-                    str(run["request"]["benefit_column"]),
+                    f"{measure} ({unit})" if larger_method and unit else measure,
                     tuple(str(row["candidate"]) for row in result["allocations"]),
                     (
                         ExportSeries(
@@ -365,9 +395,212 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
                             tuple(_chart_value(row["benefit"]) for row in result["allocations"]),
                         ),
                     ),
+                    notes=(
+                        result["reason"],
+                        "Benefits use fixed per-unit assumptions, not proven real-world effects.",
+                        "No external action executes. Full limits and exact source evidence "
+                        "are retained in the image metadata.",
+                    )
+                    if larger_method
+                    else (
+                        result.get("reason", "Benefits are conditional on the declared inputs."),
+                        *result.get("limitations", []),
+                    ),
                 )
             )
     report.objects("Private review history", record.get("reviews", []))
+
+
+def _calendar_anomaly(report: _Report, run: dict[str, Any], result: dict[str, Any]) -> None:
+    metric = run["request"]["metric"]
+    unit = run["evidence"]["units"][metric]
+    notes = tuple(result["limitations"])
+    report.objects("Recorded review findings", result["findings"])
+    if "history" in result:
+        history = result["history"]
+        report.objects("Every chronological period and seasonal reference", history)
+        report.metadata("Frozen training reference", result["reference"])
+        report.charts.append(
+            ExportChart(
+                "line",
+                "Observed periods and seasonal reference",
+                "Observed period",
+                f"{metric} ({unit})",
+                tuple(row["period"] for row in history),
+                tuple(
+                    ExportSeries(label, tuple(_chart_value(row[field]) for row in history))
+                    for field, label in (("actual", "Observed"), ("expected", "Seasonal reference"))
+                ),
+                notes=(
+                    "Later observed values are compared with earlier seasonal references; "
+                    "this is not a future forecast. Training ends "
+                    f"{result['reference']['training_end']}.",
+                    *notes,
+                ),
+            )
+        )
+    else:
+        observations = result["observations"]
+        report.objects("Every period in both declared windows", observations)
+        report.objects(
+            "Exact empirical distribution and distance contributions", result["distribution"]
+        )
+        report.table(
+            "Exact distribution distances",
+            ("Measure", "Numerator", "Denominator", "Display", "Display is exact"),
+            tuple(
+                (
+                    name,
+                    result[key]["numerator"],
+                    result[key]["denominator"],
+                    result[key]["display"],
+                    result[key]["display_exact"],
+                )
+                for key, name in (
+                    ("maximum_cdf_separation", "Maximum cumulative share separation"),
+                    ("wasserstein_distance", "Average distribution distance"),
+                )
+            ),
+        )
+        report.charts.append(
+            ExportChart(
+                "line",
+                "Observed values in the two declared windows",
+                "Observed period",
+                f"{metric} ({unit})",
+                tuple(row["period"] for row in observations),
+                tuple(
+                    ExportSeries(
+                        name.title(),
+                        tuple(
+                            row["value"] if row["window"] == name else None for row in observations
+                        ),
+                    )
+                    for name in ("reference", "comparison")
+                ),
+                notes=(
+                    "The two windows are separate observed series. A gap between windows "
+                    "has no observations and is not filled or joined.",
+                    *notes,
+                ),
+            )
+        )
+
+
+def _source_scenario(report: _Report, run: dict[str, Any], result: dict[str, Any]) -> None:
+    fields = (
+        "quantity",
+        "revenue",
+        "variable_cost",
+        "fixed_cost",
+        "total_cost",
+        "contribution",
+        "remaining",
+        "margin_percent",
+    )
+    baseline, alternatives = result["baseline"], result["alternatives"]
+    units = run["evidence"]["units"]
+    currency = units[run["request"]["sales_column"]]
+    report.table(
+        "Source model baseline",
+        ("Measure", "Exact value", "Unit"),
+        tuple(
+            (
+                field,
+                baseline[field],
+                units[run["request"]["quantity_column"]]
+                if field == "quantity"
+                else "%"
+                if field == "margin_percent"
+                else currency,
+            )
+            for field in fields
+        ),
+    )
+    report.table(
+        "Conditional source model results",
+        ("Alternative", *fields),
+        tuple(
+            (item["name"], *(item["result"][field] for field in fields)) for item in alternatives
+        ),
+    )
+    report.table(
+        "Changes from baseline",
+        ("Alternative", *fields[:-1]),
+        tuple(
+            (item["name"], *(item["difference"][field] for field in fields[:-1]))
+            for item in alternatives
+        ),
+    )
+    drivers = ("price", "quantity", "variable_cost", "fixed_cost")
+    report.table(
+        "Declared percentage changes",
+        ("Alternative", *drivers),
+        tuple(
+            (item["name"], *(item["assumptions"][field] for field in drivers))
+            for item in alternatives
+        ),
+    )
+    notes = tuple([*result["assumptions"], *result["limitations"], *result["warnings"]])
+    report.table(
+        "Model assumptions and limits",
+        ("Kind", "Statement"),
+        tuple(
+            (kind, statement)
+            for kind in ("assumptions", "limitations", "warnings")
+            for statement in result[kind]
+        ),
+    )
+    report.text("Source model warnings", *result["warnings"])
+    report.charts.append(
+        ExportChart(
+            "bar",
+            "Remaining amount under declared assumptions",
+            "Alternative",
+            f"Remaining amount ({currency})",
+            ("Baseline", *(item["name"] for item in alternatives)),
+            (
+                ExportSeries(
+                    "Remaining amount",
+                    (
+                        baseline["remaining"],
+                        *(item["result"]["remaining"] for item in alternatives),
+                    ),
+                ),
+            ),
+            notes=notes,
+        )
+    )
+    sensitivity = result.get("sensitivity")
+    if sensitivity:
+        report.metadata(
+            "Sensitivity reference",
+            {key: value for key, value in sensitivity.items() if key != "points"},
+        )
+        report.table(
+            "Single-driver sensitivity",
+            ("Percent change", *fields),
+            tuple(
+                (point["percent_change"], *(point["result"][field] for field in fields))
+                for point in sensitivity["points"]
+            ),
+        )
+        report.charts.append(
+            ExportChart(
+                "bar",
+                "Single-driver sensitivity",
+                f"{sensitivity['driver']} change (%)",
+                f"Remaining amount ({currency})",
+                tuple(point["percent_change"] for point in sensitivity["points"]),
+                (
+                    ExportSeries(
+                        "Remaining amount",
+                        tuple(point["result"]["remaining"] for point in sensitivity["points"]),
+                    ),
+                ),
+                notes=notes,
+            )
+        )
 
 
 def _dashboard(report: _Report, record: dict[str, Any]) -> None:

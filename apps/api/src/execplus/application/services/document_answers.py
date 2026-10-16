@@ -13,6 +13,7 @@ from execplus.application.ports import LanguageModel
 from execplus.application.progress import activity, model_call
 from execplus.application.services.dataset_access import require_full_access
 from execplus.application.services.knowledge import KnowledgeService
+from execplus.application.usage_context import attributed_operation
 from execplus.domain.errors import ProviderUnavailableError
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.jobs import EventStatus, JobStage
@@ -24,6 +25,7 @@ class DocumentAnswerService:
         self.knowledge = knowledge
         self.model = model
 
+    @attributed_operation("document_answer")
     async def answer(
         self, actor: User, wid: UUID, did: UUID, query: str
     ) -> tuple[tuple[dict[str, Any], ...], str, str]:

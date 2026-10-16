@@ -1,0 +1,30 @@
+/* Use case: Presents a readable company worksheet with progressive review steps.
+What it does: Keeps explicit accounting inputs, exact tables and saved evidence usable on narrow screens. */
+.panel { --worksheet-ink: #193c3a; --worksheet-muted: #4a625e; color: var(--worksheet-ink); min-width: 0; }
+.panel header { max-width: 760px; margin-bottom: 24px; }
+.panel h2 { font-size: 26px; line-height: 1.25; }
+.panel h3 { font-size: 21px; line-height: 1.35; }
+.panel p { color: var(--worksheet-muted); line-height: 1.6; }
+.panel .toolbar, .panel .actions { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin-block: 18px; }
+.panel .toolbar label { flex: 1 1 220px; }
+.panel label { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 14px; line-height: 1.5; }
+.panel input, .panel select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+.panel button { min-height: 44px; font-size: 14px; }
+.panel .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; }
+.panel .card { border: 1px solid #d1dfd7; padding: clamp(16px, 2vw, 26px); border-radius: 16px; margin-block: 20px; background: #fff; min-width: 0; }
+.panel .card h3 { margin: 0 0 18px; }
+.panel .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 14px; padding-block: 18px; border-bottom: 1px solid #e4ebe6; }
+.panel .row h4 { grid-column: 1 / -1; margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.panel .steps { display: flex; gap: 8px; flex-wrap: wrap; padding: 0; list-style: none; margin-block: 24px; }
+.panel .steps li { flex: 1 1 130px; padding: 12px; border: 1px solid #d1dfd7; border-radius: 10px; font-size: 14px; }
+.panel .steps [aria-current="step"] { color: white; background: #174f49; border-color: #174f49; }
+.panel .check { display: flex; flex-direction: row; gap: 12px; align-items: flex-start; padding-block: 12px; }
+.panel .check input { width: 20px; min-height: 20px; flex: 0 0 20px; margin-top: 2px; }
+.panel .notice { padding: 18px; background: #f5f8f6; border: 1px solid #c7d8d0; border-radius: 12px; }
+.panel .results { margin-top: 30px; padding-top: 24px; border-top: 1px solid #c7d8d0; min-width: 0; }
+.panel .results details { margin-block: 20px; }
+.panel summary { cursor: pointer; padding: 12px 0; min-height: 44px; font-weight: 600; }
+.panel pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.panel .layers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 18px; margin-block: 24px; }
+.panel fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+@media (max-width: 600px) { .panel .toolbar, .panel .actions { align-items: stretch; } .panel .actions button { flex: 1 1 130px; } .panel h2 { font-size: 23px; } }

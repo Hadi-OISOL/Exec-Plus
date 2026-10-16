@@ -1,0 +1,171 @@
+/* Use case: Guides explicit price, quantity and cost what-if comparisons.
+What it does: Collects source mappings and assumptions, then displays only server-calculated private results. */
+
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import type { ApiRequest } from "./profile-panel";
+import type { AnalysisOptions, AnalysisSummary } from "./decision-types";
+import { AnswerVisualization } from "./answer-visualization";
+import { ResultExportActions } from "./result-export-actions";
+import { amountFields, amountLabels, blankSourceAlternative, driverLabels, scenarioDrivers, SOURCE_SCENARIO_METHOD } from "./source-scenario-types";
+import type { AmountField, ScenarioDriver, SourceAlternative, SourceScenarioBody, SourceScenarioRequest } from "./source-scenario-types";
+import styles from "./source-scenario-panel.module.css";
+
+const showHistory = (values: AnalysisSummary[]) => values.filter(value => value.kind === "scenario_comparison" && value.method_version === SOURCE_SCENARIO_METHOD);
+
+type Props = { root: string; request: ApiRequest; onReview: () => void };
+
+export function SourceScenarioPanel({ root, request, onReview }: Props) {
+  const droot = root.split("/uploads/")[0];
+  const runsRoot = `${droot}/decision-analysis`;
+  const [options, setOptions] = useState<AnalysisOptions | null>(null);
+  const [history, setHistory] = useState<AnalysisSummary[]>([]);
+  const [selected, setSelected] = useState<SourceScenarioBody | null>(null);
+  const [step, setStep] = useState(0);
+  const [name, setName] = useState("");
+  const [basis, setBasis] = useState<"per_unit" | "row_totals">("per_unit");
+  const [quantity, setQuantity] = useState("");
+  const [sales, setSales] = useState("");
+  const [cost, setCost] = useState("");
+  const [fixed, setFixed] = useState("");
+  const [filter, setFilter] = useState("");
+  const [filterValue, setFilterValue] = useState("");
+  const [inheritedFilters, setInheritedFilters] = useState<SourceScenarioRequest["filters"] | null>(null);
+  const [reload, setReload] = useState(0);
+  const [alternatives, setAlternatives] = useState<SourceAlternative[]>([blankSourceAlternative(1)]);
+  const [sensitivity, setSensitivity] = useState(false);
+  const [driver, setDriver] = useState<ScenarioDriver>("price");
+  const [levels, setLevels] = useState("-10, 0, 10");
+  const [parent, setParent] = useState<string | null>(null);
+  const [rowConfirmed, setRowConfirmed] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const operation = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([request<AnalysisOptions>(`${root}/decision-analysis/options`, { signal: controller.signal }), request<AnalysisSummary[]>(runsRoot, { signal: controller.signal })])
+      .then(([value, saved]) => { if (!controller.signal.aborted) { setOptions(value); setHistory(showHistory(saved)); } })
+      .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load this source."); });
+    return () => { controller.abort(); operation.current?.abort(); };
+  }, [root, runsRoot, request, reload]);
+  async function work(action: (signal: AbortSignal) => Promise<void>) {
+    if (operation.current) return;
+    const controller = new AbortController(); operation.current = controller;
+    setBusy(true); setError(""); setMessage("");
+    try { await action(controller.signal); }
+    catch (cause) { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "The comparison could not complete."); }
+    finally { if (!controller.signal.aborted) setBusy(false); if (operation.current === controller) operation.current = null; }
+  }
+  function changed(mapping = false) { setConfirmed(false); if (mapping) setRowConfirmed(false); }
+  function editAlternative(index: number, patch: Partial<SourceAlternative>) {
+    setAlternatives(values => values.map((value, position) => position === index ? { ...value, ...patch } : value)); changed();
+  }
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (step < 2) { setStep(step + 1); return; }
+    if (!options || !confirmed || !rowConfirmed) return;
+    await work(async signal => {
+      const body = {
+        name: name.trim() || "Price, quantity and cost comparison", model: SOURCE_SCENARIO_METHOD, basis,
+        quantity_column: quantity, sales_column: sales, cost_column: cost, fixed_cost_column: fixed || null,
+        filters: inheritedFilters ?? (filter ? [{ column: filter, operator: "eq", value: filterValue }] : []), alternatives,
+        sensitivity: sensitivity ? { driver, percent_changes: levels.split(",").map(value => value.trim()) } : null,
+        assumptions_confirmed: confirmed, row_basis_confirmed: rowConfirmed, parent_run_id: parent,
+        revision_id: options.revision_id, understanding_id: options.understanding_id,
+      };
+      const saved = await request<SourceScenarioBody>(`${root}/decision-analysis/source-scenarios`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
+      if (signal.aborted) return;
+      setSelected(saved); setParent(null); setConfirmed(false); setMessage("Comparison saved privately. Your original data is unchanged.");
+      const listed = await request<AnalysisSummary[]>(runsRoot, { signal });
+      if (!signal.aborted) setHistory(showHistory(listed));
+    });
+  }
+  async function open(id: string) {
+    await work(async signal => {
+      const saved = await request<SourceScenarioBody>(`${runsRoot}/${id}`, { signal });
+      if (saved.run.result.version !== SOURCE_SCENARIO_METHOD) throw new Error("Open this earlier method under One measure instead.");
+      if (!signal.aborted) { setSelected(saved); setMessage("All source rows and saved calculations were replayed."); }
+    });
+  }
+  function successor() {
+    if (!selected) return;
+    const saved: SourceScenarioRequest = selected.run.request;
+    setName(`${selected.run.name} · next`.slice(0, 100)); setBasis(saved.basis);
+    setQuantity(saved.quantity_column); setSales(saved.sales_column); setCost(saved.cost_column); setFixed(saved.fixed_cost_column || "");
+    setInheritedFilters(saved.filters.map(value => ({ ...value }))); setFilter(""); setFilterValue("");
+    setAlternatives(saved.alternatives.map(value => ({ ...value })));
+    setSensitivity(Boolean(saved.sensitivity)); setDriver(saved.sensitivity?.driver || "price"); setLevels(saved.sensitivity?.percent_changes.join(", ") || "-10, 0, 10");
+    setParent(selected.run.id); setRowConfirmed(false); setConfirmed(false); setStep(0);
+  }
+  const columns = options?.source_scenarios?.columns || [];
+  const money = columns.filter(value => value.currency);
+  const quantities = columns.filter(value => !value.currency && value.unit);
+  const eligible = options?.state === "ready" && ["record", "order", "order_item", "other"].includes(options.source_scenarios?.grain || "") && money.some(column => money.filter(value => value.currency === column.currency).length >= 2) && quantities.length > 0;
+  const populationDescription = inheritedFilters !== null ? (inheritedFilters.length ? inheritedFilters.map(value => `${value.column} ${value.operator} ${String(value.value)}`).join("; ") : "All eligible rows, with the saved measure filters applied.") : filter ? `Rows where ${filter} equals ${filterValue}.` : "All eligible rows, with the saved measure filters applied.";
+  const mapOptions = (values: typeof columns) => <><option value="">Choose a column</option>{values.map(value => <option key={value.name} value={value.name}>{value.name} · {value.currency || value.unit}</option>)}</>;
+  return <section className={`panel ${styles.panel}`} aria-label="Source-derived scenarios">
+    <span className="analysisEyebrow">YOUR CHANGES · EXACT CALCULATIONS</span>
+    <h2>What if price, quantity or costs change?</h2>
+    <p>Choose the matching columns, then enter your assumptions. We show sales, included costs and the amount left. We do not guess how customers will respond.</p>
+    {error && <><p className="error" role="alert">{error}</p><button type="button" disabled={busy} onClick={() => { setError(""); setConfirmed(false); setRowConfirmed(false); setStep(0); setReload(value => value + 1); }}>Reload source options</button></>}{message && <p role="status">{message}</p>}{busy && <p role="status">Checking the source and calculating your comparison…</p>}
+    {!options ? <p>{error ? "Source options could not be loaded." : "Loading source options…"}</p> : !eligible ? <div className={styles.note}><h3>Review the inputs first</h3><p>This model needs a quantity with a fixed unit and two separate money columns with the same confirmed currency. Confirm that each row is a transaction or a non-overlapping period; stock snapshots are not eligible.</p><button type="button" onClick={onReview}>Review data meanings</button></div> : <>
+      <ol className={styles.steps} aria-label="Scenario steps">{["1. Choose inputs", "2. Set changes", "3. Review and run"].map((label, index) => <li key={label} aria-current={step === index ? "step" : undefined}>{label}</li>)}</ol>
+      <form onSubmit={submit} className={styles.form}>
+        {step === 0 && <fieldset disabled={busy}><legend>1. What does each column mean?</legend>
+          <p>Use transactions or non-overlapping periods. Do not add repeated stock snapshots or repeat the same fixed cost on several rows.</p>
+          <div className={styles.grid}>
+            <label>Comparison name<input value={name} maxLength={100} onChange={event => setName(event.target.value)} placeholder="Optional name" /></label>
+            <label>How sales and costs are stored<select value={basis} onChange={event => { setBasis(event.target.value as typeof basis); changed(true); }}><option value="per_unit">Price and variable cost per unit</option><option value="row_totals">Sales and variable cost totals per row</option></select></label>
+            <label>Quantity column<select required value={quantity} onChange={event => { setQuantity(event.target.value); changed(true); }}>{mapOptions(quantities)}</select></label>
+            <label>{basis === "per_unit" ? "Price per unit column" : "Sales total column"}<select required value={sales} onChange={event => { setSales(event.target.value); changed(true); }}>{mapOptions(money)}</select></label>
+            <label>{basis === "per_unit" ? "Variable cost per unit column" : "Variable cost total column"}<select required value={cost} onChange={event => { setCost(event.target.value); changed(true); }}>{mapOptions(money)}</select></label>
+            <label>Fixed cost allocated per row<select value={fixed} onChange={event => { setFixed(event.target.value); if (!event.target.value) { setAlternatives(values => values.map(value => ({ ...value, fixed_cost: "0" }))); if (driver === "fixed_cost") setDriver("price"); } changed(true); }}><option value="">No fixed costs included</option>{money.map(value => <option key={value.name} value={value.name}>{value.name} · {value.currency}</option>)}</select></label>
+          </div>
+          <details><summary>Choose a row group (optional)</summary>{inheritedFilters !== null ? <><p>Saved population: {populationDescription}</p><button type="button" onClick={() => { setInheritedFilters(null); setParent(null); changed(true); }}>Choose a different row group for a new comparison</button></> : <div className={styles.grid}><label>Population field<select value={filter} onChange={event => { setFilter(event.target.value); changed(true); }}><option value="">All eligible rows</option>{options.entities.map(value => <option key={value}>{value}</option>)}</select></label><label>Population value<input value={filterValue} required={Boolean(filter)} onChange={event => { setFilterValue(event.target.value); changed(true); }} /></label></div>}</details>
+          <label className={styles.check}><input type="checkbox" required checked={rowConfirmed} onChange={event => { setRowConfirmed(event.target.checked); setConfirmed(false); }} />Each row contributes once. Sales and variable costs match this quantity unit; included fixed costs are allocated once. The chosen periods do not overlap.</label>
+        </fieldset>}
+        {step === 1 && <fieldset disabled={busy}><legend>2. Enter the changes you want to compare</legend>
+          <p>Use percentages from −100 to 10,000. Zero keeps that input unchanged. Quantity changes independently of price; it is your assumption.</p>
+          <div className={styles.alternatives}>{alternatives.map((alternative, index) => <fieldset key={index}><legend>Alternative {index + 1}</legend><label>Alternative name {index + 1}<input value={alternative.name} required maxLength={100} onChange={event => editAlternative(index, { name: event.target.value })} /></label><div className={styles.grid}>{scenarioDrivers.map(key => <label key={key}>{driverLabels[key]} change {index + 1} (%)<input required inputMode="decimal" maxLength={100} value={alternative[key]} disabled={key === "fixed_cost" && !fixed} onChange={event => editAlternative(index, { [key]: event.target.value })} /></label>)}</div>{alternatives.length > 1 && <button type="button" onClick={() => { setAlternatives(values => values.filter((_, position) => position !== index)); changed(); }}>Remove alternative {index + 1}</button>}</fieldset>)}</div>
+          <div className={styles.actions}><button type="button" disabled={alternatives.length >= 5} onClick={() => { setAlternatives(values => [...values, blankSourceAlternative(values.length + 1)]); changed(); }}>Add alternative</button></div>
+          <details><summary>Explore one change across several values</summary><label className={styles.check}><input type="checkbox" checked={sensitivity} onChange={event => { setSensitivity(event.target.checked); changed(); }} />Include a sensitivity comparison</label>{sensitivity && <div className={styles.grid}><label>Sensitivity driver<select value={driver} onChange={event => { setDriver(event.target.value as ScenarioDriver); changed(); }}>{scenarioDrivers.filter(value => value !== "fixed_cost" || fixed).map(value => <option key={value} value={value}>{driverLabels[value]}</option>)}</select></label><label>Percentages, separated by commas<input required value={levels} maxLength={2100} onChange={event => { setLevels(event.target.value); changed(); }} /><small>Two to 21 increasing values. Every other change stays at zero.</small></label></div>}</details>
+        </fieldset>}
+        {step === 2 && <fieldset disabled={busy}><legend>3. Review your assumptions</legend>
+          <div className={styles.note}><p><strong>{basis === "per_unit" ? "Per-unit inputs" : "Recorded row totals"}</strong></p><p>Quantity: {quantity}. Sales: {sales}. Variable cost: {cost}. Fixed cost: {fixed || "not included"}.</p><p>{populationDescription}</p><p>Sales scale with price × quantity. Variable costs scale with cost per unit × quantity. Fixed costs use only their own change.</p></div>
+          <div className="tableWrap" tabIndex={0} role="region" aria-label="Declared scenario changes table"><table><thead><tr><th>Alternative</th>{scenarioDrivers.map(value => <th key={value}>{driverLabels[value]} (%)</th>)}</tr></thead><tbody>{alternatives.map((value, index) => <tr key={index}><td>{value.name}</td>{scenarioDrivers.map(key => <td key={key}>{value[key]}</td>)}</tr>)}</tbody></table></div>
+          {sensitivity && <p>Sensitivity: {driverLabels[driver]} at {levels}%, with every other change at zero.</p>}
+          {parent && <p>This creates a successor and keeps the earlier comparison. <button type="button" onClick={() => setParent(null)}>Make an independent comparison</button></p>}
+          <label className={styles.check}><input type="checkbox" required checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I confirm these changes and the fixed row mix are my assumptions. The result is not a forecast, a causal effect or audited net profit.</label>
+        </fieldset>}
+        <div className={styles.actions}>{step > 0 && <button type="button" disabled={busy} onClick={() => setStep(step - 1)}>Back</button>}<button type="submit" disabled={busy || (step === 2 && (!confirmed || !rowConfirmed))}>{step === 2 ? "Calculate and save source comparison" : "Continue"}</button></div>
+      </form>
+    </>}
+    <section aria-label="Private source scenario history"><h3>Your saved source comparisons</h3>{history.length ? <ul>{history.map(value => <li key={value.id}><button type="button" disabled={busy} onClick={() => void open(value.id)}>{value.name}</button></li>)}</ul> : <p>No source comparisons saved yet.</p>}</section>
+    {selected && <SourceScenarioResult value={selected} droot={droot} busy={busy} onReplay={() => void open(selected.run.id)} onSuccessor={successor} />}
+  </section>;
+}
+
+function SourceScenarioResult({ value, droot, busy, onReplay, onSuccessor }: { value: SourceScenarioBody; droot: string; busy: boolean; onReplay: () => void; onSuccessor: () => void }) {
+  const result = value.run.result;
+  const currency = value.run.evidence.units[value.run.request.sales_column];
+  const quantityUnit = value.run.evidence.units[value.run.request.quantity_column];
+  const columns = [{ name: "Source baseline", values: result.baseline }, ...result.alternatives.map(alternative => ({ name: alternative.name, values: alternative.result }))];
+  const unit = (field: AmountField) => field === "quantity" ? quantityUnit : field === "margin_percent" ? "%" : currency;
+  return <section className={styles.result} aria-label="Saved source scenario result">
+    <span className="analysisEyebrow">PRIVATE · HYPOTHETICAL OUTCOMES</span><h3>{value.run.name}</h3>
+    <p>{value.current ? "Current source and meanings." : "Historical source or meanings. A successor uses the current source."} {result.sample_count} complete matched rows.</p>
+    <p className={styles.note}>These amounts include only your selected costs. No customer response or future demand was predicted.</p>
+    <div className={styles.actions}><button type="button" disabled={busy} onClick={onReplay}>Replay source comparison</button><button type="button" disabled={busy} onClick={onSuccessor}>Create source successor</button></div>
+    <ResultExportActions path={`${droot}/analyses/${value.run.id}/export?kind=scenario`} charts={["Remaining amount under declared assumptions", ...(result.sensitivity ? ["Single-driver sensitivity"] : [])]} />
+    <h4>Starting amounts from your source</h4><dl className={styles.cards}>{(["revenue", "total_cost", "remaining"] as const).map(field => <div key={field}><dt>{amountLabels[field]}</dt><dd>{result.baseline[field]}</dd><small>{currency}</small></div>)}</dl>
+    <AnswerVisualization title="Remaining amount under declared assumptions" columns={["Alternative", `Remaining (${currency})`]} rows={columns.map(column => [column.name, column.values.remaining])} recordsAnalyzed={result.sample_count} chartLimit={6} />
+    <h4>Every calculated amount</h4><p>Exact returned values; a negative amount is kept. Margin is unavailable when sales are zero.</p>
+    <div className="tableWrap" tabIndex={0} role="region" aria-label="Every calculated amount table"><table><thead><tr><th>Measure</th><th>Unit</th>{columns.map((column, index) => <th key={index}>{column.name}</th>)}</tr></thead><tbody>{amountFields.map(field => <tr key={field}><th scope="row">{amountLabels[field]}</th><td>{unit(field)}</td>{columns.map((column, index) => <td key={index}>{column.values[field] ?? "Unavailable · zero sales"}</td>)}</tr>)}</tbody></table></div>
+    <h4>Change in the remaining amount</h4><ul>{result.alternatives.map(alternative => <li key={alternative.name}>{alternative.name}: {alternative.difference.remaining} {currency} versus the source baseline.</li>)}</ul>
+    {result.sensitivity && <section aria-label="Single-driver sensitivity"><h4>What changes when only {driverLabels[result.sensitivity.driver].toLowerCase()} changes?</h4><p>Each point starts from the original source. Every other change is zero. This range is not a probability or a confidence interval.</p><AnswerVisualization title="Single-driver sensitivity" columns={[`${driverLabels[result.sensitivity.driver]} change (%)`, `Remaining (${currency})`]} rows={result.sensitivity.points.map(point => [point.percent_change, point.result.remaining])} recordsAnalyzed={result.sample_count} chartLimit={21} /><details className={styles.evidence}><summary>All exact sensitivity values</summary><div className="tableWrap" tabIndex={0} role="region" aria-label="Exact sensitivity values table"><table><thead><tr><th>Change (%)</th>{amountFields.map(field => <th key={field}>{amountLabels[field]} ({unit(field)})</th>)}</tr></thead><tbody>{result.sensitivity.points.map(point => <tr key={point.percent_change}><td>{point.percent_change}</td>{amountFields.map(field => <td key={field}>{point.result[field] ?? "Unavailable"}</td>)}</tr>)}</tbody></table></div></details></section>}
+    {result.warnings.map(warning => <p className={styles.note} key={warning}>{warning}</p>)}
+    <details className={styles.evidence}><summary>Assumptions, limits and source evidence</summary><h4>Your declared changes</h4><ul>{result.alternatives.map(alternative => <li key={alternative.name}>{alternative.name}: {scenarioDrivers.map(driver => `${driverLabels[driver]} ${alternative.assumptions[driver]}%`).join("; ")}</li>)}</ul><ul>{[...result.assumptions, ...result.limitations].map(item => <li key={item}>{item}</li>)}</ul><p>Method: {result.version}. One complete ordered source projection is independently replayed.</p><p>Query receipt: {value.run.evidence.query_id}</p><p>Result checksum: {value.run.evidence.result_checksum}</p>{result.parent_run_id && <p>Prior comparison: {result.parent_run_id}</p>}</details>
+  </section>;
+}

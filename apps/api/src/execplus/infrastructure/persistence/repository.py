@@ -68,6 +68,7 @@ from execplus.infrastructure.persistence import schema as s
 from execplus.infrastructure.persistence.jobs import SQLJobRepository
 from execplus.infrastructure.persistence.operations import SQLOperationsRepository
 from execplus.infrastructure.persistence.reporting import SQLReportingRepository
+from execplus.infrastructure.persistence.source_imports import SQLSourceMetadataRepository
 
 Record = TypeVar(
     "Record",
@@ -109,7 +110,9 @@ Record = TypeVar(
 )
 
 
-class SQLWorkspaceRepository(SQLJobRepository, SQLOperationsRepository, SQLReportingRepository):
+class SQLWorkspaceRepository(
+    SQLJobRepository, SQLOperationsRepository, SQLReportingRepository, SQLSourceMetadataRepository
+):
     def __init__(self, connection: Connection) -> None:
         self.connection = connection
 

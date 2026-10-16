@@ -3,7 +3,7 @@ What it does: Adapts the existing category/value-axis line option to all returne
 Source: markdown-viewer/skills, 2672b6920f6c055caf72a916b414ede62ecbfc2e,
 documd-visuals/examples/ops-monitoring/trend-line-multi-series.md. License: CC-BY-4.0; see THIRD_PARTY_NOTICES.md.
 Changes: Remove all demo rows/text, second measure/axis and target; use ExecPlus theme, responsive grid,
-unsmoothed single-series geometry, no missing-value connections, bounded navigation and reduced motion.
+unsmoothed single-series geometry, all point symbols, no missing-value connections, bounded navigation and reduced motion.
 This option is separate from the Lieflat bar template; no documd exporter is included. */
 
 import type { EChartsCoreOption } from "echarts/core";
@@ -101,6 +101,7 @@ export function makeDocumdLineOption({
         connectNulls: false,
         symbolSize: 6,
         showSymbol: true,
+        showAllSymbol: true,
         lineStyle: { width: connectLinePoints ? 2 : 0 },
         data: values,
       },

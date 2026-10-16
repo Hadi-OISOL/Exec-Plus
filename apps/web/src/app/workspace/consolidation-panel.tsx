@@ -1,0 +1,109 @@
+/* Use case: Guides a person through explicit private company consolidation.
+What it does: Keeps selections and retryable drafts through source review, mappings, rates and balanced journals before saving an exact worksheet. */
+
+import { useEffect, useState } from "react";
+import type { ApiRequest } from "./profile-panel";
+import { studyJson } from "./studies-panel";
+import { ConsolidationResults } from "./consolidation-results";
+import type { CompanyDraft, CompanyOption, Journal, Rate, SourceOptions, WorksheetRecord } from "./consolidation-types";
+import styles from "./consolidation.module.css";
+
+const emptyCompany = (): CompanyDraft => ({ workspace_id: "", file: "", account_column: "", amount_column: "", counterparty_column: "", currency: "", mappings: [], rates: [], parties: {} });
+type Organization = { id: string; name: string };
+type Saved = { id: string; name: string; current: boolean };
+const steps = ["Choose company files", "Map accounts & rates", "Review adjustments"];
+
+export function ConsolidationPanel({ request }: { request: ApiRequest }) {
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organization, setOrganization] = useState("");
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    request<Organization[]>("/organizations", { signal: controller.signal }).then(value => { if (!controller.signal.aborted) setOrganizations(value); }).catch(error => { if (!controller.signal.aborted) setLoadError(error.message); });
+    return () => controller.abort();
+  }, [request]);
+  return <section className={`panel ${styles.panel}`} aria-label="Company consolidation">
+    <header><p className="studioEyebrow">PRIVATE COMPANY WORKSHEET</p><h2>Bring company accounts together</h2><p>Choose prepared ledgers, map their accounts, then declare your rates and internal adjustments. Your original files stay unchanged.</p></header>
+    <label>Worksheet organization<select value={organization} onChange={event => setOrganization(event.target.value)}><option value="">Choose an organization</option>{organizations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+    {!organizations.length && !loadError && <p>Group at least two company workspaces using Organization & departments first. You need full source access to each company.</p>}
+    {loadError && <p role="alert">{loadError}</p>}
+    {organization && <Worksheet key={organization} organization={organization} request={request} />}
+  </section>;
+}
+
+function Worksheet({ organization, request }: { organization: string; request: ApiRequest }) {
+  const root = `/organizations/${organization}/consolidations`;
+  const [available, setAvailable] = useState<CompanyOption[]>([]);
+  const [companies, setCompanies] = useState<CompanyDraft[]>([emptyCompany(), emptyCompany()]);
+  const [history, setHistory] = useState<Saved[]>([]);
+  const [savedId, setSavedId] = useState("");
+  const [result, setResult] = useState<WorksheetRecord | null>(null);
+  const [name, setName] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [sign, setSign] = useState("debit_positive");
+  const [journals, setJournals] = useState<Journal[]>([]);
+  const [confirmed, setConfirmed] = useState(false);
+  const [step, setStep] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([request<{ companies: CompanyOption[] }>(`${root}/options`, { signal: controller.signal }), request<Saved[]>(root, { signal: controller.signal })]).then(([options, saved]) => { if (!controller.signal.aborted) { setAvailable(options.companies); setHistory(saved); } }).catch(cause => { if (!controller.signal.aborted) setError(cause.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [request, root]);
+  async function work(task: () => Promise<void>) { setBusy(true); setError(""); setMessage(""); try { await task(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Please try again. Your draft is kept."); } finally { setBusy(false); } }
+  function edit(index: number, change: Partial<CompanyDraft>) { setCompanies(old => old.map((item, position) => index === position ? { ...item, ...change } : item)); setConfirmed(false); }
+  function fields(company: CompanyDraft) { return { workspace_id: company.workspace_id, dataset_id: company.options!.dataset_id, upload_id: company.options!.upload_id, revision_id: company.options!.revision_id, understanding_id: company.options!.understanding_id, account_column: company.account_column, amount_column: company.amount_column, counterparty_column: company.counterparty_column || null, currency: company.currency }; }
+  function title(company: CompanyDraft) { return available.find(item => item.workspace_id === company.workspace_id)?.name ?? "Company"; }
+  async function readFields(index: number) {
+    const company = companies[index]; const [dataset_id, upload_id] = company.file.split(":");
+    const options = await request<SourceOptions>(`${root}/source-options`, studyJson("POST", { workspace_id: company.workspace_id, dataset_id, upload_id }));
+    edit(index, { options, preview: undefined, account_column: "", amount_column: "", counterparty_column: "", currency: "", mappings: [], rates: [], parties: {} });
+  }
+  async function readAccounts(index: number) {
+    const company = companies[index]; const preview = await request<NonNullable<CompanyDraft["preview"]>>(`${root}/preview-company`, studyJson("POST", fields(company)));
+    edit(index, { preview, mappings: preview.accounts.map(account => ({ account, group_account: account, rate_key: "rate-1" })), rates: [{ key: "rate-1", basis: "closing", value: company.currency === currency ? "1" : "", as_of: end, reference: "" }], parties: {} });
+  }
+  function editRate(index: number, position: number, change: Partial<Rate>) {
+    const company = companies[index]; const previous = company.rates[position].key;
+    edit(index, { rates: company.rates.map((item, at) => position === at ? { ...item, ...change } : item), mappings: company.mappings.map(item => change.key !== undefined && item.rate_key === previous ? { ...item, rate_key: change.key } : item) });
+  }
+  function removeRate(index: number, position: number) {
+    const company = companies[index]; const previous = company.rates[position].key;
+    edit(index, { rates: company.rates.filter((_, at) => at !== position), mappings: company.mappings.map(item => item.rate_key === previous ? { ...item, rate_key: "" } : item) });
+  }
+  function addRate(index: number) {
+    const company = companies[index]; let number = 1;
+    while (company.rates.some(rate => rate.key === `rate-${number}`)) number += 1;
+    edit(index, { rates: [...company.rates, { key: `rate-${number}`, basis: "historical", value: "", as_of: end, reference: "" }] });
+  }
+  function editJournal(index: number, change: Partial<Journal>) { setJournals(old => old.map((item, position) => index === position ? { ...item, ...change } : item)); setConfirmed(false); }
+  async function save() {
+    const body = { name, companies: companies.map(company => ({ ...fields(company), period_start: start, period_end: end, sign_convention: sign, coverage_confirmed: true, counterparties: Object.entries(company.parties).filter(([, id]) => id).map(([raw_value, company_id]) => ({ raw_value, company_id })) })), worksheet: { reporting_currency: currency, assumptions_confirmed: true, mappings: Object.fromEntries(companies.map(company => [company.workspace_id, company.mappings])), rates: Object.fromEntries(companies.map(company => [company.workspace_id, company.rates])), eliminations: journals } };
+    const value = await request<WorksheetRecord>(root, studyJson("POST", body)); setResult(value); setSavedId(value.run.id); setConfirmed(false); setMessage("Worksheet saved. All source files stay unchanged.");
+    try { setHistory(await request<Saved[]>(root)); } catch { setError("Your worksheet was saved, but the saved list did not reload. The result below is safe; use Reload saved list."); }
+  }
+  const completeSources = companies.every(company => company.preview) && new Set(companies.map(company => company.workspace_id)).size === companies.length;
+  return <>
+    {loading && <p role="status">Loading your company workspaces…</p>}
+    <div className={styles.toolbar}><label>Saved private worksheets<select disabled={busy} value={savedId} onChange={event => setSavedId(event.target.value)}><option value="">Choose a saved worksheet</option>{history.map(item => <option value={item.id} key={item.id}>{item.name}{item.current ? "" : " · historical"}</option>)}</select></label><button disabled={busy || !savedId} onClick={() => void work(async () => setResult(await request<WorksheetRecord>(`${root}/${savedId}`)))}>Open worksheet</button><button disabled={busy} onClick={() => void work(async () => setHistory(await request<Saved[]>(root)))}>Reload saved list</button></div>
+    {error && <p role="alert" className="errorNotice">{error}</p>}{message && <p role="status">{message}</p>}
+    {!loading && <form onSubmit={event => { event.preventDefault(); if (step === 2 && confirmed) void work(save); }}>
+      <ol className={styles.steps} aria-label="Worksheet steps">{steps.map((label, index) => <li key={label} aria-current={step === index ? "step" : undefined}>{index + 1}. {label}</li>)}</ol>
+      <fieldset disabled={busy}>
+        {step === 0 && <><div className={styles.grid}><label>Worksheet name<input value={name} onChange={event => setName(event.target.value)} maxLength={100} required /></label><label>Reporting currency<input value={currency} onChange={event => { setCurrency(event.target.value.toUpperCase()); setConfirmed(false); }} placeholder="USD" pattern="[A-Z]{3}" maxLength={3} required /></label><label>Period start<input type="date" value={start} onChange={event => { setStart(event.target.value); setConfirmed(false); }} required /></label><label>Period end<input type="date" value={end} onChange={event => { setEnd(event.target.value); setConfirmed(false); }} required /></label><label>How are amounts signed?<select value={sign} onChange={event => setSign(event.target.value)}><option value="debit_positive">Debits positive, credits negative</option><option value="credit_positive">Credits positive, debits negative</option></select></label></div><p>Use complete prepared ledgers for the same period. Dates label your declared period; they do not filter rows or convert a transaction list into account balances.</p>
+          {companies.map((company, index) => <article key={index} className={styles.card} aria-label={`Company ${index + 1} source`}><h3>Company {index + 1}</h3><div className={styles.grid}><label>Company workspace<select required value={company.workspace_id} onChange={event => edit(index, { ...emptyCompany(), workspace_id: event.target.value })}><option value="">Choose a company</option>{available.filter(item => item.workspace_id === company.workspace_id || !companies.some(other => other.workspace_id === item.workspace_id)).map(item => <option value={item.workspace_id} key={item.workspace_id}>{item.name}</option>)}</select></label><label>Prepared ledger file<select value={company.file} onChange={event => edit(index, { file: event.target.value, options: undefined, preview: undefined, mappings: [], rates: [], parties: {} })} required><option value="">Choose a file</option>{available.find(item => item.workspace_id === company.workspace_id)?.datasets.flatMap(dataset => dataset.uploads.map(upload => <option key={upload.id} value={`${dataset.id}:${upload.id}`}>{dataset.name} · {upload.filename}</option>))}</select></label></div><div className={styles.actions}><button type="button" disabled={!company.file} onClick={() => void work(() => readFields(index))}>Review ledger fields</button>{companies.length > 2 && <button type="button" onClick={() => { setCompanies(old => old.filter((_, at) => at !== index)); setJournals([]); setConfirmed(false); }}>Remove company {index + 1}</button>}</div>
+            {company.options && <><p>{company.options.row_count} source rows · confirmed definitions</p><div className={styles.grid}><label>Account field<select value={company.account_column} onChange={event => edit(index, { account_column: event.target.value, preview: undefined })}><option value="">Choose the account</option>{company.options.accounts.map(value => <option key={value}>{value}</option>)}</select></label><label>Signed amount field<select value={company.amount_column} onChange={event => edit(index, { amount_column: event.target.value, currency: company.options!.amounts.find(item => item.name === event.target.value)?.currency ?? "", preview: undefined })}><option value="">Choose the amount</option>{company.options.amounts.map(value => <option key={value.name} value={value.name}>{value.name} · {value.currency}</option>)}</select></label><label>Counterparty field (optional)<select value={company.counterparty_column} onChange={event => edit(index, { counterparty_column: event.target.value, preview: undefined })}><option value="">No counterparty field</option>{company.options.counterparties.filter(value => value !== company.account_column).map(value => <option key={value}>{value}</option>)}</select></label></div><div className={styles.actions}><button type="button" disabled={!company.account_column || !company.amount_column || !end || !currency} onClick={() => void work(() => readAccounts(index))}>Read account list</button></div>{company.preview && <p role="status">All {company.preview.row_count} ledger rows checked · {company.preview.accounts.length} accounts ready to map.</p>}</>}
+          </article>)}<button type="button" disabled={companies.length >= 8} onClick={() => setCompanies(old => [...old, emptyCompany()])}>Add company</button></>}
+        {step === 1 && <><h3>Choose how accounts belong together</h3><p>Suggested group names repeat the source account. Review every mapping. Rates are reporting-currency units for one company-currency unit; no rates are fetched.</p>{companies.map((company, index) => <article key={company.workspace_id} className={styles.card}><h3>{title(company)} · {company.currency} → {currency}</h3><h4>Declared exchange rates</h4>{company.rates.map((rate, position) => <div key={position} className={styles.row}><label>Rate name<input value={rate.key} required maxLength={80} onChange={event => editRate(index, position, { key: event.target.value })} /></label><label>Rate basis<select value={rate.basis} onChange={event => editRate(index, position, { basis: event.target.value as Rate["basis"] })}><option value="closing">Closing</option><option value="transaction_average">Transaction / average</option><option value="historical">Historical</option></select></label><label>Exact exchange rate<input value={rate.value} inputMode="decimal" required onChange={event => editRate(index, position, { value: event.target.value })} /></label><label>Rate date<input value={rate.as_of} type="date" required onChange={event => editRate(index, position, { as_of: event.target.value })} /></label><label>Rate reference<input value={rate.reference} required maxLength={500} placeholder="Where this declared rate came from" onChange={event => editRate(index, position, { reference: event.target.value })} /></label>{company.rates.length > 1 && <button type="button" onClick={() => removeRate(index, position)}>Remove rate {position + 1}</button>}</div>)}<button type="button" disabled={company.rates.length >= 256} onClick={() => addRate(index)}>Add rate for {title(company)}</button><h4>Account mappings</h4>{company.mappings.map((mapping, position) => <div key={mapping.account} className={styles.row}><h4>{mapping.account}</h4><label>Group account<input value={mapping.group_account} maxLength={200} required onChange={event => edit(index, { mappings: company.mappings.map((item, at) => at === position ? { ...item, group_account: event.target.value } : item) })} /></label><label>Use declared rate<select required value={mapping.rate_key} onChange={event => edit(index, { mappings: company.mappings.map((item, at) => at === position ? { ...item, rate_key: event.target.value } : item) })}><option value="">Choose a declared rate</option>{company.rates.map((rate, rateIndex) => <option key={rateIndex} value={rate.key}>{rate.key || "Unnamed rate"}</option>)}</select></label></div>)}{company.preview!.counterparties.length > 0 && <><h4>Which names are companies in this worksheet?</h4><p>Unmapped names stay external. Only explicit selections can be eliminated.</p>{company.preview!.counterparties.map(raw => <label className={styles.row} key={raw}>Counterparty: {raw}<select value={company.parties[raw] ?? ""} onChange={event => edit(index, { parties: { ...company.parties, [raw]: event.target.value } })}><option value="">External / leave unmapped</option>{companies.filter(other => other.workspace_id !== company.workspace_id).map(other => <option key={other.workspace_id} value={other.workspace_id}>{title(other)}</option>)}</select></label>)}</>}</article>)}</>}
+        {step === 2 && <><h3>Review internal adjustments</h3><p>Adjustments are optional. Each journal must balance exactly and refer to matching balances in both companies. Existing balances cannot be over-removed.</p>{journals.map((journal, index) => <article key={index} className={styles.card}><label>Journal name<input value={journal.name} required maxLength={200} onChange={event => editJournal(index, { name: event.target.value })} /></label>{journal.entries.map((entry, position) => <div key={position} className={styles.row}><h4>Journal entry {position + 1}</h4><label>Entry company<select value={entry.company_id} onChange={event => editJournal(index, { entries: journal.entries.map((item, at) => at === position ? { ...item, company_id: event.target.value, account: "", counterparty: "" } : item) })}>{companies.map(company => <option key={company.workspace_id} value={company.workspace_id}>{title(company)}</option>)}</select></label><label>Source account<select required value={entry.account} onChange={event => editJournal(index, { entries: journal.entries.map((item, at) => at === position ? { ...item, account: event.target.value } : item) })}><option value="">Choose account</option>{companies.find(company => company.workspace_id === entry.company_id)?.preview!.accounts.map(account => <option key={account}>{account}</option>)}</select></label><label>Other company<select required value={entry.counterparty} onChange={event => editJournal(index, { entries: journal.entries.map((item, at) => at === position ? { ...item, counterparty: event.target.value } : item) })}><option value="">Choose company</option>{companies.filter(company => company.workspace_id !== entry.company_id).map(company => <option key={company.workspace_id} value={company.workspace_id}>{title(company)}</option>)}</select></label><label>Signed adjustment ({currency})<input required value={entry.amount} inputMode="decimal" onChange={event => editJournal(index, { entries: journal.entries.map((item, at) => at === position ? { ...item, amount: event.target.value } : item) })} /></label>{journal.entries.length > 2 && <button type="button" onClick={() => editJournal(index, { entries: journal.entries.filter((_, at) => at !== position) })}>Remove entry {position + 1}</button>}</div>)}<div className={styles.actions}><button type="button" disabled={journal.entries.length >= 64} onClick={() => editJournal(index, { entries: [...journal.entries, { company_id: companies[0].workspace_id, account: "", counterparty: "", amount: "" }] })}>Add journal entry</button><button type="button" onClick={() => { setJournals(old => old.filter((_, at) => at !== index)); setConfirmed(false); }}>Remove journal</button></div></article>)}<button type="button" disabled={journals.length >= 100} onClick={() => { setJournals(old => [...old, { name: "", entries: companies.slice(0, 2).map(company => ({ company_id: company.workspace_id, account: "", counterparty: "", amount: "" })) }]); setConfirmed(false); }}>Add internal adjustment</button><aside className={styles.notice}><p>{companies.length} companies · {start} to {end} · reporting currency {currency}. Same-currency rates must equal 1. A signed imbalance remains visible; ExecPlus never adds a balancing entry.</p><p>This worksheet uses your accounting decisions. It does not infer ownership, acquisitions, tax or statutory accounting compliance.</p><label className={styles.check}><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I reviewed the mappings and rates. Each file is a complete prepared ledger for this period and sign convention. The listed internal adjustments are my explicit instructions.</label></aside></>}
+      </fieldset>
+      <div className={styles.actions}>{step > 0 && <button type="button" disabled={busy} onClick={() => { setStep(old => old - 1); setConfirmed(false); }}>Back</button>}{step < 2 ? <button type="button" disabled={busy || !name || !start || !end || !currency || !completeSources} onClick={event => { if (event.currentTarget.form?.reportValidity()) setStep(old => old + 1); }}>Continue to {step === 0 ? "mappings" : "review"}</button> : <button disabled={busy || !confirmed}>{busy ? "Checking sources & saving…" : "Calculate & save worksheet"}</button>}</div>
+    </form>}
+    {result && <ConsolidationResults value={result} />}
+  </>;
+}

@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     object_store_bucket: str = "execplus-local"
     object_store_access_key: str = Field(default="execplus", repr=False)
     object_store_secret_key: str = Field(default="change-me", repr=False)
+    source_secret_directory: str = Field(default="/run/execplus/source-secrets", repr=False)
+    source_allow_test_loopback: bool = False
     llm_mode: Literal["disabled", "local", "hosted"] = "disabled"
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = Field(default="", repr=False)
@@ -53,6 +55,9 @@ class Settings(BaseSettings):
     vector_mode: Literal["disabled"] = "disabled"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
     web_origin: str = "http://localhost:3000"
+    integration_allow_loopback: bool = False
+    webhook_master_secret: str = Field(default="", repr=False)
+    webhook_destinations: dict[str, str] = Field(default_factory=dict, repr=False)
     query_timeout_seconds: float = Field(default=15.0, gt=0, le=300, allow_inf_nan=False)
     query_memory_limit_mb: int = Field(default=256, ge=1, le=16384)
     query_row_limit: int = Field(default=10_000, ge=1, le=100_000)
@@ -67,6 +72,16 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_model_route(self) -> "Settings":
+        if self.source_allow_test_loopback and self.environment != "test":
+            raise ValueError("Loopback source fixtures are restricted to the test environment")
+        if self.integration_allow_loopback and self.environment not in {"local", "test"}:
+            raise ValueError("Loopback integration hosts are restricted to local/test environments")
+        if bool(self.webhook_master_secret) != bool(self.webhook_destinations):
+            raise ValueError(
+                "Webhook delivery needs both a protected master secret and pinned destinations"
+            )
+        if self.webhook_master_secret and len(self.webhook_master_secret.encode()) < 32:
+            raise ValueError("Webhook master secret must contain at least 32 bytes")
         if self.llm_mode != "disabled" and not self.llm_small_model.strip():
             raise ValueError("An active language-model route requires EXECPLUS_LLM_SMALL_MODEL")
         if self.llm_mode != "disabled" and not self.llm_large_model.strip():

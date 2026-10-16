@@ -7,6 +7,8 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from execplus.domain.decision_analysis import METHODS, fail
+from execplus.domain.large_allocation import is_large_allocation
+from execplus.domain.large_allocation_queries import large_allocation_plan
 from execplus.domain.models import QueryPlan, WorkspaceScope
 from execplus.domain.profiling import TableData
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
@@ -17,6 +19,7 @@ from execplus.domain.semantics import (
     quote_identifier,
     validate_read_only,
 )
+from execplus.domain.source_scenarios import is_source_scenario, source_scenario_plan
 from execplus.domain.studies import count_plan, method_request, validated_method
 from execplus.domain.understanding import governed_request, preferred_aggregation
 
@@ -25,6 +28,10 @@ def analysis_plan(
     scope: WorkspaceScope, did: UUID, view: DatasetView, table: TableData, raw: dict[str, Any]
 ) -> tuple[QueryPlan, dict[str, str]]:
     kind = raw["kind"]
+    if is_large_allocation(raw):
+        return large_allocation_plan(scope, did, view, table, raw)
+    if kind == "scenario_comparison" and is_source_scenario(raw):
+        return source_scenario_plan(scope, did, view, table, raw)
     if kind not in {**METHODS, "scenario_comparison": SCENARIO_METHOD}:
         fail("unsupported_analysis", "Choose a registered analysis method.")
     names = (

@@ -28,6 +28,8 @@ dependencies = [
   "sqlglot>=27,<28",
   "numpy==2.2.6",
   "scipy==1.15.3",
+  "ortools==9.15.6755",
+  "pandas==2.3.3",
   "reportlab==5.0.1",
   "Pillow==12.3.0",
 ]
@@ -84,4 +86,9 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["reportlab", "reportlab.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["ortools", "ortools.*"]
+follow_imports = "skip"
 ignore_missing_imports = true

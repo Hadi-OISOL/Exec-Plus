@@ -3,6 +3,7 @@ What it does: Connects uploads, verified insights, conversations, preparation an
 
 "use client";
 
+import { allowedExportPath } from "./export-path";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -25,6 +26,14 @@ import "./focused-workspace.css";
 import "./studio-workspace.css";
 
 const loadingView = () => <WorkspaceLoading />;
+const SourcesPanel = dynamic(
+  () => import("./sources-panel").then(module => module.SourcesPanel),
+  { loading: loadingView },
+);
+const IntegrationsPanel = dynamic(
+  () => import("./integrations-panel").then(module => module.IntegrationsPanel),
+  { loading: loadingView },
+);
 const DatasetAccessPanel = dynamic(
   () => import("./dataset-access-panel").then(module => module.DatasetAccessPanel),
   { loading: loadingView },
@@ -69,6 +78,9 @@ const StudiesPanel = dynamic(
   () => import("./studies-panel").then((module) => module.StudiesPanel),
   { loading: loadingView },
 );
+const ConsolidationPanel = dynamic(
+  () => import("./consolidation-panel").then(module => module.ConsolidationPanel),
+);
 const OrganizationPanel = dynamic(
   () =>
     import("./organization-panel").then((module) => module.OrganizationPanel),
@@ -98,8 +110,8 @@ const SupportPanel = dynamic(
   () => import("./support-panel").then((module) => module.SupportPanel),
   { loading: loadingView },
 );
-const ProductUsagePanel = dynamic(
-  () => import("./product-usage").then((module) => module.ProductUsagePanel),
+const UsagePanel = dynamic(
+  () => import("./usage-panel").then((module) => module.UsagePanel),
   { loading: loadingView },
 );
 
@@ -228,8 +240,7 @@ export default function WorkspacePage() {
   }, [authorizedResponse]);
 
   const downloadExport = useCallback<ExportDownload>(async (path, format, signal, body) => {
-    const [route] = path.split("?");
-    if (!/^\/workspaces\/[0-9a-f-]{36}\/(?:threads\/[0-9a-f-]{36}\/turns\/[0-9a-f-]{36}\/export\.(?:pdf|xlsx|csv|png)|datasets\/[0-9a-f-]{36}\/(?:forecasts|analyses)\/[0-9a-f-]{36}(?:\/comparisons\/[0-9a-f-]{36})?\/export\.(?:pdf|xlsx|csv|png)|(?:study-versions|study-boards)\/[0-9a-f-]{36}\/export\.(?:pdf|xlsx|csv|png)|exports\/dashboard)$/.test(route)) throw new Error("This download is unavailable.");
+    if (!allowedExportPath(path)) throw new Error("This download is unavailable.");
     const media = { pdf: "application/pdf", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "application/zip", png: "image/png" }[format];
     const response = await authorizedResponse(path, { signal, ...(body ? { method: "POST", body: JSON.stringify(body) } : {}), headers: { Accept: media, ...(body ? { "Content-Type": "application/json" } : {}) } });
     if (!response.headers.get("Content-Type")?.toLowerCase().startsWith(media)) throw new Error("The server did not return the selected file type. Please try again.");
@@ -1116,6 +1127,17 @@ export default function WorkspacePage() {
                   )}
                 </section>
               </div>
+              {workspace && role === "owner" && section === "data" && <SourcesPanel
+                key={`sources-${workspace.id}-${dataset}`}
+                workspaceId={workspace.id} datasetId={dataset} request={request}
+                onImported={async id => {
+                  const available = await request<Upload[]>(`/workspaces/${workspace.id}/datasets/${dataset}/uploads`);
+                  setUploads(available); setProfileUpload(id); setStarterQuestions([]);
+                  setRevisionTick(value => value + 1);
+                }}
+                onReview={id => { setProfileUpload(id); setSection("prepare"); }}
+                onRefresh={() => setSection("refresh")}
+              />}
               <div hidden={section !== "team"}>
                 {" "}
                 <section className="panel">
@@ -1162,6 +1184,9 @@ export default function WorkspacePage() {
                 </section>
                 {workspace && role === "owner" && (
                   <DatasetAccessPanel key={workspace.id} workspaceId={workspace.id} request={request} />
+                )}
+                {workspace && role === "owner" && section === "team" && (
+                  <IntegrationsPanel key={`integrations-${workspace.id}`} workspaceId={workspace.id} request={request} />
                 )}
                 {workspace && manager && (
                   <section className="panel">
@@ -1373,6 +1398,7 @@ export default function WorkspacePage() {
                   }}
                 />
               )}
+              {workspace && section === "team" && <ConsolidationPanel key={`consolidation-${workspace.id}-${user.id}`} request={request} />}
               {workspace && section === "audit" && (
                 <AuditPanel
                   key={workspace.id}
@@ -1388,9 +1414,10 @@ export default function WorkspacePage() {
                 />
               )}
               {workspace && manager && section === "usage" && (
-                <ProductUsagePanel
+                <UsagePanel
                   key={workspace.id}
-                  path={`/workspaces/${workspace.id}/product-usage`}
+                  workspaceId={workspace.id}
+                  owner={role === "owner"}
                   request={request}
                 />
               )}

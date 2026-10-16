@@ -19,6 +19,7 @@ from execplus.application.services.structured_reading import (
     read_validated,
     reading_failure_notice,
 )
+from execplus.application.usage_context import attributed_operation
 from execplus.domain.data_brief import (
     fallback_brief,
     ground_brief,
@@ -143,6 +144,7 @@ class DataBriefService:
             return None
         return sample_values(table, definition, self.sample_limit)
 
+    @attributed_operation("data_reading")
     async def draft(
         self,
         actor: User,

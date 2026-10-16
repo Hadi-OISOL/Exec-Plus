@@ -1,0 +1,20 @@
+/* Use case: Gives private embedded dashboards a readable, contained presentation.
+What it does: Preserves usable controls and exact-value charts from narrow frames to desktop. */
+.frame { --embed-ink: #193c3a; --embed-muted: #4a625e; width: 100%; min-height: 100vh; padding: clamp(16px, 3vw, 40px); background: #f5f8f6; color: var(--embed-ink); font-family: var(--font-product), Arial, sans-serif; font-size: 16px; line-height: 1.6; }
+.header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.header h1 { font-family: inherit; font-size: clamp(24px, 4vw, 36px); line-height: 1.2; overflow-wrap: anywhere; margin: 6px 0; }
+.eyebrow { color: var(--embed-muted); font-size: 13px; font-weight: 700; letter-spacing: .04em; margin: 0; }
+.frame button { min-height: 44px; font-size: 14px; }
+.context, .notes { color: var(--embed-muted); font-size: 14px; }
+.notice { border: 1px solid #c9d7d2; border-radius: 16px; padding: 24px; background: white; }
+.cards { display: grid; gap: 24px; margin-top: 24px; }
+.card { min-width: 0; padding: clamp(12px, 2vw, 26px); border: 1px solid #d6e1db; border-radius: 18px; background: white; }
+.card h2 { font-size: 22px; margin: 6px 0; overflow-wrap: anywhere; }
+.card summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+.notes { padding-left: 20px; }
+
+.evidence { max-height: 320px; overflow: auto; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.header button { border: 1px solid #174f49; border-radius: 12px; background: #174f49; color: white; padding: 10px 16px; font: inherit; cursor: pointer; }
+.header button:disabled { opacity: .65; cursor: wait; }
+.header button:focus-visible { outline: 3px solid #126c64; outline-offset: 3px; }

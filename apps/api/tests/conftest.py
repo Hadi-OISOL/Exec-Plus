@@ -25,6 +25,7 @@ from execplus.application.services.workspaces import WorkspaceService
 from execplus.bootstrap import build_runtime
 from execplus.config import Settings
 from execplus.infrastructure.persistence.repository import SQLUnitOfWork
+from execplus.infrastructure.persistence.usage_metering import SQLUsageUnitOfWork
 from execplus.infrastructure.readiness import DatabaseProbe, StorageProbe
 from execplus.main import create_app
 
@@ -57,6 +58,7 @@ def integration():
     runtime = build_runtime(settings)
     runtime.engine.dispose()
     runtime.engine = engine
+    runtime.usage_metering.uow = SQLUsageUnitOfWork(engine)
     runtime.identity.engine = engine
     runtime.service = WorkspaceService(
         SQLUnitOfWork(engine), runtime.service.storage, runtime.service.parser

@@ -1,0 +1,114 @@
+/* Use case: Verifies optional larger allocations with real governed source values.
+What it does: Covers exact limits/rules, save recovery, immutable replay, review, downloads and narrow layouts. */
+import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, copyFileSync } from "node:fs";
+import { expect, test } from "@playwright/test";
+import { finishInitialReview } from "./workspace-helpers";
+
+const api = "http://127.0.0.1:8001";
+test("larger allocation keeps exact multi-resource decisions private and usable on mobile", async ({ page }) => {
+  test.setTimeout(180_000);
+  const token = execFileSync("python3", ["-m", "execplus.manage", "provision-user", "--email", `allocation-${randomUUID()}@example.test`], { cwd: "../..", encoding: "utf8" }).trim();
+  const headers = { Authorization: `Bearer ${token}` };
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("console", message => { if (message.type() === "error" && /same key|unique.*key/i.test(message.text())) errors.push(message.text()); });
+  const csv = "action,cost,benefit,hours,water,space\nA,0.03,0.07,0.2,2,1\nB,0.05,0.11,0.1,1,2\n";
+  await page.goto("/workspace");
+  await page.getByLabel("Session token").fill(token);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByLabel("CSV or Excel file").setInputFiles({ name: "allocation-actions.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  const wid = await page.getByLabel("Current workspace").inputValue();
+  const did = await page.getByLabel("Dataset", { exact: true }).inputValue();
+  const uid = await page.getByLabel("Profile upload").inputValue();
+  const root = `${api}/workspaces/${wid}/datasets/${did}/uploads/${uid}`;
+  const runsRoot = `${api}/workspaces/${wid}/datasets/${did}/decision-analysis`;
+  const meaning = await (await page.request.get(`${root}/understanding`, { headers })).json();
+  const update = await page.request.post(`${root}/understanding`, { headers, data: { revision_id: meaning.revision_id, expected_version: meaning.version, state: "confirmed", definition: { ...meaning.definition, grain: "record", columns: meaning.definition.columns.map((column: { name: string }) => ["cost", "benefit"].includes(column.name) ? { ...column, role: "metric", unit: "", currency: "USD" } : column.name === "hours" ? { ...column, role: "metric", unit: "hours", currency: "" } : column.name === "water" ? { ...column, role: "metric", unit: "litres", currency: "" } : column.name === "space" ? { ...column, role: "metric", unit: "slots", currency: "" } : { ...column, role: "identifier" }) } } });
+  expect(update.status()).toBe(201);
+  const confirmed = await (await page.request.get(`${root}/understanding`, { headers })).json();
+  await page.getByRole("radio", { name: "Expert", exact: true }).check();
+  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await page.getByRole("combobox", { name: "Analysis method", exact: true }).selectOption("large-allocations");
+  const panel = page.getByRole("region", { name: "Larger allocation", exact: true });
+  await panel.getByLabel("Analysis name", { exact: true }).fill("Exact four-resource choice");
+  await panel.getByRole("combobox", { name: "Per-unit cost", exact: true }).selectOption("cost");
+  await panel.getByRole("combobox", { name: "Per-unit benefit", exact: true }).selectOption("benefit");
+  await panel.getByLabel("Available budget", { exact: false }).fill("0.11");
+  await panel.getByLabel("Maximum units per action", { exact: true }).fill("2");
+  for (const [index, column, capacity] of [[1, "hours", "0.5"], [2, "water", "5"], [3, "space", "4"]] as const) {
+    await panel.getByRole("button", { name: "Add resource limit", exact: true }).click();
+    await panel.getByRole("combobox", { name: `Resource ${index}`, exact: true }).selectOption(column);
+    await panel.getByLabel(`Resource ${index} capacity`, { exact: true }).fill(capacity);
+  }
+  await expect(panel.getByRole("button", { name: "Add resource limit", exact: true })).toBeDisabled();
+  await panel.getByRole("button", { name: "Add selection rule", exact: true }).click();
+  await panel.getByLabel("Rule 1 action", { exact: true }).fill("B");
+  await panel.getByLabel("Rule 1 other action", { exact: true }).fill("A");
+  const confirmation = panel.getByRole("checkbox", { name: "I confirm each row", exact: false });
+  const calculate = panel.getByRole("button", { name: "Calculate and save privately", exact: true });
+  await expect(calculate).toBeDisabled();
+  await confirmation.check();
+  await panel.getByLabel("Analysis name", { exact: true }).fill("Exact four-resource choice final");
+  await expect(confirmation).not.toBeChecked();
+  await confirmation.check();
+  let failSave = true;
+  let failHistory = true;
+  await page.route("**/decision-analysis/large-allocations", route => failSave ? route.fulfill({ status: 503, json: { error: { message: "Temporary allocation failure" } } }) : route.continue());
+  await page.route(runsRoot, route => failHistory ? route.fulfill({ status: 503, json: { error: { message: "Temporary allocation history failure" } } }) : route.continue());
+  await calculate.click();
+  await expect(panel.getByRole("alert")).toContainText("Temporary allocation failure");
+  await expect(calculate).toBeEnabled();
+  failSave = false;
+  const responsePromise = page.waitForResponse(response => response.url().endsWith("/decision-analysis/large-allocations") && response.status() === 201);
+  await calculate.click();
+  const body = await (await responsePromise).json();
+  expect(body.run.result.solver_status).toBe("optimal");
+  expect(body.run.result.allocations.map((item: { quantity: number }) => item.quantity)).toEqual([2, 1]);
+  expect(body.run.result.benefit).toBe("0.250000000000");
+  expect(body.run.result.resources.map((item: { used: string }) => item.used)).toEqual(["0.110000000000", "0.500000000000", "5", "4"]);
+  await expect(panel.getByRole("alert")).toContainText("Your result is saved. History could not reload");
+  await expect(calculate).toBeDisabled();
+  failHistory = false;
+  await panel.getByRole("button", { name: "Reload saved results", exact: true }).click();
+  const result = panel.getByRole("region", { name: "Saved larger allocation", exact: true });
+  await expect(result).toContainText("Best declared benefit proved");
+  await result.getByRole("button", { name: "Verify saved allocation evidence", exact: true }).click();
+  await expect(panel).toContainText("The search was not rerun");
+  await result.getByLabel("Reason for your review", { exact: true }).fill("Check this fictional model before any real decision.");
+  await result.getByRole("button", { name: "Approve recommendation", exact: true }).click();
+  await expect(result).toContainText("Approval is effective for this declared model");
+  const output = "../../data/verification/2026-10-16/remaining-work/large-allocation-browser";
+  mkdirSync(output, { recursive: true });
+  await result.getByText("Download result", { exact: true }).click();
+  for (const [format, label] of [["xlsx", "Excel"], ["png", "PNG"]]) {
+    await result.getByRole("combobox", { name: "File type", exact: true }).selectOption(format);
+    const downloadPromise = page.waitForEvent("download");
+    await result.getByRole("button", { name: `Download ${label}`, exact: true }).click();
+    const download = await downloadPromise;
+    const path = (await download.path())!;
+    expect(readFileSync(path).subarray(0, format === "xlsx" ? 2 : 8).toString("hex")).toBe(format === "xlsx" ? "504b" : "89504e470d0a1a0a");
+    copyFileSync(path, `${output}/allocation.${format}`);
+  }
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await result.screenshot({ path: `${output}/allocation-${width}.png` });
+    const chart = result.locator('[data-chart-renderer="apache-echarts"]').first();
+    await expect(chart.locator("svg")).toBeVisible();
+    expect(await chart.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await chart.screenshot({ path: `${output}/allocation-plot-${width}.png` });
+  }
+  const reopened = await (await page.request.get(`${runsRoot}/${body.run.id}`, { headers })).json();
+  expect(reopened.run).toEqual(body.run);
+  expect(reopened.reviews).toHaveLength(1);
+  await page.getByRole("combobox", { name: "Analysis method", exact: true }).selectOption("allocations");
+  await expect(page.getByRole("region", { name: "Private analysis history", exact: true })).not.toContainText("Exact four-resource choice final");
+  expect((await (await page.request.get(`${root}/content`, { headers })).body()).toString()).toBe(csv);
+  expect(await (await page.request.get(`${root}/understanding`, { headers })).json()).toEqual(confirmed);
+  expect(errors).toEqual([]);
+});

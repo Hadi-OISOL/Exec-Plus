@@ -30,11 +30,13 @@ from execplus.presentation.routes.access_policies import router as access_polici
 from execplus.presentation.routes.activation import router as activation_router
 from execplus.presentation.routes.analytics import router as analytics_router
 from execplus.presentation.routes.artifacts import router as artifacts_router
+from execplus.presentation.routes.company_consolidation import router as consolidation_router
 from execplus.presentation.routes.data_brief import router as data_brief_router
 from execplus.presentation.routes.decision_analysis import router as decision_analysis_router
 from execplus.presentation.routes.forecasts import router as forecasts_router
 from execplus.presentation.routes.health import router as health_router
 from execplus.presentation.routes.incidents import router as incidents_router
+from execplus.presentation.routes.integrations import router as integrations_router
 from execplus.presentation.routes.jobs import router as jobs_router
 from execplus.presentation.routes.joins import router as joins_router
 from execplus.presentation.routes.operations import router as operations_router
@@ -43,9 +45,11 @@ from execplus.presentation.routes.product_usage import router as product_usage_r
 from execplus.presentation.routes.refresh import router as refresh_router
 from execplus.presentation.routes.result_exports import router as result_exports_router
 from execplus.presentation.routes.saved_items import router as saved_items_router
+from execplus.presentation.routes.source_imports import router as source_imports_router
 from execplus.presentation.routes.studies import router as studies_router
 from execplus.presentation.routes.threads import router as threads_router
 from execplus.presentation.routes.understanding import router as understanding_router
+from execplus.presentation.routes.usage_metering import router as usage_metering_router
 from execplus.presentation.routes.workspaces import router as workspace_router
 
 
@@ -55,12 +59,17 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         configured = settings or Settings()
         application.state.runtime = runtime or build_runtime(configured)
         collector = application.state.runtime.incidents
+        notifications = application.state.runtime.webhooks
         collector.stop.clear()
         collection_task = asyncio.create_task(collector.run())
+        notifications.stop.clear()
+        notification_task = asyncio.create_task(notifications.run())
         try:
             yield
         finally:
             collector.stop.set()
+            notifications.stop.set()
+            await notification_task
             await collection_task
             if collector.pending:
                 await collector.collect_once()
@@ -75,6 +84,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         default_response_class=EvidenceJSONResponse,
     )
     configured = settings or Settings()
+    application.state.web_origin = configured.web_origin
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[configured.web_origin],
@@ -104,6 +114,10 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.include_router(access_policies_router)
     application.include_router(health_router)
     application.include_router(incidents_router)
+    application.include_router(integrations_router)
+    application.include_router(consolidation_router)
+    application.include_router(usage_metering_router)
+    application.include_router(source_imports_router)
     application.include_router(workspace_router)
     application.include_router(analytics_router)
     application.include_router(joins_router)

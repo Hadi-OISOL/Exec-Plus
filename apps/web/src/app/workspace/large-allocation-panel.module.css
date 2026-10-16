@@ -1,0 +1,30 @@
+/* Use case: Keeps larger allocation forms and exact tables clear at narrow widths.
+What it does: Groups explicit inputs, preserves readable controls and contains table scrolling. */
+.panel { min-width: 0; max-width: 100%; }
+.panel > header { max-width: 72ch; margin-bottom: 1.5rem; }
+.panel h2, .panel h3, .panel p, .panel li { overflow-wrap: anywhere; }
+.panel label { min-width: 0; }
+.panel input, .panel select, .panel textarea { min-width: 0; max-width: 100%; }
+.panel select { min-height: 44px; height: auto; flex: none; }
+.form { display: grid; gap: 1.2rem; }
+.form fieldset { min-width: 0; border: 1px solid var(--line); border-radius: 16px; padding: 1.2rem; }
+.form legend { font-weight: 750; padding: 0 .5rem; }
+.grid, .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.row { padding: 1rem 0; border-bottom: 1px solid var(--line); margin-bottom: 1rem; }
+.row button { align-self: end; }
+.panel details { margin: 1rem 0; }
+.panel summary { min-height: 44px; cursor: pointer; font-weight: 700; }
+.notice { border-left: 3px solid var(--green); padding: 1rem; background: var(--paper); border-radius: 0 12px 12px 0; }
+.history { margin: 2rem 0; }
+.history ul { padding: 0; list-style: none; display: grid; gap: .6rem; }
+.history button { max-width: 100%; text-align: left; overflow-wrap: anywhere; }
+.result { min-width: 0; border-top: 1px solid var(--line); padding-top: 1.5rem; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0; }
+.cards > div { min-width: 0; border: 1px solid var(--line); border-radius: 14px; padding: 1rem; }
+.cards dt { font-size: .85rem; color: var(--muted); }
+.cards dd { margin: .4rem 0 0; font-weight: 750; overflow-wrap: anywhere; }
+.result :global(.tableWrap) { min-width: 0; max-width: 100%; overflow-x: auto; margin: 1rem 0; }
+.result :global(.tableWrap) table { min-width: 580px; }
+.result :global(.tableWrap) td { white-space: nowrap; overflow-wrap: normal; }
+.result :global(.tableWrap):focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+@media (max-width: 600px) { .grid, .row, .cards { grid-template-columns: 1fr; } .form fieldset { padding: .85rem; } }

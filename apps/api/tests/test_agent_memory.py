@@ -375,8 +375,24 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
                     for row in connection.execute(select(table)).mappings()
                 )
                 for name, table in s.metadata.tables.items()
-                if name not in {
-                    "agent_memories", "dataset_access_policies", "incidents", "incident_occurrences"
+                if name
+                not in {
+                    "agent_memories",
+                    "dataset_access_policies",
+                    "incidents",
+                    "incident_occurrences",
+                    "usage_prices",
+                    "usage_policies",
+                    "usage_attempts",
+                    "model_usage_events",
+                    "integration_keys",
+                    "integration_request_windows",
+                    "embed_grants",
+                    "webhook_subscriptions",
+                    "webhook_deliveries",
+                    "registered_sources",
+                    "source_imports",
+                    "consolidation_runs",
                 }
             }
 
@@ -391,7 +407,23 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
     assert snapshots() == before
     assert env.client.get(memory_path(wid), headers=owner).json()["version"] == 0
     with env.engine.connect() as connection:
-        for table in (s.dataset_access_policies, s.incidents, s.incident_occurrences):
+        for table in (
+            s.dataset_access_policies,
+            s.incidents,
+            s.incident_occurrences,
+            s.usage_prices,
+            s.usage_policies,
+            s.usage_attempts,
+            s.model_usage_events,
+            s.integration_keys,
+            s.integration_request_windows,
+            s.embed_grants,
+            s.webhook_subscriptions,
+            s.webhook_deliveries,
+            s.registered_sources,
+            s.source_imports,
+            s.consolidation_runs,
+        ):
             assert connection.execute(select(table)).all() == []
     assert env.client.get("/health/ready").status_code == 200
 

@@ -1,0 +1,37 @@
+/* Use case: Keeps source-derived scenario forms and exact results readable.
+What it does: Uses existing workspace colors, generous controls and narrow-screen containment. */
+.panel { min-width: 0; }
+.steps { display: flex; flex-wrap: wrap; gap: .6rem; padding: 0; list-style: none; }
+.steps li { padding: .55rem .8rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+.steps [aria-current="step"] { background: color-mix(in srgb, var(--green) 7%, var(--surface)); color: var(--green); font-weight: 700; }
+.form { display: grid; gap: 1rem; }
+.form fieldset { min-width: 0; margin: 0; padding: 1.1rem; border: 1px solid var(--line); border-radius: 16px; }
+.form legend { padding: 0 .35rem; font-weight: 700; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.grid label, .form label { display: grid; gap: .45rem; min-width: 0; }
+.form input:not([type="checkbox"]), .form select, .panel button { min-height: 44px; }
+.form input:not([type="checkbox"]), .form select { width: 100%; max-width: 100%; min-width: 0; flex: none; }
+.form .check { display: flex; align-items: flex-start; gap: .65rem; line-height: 1.5; padding: .75rem 0; }
+.check input { flex: none; margin-top: .25rem; }
+.note { background: color-mix(in srgb, var(--green) 7%, var(--surface)); padding: 1rem; border-radius: 12px; line-height: 1.6; }
+.actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+.alternatives { display: grid; gap: 1rem; }
+.result { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); min-width: 0; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0; }
+.cards div { padding: 1rem; border: 1px solid var(--line); border-radius: 14px; min-width: 0; }
+.cards dt { color: var(--muted); font-size: .85rem; }
+.cards dd { margin: .5rem 0 0; font-size: 1.25rem; font-weight: 700; overflow-wrap: anywhere; }
+.cards small { color: var(--muted); }
+.evidence { margin-top: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 14px; }
+.evidence summary { cursor: pointer; font-weight: 700; min-height: 44px; }
+.evidence p { overflow-wrap: anywhere; }
+.panel :global(.tableWrap) { max-width: 100%; min-width: 0; overflow-x: auto; margin: 1rem 0; overscroll-behavior-inline: contain; }
+.panel :global(.tableWrap) table { min-width: 640px; }
+.panel :global(.tableWrap) th, .panel :global(.tableWrap) td { overflow-wrap: normal; }
+.panel :global(.tableWrap) td { white-space: nowrap; }
+.panel :global(.tableWrap):focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .grid, .cards { grid-template-columns: 1fr; }
+  .form fieldset { padding: .85rem; }
+  .steps li { flex: 1 1 100%; }
+}

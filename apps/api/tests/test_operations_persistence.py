@@ -45,6 +45,18 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
         "dataset_access_policies",
         "incidents",
         "incident_occurrences",
+        "usage_prices",
+        "usage_policies",
+        "usage_attempts",
+        "model_usage_events",
+        "integration_keys",
+        "integration_request_windows",
+        "embed_grants",
+        "webhook_subscriptions",
+        "webhook_deliveries",
+        "registered_sources",
+        "source_imports",
+        "consolidation_runs",
     }
     original_tables = set(s.metadata.tables) - added - later_added
 
@@ -77,6 +89,21 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
         assert connection.execute(select(s.dataset_access_policies)).first() is None
         assert connection.execute(select(s.incidents)).first() is None
         assert connection.execute(select(s.incident_occurrences)).first() is None
+        for table in (
+            s.usage_prices,
+            s.usage_policies,
+            s.usage_attempts,
+            s.model_usage_events,
+            s.integration_keys,
+            s.integration_request_windows,
+            s.embed_grants,
+            s.webhook_subscriptions,
+            s.webhook_deliveries,
+            s.registered_sources,
+            s.source_imports,
+            s.consolidation_runs,
+        ):
+            assert connection.execute(select(table)).first() is None
     response = env.client.get(
         f"/workspaces/{wid}/datasets/{did}/forecasts/{forecast.json()['id']}", headers=headers
     )

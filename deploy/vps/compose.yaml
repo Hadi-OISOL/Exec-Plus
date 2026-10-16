@@ -105,6 +105,7 @@ services:
     environment:
       HOSTNAME: 127.0.0.1
       PORT: "18400"
+      EXECPLUS_INTERNAL_API_URL: http://127.0.0.1:18401
       NEXT_TELEMETRY_DISABLED: "1"
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]

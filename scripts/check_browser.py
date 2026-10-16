@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 import boto3
@@ -19,6 +20,7 @@ def main() -> None:
     url = os.environ["EXECPLUS_TEST_DATABASE_URL"]
     schema = "browser_" + uuid4().hex
     bucket = "browser-" + uuid4().hex
+    source_secrets = TemporaryDirectory(prefix="execplus-browser-sources-")
     engine = create_engine(url)
     env = dict(os.environ)
     env.update(
@@ -27,6 +29,8 @@ def main() -> None:
             .update_query_dict({"options": f"-csearch_path={schema}"})
             .render_as_string(hide_password=False),
             "EXECPLUS_ENVIRONMENT": "test",
+            "EXECPLUS_SOURCE_ALLOW_TEST_LOOPBACK": "1",
+            "EXECPLUS_SOURCE_SECRET_DIRECTORY": source_secrets.name,
             "EXECPLUS_OBJECT_STORE_BUCKET": bucket,
             "EXECPLUS_OBJECT_STORE_ENDPOINT": os.getenv(
                 "EXECPLUS_TEST_OBJECT_STORE_ENDPOINT", "http://localhost:9000"
@@ -75,6 +79,7 @@ def main() -> None:
         with engine.begin() as connection:
             connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         engine.dispose()
+        source_secrets.cleanup()
 
 
 if __name__ == "__main__":

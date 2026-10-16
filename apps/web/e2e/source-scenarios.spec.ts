@@ -1,0 +1,165 @@
+/* Use case: Verifies the explicit source sales/cost scenario journey.
+What it does: Checks drafts, failed-save recovery, exact outcomes, immutable successors and narrow layouts against real services. */
+
+import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { expect, test } from "@playwright/test";
+import { finishInitialReview } from "./workspace-helpers";
+
+const api = "http://127.0.0.1:8001";
+
+test("source scenarios preserve explicit assumptions, exact rows, saved successors and downloads", async ({ page }) => {
+  test.setTimeout(180_000);
+  const token = execFileSync("python3", ["-m", "execplus.manage", "provision-user", "--email", `source-scenario-${randomUUID()}@example.test`], { cwd: "../..", encoding: "utf8" }).trim();
+  const auth = { Authorization: `Bearer ${token}` };
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/workspace");
+  await page.getByLabel("Session token").fill(token);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByLabel("CSV or Excel file").setInputFiles({ name: "source-scenarios.csv", mimeType: "text/csv", buffer: Buffer.from("region,quantity,sales,cost,fixed\nNorth,2,10,6,3\nSouth,3,20,8,4\n") });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  const wid = await page.getByLabel("Current workspace").inputValue();
+  const did = await page.getByLabel("Dataset", { exact: true }).inputValue();
+  const uid = await page.getByLabel("Profile upload").inputValue();
+  const root = `${api}/workspaces/${wid}/datasets/${did}/uploads/${uid}`;
+  const runsRoot = `${api}/workspaces/${wid}/datasets/${did}/decision-analysis`;
+  const current = await (await page.request.get(`${root}/understanding`, { headers: auth })).json();
+  const original = await (await page.request.get(`${root}/content`, { headers: auth })).body();
+  const saved = await page.request.post(`${root}/understanding`, { headers: auth, data: {
+    revision_id: current.revision_id, expected_version: current.version, state: "confirmed",
+    definition: { ...current.definition, grain: "record", columns: current.definition.columns.map((column: { name: string }) => column.name === "quantity" ? { ...column, unit: "items", currency: "" } : ["sales", "cost", "fixed"].includes(column.name) ? { ...column, unit: "", currency: "USD" } : column) },
+  } });
+  expect(saved.status()).toBe(201);
+  const confirmed = await (await page.request.get(`${root}/understanding`, { headers: auth })).json();
+  await page.getByRole("radio", { name: "Expert", exact: true }).check();
+  const nav = page.getByRole("navigation", { name: "Workspace navigation" });
+  await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await page.getByRole("combobox", { name: "Analysis method", exact: true }).selectOption("scenarios");
+  await page.getByRole("combobox", { name: "Scenario approach", exact: true }).selectOption("source");
+  const panel = page.getByRole("region", { name: "Source-derived scenarios", exact: true });
+  await panel.getByLabel("Comparison name", { exact: true }).fill("Explicit unit economics");
+  await panel.getByRole("combobox", { name: "Quantity column", exact: true }).selectOption("quantity");
+  await panel.getByRole("combobox", { name: "Price per unit column", exact: true }).selectOption("sales");
+  await panel.getByRole("combobox", { name: "Variable cost per unit column", exact: true }).selectOption("cost");
+  await panel.getByRole("combobox", { name: "Fixed cost allocated per row", exact: true }).selectOption("fixed");
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(panel.getByRole("group", { name: "1. What does each column mean?", exact: true })).toBeVisible();
+  await panel.getByRole("checkbox", { name: "Each row contributes once", exact: false }).check();
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await panel.getByLabel("Price change 1 (%)", { exact: true }).fill("10");
+  await panel.getByLabel("Quantity change 1 (%)", { exact: true }).fill("20");
+  await panel.getByLabel("Variable cost per unit change 1 (%)", { exact: true }).fill("25");
+  await panel.getByLabel("Included fixed cost change 1 (%)", { exact: true }).fill("100");
+  await panel.getByText("Explore one change across several values", { exact: true }).click();
+  await panel.getByRole("checkbox", { name: "Include a sensitivity comparison", exact: true }).check();
+  await panel.getByRole("combobox", { name: "Sensitivity driver", exact: true }).selectOption("fixed_cost");
+  await panel.getByRole("button", { name: "Back", exact: true }).click();
+  await panel.getByRole("combobox", { name: "Fixed cost allocated per row", exact: true }).selectOption("");
+  await panel.getByRole("checkbox", { name: "Each row contributes once", exact: false }).check();
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(panel.getByLabel("Included fixed cost change 1 (%)", { exact: true })).toHaveValue("0");
+  await expect(panel.getByLabel("Included fixed cost change 1 (%)", { exact: true })).toBeDisabled();
+  const sensitivityOptions = panel.locator("details").filter({ hasText: "Explore one change across several values" });
+  if (!(await sensitivityOptions.evaluate(element => (element as HTMLDetailsElement).open))) await sensitivityOptions.locator("summary").click();
+  await expect(panel.getByRole("combobox", { name: "Sensitivity driver", exact: true })).toHaveValue("price");
+  await panel.getByRole("button", { name: "Back", exact: true }).click();
+  await panel.getByRole("combobox", { name: "Fixed cost allocated per row", exact: true }).selectOption("fixed");
+  await panel.getByRole("checkbox", { name: "Each row contributes once", exact: false }).check();
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await panel.getByLabel("Included fixed cost change 1 (%)", { exact: true }).fill("100");
+  await expect(panel.getByLabel("Price change 1 (%)", { exact: true })).toHaveValue("10");
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await panel.getByRole("checkbox", { name: "I confirm these changes", exact: false }).check();
+  let failSave = true;
+  let failHistory = true;
+  await page.route("**/decision-analysis/source-scenarios", route => failSave ? route.fulfill({ status: 503, json: { error: { message: "Temporary scenario save failure" } } }) : route.continue());
+  await page.route(runsRoot, route => failHistory ? route.fulfill({ status: 503, json: { error: { message: "Temporary history read failure" } } }) : route.continue());
+  const calculate = panel.getByRole("button", { name: "Calculate and save source comparison", exact: true });
+  await calculate.click();
+  await expect(panel.getByRole("alert")).toContainText("Temporary scenario save failure");
+  await expect(calculate).toBeEnabled();
+  failSave = false;
+  const responsePromise = page.waitForResponse(response => response.url().endsWith("/decision-analysis/source-scenarios") && response.status() === 201);
+  await calculate.click();
+  const response = await responsePromise;
+  const result = await response.json();
+  for (const [field, value] of Object.entries({ quantity: "5", revenue: "80", variable_cost: "36", fixed_cost: "7", remaining: "37" })) expect(result.run.result.baseline[field]).toMatch(new RegExp(`^${value}(?:\\.0+)?$`));
+  expect(result.run.result.alternatives[0].result.remaining).toMatch(/^37\.60*$/);
+  const resultPanel = panel.getByRole("region", { name: "Saved source scenario result", exact: true });
+  await expect(resultPanel).toContainText("37.6");
+  await expect(panel.getByRole("alert")).toContainText("Temporary history read failure");
+  await expect(calculate).toBeDisabled();
+  failHistory = false;
+  await panel.getByRole("button", { name: "Reload source options", exact: true }).click();
+  await expect(panel.getByRole("region", { name: "Private source scenario history", exact: true })).toContainText("Explicit unit economics");
+  await resultPanel.getByRole("button", { name: "Replay source comparison", exact: true }).click();
+  await expect(panel).toContainText("All source rows and saved calculations were replayed");
+  await resultPanel.getByText("All exact sensitivity values", { exact: true }).click();
+  const sensitivity = resultPanel.getByRole("region", { name: "Single-driver sensitivity", exact: true });
+  for (const amount of ["29", "37", "45"]) await expect(sensitivity.getByRole("cell", { name: new RegExp(`^${amount}(?:\\.0+)?$`) }).first()).toBeVisible();
+  await resultPanel.getByText("Download result", { exact: true }).click();
+  await resultPanel.getByRole("combobox", { name: "File type", exact: true }).selectOption("xlsx");
+  const downloadPromise = page.waitForEvent("download");
+  await resultPanel.getByRole("button", { name: "Download Excel", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.xlsx$/);
+  expect(readFileSync((await download.path())!).subarray(0, 2).toString()).toBe("PK");
+  const output = "../../data/verification/2026-10-16/remaining-work/source-scenarios-browser";
+  mkdirSync(output, { recursive: true });
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    try {
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), { message: `Scenario page fits ${width}px after chart resize` }).toBe(true);
+    } catch (cause) {
+      const overflow = await page.evaluate(() => [...document.querySelectorAll("body *")].flatMap(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.right > innerWidth + 1 ? [{ tag: element.tagName, classes: element.className?.toString(), left: rect.left, right: rect.right, width: rect.width, overflow: getComputedStyle(element).overflowX }] : [];
+      }));
+      writeFileSync(`${output}/overflow-${width}.json`, JSON.stringify(overflow, null, 2));
+      await page.screenshot({ path: `${output}/overflow-${width}.png`, fullPage: true });
+      throw cause;
+    }
+    await resultPanel.screenshot({ path: `${output}/result-${width}.png` });
+    const renderer = resultPanel.locator('[data-chart-template="lieflat-g10"]').first();
+    await expect(renderer.locator("svg")).toBeVisible();
+    expect(await renderer.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await resultPanel.getByRole("button", { name: "Create source successor", exact: true }).click();
+  await panel.getByRole("checkbox", { name: "Each row contributes once", exact: false }).check();
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await panel.getByLabel("Price change 1 (%)", { exact: true }).fill("20");
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await panel.getByRole("checkbox", { name: "I confirm these changes", exact: false }).check();
+  const successorPromise = page.waitForResponse(item => item.url().endsWith("/decision-analysis/source-scenarios") && item.status() === 201);
+  await calculate.click();
+  const successor = await (await successorPromise).json();
+  expect(successor.run.result.parent_run_id).toBe(result.run.id);
+  expect(successor.run.result.alternatives[0].result.remaining).toMatch(/^47\.20*$/);
+  expect((await (await page.request.get(`${runsRoot}/${result.run.id}`, { headers: auth })).json()).run).toEqual(result.run);
+  await page.getByRole("combobox", { name: "Scenario approach", exact: true }).selectOption("aggregate");
+  await expect(page.getByRole("region", { name: "Private scenario history", exact: true })).not.toContainText("Explicit unit economics");
+  const filtered = await page.request.post(`${root}/decision-analysis/source-scenarios`, { headers: auth, data: { ...result.run.request, name: "Preserved population", parent_run_id: null, filters: [{ column: "region", operator: "ne", value: "Other" }, { column: "quantity", operator: "gte", value: "0" }] } });
+  expect(filtered.status()).toBe(201);
+  const filteredRun = await filtered.json();
+  await page.getByRole("combobox", { name: "Scenario approach", exact: true }).selectOption("source");
+  await panel.getByRole("region", { name: "Private source scenario history", exact: true }).getByRole("button", { name: "Preserved population", exact: true }).click();
+  await resultPanel.getByRole("button", { name: "Create source successor", exact: true }).click();
+  await panel.getByRole("checkbox", { name: "Each row contributes once", exact: false }).check();
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(panel).toContainText("region ne Other; quantity gte 0");
+  await panel.getByRole("checkbox", { name: "I confirm these changes", exact: false }).check();
+  const preservedPromise = page.waitForResponse(item => item.url().endsWith("/decision-analysis/source-scenarios") && item.status() === 201);
+  await calculate.click();
+  const preserved = await (await preservedPromise).json();
+  expect(preserved.run.request.filters).toEqual(filteredRun.run.request.filters);
+  expect(preserved.run.result.parent_run_id).toBe(filteredRun.run.id);
+  expect(await (await page.request.get(`${root}/content`, { headers: auth })).body()).toEqual(original);
+  expect(await (await page.request.get(`${root}/understanding`, { headers: auth })).json()).toEqual(confirmed);
+  expect(errors).toEqual([]);
+});

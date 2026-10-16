@@ -5,13 +5,17 @@ details, retrying only the transient failures the provider itself calls temporar
 """
 
 import asyncio
+from dataclasses import replace
 
 import httpx
 
 from execplus.application.contracts import ModelRequest, ModelResponse
 from execplus.application.progress import provider_attempt
+from execplus.application.services.usage_metering import UsageMeteringService
 from execplus.domain.errors import IncompleteModelResponseError, ProviderUnavailableError
 from execplus.domain.models import ModelTier
+from execplus.domain.usage_metering import TokenUsage, reported_usage
+from execplus.infrastructure.models.accounting import AttemptAccounting
 
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
@@ -30,7 +34,9 @@ class OpenAICompatibleLanguageModel:
         max_output_tokens: int | None = None,
         reasoning_effort: str | None = None,
         json_mode: bool = False,
+        metering: UsageMeteringService | None = None,
     ) -> None:
+        self._metering = metering
         self._json_mode = json_mode
         self._max_output_tokens = max_output_tokens
         self._reasoning_effort = reasoning_effort
@@ -63,6 +69,8 @@ class OpenAICompatibleLanguageModel:
             if attempt > 0:
                 await asyncio.sleep(self._retry_backoff_seconds * attempt)
             await provider_attempt()
+            accounting = AttemptAccounting(self._metering, self._provider_name, model)
+            usage = TokenUsage()
             try:
                 async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
                     response = await client.post(
@@ -70,8 +78,17 @@ class OpenAICompatibleLanguageModel:
                         headers=headers,
                         json=payload,
                     )
-                    response.raise_for_status()
-                body = response.json()
+                try:
+                    body = response.json()
+                except ValueError:
+                    body = None
+                if isinstance(body, dict):
+                    usage = reported_usage(body.get("usage"))
+                    if body.get("model", model) != model:
+                        usage = replace(usage, invalid_report=True)
+                response.raise_for_status()
+                if not isinstance(body, dict):
+                    raise ValueError("Incomplete model response")
                 choice = body["choices"][0]
                 if choice.get("finish_reason") == "length":
                     raise IncompleteModelResponseError(
@@ -80,32 +97,39 @@ class OpenAICompatibleLanguageModel:
                 content = choice["message"]["content"]
                 if not isinstance(content, str) or not content.strip():
                     raise ValueError("Incomplete model response")
-                usage = body.get("usage") or {}
-                input_tokens = usage.get("prompt_tokens")
-                output_tokens = usage.get("completion_tokens")
+                accounting.finish("succeeded", usage)
                 return ModelResponse(
                     content=content,
                     model=str(body.get("model", model)),
                     provider=self._provider_name,
-                    input_tokens=input_tokens
-                    if type(input_tokens) is int and input_tokens >= 0
-                    else None,
-                    output_tokens=output_tokens
-                    if type(output_tokens) is int and output_tokens >= 0
-                    else None,
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
                 )
+            except asyncio.CancelledError:
+                accounting.finish("cancelled", usage, preserve_failure=True)
+                raise
+            except IncompleteModelResponseError:
+                accounting.finish("truncated", usage, preserve_failure=True)
+                raise
             except httpx.HTTPStatusError as error:
+                accounting.finish("http_error", usage)
                 last_error = error
                 if error.response.status_code not in _RETRYABLE_STATUS_CODES:
                     break
+            except httpx.TimeoutException as error:
+                accounting.finish("timeout", usage)
+                last_error = error
+            except httpx.HTTPError as error:
+                accounting.finish("http_error", usage)
+                last_error = error
             except (
-                httpx.HTTPError,
                 KeyError,
                 IndexError,
                 ValueError,
                 TypeError,
                 AttributeError,
             ) as error:
+                accounting.finish("invalid_response", usage)
                 last_error = error
         raise ProviderUnavailableError(
             "The language-model provider is unavailable. Try again later."

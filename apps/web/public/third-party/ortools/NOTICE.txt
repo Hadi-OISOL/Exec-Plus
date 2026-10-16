@@ -1,0 +1,63 @@
+Use case: Retains licenses and source locations for the bounded allocation runtime.
+What it does: Attributes the unmodified OR-Tools wheel and its native/Python dependencies.
+
+OR-Tools 9.15.6755; Google source 551ad10d94835c99e5e1e684500d3db398c0e345.
+https://github.com/google/or-tools/tree/551ad10d94835c99e5e1e684500d3db398c0e345
+Verified cp312 Linux x86_64 wheel SHA256: 033836c0eb33bc72697a299e0caedbb25fc9d1cee0b13832d69cb30405f57b3e.
+
+ExecPlus invokes only CP-SAT. The unmodified wheel also distributes other solver libraries.
+Those components retain their own licenses. No third-party solver source was modified by ExecPlus.
+Upstream OR-Tools build patches and exact dependency declarations remain available at:
+https://github.com/google/or-tools/tree/551ad10d94835c99e5e1e684500d3db398c0e345/patches
+https://github.com/google/or-tools/blob/551ad10d94835c99e5e1e684500d3db398c0e345/cmake/dependencies/CMakeLists.txt
+
+COIN-OR components are under the Eclipse Public License 2.0. Corresponding source is available
+from the linked exact source tags and upstream OR-Tools patches. These notices do not restrict
+recipients' rights under those licenses. Eigen source uses MPL2-only build configuration.
+GLPK is disabled by the upstream default and no GLPK shared library occurs in the verified wheel.
+
+Native source/license locations:
+abseil: https://raw.githubusercontent.com/abseil/abseil-cpp/20250814.1/LICENSE
+protobuf: https://raw.githubusercontent.com/protocolbuffers/protobuf/v33.1/LICENSE
+re2: https://raw.githubusercontent.com/google/re2/2025-08-12/LICENSE
+pybind11: https://raw.githubusercontent.com/pybind/pybind11/v2.13.6/LICENSE
+pybind11-abseil: https://raw.githubusercontent.com/pybind/pybind11_abseil/v202402.0/LICENSE
+pybind11-protobuf: https://raw.githubusercontent.com/pybind/pybind11_protobuf/f02a2b7653bc50eb5119d125842a3870db95d251/LICENSE
+highs: https://raw.githubusercontent.com/ERGO-Code/HiGHS/v1.12.0/LICENSE.txt
+boost: https://raw.githubusercontent.com/boostorg/boost/boost-1.87.0/LICENSE_1_0.txt
+soplex: https://raw.githubusercontent.com/scipopt/soplex/v8.0.0/LICENSE
+scip: https://raw.githubusercontent.com/scipopt/scip/v10.0.0/LICENSE
+coinutils: https://raw.githubusercontent.com/Mizux/CoinUtils/cmake/2.11.12/LICENSE
+osi: https://raw.githubusercontent.com/Mizux/Osi/cmake/0.108.11/LICENSE
+clp: https://raw.githubusercontent.com/Mizux/Clp/cmake/1.17.10/LICENSE
+cgl: https://raw.githubusercontent.com/Mizux/Cgl/cmake/0.60.9/LICENSE
+cbc: https://raw.githubusercontent.com/Mizux/Cbc/cmake/2.10.12/LICENSE
+zlib: https://raw.githubusercontent.com/madler/zlib/v1.3.1/LICENSE
+Eigen3.4.0: https://gitlab.com/libeigen/eigen/-/tree/3.4.0 (COPYING.MPL2 retained).
+bzip2: https://gitlab.com/bzip2/bzip2 (COPYING retained). Bundled binary reports1.1.0.
+Upstream OR-Tools declares bzip2 master, not an immutable source pin; exact bzip2 source commit
+cannot be inferred from that declaration. The unmodified wheel hash above fixes binary bytes.
+
+Python packages in the reviewed environment:
+absl-py 2.5.1; absl_py-2.5.1.dist-info/licenses/LICENSE
+pytz 2026.5; pytz-2026.5.dist-info/LICENSE.txt
+pandas 2.3.3; pandas-2.3.3.dist-info/LICENSE
+python-dateutil 2.9.0.post0; python_dateutil-2.9.0.post0.dist-info/LICENSE
+ortools 9.15.6755; ortools-9.15.6755.dist-info/licenses/LICENSE
+six 1.17.0; six-1.17.0.dist-info/LICENSE
+protobuf 6.33.6; protobuf-6.33.6.dist-info/LICENSE
+typing_extensions 4.16.0; typing_extensions-4.16.0.dist-info/licenses/LICENSE
+tzdata 2026.5; tzdata-2026.5.dist-info/licenses/LICENSE
+tzdata 2026.5; tzdata-2026.5.dist-info/licenses/licenses/LICENSE_APACHE
+immutabledict 4.3.1; immutabledict-4.3.1.dist-info/licenses/LICENSE
+NumPy2.2.6 is an existing ExecPlus dependency and retains its packaged BSD/bundled notices.
+
+All copied license texts retain their original wording. These files and THIRD_PARTY_NOTICES.md
+are included in the API image and under the web /third-party/ path.
+
+Reviewed COIN-OR tag resolutions (source code remains available at these commits):
+https://github.com/Mizux/CoinUtils/tree/57443a654f6536797b9a852f46a54bc0b0b6aa50
+https://github.com/Mizux/Osi/tree/3fc1df3b7733cdfd29af4794d00a9f70c3d07200
+https://github.com/Mizux/Clp/tree/2ede218a32cd1aa5aaacb9ee46dbe272c69b0682
+https://github.com/Mizux/Cgl/tree/9a12b1d02e739092c9ed2835b113c6f055c1f138
+https://github.com/Mizux/Cbc/tree/fd681dc076dc27ef31a57ebeeaab0cd9586a6ba1

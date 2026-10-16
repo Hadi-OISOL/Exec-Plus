@@ -9,7 +9,9 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
+from execplus.application.allocation_ports import AllocationSolver
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
+from execplus.application.services.calendar_analysis import CalendarAnalysis
 from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.forecasts import ForecastService, read_complete
 from execplus.application.services.studies import audit
@@ -27,7 +29,8 @@ from execplus.domain.analysis_extensions import (
     detect_segments,
 )
 from execplus.domain.analysis_queries import analysis_plan, scenario_coverage_plans
-from execplus.domain.analysis_readiness import fixed_unit_columns
+from execplus.domain.analysis_readiness import fixed_unit_columns, forecast_options
+from execplus.domain.calendar_anomaly_requests import CALENDAR_METHODS, is_calendar_anomaly
 from execplus.domain.decision_analysis import (
     METHODS,
     AnalysisReview,
@@ -39,14 +42,67 @@ from execplus.domain.decision_analysis import (
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt
 from execplus.domain.ingestion import IngestionError, User
+from execplus.domain.large_allocation import METHOD as LARGE_ALLOCATION_METHOD
+from execplus.domain.large_allocation import (
+    checked_allocation,
+    is_large_allocation,
+    prepare_allocation,
+    reopen_allocation,
+)
 from execplus.domain.models import CalculationLineage, QueryResult
 from execplus.domain.scenarios import COMPOUND_METHOD, DAILY_METHOD, alternatives, compare_scenarios
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
+from execplus.domain.source_scenarios import METHOD as SOURCE_SCENARIO_METHOD
+from execplus.domain.source_scenarios import (
+    compare_source_scenarios,
+    compatible_source_successor,
+    is_source_scenario,
+    validate_source_scenario,
+)
 
 REGISTERED_METHODS = {**METHODS, "scenario_comparison": SCENARIO_METHOD}
 
 
+def scenario_successor_compatible(
+    parent: AnalysisRun,
+    raw: dict[str, Any],
+    definition: dict[str, Any] | None,
+    units: dict[str, str],
+) -> bool:
+    if parent.kind != "scenario_comparison":
+        return False
+    if is_source_scenario(raw) or is_source_scenario(parent.request):
+        return (
+            is_source_scenario(raw)
+            and is_source_scenario(parent.request)
+            and compatible_source_successor(
+                parent.request,
+                parent.evidence["definition"],
+                parent.evidence["units"],
+                raw,
+                definition,
+                units,
+            )
+        )
+    old, new = parent.evidence["definition"] or {}, definition or {}
+    return (
+        all(parent.request.get(key) == raw.get(key) for key in ("metric", "aggregation", "filters"))
+        and parent.evidence["units"] == units
+        and old.get("grain") == new.get("grain")
+        and next((c for c in old.get("columns", []) if c["name"] == raw["metric"]), None)
+        == next((c for c in new.get("columns", []) if c["name"] == raw["metric"]), None)
+        and [m for m in old.get("metrics", []) if m.get("column") == raw["metric"]]
+        == [m for m in new.get("metrics", []) if m.get("column") == raw["metric"]]
+    )
+
+
 def method_version(raw: dict[str, Any]) -> str:
+    if is_large_allocation(raw):
+        return LARGE_ALLOCATION_METHOD
+    if is_calendar_anomaly(raw):
+        return str(raw["model"])
+    if raw["kind"] == "scenario_comparison" and is_source_scenario(raw):
+        return SOURCE_SCENARIO_METHOD
     if raw["kind"] == "scenario_comparison" and any(
         item["operation"] == "daily_change" for item in raw["alternatives"]
     ):
@@ -66,6 +122,8 @@ def method_version(raw: dict[str, Any]) -> str:
 
 def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
     if raw["kind"] == "scenario_comparison":
+        if is_source_scenario(raw):
+            return compare_source_scenarios(raw, value.rows)
         return compare_scenarios(raw, value.rows)
     if raw["kind"] == "robust_distribution":
         if raw.get("segment_column"):
@@ -129,8 +187,14 @@ def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
 
 
 class DecisionAnalysisService:
-    def __init__(self, uow: UnitOfWork, analytics: AnalyticsService) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        analytics: AnalyticsService,
+        allocation_solver: AllocationSolver | None = None,
+    ) -> None:
         self.uow, self.analytics = uow, analytics
+        self.allocation_solver = allocation_solver
         self.sources = ForecastService(uow, analytics)
 
     async def options(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> dict[str, Any]:
@@ -148,13 +212,31 @@ class DecisionAnalysisService:
             understanding_id=source.get("understanding_id"),
             metrics=metrics,
             entities=[c["name"] for c in columns if c["role"] in {"dimension", "identifier"}],
+            source_scenarios=dict(
+                model=SOURCE_SCENARIO_METHOD,
+                grain=definition.get("grain"),
+                columns=[
+                    dict(name=c["name"], unit=c["unit"], currency=c["currency"])
+                    for c in fixed_unit_columns(context)
+                ],
+            ),
+            calendar_anomalies={**forecast_options(context), "methods": sorted(CALENDAR_METHODS)},
+            large_allocations=dict(
+                model=LARGE_ALLOCATION_METHOD,
+                available=self.allocation_solver is not None,
+                maximum_actions=50,
+                maximum_resources=4,
+            ),
             methods=REGISTERED_METHODS,
             extensions=[
+                LARGE_ALLOCATION_METHOD,
                 SEGMENT_METHOD,
                 RESOURCE_METHOD,
                 RULE_METHOD,
                 COMPOUND_METHOD,
                 DAILY_METHOD,
+                SOURCE_SCENARIO_METHOD,
+                *sorted(CALENDAR_METHODS),
             ],
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
@@ -200,6 +282,7 @@ class DecisionAnalysisService:
                     id=str(r.id),
                     name=r.name,
                     kind=r.kind,
+                    method_version=r.method_version,
                     created_at=r.created_at,
                     upload_id=str(r.upload_id),
                 )
@@ -209,9 +292,14 @@ class DecisionAnalysisService:
     async def create(
         self, actor: User, wid: UUID, did: UUID, uid: UUID, raw: dict[str, Any]
     ) -> dict[str, Any]:
+        if is_calendar_anomaly(raw):
+            return await CalendarAnalysis(self).create(actor, wid, did, uid, raw)
         name = checked_name(raw["name"])
         if raw["kind"] == "scenario_comparison":
-            alternatives(raw.get("alternatives"))
+            if is_source_scenario(raw):
+                validate_source_scenario(raw)
+            else:
+                alternatives(raw.get("alternatives"))
             if raw.get("assumptions_confirmed") is not True:
                 raise IngestionError(
                     "scenario_assumptions_required", "Confirm hypothetical assumptions.", 422
@@ -234,42 +322,7 @@ class DecisionAnalysisService:
         if raw["kind"] == "scenario_comparison" and raw.get("parent_run_id"):
             parent = self._owned(actor, wid, did, UUID(raw["parent_run_id"]))
             await self.open(actor, wid, did, parent.id)
-            if (
-                parent.kind != "scenario_comparison"
-                or any(
-                    parent.request.get(key) != raw.get(key)
-                    for key in ("metric", "aggregation", "filters")
-                )
-                or parent.evidence["units"] != units
-                or (parent.evidence["definition"] or {}).get("grain")
-                != (view.definition or {}).get("grain")
-                or next(
-                    (
-                        c
-                        for c in (parent.evidence["definition"] or {}).get("columns", [])
-                        if c["name"] == raw["metric"]
-                    ),
-                    None,
-                )
-                != next(
-                    (
-                        c
-                        for c in (view.definition or {}).get("columns", [])
-                        if c["name"] == raw["metric"]
-                    ),
-                    None,
-                )
-                or [
-                    m
-                    for m in (parent.evidence["definition"] or {}).get("metrics", [])
-                    if m.get("column") == raw["metric"]
-                ]
-                != [
-                    m
-                    for m in (view.definition or {}).get("metrics", [])
-                    if m.get("column") == raw["metric"]
-                ]
-            ):
+            if not scenario_successor_compatible(parent, raw, view.definition, units):
                 raise IngestionError(
                     "scenario_parent_mismatch",
                     "Use compatible measure, units and filters for a successor.",
@@ -281,7 +334,7 @@ class DecisionAnalysisService:
             did,
             dataset_name,
             len(table.rows),
-            raw.get("metric", raw.get("benefit_column", "")),
+            raw.get("metric", raw.get("benefit_column", raw.get("sales_column", ""))),
             "analysis",
             (),
             (),
@@ -290,7 +343,15 @@ class DecisionAnalysisService:
             + (
                 method_version(raw)
                 if method_version(raw)
-                in {SEGMENT_METHOD, RESOURCE_METHOD, RULE_METHOD, COMPOUND_METHOD, DAILY_METHOD}
+                in {
+                    LARGE_ALLOCATION_METHOD,
+                    SEGMENT_METHOD,
+                    RESOURCE_METHOD,
+                    RULE_METHOD,
+                    COMPOUND_METHOD,
+                    DAILY_METHOD,
+                    SOURCE_SCENARIO_METHOD,
+                }
                 else SCENARIO_METHOD
                 if raw["kind"] == "scenario_comparison"
                 else "decision-analysis-v1"
@@ -308,7 +369,7 @@ class DecisionAnalysisService:
             actor, replace(lineage, receipt=receipt(plan, view.sources, result))
         )
         coverage_ids = []
-        if raw["kind"] == "scenario_comparison":
+        if raw["kind"] == "scenario_comparison" and not is_source_scenario(raw):
             coverage_values = []
             for coverage_plan in scenario_coverage_plans(scope, did, view, table, raw):
                 self._current(actor, wid, did, uid, raw)
@@ -343,7 +404,18 @@ class DecisionAnalysisService:
             if len(result.rows) != 1 or len(result.rows[0]) != 1:
                 raise IngestionError("scenario_coverage", "One complete baseline is required.", 422)
             result = replace(result, rows=((result.rows[0][0], *coverage_values),))
-        calculated = await read_complete(lambda: calculate(raw, result))
+        if is_large_allocation(raw):
+            if self.allocation_solver is None:
+                raise IngestionError(
+                    "allocation_solver_unavailable",
+                    "The larger allocation solver is not configured.",
+                    503,
+                )
+            problem = prepare_allocation(raw, result.rows)
+            outcome = await self.allocation_solver.solve(problem.integers)
+            calculated = checked_allocation(problem, outcome)
+        else:
+            calculated = await read_complete(lambda: calculate(raw, result))
         await read_complete(
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
         )
@@ -355,7 +427,7 @@ class DecisionAnalysisService:
             request_checksum=checksum(raw),
             result_checksum=checksum(calculated),
         )
-        if raw["kind"] == "scenario_comparison":
+        if raw["kind"] == "scenario_comparison" and not is_source_scenario(raw):
             evidence["coverage_query_ids"] = coverage_ids
         run = AnalysisRun(
             uuid4(),
@@ -410,6 +482,8 @@ class DecisionAnalysisService:
 
     async def open(self, actor: User, wid: UUID, did: UUID, rid: UUID) -> dict[str, Any]:
         run = self._owned(actor, wid, did, rid)
+        if is_calendar_anomaly(run.request):
+            return await CalendarAnalysis(self).open(actor, run)
         invalid = IngestionError(
             "lineage_mismatch", "The saved analysis evidence is inconsistent.", 409
         )
@@ -458,7 +532,7 @@ class DecisionAnalysisService:
             result = await self.analytics.executor.execute(plan, scope, table, view)
             if receipt(plan, view.sources, result) != saved:
                 raise invalid
-            if run.kind == "scenario_comparison":
+            if run.kind == "scenario_comparison" and not is_source_scenario(run.request):
                 coverage_ids = run.evidence["coverage_query_ids"]
                 if len(coverage_ids) != 2 or len(set([str(qid), *coverage_ids])) != 3:
                     raise invalid
@@ -495,7 +569,12 @@ class DecisionAnalysisService:
                 if len(result.rows) != 1 or len(result.rows[0]) != 1:
                     raise invalid
                 result = replace(result, rows=((result.rows[0][0], *coverage_values),))
-            rebuilt = await read_complete(lambda: calculate(run.request, result))
+            if is_large_allocation(run.request):
+                rebuilt = reopen_allocation(
+                    prepare_allocation(run.request, result.rows), run.result
+                )
+            else:
+                rebuilt = await read_complete(lambda: calculate(run.request, result))
             if rebuilt != run.result or checksum(rebuilt) != run.evidence["result_checksum"]:
                 raise invalid
         except (KeyError, TypeError, ValueError, IndexError):

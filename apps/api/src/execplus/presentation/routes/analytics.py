@@ -8,7 +8,7 @@ import asyncio
 from dataclasses import asdict
 from decimal import Decimal
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.encoders import jsonable_encoder
@@ -29,10 +29,12 @@ from execplus.application.services.intent_router import (
     PatternAnswer,
 )
 from execplus.application.services.summaries import SummaryService
+from execplus.application.usage_context import usage_scope
 from execplus.domain.kpi_library import KpiMatch
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
 from execplus.domain.pdf_exports import ReportAnswer
 from execplus.domain.semantics import AggregationKind, FilterOperator, MetricFilter, MetricRequest
+from execplus.domain.usage_metering import UsageAttribution
 from execplus.presentation.routes.workspaces import Actor
 
 _MAX_DRILL_DOWN_ROWS = 1000
@@ -411,7 +413,8 @@ async def dashboard_summary_narrative(
     summary = await service.dashboard_summary(
         actor, workspace_id, dataset_id, upload_id, metric_filters(body.filters), body.template_id
     )
-    narrative = await summaries.compose(summary)
+    with usage_scope(UsageAttribution(workspace_id, actor.id, uuid4(), "summary")):
+        narrative = await summaries.compose(summary)
     await service.record_narrative(
         actor, workspace_id, narrative.evidence_ids, narrative.text, narrative.model_route
     )

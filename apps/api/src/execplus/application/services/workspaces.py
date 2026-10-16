@@ -467,6 +467,7 @@ class WorkspaceService:
         *,
         _sample_dataset: Dataset | None = None,
         _sample_id: str | None = None,
+        _publication_guard: Callable[[WorkspaceRepository, Upload, Revision], None] | None = None,
     ) -> Upload:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
@@ -549,6 +550,8 @@ class WorkspaceService:
                 self._audit(repo, actor, workspace_id, "upload.stored", "upload", upload.id)
                 if _sample_id is not None:
                     self._audit(repo, actor, workspace_id, "sample.imported", "upload", upload.id)
+                if _publication_guard is not None:
+                    _publication_guard(repo, upload, root)
         except Exception:
             if attempted:
                 try:

@@ -615,6 +615,18 @@ def test_policy_migration_preserves_existing_tables_and_refuses_nonempty_downgra
         "dataset_access_policies",
         "incidents",
         "incident_occurrences",
+        "usage_prices",
+        "usage_policies",
+        "usage_attempts",
+        "model_usage_events",
+        "integration_keys",
+        "integration_request_windows",
+        "embed_grants",
+        "webhook_subscriptions",
+        "webhook_deliveries",
+        "registered_sources",
+        "source_imports",
+        "consolidation_runs",
     }
 
     def snapshot():
@@ -637,6 +649,9 @@ def test_policy_migration_preserves_existing_tables_and_refuses_nonempty_downgra
         env.config.attributes["connection"] = connection
         command.upgrade(env.config, "head")
     assert snapshot() == before
+    with env.engine.connect() as connection:
+        for name in set(s.metadata.tables) - names:
+            assert connection.execute(select(s.metadata.tables[name])).first() is None
     path = f"/workspaces/{wid}/datasets/{did}/access-policy"
     saved = env.client.put(
         path, headers=owner, json={"expected_version": 0, "enabled": True, "grants": []}

@@ -30,6 +30,7 @@ from execplus.application.services.intent_router import (
     PatternAnswer,
     PlanningClarification,
 )
+from execplus.application.usage_context import attributed_operation
 from execplus.domain.analysis_plan import report_conversation_plan
 from execplus.domain.conversation_requirements import starts_new_orientation
 from execplus.domain.errors import (
@@ -472,6 +473,7 @@ class ThreadService:
             raise
         return answer, turn
 
+    @attributed_operation("conversation")
     async def run_turn(
         self, actor: User, wid: UUID, thread: Thread, turn: ThreadTurn
     ) -> tuple[ConversationAnswer | None, ThreadTurn]:

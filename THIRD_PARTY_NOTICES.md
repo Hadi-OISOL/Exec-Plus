@@ -35,3 +35,11 @@ The PDF adapter contains original project code, not Anthropic PDF skill or AIpoc
 HTML-to-PDF script code. See [its dependency and content boundary](docs/pdf-export.md).
 The pinned development-only pypdf 6.20.1 (BSD 3-Clause) is used to verify output,
 not included in the application runtime.
+
+The optional larger allocation method uses **OR-Tools9.15.6755** (Apache2.0) and pinned
+**pandas2.3.3**. Its unmodified wheel bundles additional libraries with independent licenses,
+including COIN-OR (EPL2.0), Eigen (MPL2.0), SCIP/SoPlex (Apache2.0), HiGHS (MIT),
+Abseil, Protobuf, RE2, Boost, zlib and bzip2. [The complete retained notices and source
+locations](apps/web/public/third-party/ortools/NOTICE.txt) accompany the distribution.
+Only CP-SAT is invoked, in a bounded process; no arbitrary solver script or external action
+is exposed. See [the allocation method and dependency review](docs/large-allocation-method.md).

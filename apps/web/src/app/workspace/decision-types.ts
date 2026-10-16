@@ -1,5 +1,6 @@
 /* Use case: Defines exact wire contracts for private anomaly and allocation views.
 What it does: Keeps numerical results as returned strings and labels conditional decisions. */
+import type { ForecastOptions } from "./forecast-types";
 export type AnalysisOptions = {
     state: string;
     revision_id: string;
@@ -9,12 +10,16 @@ export type AnalysisOptions = {
         unit: string;
     }[];
     entities: string[];
+    large_allocations?: { model: string; available: boolean; maximum_actions: number; maximum_resources: number };
+    calendar_anomalies?: ForecastOptions & { methods: string[] };
+    source_scenarios?: { model: string; grain: string | null; columns: { name: string; unit: string; currency: string }[] };
 };
 export type AnalysisSummary = {
     id: string;
     name: string;
     kind: string;
     created_at: string;
+    method_version?: string;
 };
 export type Finding = {
     id: string;

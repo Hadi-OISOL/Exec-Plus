@@ -6,18 +6,30 @@ import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import type { AnalysisOptions, AnalysisSummary } from "./decision-types";
 import { AnswerVisualization } from "./answer-visualization";
+import { SourceScenarioPanel } from "./source-scenario-panel";
+import { SOURCE_SCENARIO_METHOD } from "./source-scenario-types";
 
 type Alternative = { name: string; operation: "replace" | "percent_change" | "compound_percent" | "daily_change"; value?: string; daily_change?: string; days?: number; drivers?: { name: string; percent_change: string }[] };
 type ScenarioBody = {
   current: boolean;
   run: AnalysisSummary & {
     request: { metric: string; aggregation: "sum" | "avg"; filters: { column: string; operator: string; value: string }[]; alternatives: Alternative[] };
-    result: { baseline: string; sample_count: number; metric: string; aggregation: string; parent_run_id: string | null; limitations: string[]; alternatives: (Alternative & { result: string; difference: string; percentage_difference: string | null; path?: { day: number; value: string }[]; warnings?: string[] })[] };
+    result: { version?: string; baseline: string; sample_count: number; metric: string; aggregation: string; parent_run_id: string | null; limitations: string[]; alternatives: (Alternative & { result: string; difference: string; percentage_difference: string | null; path?: { day: number; value: string }[]; warnings?: string[] })[] };
     evidence: { query_id: string; coverage_query_ids: string[]; units: Record<string, string>; result_checksum: string };
   };
 };
 
-export function ScenarioPanel({ root, request, onReview, initialMetric = "", initialOperation }: { initialMetric?: string; initialOperation?: "daily_change"; root: string; request: ApiRequest; onReview: () => void }) {
+type ScenarioPanelProps = { initialMetric?: string; initialOperation?: "daily_change"; root: string; request: ApiRequest; onReview: () => void };
+
+export function ScenarioPanel(props: ScenarioPanelProps) {
+  const [approach, setApproach] = useState("aggregate");
+  return <>
+    <label className="analysisMethodSwitch">Scenario approach<select value={approach} onChange={event => setApproach(event.target.value)}><option value="aggregate">One measure · simple what-if</option><option value="source">Price, quantity and costs · source model</option></select></label>
+    {approach === "source" ? <SourceScenarioPanel key={props.root} root={props.root} request={props.request} onReview={props.onReview} /> : <AggregateScenarioPanel key={props.root} {...props} />}
+  </>;
+}
+
+function AggregateScenarioPanel({ root, request, onReview, initialMetric = "", initialOperation }: ScenarioPanelProps) {
   const runsRoot = `${root.split("/uploads/")[0]}/decision-analysis`;
   const [options, setOptions] = useState<AnalysisOptions | null>(null);
   const [history, setHistory] = useState<AnalysisSummary[]>([]);
@@ -37,7 +49,7 @@ export function ScenarioPanel({ root, request, onReview, initialMetric = "", ini
   useEffect(() => {
     const c = new AbortController();
     Promise.all([request<AnalysisOptions>(`${root}/decision-analysis/options`, { signal: c.signal }), request<AnalysisSummary[]>(runsRoot, { signal: c.signal })])
-      .then(([value, saved]) => { if (!c.signal.aborted) { setOptions(value); setHistory(saved.filter(r => r.kind === "scenario_comparison")); } })
+      .then(([value, saved]) => { if (!c.signal.aborted) { setOptions(value); setHistory(saved.filter(r => r.kind === "scenario_comparison" && r.method_version !== SOURCE_SCENARIO_METHOD)); } })
       .catch(e => { if (!c.signal.aborted) setError(e instanceof Error ? e.message : "Could not load comparisons."); });
     return () => { c.abort(); operation.current?.abort(); };
   }, [root, request, runsRoot]);
@@ -54,12 +66,13 @@ export function ScenarioPanel({ root, request, onReview, initialMetric = "", ini
       const body = { name: name.trim() || "What-if comparison", metric: metric || options.metrics[0]?.name, aggregation, revision_id: options.revision_id, understanding_id: options.understanding_id, filters: filter ? [{ column: filter, operator: "eq", value: filterValue }] : [], alternatives: alternatives.map(a => a.operation === "compound_percent" ? { name: a.name, operation: a.operation, drivers: a.drivers } : a.operation === "daily_change" ? { name: a.name, operation: a.operation, daily_change: a.daily_change, days: a.days } : { name: a.name, operation: a.operation, value: a.value }), assumptions_confirmed: confirmed, parent_run_id: parent };
       const value = await request<ScenarioBody>(`${root}/decision-analysis/scenarios`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
       const saved = await request<AnalysisSummary[]>(runsRoot, { signal });
-      if (!signal.aborted) { setSelected(value); setHistory(saved.filter(r => r.kind === "scenario_comparison")); setParent(null); setMessage("Comparison saved privately. Original data is unchanged."); }
+      if (!signal.aborted) { setSelected(value); setHistory(saved.filter(r => r.kind === "scenario_comparison" && r.method_version !== SOURCE_SCENARIO_METHOD)); setParent(null); setMessage("Comparison saved privately. Original data is unchanged."); }
     });
   }
   async function open(id: string) {
     await work(async signal => {
       const value = await request<ScenarioBody>(`${runsRoot}/${id}`, { signal });
+      if (value.run.result.version === SOURCE_SCENARIO_METHOD) throw new Error("Open this comparison under Price, quantity and costs instead.");
       if (!signal.aborted) { setSelected(value); setMessage("Baseline, coverage and alternatives reproduced from original evidence."); }
     });
   }

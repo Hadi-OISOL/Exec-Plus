@@ -47,6 +47,34 @@ class AnomalyInput(SourceInput):
     minimum_segment_size: int = Field(default=8, ge=8, le=1000, strict=True)
 
 
+class CalendarInput(SourceInput):
+    kind: Literal["robust_distribution"] = "robust_distribution"
+    metric: str = Field(min_length=1, max_length=200)
+    aggregation: Literal["sum", "avg"]
+    time_column: str = Field(min_length=1, max_length=200)
+    frequency: Literal["daily", "monthly"]
+    coverage_confirmed: bool = Field(strict=True)
+    materiality: str = Field(min_length=1, max_length=100)
+
+
+class SeasonalAnomalyInput(CalendarInput):
+    model: Literal["seasonal-residual-mad-iqr-v1"] = "seasonal-residual-mad-iqr-v1"
+    coverage_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    coverage_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    training_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    season_length: int = Field(ge=7, le=12, strict=True)
+    threshold: str = Field(default="3.5", min_length=1, max_length=50)
+
+
+class DriftInput(CalendarInput):
+    model: Literal["empirical-window-distance-v1"] = "empirical-window-distance-v1"
+    reference_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    reference_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    comparison_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    comparison_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    minimum_cdf_separation: str = Field(min_length=1, max_length=100)
+
+
 class QuantityBound(Input):
     candidate: str = Field(min_length=1, max_length=200)
     minimum: int = Field(ge=0, le=10, strict=True)
@@ -94,6 +122,32 @@ class ReviewInput(Input):
     expected_version: int = Field(ge=0, le=200, strict=True)
 
 
+class LargeQuantityBound(Input):
+    candidate: str = Field(min_length=1, max_length=200)
+    minimum: int = Field(ge=0, le=100, strict=True)
+    maximum: int = Field(ge=0, le=100, strict=True)
+
+
+class AdditionalResource(Input):
+    column: str = Field(min_length=1, max_length=200)
+    capacity: str = Field(min_length=1, max_length=100)
+
+
+class LargeAllocationInput(SourceInput):
+    kind: Literal["bounded_allocation"] = "bounded_allocation"
+    model: Literal["cp-sat-integer-allocation-v1"] = "cp-sat-integer-allocation-v1"
+    entity_column: str = Field(min_length=1, max_length=200)
+    cost_column: str = Field(min_length=1, max_length=200)
+    benefit_column: str = Field(min_length=1, max_length=200)
+    budget: str = Field(min_length=1, max_length=100)
+    maximum_quantity: int = Field(default=1, ge=0, le=100, strict=True)
+    bounds: list[LargeQuantityBound] = Field(default_factory=list, max_length=50)
+    assumptions_confirmed: bool = Field(strict=True)
+    resources: list[AdditionalResource] = Field(default_factory=list, max_length=3)
+    prerequisites: list[Prerequisite] = Field(default_factory=list, max_length=40)
+    exclusions: list[Exclusion] = Field(default_factory=list, max_length=40)
+
+
 class ScenarioAlternative(Input):
     name: str = Field(min_length=1, max_length=100)
     operation: Literal["replace", "percent_change"]
@@ -130,6 +184,48 @@ class ScenarioInput(SourceInput):
     ] = Field(min_length=1, max_length=5)
     assumptions_confirmed: bool = Field(strict=True)
     parent_run_id: UUID | None = None
+
+
+class SourceAlternative(Input):
+    name: str = Field(min_length=1, max_length=100)
+    price: str = Field(min_length=1, max_length=100)
+    quantity: str = Field(min_length=1, max_length=100)
+    variable_cost: str = Field(min_length=1, max_length=100)
+    fixed_cost: str = Field(min_length=1, max_length=100)
+
+
+class SourceSensitivity(Input):
+    driver: Literal["price", "quantity", "variable_cost", "fixed_cost"]
+    percent_changes: list[str] = Field(min_length=2, max_length=21)
+
+
+class SourceScenarioInput(SourceInput):
+    kind: Literal["scenario_comparison"] = "scenario_comparison"
+    model: Literal["source-unit-economics-v1"] = "source-unit-economics-v1"
+    basis: Literal["per_unit", "row_totals"]
+    quantity_column: str = Field(min_length=1, max_length=200)
+    sales_column: str = Field(min_length=1, max_length=200)
+    cost_column: str = Field(min_length=1, max_length=200)
+    fixed_cost_column: str | None = Field(default=None, min_length=1, max_length=200)
+    alternatives: list[SourceAlternative] = Field(min_length=1, max_length=5)
+    sensitivity: SourceSensitivity | None = None
+    assumptions_confirmed: bool = Field(strict=True)
+    row_basis_confirmed: bool = Field(strict=True)
+    parent_run_id: UUID | None = None
+
+
+@router.post(SOURCE + "/source-scenarios", status_code=201)
+async def source_scenarios(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: SourceScenarioInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+    )
 
 
 @router.post(SOURCE + "/scenarios", status_code=201)
@@ -182,6 +278,48 @@ async def allocations(
         raw.pop("prerequisites")
         raw.pop("exclusions")
     return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
+
+
+@router.post(SOURCE + "/large-allocations", status_code=201)
+async def large_allocations(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: LargeAllocationInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+    )
+
+
+@router.post(SOURCE + "/seasonal-anomalies", status_code=201)
+async def seasonal_anomalies(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: SeasonalAnomalyInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+    )
+
+
+@router.post(SOURCE + "/distribution-drift", status_code=201)
+async def distribution_drift(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: DriftInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+    )
 
 
 @router.get(RUNS)

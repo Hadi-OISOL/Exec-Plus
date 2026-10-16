@@ -5,6 +5,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
+import { init, use as register } from "echarts/core";
+import { LineChart } from "echarts/charts";
+import { GridComponent, DataZoomComponent, TooltipComponent } from "echarts/components";
+import { SVGRenderer } from "echarts/renderers";
+
+register([LineChart, GridComponent, DataZoomComponent, TooltipComponent, SVGRenderer]);
 
 async function loadPreset(filename) {
   const source = await readFile(
@@ -133,4 +139,27 @@ test("showing a full year retains every bar without forcing thick marks or overl
   const close = makeLieflatBarOption(options(points, { start: 350, end: 357 }));
   assert.equal(close.series[0].label.show, true);
   assert.equal(close.series[0].label.formatter({ dataIndex: 350 }), "350");
+});
+
+test("narrow observed-only plots render every included non-null mark despite thinned date labels", () => {
+  const points = Array.from({ length: 28 }, (_, index) => point(index === 15 ? null : String(index + 10), `2020-01-${String(index + 1).padStart(2, "0")}`));
+  const chart = init(null, null, { renderer: "svg", ssr: true, width: 220, height: 300 });
+  try {
+    chart.setOption(makeDocumdLineOption(options(points, { connectLinePoints: false, width: 220, reducedMotion: true })));
+    const svg = chart.renderToSVGString();
+    const symbols = svg.match(/<path[^>]*fill="#fff"[^>]*stroke="#176c64"/g) || [];
+    assert.equal(symbols.length, 27);
+  } finally { chart.dispose(); }
+});
+
+test("negative outside values have their own gutter before the category labels", () => {
+  const points = [point("200", "Cash"), point("-200", "Equity"), point("0", "Internal")];
+  const bar = makeLieflatBarOption(options(points));
+  assert.equal(bar.series[0].label.formatter({ dataIndex: 1 }), "-200");
+  assert.equal(bar.series[0].data[1].value, -1);
+  assert.ok(bar.yAxis.axisLabel.margin >= 40);
+  assert.equal(bar.grid.left - bar.yAxis.axisLabel.margin, 108);
+  const mobile = makeLieflatBarOption(options(points, { width: 320 }));
+  assert.equal(mobile.series[0].label.show, false);
+  assert.equal(mobile.grid.left, 88);
 });

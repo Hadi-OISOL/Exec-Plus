@@ -47,6 +47,10 @@ export function makeLieflatBarOption({
     last - first < 16 &&
     points.every((point) => String(point.raw ?? "").length <= 16);
 
+  const negativeLabelSpace = showValues
+    ? Math.max(0, ...points.filter(point => (point.value ?? 0) < 0).map(point => String(point.raw).length * 7 + 12))
+    : 0;
+
   return {
     animation: !reducedMotion,
     animationDuration: 900,
@@ -56,7 +60,7 @@ export function makeLieflatBarOption({
       reducedMotion ? 0 : Math.min(8, Math.max(0, index - first)) * 80,
     tooltip: { show: false, trigger: "item" },
     grid: {
-      left: width < 480 ? 88 : 116,
+      left: (width < 480 ? 88 : 116) + negativeLabelSpace,
       right: showValues ? 136 : 24,
       top: 8,
       bottom: 8,
@@ -77,6 +81,7 @@ export function makeLieflatBarOption({
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
+        margin: 8 + negativeLabelSpace,
         color: "#53625f",
         fontFamily: "Manrope, sans-serif",
         fontSize: 11,

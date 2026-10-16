@@ -24,6 +24,7 @@ from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import read_complete
 from execplus.application.services.patterns import PatternService
 from execplus.application.services.structured_reading import read_validated, reading_failure_notice
+from execplus.application.usage_context import attributed_operation
 from execplus.domain.agent_capabilities import capability_catalog
 from execplus.domain.analysis_guidance import analysis_guidance
 from execplus.domain.analysis_plan import (
@@ -437,6 +438,7 @@ class IntentRouterService:
             f"{response.provider}:{response.model} -> ",
         )
 
+    @attributed_operation("conversation")
     async def ask(
         self,
         actor: User,
