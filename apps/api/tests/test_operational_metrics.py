@@ -376,6 +376,11 @@ def test_request_categories_exclude_polling_and_never_inspect_content():
     assert category("OPTIONS", "/workspaces") is None
     assert category("POST", "/workspaces/{wid}/samples/{id}") == "ingestion"
     assert category("POST", "/workspaces/{wid}/datasets/{did}/uploads") == "ingestion"
+    assert category("POST", "/datasets/{did}/google-sheets/import", ("google",)) == "ingestion"
+    assert category("POST", "/datasets/{did}/connectors/{provider}/import", ("connectors",)) == (
+        "ingestion"
+    )
+    assert category("POST", "/connectors/{provider}/connect", ("connectors",)) == "other"
     assert category("POST", "/workspaces/{wid}/threads/{tid}/jobs") == "queue"
     assert category("GET", "/workspaces/{wid}/saved/{id}/export.xlsx") == "exports"
     assert category("POST", "/workspaces/{wid}/anomalies", ("decision analysis",)) == "analysis"

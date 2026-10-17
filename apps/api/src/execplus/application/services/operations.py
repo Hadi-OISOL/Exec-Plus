@@ -122,11 +122,11 @@ class OperationsService:
         timestamp = now()
         with self.uow() as repo:
             user = repo.staff_user(normalized_email(email))
-            if role is not None and repo.is_native_account(user.id):
+            if role is not None and repo.is_self_service_account(user.id):
                 if confirmed_user_id != user.id or identity_checked is not True:
                     raise IngestionError(
                         "native_identity_check_required",
-                        "Granting native account access requires its exact account ID "
+                        "Granting self-service account access requires its exact account ID "
                         "and an authorized operator's separate identity check.",
                         403,
                     )

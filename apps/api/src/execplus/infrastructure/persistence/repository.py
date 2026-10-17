@@ -551,25 +551,55 @@ class SQLWorkspaceRepository(
         return self._one(User, s.users, id=user_id)
 
     def require_active_actor(self, user_id: UUID, *, lock: bool = True) -> None:
-        statement = select(s.local_accounts.c.disabled_at).where(
-            s.local_accounts.c.user_id == user_id
-        )
-        if lock:
-            statement = statement.with_for_update(read=True)
-        row = self.connection.execute(statement).first()
-        if row is not None and row.disabled_at is not None:
-            raise IngestionError("account_unavailable", "This account is unavailable.", 403)
+        for table in (s.local_accounts, s.external_identities):
+            statement = select(table.c.disabled_at).where(table.c.user_id == user_id)
+            if lock:
+                statement = statement.with_for_update(read=True)
+            row = self.connection.execute(statement).first()
+            if row is not None and row.disabled_at is not None:
+                raise IngestionError("account_unavailable", "This account is unavailable.", 403)
 
-    def is_native_account(self, user_id: UUID) -> bool:
-        return (
+    def is_self_service_account(self, user_id: UUID) -> bool:
+        return any(
             self.connection.execute(
-                select(s.local_accounts.c.user_id).where(s.local_accounts.c.user_id == user_id)
-            ).scalar_one_or_none()
+                select(table.c.user_id).where(table.c.user_id == user_id)
+            ).first()
             is not None
+            for table in (s.local_accounts, s.external_identities)
         )
+
+    def require_provider_connection(
+        self, user_id: UUID, session_hash: str, provider: str, version: UUID
+    ) -> None:
+        self.require_active_actor(user_id)
+        if (
+            self.connection.execute(
+                select(s.sessions.c.token_hash)
+                .where(
+                    s.sessions.c.user_id == user_id,
+                    s.sessions.c.token_hash == session_hash,
+                    s.sessions.c.expires_at > datetime.now(timezone.utc),
+                )
+                .with_for_update(read=True)
+            ).first()
+            is None
+        ):
+            raise IngestionError("unauthenticated", "The session is invalid or expired.", 401)
+        table = s.google_connections if provider == "google" else s.connector_connections
+        match = (table.c.user_id == user_id) & (table.c.version == version)
+        if provider != "google":
+            match &= table.c.provider == provider
+        if (
+            self.connection.execute(
+                select(table.c.version).where(match).with_for_update(read=True)
+            ).first()
+            is None
+        ):
+            code = "google_reconnect" if provider == "google" else "connector_reconnect"
+            raise IngestionError(code, "Your connection changed. Connect it again.", 409)
 
     def invitation_identity_allowed(self, invitation_id: UUID, user_id: UUID) -> bool:
-        if not self.is_native_account(user_id):
+        if not self.is_self_service_account(user_id):
             return True
         return (
             self.connection.execute(

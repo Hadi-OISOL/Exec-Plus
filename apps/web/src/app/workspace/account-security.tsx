@@ -8,7 +8,7 @@ import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import styles from "./local-accounts.module.css";
 
-type Account = { user_id: string; kind: "local_password" | "operator"; email_verified: boolean; password_changed_at: string | null };
+type Account = { user_id: string; kind: "local_password" | "external_google" | "operator"; email_verified: boolean; password_changed_at: string | null };
 type AccountEvent = { id: string; action: string; created_at: string };
 
 export function AccountSecurity({ request, onSession, onDisabled }: { request: ApiRequest; onSession: (token: string) => void; onDisabled: () => void }) {
@@ -54,7 +54,9 @@ export function AccountSecurity({ request, onSession, onDisabled }: { request: A
     {account && <>
       <p>Your account ID: <code className={styles.identifier}>{account.user_id}</code></p>
       <p>Share this ID with your workspace manager when they check an invitation. An email address alone does not prove account ownership.</p>
-      {account.kind === "operator" ? <p>Your access is managed by the local operator. Password controls apply to local password accounts.</p> : <>
+      {account.kind === "operator" && <p>Your access is managed by the local operator. Password controls apply to local password accounts.</p>}
+      {account.kind === "external_google" && <p>You sign in with Google. Manage your password in your Google account; ExecPlus does not store a local password for this account.</p>}
+      {account.kind === "local_password" && <>
         <details><summary>Change your password</summary>
           <form className={styles.form} onSubmit={event => void change(event, false)}>
             <label>Current password<input type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></label>
@@ -72,8 +74,8 @@ export function AccountSecurity({ request, onSession, onDisabled }: { request: A
             <button disabled={busy}>Disable my account</button>
           </form>
         </details>
-        <details><summary>Recent account activity</summary><ul>{events.map(event => <li key={event.id}>{event.action.replaceAll(".", " ")} · {new Date(event.created_at).toLocaleString()}</li>)}</ul></details>
       </>}
+      {account.kind !== "operator" && <details><summary>Recent account activity</summary><ul>{events.map(event => <li key={event.id}>{event.action.replaceAll(".", " ")} · {new Date(event.created_at).toLocaleString()}</li>)}</ul></details>}
     </>}
   </section>;
 }

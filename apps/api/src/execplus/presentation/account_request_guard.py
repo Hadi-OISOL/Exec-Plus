@@ -8,7 +8,14 @@ import re
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-_CREDENTIAL_PATHS = {"/auth/register", "/auth/login", "/auth/password", "/auth/disable"}
+_CREDENTIAL_PATHS = {
+    "/auth/register",
+    "/auth/login",
+    "/auth/password",
+    "/auth/disable",
+    "/auth/oauth/exchange",
+}
+_CONNECTOR_CREDENTIAL_PATH = re.compile(r"/connectors/[^/]+/credentials")
 _GUIDE_PATH = re.compile(r"/workspaces/[^/]+/onboarding-progress")
 _APPROVAL_PATH = re.compile(r"/workspaces/[^/]+/invitations/[^/]+/identity-approval")
 _ADMIN_PATHS = (
@@ -26,6 +33,7 @@ class AccountRequestGuard:
         path = scope.get("path", "")
         protected = scope.get("method") in {"POST", "PUT", "PATCH"} and (
             path in _CREDENTIAL_PATHS
+            or _CONNECTOR_CREDENTIAL_PATH.fullmatch(path)
             or _GUIDE_PATH.fullmatch(path)
             or _APPROVAL_PATH.fullmatch(path)
             or any(pattern.fullmatch(path) for pattern in _ADMIN_PATHS)
@@ -36,7 +44,11 @@ class AccountRequestGuard:
         headers = {key.lower(): value for key, value in scope.get("headers", [])}
         origin = headers.get(b"origin")
         origins = [value for key, value in scope.get("headers", []) if key.lower() == b"origin"]
-        if len(origins) > 1 or (origin is not None and origin != self.web_origin.encode("utf-8")):
+        if (
+            len(origins) > 1
+            or (path == "/auth/oauth/exchange" and origin is None)
+            or (origin is not None and origin != self.web_origin.encode("utf-8"))
+        ):
             await self.reject(
                 scope,
                 receive,

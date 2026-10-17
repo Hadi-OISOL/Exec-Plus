@@ -39,14 +39,17 @@ from execplus.presentation.routes.activation import router as activation_router
 from execplus.presentation.routes.analytics import router as analytics_router
 from execplus.presentation.routes.artifacts import router as artifacts_router
 from execplus.presentation.routes.company_consolidation import router as consolidation_router
+from execplus.presentation.routes.connectors import router as connectors_router
 from execplus.presentation.routes.data_brief import router as data_brief_router
 from execplus.presentation.routes.decision_analysis import router as decision_analysis_router
 from execplus.presentation.routes.forecasts import router as forecasts_router
+from execplus.presentation.routes.google import router as google_router
 from execplus.presentation.routes.health import router as health_router
 from execplus.presentation.routes.incidents import router as incidents_router
 from execplus.presentation.routes.integrations import router as integrations_router
 from execplus.presentation.routes.jobs import router as jobs_router
 from execplus.presentation.routes.joins import router as joins_router
+from execplus.presentation.routes.oauth import router as oauth_router
 from execplus.presentation.routes.operations import router as operations_router
 from execplus.presentation.routes.pdf_exports import router as pdf_exports_router
 from execplus.presentation.routes.plans import router as plans_router
@@ -106,6 +109,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[configured.web_origin],
+        allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
         expose_headers=["Content-Disposition", "X-Request-ID"],
@@ -168,6 +172,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         response.headers["X-Request-ID"] = str(request_id)
         return response
 
+    application.include_router(oauth_router)
     application.include_router(activation_router)
     application.include_router(accounts_router)
     application.include_router(plans_router)
@@ -195,6 +200,8 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.include_router(data_brief_router)
     application.include_router(pdf_exports_router)
     application.include_router(result_exports_router)
+    application.include_router(google_router)
+    application.include_router(connectors_router)
 
     @application.exception_handler(IngestionError)
     async def ingestion_error(request: Request, error: IngestionError) -> JSONResponse:

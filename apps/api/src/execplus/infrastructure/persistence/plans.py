@@ -69,6 +69,12 @@ class SQLPlanRepository:
                 select(s.local_accounts.c.user_id).where(s.local_accounts.c.user_id == actor_id)
             ).first()
             is None
+            and self.connection.execute(
+                select(s.external_identities.c.user_id).where(
+                    s.external_identities.c.user_id == actor_id
+                )
+            ).first()
+            is None
         ):
             return
         if self.plan_assignment(workspace_id) is not None:

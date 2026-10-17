@@ -31,11 +31,12 @@ class SQLOperationsRepository:
         self, user_id: UUID, *, lock: bool = False, include_disabled: bool = False
     ) -> StaffGrant | None:
         if not include_disabled:
-            account = self.connection.execute(
-                select(s.local_accounts.c.disabled_at).where(s.local_accounts.c.user_id == user_id)
-            ).first()
-            if account is not None and account.disabled_at is not None:
-                raise IngestionError("account_unavailable", "This account is unavailable.", 403)
+            for table in (s.local_accounts, s.external_identities):
+                account = self.connection.execute(
+                    select(table.c.disabled_at).where(table.c.user_id == user_id)
+                ).first()
+                if account is not None and account.disabled_at is not None:
+                    raise IngestionError("account_unavailable", "This account is unavailable.", 403)
         statement = select(s.staff_grants).where(s.staff_grants.c.user_id == user_id)
         if lock:
             statement = statement.with_for_update(read=True)

@@ -39,6 +39,62 @@ sessions = Table(
     Column("user_id", Uuid, ForeignKey("users.id"), nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),
 )
+google_connections = Table(
+    "google_connections",
+    metadata,
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("google_email", String(254), nullable=False),
+    Column("scope", Text, nullable=False),
+    Column("refresh_token_encrypted", Text, nullable=False),
+    Column("version", Uuid, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+connector_connections = Table(
+    "connector_connections",
+    metadata,
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("provider", String(40), primary_key=True),
+    Column("display_name", String(200), nullable=False),
+    Column("sealed_credentials", Text, nullable=False),
+    Column("version", Uuid, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+# Provider subjects are independent self-service principals, never email aliases of operators.
+external_identities = Table(
+    "external_identities",
+    metadata,
+    Column("provider", String(40), primary_key=True),
+    Column("subject", String(255), primary_key=True),
+    Column("user_id", Uuid, ForeignKey("users.id"), nullable=False, unique=True),
+    Column("disabled_at", DateTime(timezone=True)),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+oauth_attempts = Table(
+    "oauth_attempts",
+    metadata,
+    Column("state_hash", String(64), primary_key=True),
+    Column("browser_hash", String(64), nullable=False),
+    Column("provider", String(40), nullable=False),
+    Column("purpose", String(12), nullable=False),
+    Column("user_id", Uuid, ForeignKey("users.id")),
+    Column("session_hash", String(64)),
+    Column("connection_version", Uuid),
+    Column("sealed_payload", Text, nullable=False),
+    Column("status", String(12), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("handoff_hash", String(64), unique=True),
+    Column("handoff_expires_at", DateTime(timezone=True)),
+    Column("error_code", String(80)),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("purpose IN ('signin', 'connect')", name="oauth_attempt_purpose"),
+    CheckConstraint(
+        "status IN ('pending', 'claimed', 'complete', 'consumed', 'revoked')",
+        name="oauth_attempt_status",
+    ),
+    Index("oauth_attempt_actor", "user_id", "provider"),
+)
 workspaces = Table(
     "workspaces",
     metadata,
@@ -126,7 +182,7 @@ invitation_identity_approvals = Table(
     Column(
         "invitation_id", Uuid, ForeignKey("invitations.id", ondelete="CASCADE"), primary_key=True
     ),
-    Column("user_id", Uuid, ForeignKey("local_accounts.user_id"), nullable=False),
+    Column("user_id", Uuid, ForeignKey("users.id"), nullable=False),
     Column("approved_by", Uuid, ForeignKey("users.id"), nullable=False),
     Column("approved_at", DateTime(timezone=True), nullable=False),
 )

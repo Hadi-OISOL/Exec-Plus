@@ -30,7 +30,10 @@ def category_for(request: Request) -> str | None:
     if "export" in template:
         return "exports"
     if request.method == "POST" and (
-        template.endswith("/uploads") or "/samples/" in template or "source-imports" in tags
+        template.endswith("/uploads")
+        or "/samples/" in template
+        or "source-imports" in tags
+        or (template.endswith("/import") and tags.intersection({"google", "connectors"}))
     ):
         return "ingestion"
     if request.method == "POST" and template.endswith("/jobs"):

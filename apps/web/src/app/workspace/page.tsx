@@ -13,6 +13,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { FormEvent } from "react";
+import type { SheetChoice } from "./google-sheets-import";
+import type { ConnectorChoice } from "./connectors-panel";
 
 import type { ChatHandle } from "./ask-panel";
 import { CatalogPanel } from "./catalog-panel";
@@ -50,6 +52,14 @@ const AgentMemoryPanel = dynamic(
 );
 const GuidedReview = dynamic(
   () => import("./guided-review").then(module => module.GuidedReview),
+  { loading: loadingView },
+);
+const ConnectorsPanel = dynamic(
+  () => import("./connectors-panel").then(module => module.ConnectorsPanel),
+  { loading: loadingView },
+);
+const GoogleSheetsImport = dynamic(
+  () => import("./google-sheets-import").then(module => module.GoogleSheetsImport),
   { loading: loadingView },
 );
 const DataBriefReview = dynamic(
@@ -122,6 +132,28 @@ const UsagePanel = dynamic(
 );
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const googleFailures: Record<string, string> = {
+  oauth_state_invalid: "This sign-in expired or was already used. Please try again.",
+  native_account_requires_password: "Use password sign-in for this existing account.",
+  google_denied: "Google sign-in was cancelled.",
+  google_state_invalid: "The Google sign-in expired. Please try again.",
+  google_identity_invalid: "Google could not confirm your identity.",
+  google_exchange_failed: "Google could not complete the request. Please try again.",
+  google_wrong_account: "Choose the Google account that matches your ExecPlus email.",
+  google_scope_missing: "Allow ExecPlus to open the sheets you choose, then try again.",
+  connector_denied: "The connection was cancelled.",
+  connector_state_invalid: "The connection expired. Please try again.",
+  connector_credentials_rejected: "The platform did not accept the sign-in.",
+  connector_no_refresh: "The platform did not return a lasting connection. Try again.",
+  connector_forbidden: "That account is not allowed to read this data.",
+  connector_invalid_request: "The platform could not complete the request.",
+  connector_unavailable: "The platform is unavailable. Try again shortly.",
+};
+function oauthFailure(code: string): string {
+  return Object.hasOwn(googleFailures, code)
+    ? googleFailures[code]
+    : "Sign-in could not be completed. Please try again.";
+}
 type Workspace = { id: string; name: string; seat_limit: number };
 type Dataset = { id: string; name: string };
 type Member = { user_id: string; role: string; email: string };
@@ -154,6 +186,9 @@ export default function WorkspacePage() {
   const [guidedFor, setGuidedFor] = useState("");
   const [briefFor, setBriefFor] = useState("");
   const [briefManual, setBriefManual] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const oauthHandled = useRef(false);
+  const oauthSessionRef = useRef<(sessionToken: string) => Promise<void>>(async () => undefined);
   const skippedBriefs = useRef(new Set<string>());
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
@@ -166,6 +201,7 @@ export default function WorkspacePage() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [invitationError, setInvitationError] = useState("");
   const [uploads, setUploads] = useState<Upload[]>([]);
+  const [importReload, setImportReload] = useState<{ actor: string; workspace: string; dataset: string } | null>(null);
   const [profileUpload, setProfileUpload] = useState("");
   const [usage, setUsage] = useState<{
     active_seats: number;
@@ -269,7 +305,7 @@ export default function WorkspacePage() {
     };
   }
 
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>, propagate = false) {
     setNow(Date.now());
     setBusy(true);
     setError("");
@@ -282,6 +318,7 @@ export default function WorkspacePage() {
           ? cause.message
           : "Could not connect. Try again.",
       );
+      if (propagate) throw cause;
     } finally {
       setBusy(false);
     }
@@ -332,6 +369,75 @@ export default function WorkspacePage() {
     setBriefFor(profileUpload);
     setSection("overview");
   }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${api}/auth/google/config`, { signal: controller.signal, cache: "no-store" })
+      .then(response => (response.ok ? response.json() : { enabled: false }))
+      .then(value => setGoogleEnabled(Boolean(value.enabled)))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    // Delay URL consumption so React's development effect replay cannot lose a return.
+    Promise.resolve().then(async () => {
+      if (!active || oauthHandled.current) return;
+      oauthHandled.current = true;
+      const fragment = new URLSearchParams(window.location.hash.slice(1));
+      const query = new URLSearchParams(window.location.search);
+      const exchange = query.get("oauth") === "complete";
+      const failure = fragment.get("google_error") ?? query.get("oauth_error") ?? query.get("google_error") ?? query.get("connector_error");
+      // Old bearer fragments and stored resume credentials are discarded, never adopted.
+      try { window.sessionStorage.removeItem("execplus.resume"); } catch { /* Storage can be disabled. */ }
+      const returnKeys = ["oauth", "oauth_error", "google", "google_error", "connector_connected", "connector_error", "connector"];
+      if (!fragment.has("session") && !failure && !returnKeys.some(key => query.has(key))) return;
+      for (const key of returnKeys) query.delete(key);
+      const rest = query.toString();
+      window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+      if (!exchange) {
+        if (failure) setError(oauthFailure(failure));
+        return;
+      }
+      setBusy(true);
+      setError("");
+      setMessage("");
+      try {
+        const response = await fetch(`${api}/auth/oauth/exchange`, {
+          method: "POST", credentials: "include", cache: "no-store",
+          headers: { "Content-Type": "application/json" }, body: "{}", signal: controller.signal,
+        });
+        if (!response.ok) {
+          if (active) setError("This sign-in expired or was already used. Please try again.");
+          return;
+        }
+        const result: { token?: string; error?: string; provider?: string } = await response.json();
+        if (!active) return;
+        if (typeof result.token === "string" && result.token) {
+          await oauthSessionRef.current(result.token);
+          if (!active) return;
+          if (result.provider && !result.error) {
+            setSection("data");
+            setMessage("Connected. Choose what to import.");
+          }
+        } else if (!result.error) {
+          throw new Error("Sign-in could not be completed. Please try again.");
+        }
+        if (result.error) setError(oauthFailure(result.error));
+      } catch {
+        if (active) setError("Sign-in could not be completed. Please try again.");
+      } finally {
+        if (active) setBusy(false);
+      }
+    });
+    return () => { active = false; controller.abort(); };
+  }, []);
+
+  useEffect(() => {
+    oauthSessionRef.current = loadTokenSession;
+  });
 
   useEffect(() => {
     if (!workspace || !manager || section !== "team") return;
@@ -447,21 +553,137 @@ export default function WorkspacePage() {
       );
   }
 
+  async function finishImport(stored: Upload, workspaceId: string, datasetId: string, platform: string) {
+    setImportReload(null);
+    setUploads([]);
+    setProfileUpload("");
+    setGuidedFor("");
+    setBriefFor("");
+    setReviewOpen(false);
+    setStarterQuestions([]);
+    setUploadTarget("new");
+    setAnalysisIntent("descriptive");
+    try {
+      const available = await request<Upload[]>(`/workspaces/${workspaceId}/datasets/${datasetId}/uploads`);
+      setUploads(available);
+    } catch {
+      setSection("data");
+      setMessage("Import saved, but the updated data could not be loaded. Reload saved data to continue.");
+      setImportReload({ actor: user!.id, workspace: workspaceId, dataset: datasetId });
+      return;
+    }
+    setProfileUpload(stored.id);
+    setGuidedFor(stored.id);
+    setBriefFor(stored.id);
+    setSection("overview");
+    setMessage(`${stored.filename} imported from ${platform}. Your first findings are being prepared below.`);
+  }
+
+  async function reloadImportedData() {
+    if (!importReload || user?.id !== importReload.actor || workspace?.id !== importReload.workspace || dataset !== importReload.dataset) return;
+    await run(async () => {
+      await selectDataset(importReload.workspace, importReload.dataset);
+      setImportReload(null);
+      setMessage("Saved import loaded.");
+    });
+  }
+
+  async function importGoogleSheet(choice: SheetChoice) {
+    await run(async () => {
+      let targetWorkspace = workspace;
+      if (!targetWorkspace) {
+        targetWorkspace = await request<Workspace>(
+          "/workspaces",
+          json("POST", { name: "My workspace", seat_limit: 3 }),
+        );
+        setWorkspace(targetWorkspace);
+        setWorkspaces(await request<Workspace[]>("/workspaces"));
+        setMembers(
+          await request<Member[]>(`/workspaces/${targetWorkspace.id}/members`),
+        );
+      }
+      let targetDataset = uploadTarget === "existing" ? dataset : "";
+      if (!targetDataset) {
+        const created = await request<Dataset>(
+          `/workspaces/${targetWorkspace.id}/datasets`,
+          json("POST", { name: choice.title.slice(0, 100) || "My data" }),
+        );
+        targetDataset = created.id;
+        setDataset(created.id);
+        setUploads([]);
+        setProfileUpload("");
+        setUploadTarget("existing");
+        setDatasets(
+          await request<Dataset[]>(`/workspaces/${targetWorkspace.id}/datasets`),
+        );
+      }
+      const prefix = `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}`;
+      const stored = await request<Upload>(
+        `${prefix}/google-sheets/import`,
+        json("POST", {
+          spreadsheet_id: choice.spreadsheetId,
+          sheet_id: choice.sheetId,
+        }),
+      );
+      await finishImport(stored, targetWorkspace.id, targetDataset, "Google Sheets");
+    }, true);
+  }
+
+  async function importConnector(choice: ConnectorChoice) {
+    await run(async () => {
+      let targetWorkspace = workspace;
+      if (!targetWorkspace) {
+        targetWorkspace = await request<Workspace>(
+          "/workspaces",
+          json("POST", { name: "My workspace", seat_limit: 3 }),
+        );
+        setWorkspace(targetWorkspace);
+        setWorkspaces(await request<Workspace[]>("/workspaces"));
+        setMembers(
+          await request<Member[]>(`/workspaces/${targetWorkspace.id}/members`),
+        );
+      }
+      let targetDataset = uploadTarget === "existing" ? dataset : "";
+      if (!targetDataset) {
+        const created = await request<Dataset>(
+          `/workspaces/${targetWorkspace.id}/datasets`,
+          json("POST", { name: choice.title.slice(0, 100) || "My data" }),
+        );
+        targetDataset = created.id;
+        setDataset(created.id);
+        setUploads([]);
+        setProfileUpload("");
+        setUploadTarget("existing");
+        setDatasets(
+          await request<Dataset[]>(`/workspaces/${targetWorkspace.id}/datasets`),
+        );
+      }
+      const prefix = `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}`;
+      const stored = await request<Upload>(
+        `${prefix}/connectors/${choice.provider}/import`,
+        json("POST", { source_id: choice.sourceId }),
+      );
+      await finishImport(stored, targetWorkspace.id, targetDataset, choice.platform);
+    }, true);
+  }
+
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await run(() => loadSession(request));
   }
 
+  async function loadTokenSession(sessionToken: string) {
+    setToken(sessionToken);
+    const sessionRequest: ApiRequest = async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
+      const response = await authorizedResponse(path, options, sessionToken);
+      return response.status === 204 ? (undefined as T) : response.json();
+    };
+    try { await loadSession(sessionRequest); }
+    catch (cause) { clearSession(); throw cause; }
+  }
+
   async function signInWithPassword(sessionToken: string) {
-    await run(async () => {
-      setToken(sessionToken);
-      const sessionRequest: ApiRequest = async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
-        const response = await authorizedResponse(path, options, sessionToken);
-        return response.status === 204 ? (undefined as T) : response.json();
-      };
-      try { await loadSession(sessionRequest); }
-      catch (cause) { clearSession(); throw cause; }
-    });
+    await run(() => loadTokenSession(sessionToken));
   }
 
   function clearSession() {
@@ -847,6 +1069,9 @@ export default function WorkspacePage() {
           >
             {busy ? "Working…" : message}
           </div>
+          {importReload && user?.id === importReload.actor && workspace?.id === importReload.workspace && dataset === importReload.dataset && (
+            <button type="button" disabled={busy} onClick={() => void reloadImportedData()}>Reload saved data</button>
+          )}
           {error && (
             <p role="alert" aria-label="Request error" className="errorNotice">
               {error}
@@ -855,6 +1080,13 @@ export default function WorkspacePage() {
           {!user ? (
             <section className="panel loginPanel">
               <h2>Sign in</h2>
+              {googleEnabled && (
+                <form method="get" action={`${api}/auth/google/start`}>
+                  <button type="submit" disabled={busy}>
+                    Continue with Google
+                  </button>
+                </form>
+              )}
               <AccountAccess api={api} onSession={signInWithPassword} />
               <h3>Operator session</h3>
               <p>
@@ -1037,6 +1269,18 @@ export default function WorkspacePage() {
                       </label>
                     </details>
                   </form>
+                  {googleEnabled && (
+                    <GoogleSheetsImport
+                      request={request}
+                      disabled={busy}
+                      onImport={importGoogleSheet}
+                    />
+                  )}
+                  <ConnectorsPanel
+                    request={request}
+                    disabled={busy}
+                    onImport={importConnector}
+                  />
                   <div
                     className="uploadPromises"
                     aria-label="What happens next"

@@ -1,6 +1,6 @@
-"""Use case: Supplies the explicitly local/test identity provider.
+"""Use case: Supplies database-backed opaque sessions for sign-in.
 
-What it does: Authenticates expiring opaque sessions using hashes stored in PostgreSQL.
+What it does: Authenticates expiring sessions by hash; the local variant is limited to local/test.
 """
 
 import hashlib
@@ -13,13 +13,16 @@ from sqlalchemy.dialects.postgresql import insert
 
 from execplus.application.services.workspaces import normalized_email
 from execplus.domain.ingestion import IngestionError, User
-from execplus.infrastructure.persistence.schema import local_accounts, sessions, users
+from execplus.infrastructure.persistence.schema import (
+    external_identities,
+    local_accounts,
+    sessions,
+    users,
+)
 
 
-class LocalSessionIdentity:
-    def __init__(self, engine: Engine, environment: str) -> None:
-        if environment not in {"local", "test"}:
-            raise ValueError("Local session identity is available only in local/test environments")
+class DatabaseSessionIdentity:
+    def __init__(self, engine: Engine) -> None:
         self.engine = engine
 
     def authenticate(self, token: str) -> User:
@@ -32,10 +35,12 @@ class LocalSessionIdentity:
                     select(users)
                     .join(sessions)
                     .outerjoin(local_accounts, local_accounts.c.user_id == users.c.id)
+                    .outerjoin(external_identities, external_identities.c.user_id == users.c.id)
                     .where(
                         sessions.c.token_hash == token_hash,
                         sessions.c.expires_at > datetime.now(timezone.utc),
                         local_accounts.c.disabled_at.is_(None),
+                        external_identities.c.disabled_at.is_(None),
                     )
                 )
                 .mappings()
@@ -84,6 +89,19 @@ class LocalSessionIdentity:
                     "recovery by account ID.",
                     403,
                 )
+            if (
+                connection.execute(
+                    select(external_identities.c.user_id).where(
+                        external_identities.c.user_id == user_id
+                    )
+                ).first()
+                is not None
+            ):
+                raise IngestionError(
+                    "external_identity_requires_google",
+                    "Use this account's existing sign-in method.",
+                    403,
+                )
             connection.execute(
                 sessions.insert().values(
                     token_hash=hashlib.sha256(token.encode()).hexdigest(),
@@ -92,3 +110,10 @@ class LocalSessionIdentity:
                 )
             )
         return token
+
+
+class LocalSessionIdentity(DatabaseSessionIdentity):
+    def __init__(self, engine: Engine, environment: str) -> None:
+        if environment not in {"local", "test"}:
+            raise ValueError("Local session identity is available only in local/test environments")
+        super().__init__(engine)

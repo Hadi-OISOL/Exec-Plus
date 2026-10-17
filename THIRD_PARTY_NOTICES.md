@@ -52,3 +52,9 @@ and [retained license texts](apps/web/public/third-party/radix-select/NOTICE.txt
 include exact versions, integrity values and the official-source notice for
 react-remove-scroll-bar, whose npm archive omits its license file. No additional
 icon package or third-party example content is bundled.
+
+The connector token vault uses unmodified **cryptography 47.0.0** in the verified
+local build, with **cffi 2.1.1** and **pycparser 3.11**. Their Apache/BSD/MIT
+[retained license texts](apps/web/public/third-party/cryptography/cryptography-LICENSE.txt)
+ship with the application; upstream licenses remain unchanged. Connector credentials
+are sealed by Fernet; no new provider credentials are included.

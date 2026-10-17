@@ -12,6 +12,7 @@ from botocore.config import Config
 from sqlalchemy import Engine, create_engine
 
 from execplus import __version__
+from execplus.application.connector_ports import Connector
 from execplus.application.ports import IdentityProvider, LanguageModel
 from execplus.application.services.access_policies import AccessPolicyService
 from execplus.application.services.accounts import AccountService
@@ -22,11 +23,13 @@ from execplus.application.services.artifacts import ArtifactService
 from execplus.application.services.catalog import CatalogService
 from execplus.application.services.company_consolidation import CompanyConsolidationService
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
+from execplus.application.services.connectors import ConnectorService
 from execplus.application.services.consolidation_exports import ConsolidationExportService
 from execplus.application.services.data_brief import DataBriefService
 from execplus.application.services.decision_analysis import DecisionAnalysisService
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import ForecastService
+from execplus.application.services.google_access import GoogleAccessService
 from execplus.application.services.health import HealthService
 from execplus.application.services.incidents import IncidentService
 from execplus.application.services.integration_access import IntegrationAccessService
@@ -55,11 +58,19 @@ from execplus.application.services.workspaces import WorkspaceService
 from execplus.config import Settings
 from execplus.domain.compute import ComputeCapabilities, ComputeOperation, QueryBudget
 from execplus.infrastructure.allocation.cp_sat import CpSatAllocationSolver
+from execplus.infrastructure.connectors.base import HostPolicy
+from execplus.infrastructure.connectors.bigquery import BigQueryConnector
+from execplus.infrastructure.connectors.database import PostgresConnector
+from execplus.infrastructure.connectors.odoo import OdooConnector
+from execplus.infrastructure.connectors.quickbooks import QuickBooksConnector
+from execplus.infrastructure.connectors.xero import XeroConnector
+from execplus.infrastructure.connectors.zoho import ZohoBooksConnector
 from execplus.infrastructure.email import DisabledEmailDelivery, SMTPEmailDelivery
 from execplus.infrastructure.exports.portable import PortableRenderer
 from execplus.infrastructure.exports.reportlab_pdf import ReportLabPdfRenderer
 from execplus.infrastructure.file_parser import StructuredFileParser
-from execplus.infrastructure.identity import LocalSessionIdentity
+from execplus.infrastructure.google import HttpGoogleGateway
+from execplus.infrastructure.identity import DatabaseSessionIdentity, LocalSessionIdentity
 from execplus.infrastructure.integrations.webhook_http import PinnedWebhookTransport
 from execplus.infrastructure.knowledge import ReferenceHybridRanker
 from execplus.infrastructure.models.disabled import DisabledLanguageModel
@@ -67,9 +78,12 @@ from execplus.infrastructure.models.openai_compatible import OpenAICompatibleLan
 from execplus.infrastructure.object_storage import S3ObjectStorage
 from execplus.infrastructure.passwords import ScryptPasswords
 from execplus.infrastructure.persistence.accounts import SQLAccountStore
+from execplus.infrastructure.persistence.connector_connections import SqlConnectorConnections
 from execplus.infrastructure.persistence.consolidations import SQLConsolidationStore
+from execplus.infrastructure.persistence.google_connections import SqlGoogleConnections
 from execplus.infrastructure.persistence.incidents import SQLIncidentStore
 from execplus.infrastructure.persistence.integrations import SQLIntegrationStore
+from execplus.infrastructure.persistence.oauth_state import SqlOAuthState
 from execplus.infrastructure.persistence.repository import SQLUnitOfWork
 from execplus.infrastructure.persistence.usage_metering import SQLUsageUnitOfWork
 from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
@@ -77,6 +91,7 @@ from execplus.infrastructure.readiness import DatabaseProbe, StorageProbe
 from execplus.infrastructure.release_gate import require_production_evidence
 from execplus.infrastructure.sources.postgres import controlled_extractor
 from execplus.infrastructure.statistics.scipy_patterns import ScipyPatternStatistics
+from execplus.infrastructure.token_vault import FernetTokenVault
 
 
 def build_language_model(
@@ -121,6 +136,38 @@ def build_selection_model(
     )
 
 
+def build_connectors(settings: Settings) -> dict[str, Connector]:
+    policy = HostPolicy(settings.private_hosts_allowed)
+    found: dict[str, Connector] = {}
+    if settings.quickbooks_client_id.strip():
+        found["quickbooks"] = QuickBooksConnector(
+            settings.quickbooks_client_id,
+            settings.quickbooks_client_secret,
+            settings.quickbooks_environment,
+        )
+    if settings.xero_client_id.strip():
+        found["xero"] = XeroConnector(
+            settings.xero_client_id, settings.xero_client_secret, settings.xero_scopes
+        )
+    if settings.zoho_client_id.strip():
+        found["zoho_books"] = ZohoBooksConnector(
+            settings.zoho_client_id, settings.zoho_client_secret, settings.zoho_data_center
+        )
+    if settings.bigquery_enabled and settings.google_enabled:
+        found["bigquery"] = BigQueryConnector(
+            settings.google_client_id,
+            settings.google_client_secret,
+            settings.google_auth_url,
+            settings.google_token_url,
+            settings.google_revoke_url,
+        )
+    if settings.odoo_enabled:
+        found["odoo"] = OdooConnector(policy)
+    if settings.database_connector_enabled:
+        found["postgresql"] = PostgresConnector(policy)
+    return found
+
+
 def build_runtime(settings: Settings) -> "Runtime":
     if settings.environment == "production":
         require_production_evidence(settings.production_evidence_path)
@@ -136,7 +183,11 @@ def build_runtime(settings: Settings) -> "Runtime":
         config=Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 1}),
     )
     storage = S3ObjectStorage(client, settings.object_store_bucket)
-    identity = LocalSessionIdentity(engine, settings.environment)
+    identity: DatabaseSessionIdentity = (
+        DatabaseSessionIdentity(engine)
+        if settings.google_enabled
+        else LocalSessionIdentity(engine, settings.environment)
+    )
     parser = StructuredFileParser()
     budget = QueryBudget(
         timeout_seconds=settings.query_timeout_seconds,
@@ -182,6 +233,53 @@ def build_runtime(settings: Settings) -> "Runtime":
     threads.pdf_exports = pdf_exports
     intent_router.report_exports_enabled = True
     operations = OperationsService(SQLUnitOfWork(engine))
+    vault = (
+        FernetTokenVault(settings.token_encryption_key)
+        if settings.google_enabled or settings.enabled_connectors
+        else None
+    )
+    connector_set = build_connectors(settings)
+    connectors = (
+        ConnectorService(
+            connector_set,
+            vault,
+            SqlConnectorConnections(engine),
+            uploads,
+            SQLUnitOfWork(engine),
+            oauth=SqlOAuthState(engine),
+            public_api_url=settings.public_api_url,
+            web_origin=settings.web_origin,
+            max_rows=settings.connector_max_rows,
+        )
+        if connector_set and vault
+        else None
+    )
+    google_access = (
+        GoogleAccessService(
+            HttpGoogleGateway(
+                settings.google_client_id,
+                settings.google_client_secret,
+                settings.google_auth_url,
+                settings.google_token_url,
+                settings.google_revoke_url,
+                settings.google_sheets_url,
+            ),
+            vault,
+            SqlGoogleConnections(engine),
+            identity,
+            uploads,
+            SQLUnitOfWork(engine),
+            client_id=settings.google_client_id,
+            oauth=SqlOAuthState(engine),
+            public_api_url=settings.public_api_url,
+            web_origin=settings.web_origin,
+            picker_api_key=settings.google_picker_api_key,
+            app_id=settings.google_app_id,
+            max_import_bytes=settings.google_import_max_bytes,
+        )
+        if settings.google_enabled and vault
+        else None
+    )
     return Runtime(
         uploads,
         identity,
@@ -245,6 +343,8 @@ def build_runtime(settings: Settings) -> "Runtime":
         settings.webhook_destinations,
         source_secret_directory=settings.source_secret_directory,
         source_allow_test_loopback=settings.source_allow_test_loopback,
+        google_access=google_access,
+        connectors=connectors,
         local_registration_enabled=settings.local_registration_enabled,
     )
 
@@ -285,7 +385,13 @@ class Runtime:
 
     source_secret_directory: str = field(default="/run/execplus/source-secrets", repr=False)
     source_allow_test_loopback: bool = False
+    google_access: GoogleAccessService | None = None
+    connectors: ConnectorService | None = None
     local_registration_enabled: bool = True
+
+    @cached_property
+    def oauth_state(self) -> SqlOAuthState:
+        return SqlOAuthState(self.engine)
 
     @cached_property
     def plans(self) -> PlanService:

@@ -6,6 +6,7 @@ What it does: Validates environment, service, and model settings before API star
 from functools import lru_cache
 from typing import Literal
 
+from cryptography.fernet import Fernet
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -70,6 +71,83 @@ class Settings(BaseSettings):
     jobs_lease_seconds: int = Field(default=30, ge=5, le=120)
     jobs_timeout_seconds: int = Field(default=100, ge=1, le=120)
     jobs_queue_limit: int = Field(default=32, ge=1, le=100)
+    google_client_id: str = ""
+    google_client_secret: str = Field(default="", repr=False)
+    google_picker_api_key: str = ""
+    google_app_id: str = ""
+    token_encryption_key: str = Field(default="", repr=False)
+    public_api_url: str = "http://localhost:8000"
+    google_auth_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    google_token_url: str = "https://oauth2.googleapis.com/token"
+    google_revoke_url: str = "https://oauth2.googleapis.com/revoke"
+    google_sheets_url: str = "https://sheets.googleapis.com/v4"
+    google_import_max_bytes: int = Field(default=20 * 1024 * 1024, ge=1024, le=20 * 1024 * 1024)
+
+    quickbooks_client_id: str = ""
+    quickbooks_client_secret: str = Field(default="", repr=False)
+    quickbooks_environment: Literal["production", "sandbox"] = "production"
+    xero_client_id: str = ""
+    xero_client_secret: str = Field(default="", repr=False)
+    xero_scopes: str = (
+        "offline_access accounting.transactions.read accounting.contacts.read "
+        "accounting.settings.read"
+    )
+    zoho_client_id: str = ""
+    zoho_client_secret: str = Field(default="", repr=False)
+    zoho_data_center: Literal["com", "eu", "in", "com.au", "jp", "ca", "sa", "com.cn"] = "com"
+    bigquery_enabled: bool = False
+    odoo_enabled: bool = False
+    database_connector_enabled: bool = False
+    connector_allow_private_hosts: bool | None = None
+    connector_max_rows: int = Field(default=100_000, ge=1, le=200_000)
+
+    @property
+    def google_enabled(self) -> bool:
+        return bool(self.google_client_id.strip())
+
+    @property
+    def private_hosts_allowed(self) -> bool:
+        if self.connector_allow_private_hosts is not None:
+            return self.connector_allow_private_hosts
+        return self.environment in {"local", "test"}
+
+    @property
+    def enabled_connectors(self) -> tuple[str, ...]:
+        enabled = []
+        if self.quickbooks_client_id.strip():
+            enabled.append("quickbooks")
+        if self.xero_client_id.strip():
+            enabled.append("xero")
+        if self.zoho_client_id.strip():
+            enabled.append("zoho_books")
+        if self.bigquery_enabled and self.google_enabled:
+            enabled.append("bigquery")
+        if self.odoo_enabled:
+            enabled.append("odoo")
+        if self.database_connector_enabled:
+            enabled.append("postgresql")
+        return tuple(enabled)
+
+    @model_validator(mode="after")
+    def validate_connectors(self) -> "Settings":
+        pairs = (
+            ("QuickBooks", self.quickbooks_client_id, self.quickbooks_client_secret),
+            ("Xero", self.xero_client_id, self.xero_client_secret),
+            ("Zoho Books", self.zoho_client_id, self.zoho_client_secret),
+        )
+        for name, identifier, secret in pairs:
+            if bool(identifier.strip()) != bool(secret.strip()):
+                raise ValueError(f"{name} requires both its client id and client secret")
+        if self.bigquery_enabled and not self.google_enabled:
+            raise ValueError("BigQuery requires the Google client settings")
+        if self.enabled_connectors and not self.google_enabled:
+            try:
+                Fernet(self.token_encryption_key.encode())
+            except (ValueError, TypeError):
+                raise ValueError(
+                    "Connectors require EXECPLUS_TOKEN_ENCRYPTION_KEY, a Fernet key"
+                ) from None
+        return self
 
     @model_validator(mode="after")
     def validate_model_route(self) -> "Settings":
@@ -97,6 +175,24 @@ class Settings(BaseSettings):
             (self.smtp_host, self.smtp_username, self.smtp_password, self.smtp_sender)
         ):
             raise ValueError("SMTP delivery requires host, username, password and sender")
+        if self.google_enabled:
+            if not self.google_client_secret.strip():
+                raise ValueError("Google sign-in requires EXECPLUS_GOOGLE_CLIENT_SECRET")
+            try:
+                Fernet(self.token_encryption_key.encode())
+            except (ValueError, TypeError):
+                raise ValueError(
+                    "Google sign-in requires EXECPLUS_TOKEN_ENCRYPTION_KEY, a Fernet key"
+                ) from None
+            local = self.environment in {"local", "test"}
+            for name in (
+                "google_auth_url",
+                "google_token_url",
+                "google_revoke_url",
+                "google_sheets_url",
+            ):
+                if not (getattr(self, name).startswith("https://") or local):
+                    raise ValueError(f"EXECPLUS_{name.upper()} must use https outside local/test")
         return self
 
 

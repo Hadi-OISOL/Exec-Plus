@@ -218,7 +218,9 @@ class AccountService:
             account = repo.local_account(actor.id)
             return {
                 "user_id": str(actor.id),
-                "kind": "local_password" if account else "operator",
+                "kind": "local_password"
+                if account
+                else ("external_google" if repo.is_self_service_account(actor.id) else "operator"),
                 "email_verified": False,
                 "password_changed_at": account.password_changed_at if account else None,
             }
@@ -251,15 +253,11 @@ class AccountService:
                 raise IngestionError(
                     "invitation_unavailable", "This invitation is no longer pending.", 409
                 )
-            target = repo.local_account(user_id)
-            if (
-                target is None
-                or target.user.email != invitation.email
-                or target.disabled_at is not None
-            ):
+            target = repo.user(user_id)
+            if not repo.is_self_service_account(user_id) or target.email != invitation.email:
                 raise IngestionError(
                     "account_unavailable",
-                    "The intended local account is unavailable for this invitation.",
+                    "The intended account is unavailable for this invitation.",
                     404,
                 )
             repo.require_active_actor(user_id)
