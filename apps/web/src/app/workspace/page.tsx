@@ -5,6 +5,10 @@ What it does: Connects uploads, verified insights, conversations, preparation an
 
 import { allowedExportPath } from "./export-path";
 import { WorkspaceSelect } from "./workspace-select";
+import { AccountAccess } from "./account-access";
+import { AccountSecurity, InvitationIdentityApproval } from "./account-security";
+import { OnboardingGuide } from "./onboarding-guide";
+import type { ApiRequest } from "./profile-panel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -142,6 +146,7 @@ type User = { id: string; email: string };
 
 export default function WorkspacePage() {
   const [section, setSection] = useState("overview");
+  const [nativeAccount, setNativeAccount] = useState(false);
   const [savedSelection, setSavedSelection] = useState<{ root: string; id: string } | null>(null);
   const chat = useRef<ChatHandle>(null);
   const reviewDisclosure = useRef<HTMLDetailsElement>(null);
@@ -204,10 +209,11 @@ export default function WorkspacePage() {
     async function authorizedResponse(
       path: string,
       options: RequestInit = {},
+      sessionToken: string = token,
     ): Promise<Response> {
       const response = await fetch(`${api}${path}`, {
         ...options,
-        headers: { Authorization: `Bearer ${token}`, ...options.headers },
+        headers: { Authorization: `Bearer ${sessionToken}`, ...options.headers },
         cache: "no-store",
       });
       if (!response.ok) {
@@ -350,7 +356,7 @@ export default function WorkspacePage() {
     return () => controller.abort();
   }, [workspace, manager, section, request]);
 
-  async function selectWorkspace(selected: Workspace) {
+  async function selectWorkspace(selected: Workspace, sessionRequest: ApiRequest = request) {
     setGuidedFor("");
     setBriefFor("");
     setBriefManual(false);
@@ -370,17 +376,17 @@ export default function WorkspacePage() {
     setFile(null);
     const prefix = `/workspaces/${selected.id}`;
     const [nextDatasets, nextMembers] = await Promise.all([
-      request<Dataset[]>(`${prefix}/datasets`),
-      request<Member[]>(`${prefix}/members`),
+      sessionRequest<Dataset[]>(`${prefix}/datasets`),
+      sessionRequest<Member[]>(`${prefix}/members`),
     ]);
     setDatasets(nextDatasets);
     setMembers(nextMembers);
     if (nextDatasets.length) {
-      await selectDataset(selected.id, nextDatasets[0].id);
+      await selectDataset(selected.id, nextDatasets[0].id, sessionRequest);
     } else setSection("data");
   }
 
-  async function selectDataset(workspaceId: string, datasetId: string) {
+  async function selectDataset(workspaceId: string, datasetId: string, sessionRequest: ApiRequest = request) {
     setGuidedFor("");
     setBriefFor("");
     setBriefManual(false);
@@ -392,7 +398,7 @@ export default function WorkspacePage() {
     setDataset(datasetId);
     setProfileUpload("");
     setUploads([]);
-    const available = await request<Upload[]>(
+    const available = await sessionRequest<Upload[]>(
       `/workspaces/${workspaceId}/datasets/${datasetId}/uploads`,
     );
     setUploads(available);
@@ -400,30 +406,30 @@ export default function WorkspacePage() {
     setSection(available.length ? "overview" : "data");
   }
 
-  async function signIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await run(async () => {
-      const current = await request<User>("/auth/me");
-      setUser(current);
-      const [available, access] = await Promise.all([
-        request<Workspace[]>("/workspaces"),
-        request<{ role: StaffRole }>("/admin/access"),
+  async function loadSession(sessionRequest: ApiRequest) {
+      const current = await sessionRequest<User>("/auth/me");
+      const [available, access, account] = await Promise.all([
+        sessionRequest<Workspace[]>("/workspaces"),
+        sessionRequest<{ role: StaffRole }>("/admin/access"),
+        sessionRequest<{ kind: string }>("/auth/account"),
       ]);
+      setUser(current);
       setStaffRole(access.role);
+      setNativeAccount(account.kind === "local_password");
       setWorkspaces(available);
       const params = new URLSearchParams(window.location.search);
       const selected =
         available.find((item) => item.id === params.get("workspace")) ??
         available[0];
       if (selected) {
-        await selectWorkspace(selected);
+        await selectWorkspace(selected, sessionRequest);
         if (params.get("saved")) {
-          const item = await request<{ dataset_id: string; upload_id: string }>(
+          const item = await sessionRequest<{ dataset_id: string; upload_id: string }>(
             `/workspaces/${selected.id}/saved-items/${encodeURIComponent(params.get("saved")!)}`,
           );
           setDataset(item.dataset_id);
           setUploads(
-            await request<Upload[]>(
+            await sessionRequest<Upload[]>(
               `/workspaces/${selected.id}/datasets/${item.dataset_id}/uploads`,
             ),
           );
@@ -439,7 +445,29 @@ export default function WorkspacePage() {
           ? ""
           : "Start with a file. We’ll organize it and find a starting point for you.",
       );
+  }
+
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await run(() => loadSession(request));
+  }
+
+  async function signInWithPassword(sessionToken: string) {
+    await run(async () => {
+      setToken(sessionToken);
+      const sessionRequest: ApiRequest = async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
+        const response = await authorizedResponse(path, options, sessionToken);
+        return response.status === 204 ? (undefined as T) : response.json();
+      };
+      try { await loadSession(sessionRequest); }
+      catch (cause) { clearSession(); throw cause; }
     });
+  }
+
+  function clearSession() {
+    setToken(""); setUser(null); setWorkspace(null); setWorkspaces([]); setDatasets([]); setDataset("");
+    setMembers([]); setStaffRole(null); setSavedSelection(null); setInvitations([]); setUploads([]);
+    setFile(null); setMessage(""); setError(""); setNativeAccount(false); setSection("data");
   }
 
   async function createWorkspace(event: FormEvent<HTMLFormElement>) {
@@ -765,20 +793,7 @@ export default function WorkspacePage() {
                 onClick={() =>
                   void run(async () => {
                     await request("/auth/logout", { method: "POST" });
-                    setToken("");
-                    setUser(null);
-                    setWorkspace(null);
-                    setWorkspaces([]);
-                    setDatasets([]);
-                    setDataset("");
-                    setMembers([]);
-                    setStaffRole(null);
-                    setSavedSelection(null);
-                    setInvitations([]);
-                    setUploads([]);
-                    setFile(null);
-                    setMessage("");
-                    setError("");
+                    clearSession();
                   })
                 }
               >
@@ -840,6 +855,8 @@ export default function WorkspacePage() {
           {!user ? (
             <section className="panel loginPanel">
               <h2>Sign in</h2>
+              <AccountAccess api={api} onSession={signInWithPassword} />
+              <h3>Operator session</h3>
               <p>
                 Use the development session token provided by your local
                 operator. Sessions expire after eight hours.
@@ -860,6 +877,7 @@ export default function WorkspacePage() {
             </section>
           ) : (
             <>
+              {workspace && ["overview", "data", "team"].includes(section) && <OnboardingGuide key={`setup-${workspace.id}-${user.id}`} workspaceId={workspace.id} request={request} defaultOpen={nativeAccount} onNavigate={navigate} />}
               {workspace && !["admin", "memory"].includes(section) && (
                 <section className="datasetToolbar" aria-label="Selected data">
                   <label>
@@ -1158,6 +1176,7 @@ export default function WorkspacePage() {
                 onReview={id => { setProfileUpload(id); setSection("prepare"); }}
                 onRefresh={() => setSection("refresh")}
               />}
+              {section === "team" && <AccountSecurity request={request} onSession={setToken} onDisabled={clearSession} />}
               <div hidden={section !== "team"}>
                 {" "}
                 <section className="panel">
@@ -1348,6 +1367,7 @@ export default function WorkspacePage() {
                                 {item.status === "pending" &&
                                   Date.parse(item.expires_at) > now && (
                                     <div>
+                                      <InvitationIdentityApproval request={request} workspaceId={workspace.id} invitationId={item.id} email={item.email} />
                                       <button
                                         disabled={busy}
                                         onClick={() =>

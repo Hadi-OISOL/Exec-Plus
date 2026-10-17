@@ -22,16 +22,26 @@ from sqlalchemy.engine import make_url
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.analytics import UnitOfWork
 from execplus.application.services.dataset_access import authorize_sources
+from execplus.application.services.plan_executor import PlanAwareExecutor
 from execplus.bootstrap import Runtime, build_runtime
 from execplus.config import Settings
 from execplus.domain.ingestion import IngestionError, Upload, User
 from execplus.domain.knowledge import Document, document_text
 from execplus.domain.profiling import Revision, reconstruct
 from execplus.infrastructure.persistence import schema as s
+from execplus.infrastructure.persistence.repository import SQLWorkspaceRepository
 
 
 def snapshot_reads(uow: UnitOfWork) -> UnitOfWork:
     """Keep database read-only; an exclusive restored snapshot needs no write locks."""
+
+    class SnapshotSQLRepository(SQLWorkspaceRepository):
+        def require_active_actor(self, user_id: UUID, *, lock: bool = True) -> None:
+            # Preserve the same account-disable predicate on this immutable snapshot.
+            super().require_active_actor(user_id, lock=False)
+
+        def workspace(self, workspace_id: UUID, *, lock: bool = False) -> Any:
+            return super().workspace(workspace_id, lock=False)
 
     class SnapshotRepository:
         def __init__(self, repo: WorkspaceRepository) -> None:
@@ -46,7 +56,11 @@ def snapshot_reads(uow: UnitOfWork) -> UnitOfWork:
     @contextmanager
     def transaction() -> Iterator[WorkspaceRepository]:
         with uow() as repo:
-            yield cast(WorkspaceRepository, SnapshotRepository(repo))
+            yield (
+                SnapshotSQLRepository(repo.connection)
+                if isinstance(repo, SQLWorkspaceRepository)
+                else cast(WorkspaceRepository, SnapshotRepository(repo))
+            )
 
     return transaction
 
@@ -191,16 +205,16 @@ async def verify_receipts(runtime: Runtime, limit: int) -> dict[str, Any]:
             try:
                 authorize_sources(repo, actor, row["workspace_id"], sources)
             except IngestionError as error:
-                if error.code != "not_found":
+                if error.code not in {"not_found", "account_unavailable"}:
                     raise
-                permission_denied = True
+                permission_denied = error.code
             else:
-                permission_denied = False
+                permission_denied = ""
         if permission_denied:
             try:
                 await runtime.analytics.replay(actor, row["workspace_id"], row["id"])
             except IngestionError as error:
-                if error.code != "not_found":
+                if error.code != permission_denied:
                     raise
                 denied += 1
                 continue
@@ -223,7 +237,10 @@ async def verify(settings: Settings, expected_migration: str, limit: int) -> dic
     ):
         raise ValueError("Snapshot replay requires an isolated restored database.")
     runtime = build_runtime(settings)
+    runtime.service.uow = snapshot_reads(runtime.service.uow)
     runtime.analytics.uow = snapshot_reads(runtime.analytics.uow)
+    if isinstance(runtime.analytics.executor, PlanAwareExecutor):
+        runtime.analytics.executor.uow = snapshot_reads(runtime.analytics.executor.uow)
     try:
         with runtime.engine.connect() as connection:
             version = connection.execute(

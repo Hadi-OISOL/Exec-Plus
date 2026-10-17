@@ -20,6 +20,46 @@ authorization to commercialize code restricted to noncommercial use.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
 
+## October 17 — Two-phase implementation: Phase 1 locally accepted
+
+**Status:** Phase 1 Complete for the explicitly tested local scope; Phase 2 In progress.
+The accepted candidate reaches schema **0027** and is **not deployed**. Live web
+**5c48d3c**, API/jobs **867c5a0** and schema **0020** remain unchanged. The older
+October 16 entries below are historical release checkpoints.
+
+Native password accounts, owner workspace provisioning and the resumable private
+setup guide now pass actual backend/UI journeys. Demo, Starter, Growth and
+Enterprise are versioned internal capacity presets with atomic admission, retry
+and period enforcement and owner/admin allowance screens. They have no prices,
+payments or subscription activation. Operator demo access remains supported.
+
+The local gate also covers professional deterministic exports and source/result
+round trips, native-account/security regressions, isolated 0027 backup/restore,
+redacted request/job monitoring and in-app alerts, fixed offline AI evaluation,
+explicit estimated-cost controls, and repeatable workflow/API benchmarks. Results
+include measured slowdowns as well as improvements; local fixtures do not prove
+production capacity or representative model quality.
+
+The reconciliation accounts for **2,580 backend cases with latest passing
+executions**, all **37 original completed requirements**, and matching collected
+counts. Nine original harness failures are retained and covered by focused repairs;
+five timestamp-only generated-XLSX node aliases have verified fixture equality.
+This is combined coverage, not one clean full-suite pass. Frontend checks/builds,
+offline browser journeys and the explicit onboarding Finish/reopen and allowance
+paths pass; three model-dependent journeys remain skipped.
+
+Read [Phase 1 verification](docs/verification-codex-phase1.md), the
+[implementation matrix](docs/codex-two-phase-implementation.md),
+[original-feature regression report](docs/regression-original-37.md),
+[account/setup evidence](docs/verification-local-accounts-onboarding.md),
+[plan evidence](docs/verification-local-plan-entitlements.md) and
+[workflow/recovery/evaluation measurements](docs/verification-local-workflow.md).
+Requirement **46** is Done only for tested price-free internal tier allowances.
+Other requirement statuses are preserved: **40 Done / 16 Partial / 8 Not yet**,
+with all **64 original IDs** and all **eight blocked production gates** retained.
+Production identity/recovery/security acceptance, verified email, billing and
+external deployment checks remain separate. Phase 2 final regression is pending.
+
 ## October 16 — Open Overview and accessible controls
 
 **Status:** Complete for the local/test and private-demo UI repair.
@@ -515,7 +555,7 @@ requirements remain mandatory in Phase 5. See [closure evidence](docs/verificati
 | 0–2 | Complete | Preserve foundation, ingestion and verified analytics contracts |
 | 3 — Data understanding, conversation and knowledge | Complete | Private-demo understanding, unified conversation, catalog and candidate assessments verified; production reviews remain in Phase 5 |
 | 4 — Connected analysis, studies, collaboration and export | In progress | 4A studies/dashboards, 4B refresh/alerts and 4C basic forecasts verified; audit history delivered; 4D exports verified; two controlled 4E connectors remain |
-| 5 — Commercial readiness, billing and alpha | In progress | Private-demo admin/support/reporting delivered; representative quality, production security, recovery, billing and customer onboarding remain |
+| 5 — Commercial readiness, billing and alpha | In progress | Private-demo admin/support/reporting delivered; native accounts, guided setup and internal allowances locally accepted; production identity/onboarding, representative quality, recovery objectives and billing remain |
 | 6 — Broader integrations and advanced decision support | Frozen | Expand connectors/formats and introduce separately validated advanced analysis |
 
 Two initial read-only connector deliveries, Google Sheets and PostgreSQL, move
@@ -968,6 +1008,12 @@ The October 6 private-demo admin/support and observed usage/retention slice is
 verified and deployed, with measured reporting/frontend improvements. It does not
 complete representative performance, commercial or production acceptance;
 all exit criteria below remain binding. See [the operations audit](docs/operations-gap-audit.md).
+
+The October 17 local Phase 1 gate additionally accepts native password accounts,
+private guided setup and internal tier enforcement, plus local recovery, monitoring,
+evaluation and benchmark increments. These changes are not deployed. Internal tier
+assignment does not fulfill the subscription/payment scope below, and local
+rehearsals do not clear the production exit criteria.
 
 Includes all deferred Phase 3 production validation in
 [the production-readiness ledger](docs/production-readiness.json).

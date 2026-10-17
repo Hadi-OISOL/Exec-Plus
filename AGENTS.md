@@ -40,6 +40,36 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 17 — Two-phase Phase 1 accepted locally; Phase 2 continues
+
+- Phase 1 native accounts/private guide, internal price-free tiers, exact exports,
+  monitoring, recovery, evaluation and performance increments are locally accepted
+  on **0027**. Read `docs/codex-two-phase-implementation.md`,
+  `docs/verification-codex-phase1.md` and `docs/regression-original-37.md`.
+  All **2,580 backend cases** have passing latest executions across a full run
+  and focused harness repairs; nine initial failures remain recorded. All 37
+  historical requirement mappings pass. This is not one clean full-suite run.
+- Frontend 59 tests/types/lint/build and 76 distinct offline browser journeys pass,
+  with three explicit model skips. Successful guide Finish/reopen, nine new API
+  timing checks, exact exports, offline evaluation and disposable 0027 recovery
+  have separate evidence. Mixed performance results and external limits remain.
+- The live private demo remains web **5c48d3c**, API/jobs **867c5a0**, schema **0020**.
+  The user later authorized tested incremental private-VPS releases; root alone
+  owns activation, checked backups and preservation. No push, provider change,
+  public exposure or customer-data analysis is part of this work. The latest
+  credential-free local handoff is `data/agent-memory/private-vps-handoff.md`.
+- Connector work is isolated in `data/agent-tools/worktrees/connector-merge`.
+  Preserve 0025–0027; connector 0028 follows 0027 and 0029 follows 0028. R1–R8
+  security/import repairs are contributed and combined checks are running. Read
+  `data/agent-memory/connector-merge-coordination.json` before touching shared
+  files/index/branches. No root merge or connector deployment is implied.
+- Phase 2 contribution/scenario/anomaly/decision/consolidation/API/embed work and
+  the final full regression remain unfinished. Preserve unrelated next-env,
+  original PDF, independent-tools verification document and separate UI work.
+  Feature counts are **40 Done / 16 Partial / 8 Not yet** across all 64 IDs; only
+  #46 advances for tested local internal allowances, never billing. All eight
+  production gates remain blocked.
+
 ### October 16 — Open Overview and accessible controls
 
 - Web **5c48d3c** is live; API/jobs remain **867c5a0** on unchanged **0020**.

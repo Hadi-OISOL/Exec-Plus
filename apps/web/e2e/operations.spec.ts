@@ -524,7 +524,8 @@ test("an expired session clears workspace and staff metadata before another pers
     await page.getByLabel("Session token").fill(next.token);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await responseReady;
-    await expect(page.getByText(`Signed in as ${next.email}`)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeDisabled();
+    await expect(page.getByText(`Signed in as ${next.email}`)).toHaveCount(0);
     await expect(
       page.getByRole("region", { name: "Selected data", exact: true }),
     ).toHaveCount(0);
@@ -537,6 +538,7 @@ test("an expired session clears workspace and staff metadata before another pers
     await responseFulfilled;
     await page.unroute(`${api}/workspaces`);
   }
+  await expect(page.getByText(`Signed in as ${next.email}`)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Add data", exact: true }),
   ).toBeEnabled();

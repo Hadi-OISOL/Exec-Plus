@@ -12,10 +12,12 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from decimal import Decimal, localcontext
 from typing import Any, TypeVar
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
+from execplus.application.plan_context import operation_id
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.dataset_access import authorize_sources, dataset_access
+from execplus.application.services.plans import admit
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
 from execplus.domain.advanced_forecasting import (
@@ -311,11 +313,42 @@ class ForecastService:
     ) -> ForecastRun:
         name = checked_name(raw["name"])
         engine_version(raw)
+        identifier = uuid5(operation_id("forecasts"), f"{wid}:{actor.id}")
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            dataset_access(repo, actor, wid, did)
+            try:
+                previous = repo.forecast_run(wid, identifier, actor.id)
+            except IngestionError as error:
+                if error.status != 404:
+                    raise
+                previous = None
+            if previous and (
+                previous.dataset_id != did or previous.upload_id != uid or previous.request != raw
+            ):
+                raise IngestionError(
+                    "plan_request_conflict",
+                    "This operation identifier already belongs to different inputs.",
+                    409,
+                )
+        if previous:
+            return await self.open(actor, wid, did, previous.id)
         if len(self.list_forecasts(actor, wid, did)) >= 50:
             raise IngestionError(
                 "forecast_limit",
                 "At most 50 saved forecasts per dataset and person are supported.",
                 409,
+            )
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            dataset_access(repo, actor, wid, did)
+            admit(
+                repo,
+                actor,
+                wid,
+                "forecasts",
+                identifier,
+                {"dataset": did, "upload": uid, "request": raw},
             )
         results, evidence = await self._series(actor, wid, did, uid, raw)
         points = tuple(
@@ -325,7 +358,7 @@ class ForecastService:
         result["commentary"] = commentary(result, raw["metric"], evidence["unit"])
         evidence["result_checksum"] = digest(result)
         value = ForecastRun(
-            uuid4(),
+            identifier,
             wid,
             did,
             actor.id,
@@ -344,6 +377,23 @@ class ForecastService:
             repo.workspace(wid, lock=True)
             self._current(actor, wid, did, uid, raw)
             authorize_sources(repo, actor, wid, evidence["sources"], did)
+            try:
+                retained = repo.forecast_run(wid, identifier, actor.id)
+            except IngestionError as error:
+                if error.status != 404:
+                    raise
+            else:
+                if (
+                    retained.request == raw
+                    and retained.dataset_id == did
+                    and retained.upload_id == uid
+                ):
+                    return retained
+                raise IngestionError(
+                    "plan_request_conflict",
+                    "This operation identifier already belongs to different inputs.",
+                    409,
+                )
             if len(repo.forecast_runs(wid, did, actor.id)) >= 50:
                 raise IngestionError("forecast_limit", "The saved forecast limit was reached.", 409)
             repo.add(value)

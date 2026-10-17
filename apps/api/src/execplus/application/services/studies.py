@@ -212,7 +212,10 @@ class StudyService:
                 "invalid_study", "Provide a question of up to 500 characters.", 422
             )
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             dataset_access(repo, actor, wid, did)
+            if study_id is None:
+                repo.check_plan_stock(wid, "saved_studies", 1, datetime.now(timezone.utc))
             if study_id:
                 study = visible(repo, actor, wid, study_id)
                 owns(study.owner_id, actor)
@@ -339,6 +342,7 @@ class StudyService:
                     )
                 number = versions[-1].number + 1
             else:
+                repo.check_plan_stock(wid, "saved_studies", 1, now)
                 study = Study(uuid4(), wid, did, actor.id, name, False, now)
                 repo.add(study)
                 number = 1
@@ -575,6 +579,7 @@ class OrganizationService:
     def create(self, actor: User, name: str) -> Organization:
         record = Organization(uuid4(), actor.id, checked_name(name), datetime.now(timezone.utc))
         with self.uow() as repo:
+            repo.require_active_actor(actor.id)
             repo.user(actor.id)
             repo.add(record)
         return record

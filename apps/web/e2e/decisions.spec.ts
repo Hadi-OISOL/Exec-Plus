@@ -1,7 +1,7 @@
 /* Use case: Verifies anomaly findings and conditional allocations using real services.
 What it does: Covers source review, exact replay, private history, approvals and narrow layouts. */
 import { execFileSync } from "node:child_process";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, selectAnalysisFocus } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 test("private anomaly and allocation evidence survives replay and human review", async ({ page }) => {
@@ -46,7 +46,7 @@ test("private anomaly and allocation evidence survives replay and human review",
     await panel.getByRole("button", { name: "Save finding feedback", exact: true }).click();
     await expect(result).toContainText("Investigate the exceptional value");
     await nav.getByRole("button", { name: "Overview", exact: true }).click();
-    await page.getByRole("combobox", { name: "Analysis focus", exact: true }).selectOption("prescriptive");
+    await selectAnalysisFocus(page, "prescriptive");
     await expect(panel.getByRole("combobox", { name: "Analysis method", exact: true })).toHaveValue("allocations");
     await panel.getByLabel("Analysis name", { exact: true }).fill("Reviewed allocation sample");
     await panel.getByRole("combobox", { name: "Candidate identifier", exact: true }).selectOption("city");

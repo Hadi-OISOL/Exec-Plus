@@ -57,6 +57,17 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
         "registered_sources",
         "source_imports",
         "consolidation_runs",
+        "local_accounts",
+        "account_events",
+        "account_rate_windows",
+        "invitation_identity_approvals",
+        "onboarding_progress",
+        "plan_catalog",
+        "workspace_plans",
+        "plan_admissions",
+        "request_metrics",
+        "request_metric_batches",
+        "incident_alert_policies",
     }
     original_tables = set(s.metadata.tables) - added - later_added
 

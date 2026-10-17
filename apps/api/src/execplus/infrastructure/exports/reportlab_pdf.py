@@ -6,6 +6,7 @@ checks glyph coverage, repeats table headers and refuses oversized output.
 
 import re
 from dataclasses import replace
+from datetime import timezone
 from io import BytesIO
 from pathlib import Path
 from threading import Lock
@@ -150,7 +151,10 @@ class ReportLabPdfRenderer:
             canvas.setFillColor(colors.HexColor("#53625f"))
             canvas.drawString(44, 26, f"ExecPlus | Page {page}")
             canvas.drawRightString(
-                width - 44, 26, "Generated " + document.generated_at.strftime("%Y-%m-%d %H:%M UTC")
+                width - 44,
+                26,
+                "Generated "
+                + document.generated_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             )
             canvas.restoreState()
 
@@ -163,7 +167,9 @@ class ReportLabPdfRenderer:
             bottomMargin=45,
             title=document.title,
             author="ExecPlus",
+            subject="Report generated " + document.generated_at.isoformat(),
             pageCompression=1,
+            invariant=1,
         )
         try:
             with RENDER_LOCK:

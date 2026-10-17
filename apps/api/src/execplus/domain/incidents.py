@@ -12,6 +12,9 @@ from execplus.domain.ingestion import IngestionError
 
 INCIDENT_CODES = {
     "http_failed": ("api", "A server request failed", "error"),
+    "ingestion_failed": ("api", "A file ingestion request failed", "error"),
+    "export_failed": ("api", "A result export request failed", "error"),
+    "queue_failed": ("api", "An analysis could not enter the queue", "error"),
     "job_failed": ("jobs", "An analysis job failed", "error"),
     "job_timeout": ("jobs", "An analysis job exceeded its time limit", "warning"),
     "job_interrupted": ("jobs", "An analysis job was interrupted", "error"),

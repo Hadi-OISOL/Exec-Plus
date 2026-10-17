@@ -3,6 +3,8 @@
 What it does: Authorizes polling, cancellation and evidence independently of HTTP lifetime.
 """
 
+import json
+import logging
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -43,10 +45,26 @@ def body(job: Job) -> dict[str, object]:
 
 @router.post("/workspaces/{workspace_id}/threads/{thread_id}/jobs", status_code=202)
 def submit(
-    workspace_id: UUID, thread_id: UUID, request: AskInThreadInput, actor: Actor, jobs: Service
+    workspace_id: UUID,
+    thread_id: UUID,
+    request: AskInThreadInput,
+    actor: Actor,
+    jobs: Service,
+    http_request: Request,
 ) -> object:
     request_id = request.request_id or uuid4()
-    return body(jobs.submit(actor, workspace_id, thread_id, request.question, request_id))
+    job = jobs.submit(actor, workspace_id, thread_id, request.question, request_id)
+    logging.getLogger("execplus.requests").info(
+        json.dumps(
+            {
+                "event": "job_accepted",
+                "request_id": str(http_request.state.request_id),
+                "job_id": str(job.id),
+            },
+            separators=(",", ":"),
+        )
+    )
+    return body(job)
 
 
 @router.get("/workspaces/{workspace_id}/jobs/{job_id}")

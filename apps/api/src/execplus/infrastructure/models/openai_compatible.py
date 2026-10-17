@@ -5,6 +5,7 @@ details, retrying only the transient failures the provider itself calls temporar
 """
 
 import asyncio
+import json
 from dataclasses import replace
 
 import httpx
@@ -18,6 +19,12 @@ from execplus.domain.usage_metering import TokenUsage, reported_usage
 from execplus.infrastructure.models.accounting import AttemptAccounting
 
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+MAX_REQUEST_BYTES = 1024 * 1024
+MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+
+
+class _PayloadLimit(ValueError):
+    pass
 
 
 class OpenAICompatibleLanguageModel:
@@ -64,6 +71,13 @@ class OpenAICompatibleLanguageModel:
             payload["max_tokens"] = self._max_output_tokens
         if self._reasoning_effort is not None:
             payload["reasoning_effort"] = self._reasoning_effort
+        serialized = json.dumps(
+            payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+        if len(serialized) > MAX_REQUEST_BYTES:
+            raise ProviderUnavailableError("The model request exceeds the local transport limit.")
+        headers["Content-Type"] = "application/json"
+        headers["Accept-Encoding"] = "identity"
         last_error: Exception | None = None
         for attempt in range(self._max_attempts):
             if attempt > 0:
@@ -72,14 +86,27 @@ class OpenAICompatibleLanguageModel:
             accounting = AttemptAccounting(self._metering, self._provider_name, model)
             usage = TokenUsage()
             try:
-                async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
-                    response = await client.post(
+                async with (
+                    httpx.AsyncClient(timeout=self._timeout_seconds) as client,
+                    client.stream(
+                        "POST",
                         f"{self._base_url}/chat/completions",
                         headers=headers,
-                        json=payload,
-                    )
+                        content=serialized,
+                    ) as response,
+                ):
+                    if response.headers.get("content-encoding", "identity").lower() != "identity":
+                        raise _PayloadLimit
+                    declared = response.headers.get("content-length", "")
+                    if declared.isdigit() and int(declared) > MAX_RESPONSE_BYTES:
+                        raise _PayloadLimit
+                    received = bytearray()
+                    async for chunk in response.aiter_bytes(chunk_size=65536):
+                        if len(received) + len(chunk) > MAX_RESPONSE_BYTES:
+                            raise _PayloadLimit
+                        received.extend(chunk)
                 try:
-                    body = response.json()
+                    body = json.loads(received)
                 except ValueError:
                     body = None
                 if isinstance(body, dict):
@@ -105,6 +132,11 @@ class OpenAICompatibleLanguageModel:
                     input_tokens=usage.input_tokens,
                     output_tokens=usage.output_tokens,
                 )
+            except _PayloadLimit:
+                accounting.finish("invalid_response", usage, preserve_failure=True)
+                raise ProviderUnavailableError(
+                    "The model response is outside the local transport limits."
+                ) from None
             except asyncio.CancelledError:
                 accounting.finish("cancelled", usage, preserve_failure=True)
                 raise

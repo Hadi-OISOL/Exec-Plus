@@ -17,7 +17,7 @@ down:
 	$(COMPOSE) down
 
 api:
-	python3 -m uvicorn execplus.main:app --app-dir apps/api/src --reload --no-access-log --host 0.0.0.0 --port 8000
+	python3 -m uvicorn execplus.main:app --app-dir apps/api/src --reload --no-access-log --no-proxy-headers --host 0.0.0.0 --port 8000
 
 web:
 	npm run dev:web

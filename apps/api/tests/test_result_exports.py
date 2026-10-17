@@ -30,7 +30,7 @@ def download_text(response, format):
         return " ".join(
             str(value)
             for sheet in workbook
-            if sheet.title.startswith("Result ")
+            if sheet.title not in {"Summary", "Methodology", "Evidence", "Read me"}
             for row in sheet.values
             for value in row
         )

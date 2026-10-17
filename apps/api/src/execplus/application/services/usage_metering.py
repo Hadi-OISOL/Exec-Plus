@@ -84,6 +84,7 @@ class UsageMeteringService:
                 currency=currency,
                 held_exposure=exposure,
             )
+            repo.admit_model_attempt(attribution, attempt_id, provider, model, timestamp)
             repo.write_attempt(None, value, "reserved", attribution.actor_id, timestamp)
             return value
 
@@ -151,8 +152,8 @@ class UsageMeteringService:
                 "usage_evidence", "Use an independent provider usage or invoice record.", 422
             )
         with self.uow() as repo:
-            repo.require_operator(operator_id)
             repo.lock_workspace(wid)
+            repo.require_operator(operator_id)
             repo.require_workspace_full(wid, operator_id)
             previous = repo.attempt(wid, attempt_id)
             if previous is None:
@@ -167,8 +168,8 @@ class UsageMeteringService:
 
     def set_policy(self, operator_id: UUID, policy: UsagePolicy, expected_version: int) -> None:
         with self.uow() as repo:
-            repo.require_operator(operator_id)
             repo.lock_workspace(policy.workspace_id)
+            repo.require_operator(operator_id)
             previous = repo.policy(policy.workspace_id)
             version = previous.version if previous else 0
             if (
@@ -226,8 +227,8 @@ class UsageMeteringService:
         if type(limit) is not int or not 1 <= limit <= 100:
             raise IngestionError("usage_limit", "Choose up to one hundred attempts.", 422)
         with self.uow() as repo:
-            repo.require_operator(operator_id)
             repo.lock_workspace(wid)
+            repo.require_operator(operator_id)
             repo.require_workspace_full(wid, operator_id)
             return repo.pending(wid, limit)
 
@@ -240,8 +241,8 @@ class UsageMeteringService:
                 422,
             )
         with self.uow() as repo:
-            repo.require_operator(operator_id)
             repo.lock_workspace(wid)
+            repo.require_operator(operator_id)
             repo.require_workspace_full(wid, operator_id)
             counts = {"released_before_dispatch": 0, "unknown": 0}
             for previous in repo.pending(wid, 100, older_than):

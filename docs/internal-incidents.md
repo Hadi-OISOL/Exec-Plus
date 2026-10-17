@@ -3,6 +3,76 @@
 
 # Internal service alerts
 
+## October 17 local extension — implemented; full gate pending
+
+The current local-only task extends this collector; it does not activate a live
+release. Migration **0027** adds bounded request aggregates and
+versioned in-app alert policies. The historical evidence below remains historical
+until the new implementation has its own passing checks.
+
+- Every API response carries a server-generated `X-Request-ID`. Incoming IDs
+  are not trusted or echoed. A server failure uses that same opaque identifier
+  for its fixed-code occurrence; durable workers retain their existing job IDs.
+- Fixed operation categories distinguish ingestion, exports, analysis, queue
+  submission and other requests. Classification uses registered route metadata,
+  never a saved raw path. Health probes and administrator polling do not dilute
+  product-request error rates. Rejected requests are counted separately from
+  server failures; an expected permission denial is not an application crash.
+- Collection flushes bounded minute aggregates in the existing short database
+  transaction. A stable batch identifier prevents duplicate counts if a commit
+  succeeds but its acknowledgement is interrupted. Pending data stays in memory
+  only within a fixed bound; overflow, outages and crash-loss limitations remain
+  explicit. No request body, uploaded value, email, token, SQL or traceback is
+  included in aggregate records or structured application error messages.
+- Active staff administrators can inspect request counts, rejection/failure
+  counts, mean/maximum time to response headers and a clearly stated observation window.
+  This is not streaming-download duration or background-job duration.
+  Rates use actual recorded denominators. Empty or insufficient observations
+  cannot become a healthy-service claim. Process collector health and shared
+  database observations are shown separately.
+- An administrator may configure a category's minimum sample, failure-count and
+  failure-rate thresholds with optimistic version checks and audit history.
+  The in-app alert reports its threshold, observation window and current state;
+  it does not send email, page an external system, repair a job or claim complete
+  uptime monitoring. Existing incident acknowledgement/resolution remains an
+  independent human-review action.
+
+The final focused incident/architecture run passes **50 tests** in **23.59 seconds**:
+26 new metric/correlation cases, nineteen existing incident cases and five
+architecture cases. This covers duplicate/concurrent collection, actual commit
+acknowledgement loss, retention, storage outages, bounded pending memory, exact
+denominators, threshold boundaries, stale policy edits, staff revocation and
+private metadata exclusion. Full regression and actual browser verification are
+still pending; this is not a deployment claim.
+
+Request observations retain two days of minute aggregates and at most 50,000
+batch keys. Each process has at most 256 pending minute/category buckets plus
+one immutable batch of at most 256 buckets awaiting acknowledgement. At capacity,
+that batch retries while ordinary incidents can still collect; later overflow is
+counted. A retry older than the deduplication horizon is discarded, never counted
+again. The displayed dropped-or-expired count describes this process, not a
+complete global loss measurement. Process crashes may lose pending observations.
+Default thresholds are disabled. A rule compares exact integer ratios over the
+last 1–60 completed minutes, requires its minimum request and failure counts,
+and uses a failure threshold in hundredths of one percent. Empty windows report
+insufficient evidence when enabled. Rates shown to two decimals are display
+rounding; the numerator and denominator remain available.
+
+`PUT /admin/incidents/thresholds/{category}` records explicit versioned settings.
+`GET /admin/incidents/{incident_id}/references` exposes at most fifty retained
+opaque request/job references to the same active platform administrator role.
+Older rows lacking the new category cannot be retroactively correlated. Accepted
+jobs emit only their opaque job ID and server-generated request ID in structured
+application logs. Unhandled HTTP exceptions return a generic 500 with that ID;
+raw exception text is not logged by this boundary. Streaming failures after
+headers are outside these header-outcome counts.
+
+The first focused run caught a false conflict from an INSERT rowcount assumption;
+RETURNING now checks actual persisted policy writes. That initial failure and a
+fixture-property mistake are retained in the Phase 1 verification ledger.
+
+## Historical private-demo behavior (prior to this local change)
+
 The staff administrator console includes **Service alerts**. It lists fixed categories
 for HTTP server errors, failed or expired analysis jobs, failed refresh activation and
 failed scheduled reports. An administrator can acknowledge or resolve an incident.
@@ -101,3 +171,10 @@ checking the saved review state. The failed run remains in the evidence director
 These checks describe local/test behavior; deployed acceptance is still pending.
 Local logs remain under ignored
 `data/verification/2026-10-16/remaining-work/`.
+
+### October 17 shutdown recheck
+
+Metrics-only pending observations and stable retry batches now receive one bounded
+collection attempt at graceful shutdown. All 28 metric checks pass, including both
+shutdown states. Abrupt process loss and a failed final storage attempt can still
+lose pending observations; collection health continues to expose that limitation.

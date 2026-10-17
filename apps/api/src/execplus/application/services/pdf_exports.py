@@ -8,11 +8,13 @@ import asyncio
 import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from dataclasses import asdict
 from datetime import date, datetime, timezone
 from typing import cast
 from uuid import UUID, uuid4
 
 from execplus.application.export_ports import PdfRenderer, SavedAnswerResolver
+from execplus.application.plan_context import operation_id
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.data_diagrams import DiagramAnswer
 from execplus.application.services.dataset_access import (
@@ -22,6 +24,7 @@ from execplus.application.services.dataset_access import (
 )
 from execplus.application.services.forecasts import read_complete
 from execplus.application.services.intent_router import DatasetGuide, PatternAnswer
+from execplus.application.services.plans import admit
 from execplus.application.services.thread_export_documents import extended_sections, thread_charts
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, Scalar, VerifiedMetricAnswer
@@ -73,6 +76,17 @@ class PdfExportService:
         async with self._render_slots:
             generated_at = datetime.now(timezone.utc)
             document, sources = await self._prepare(actor, wid, tid, turn_id, generated_at)
+            with self.uow() as repo:
+                inputs = asdict(document)
+                inputs.pop("generated_at")
+                admit(
+                    repo,
+                    actor,
+                    wid,
+                    "exports",
+                    operation_id("exports"),
+                    {"target": turn_id, "format": "pdf", "document": inputs},
+                )
             content = await read_complete(lambda: self.renderer.render(document))
             checked, checked_sources = await self._prepare(actor, wid, tid, turn_id, generated_at)
             if checked != document or checked_sources != sources:

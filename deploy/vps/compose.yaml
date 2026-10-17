@@ -64,7 +64,7 @@ services:
   api:
     <<: *api
     restart: unless-stopped
-    command: [uvicorn, execplus.main:app, --host, 127.0.0.1, --port, "18401", --workers, "2", --no-access-log]
+    command: [uvicorn, execplus.main:app, --host, 127.0.0.1, --port, "18401", --workers, "2", --no-access-log, --no-proxy-headers]
     depends_on:
       postgres: {condition: service_healthy}
       storage: {condition: service_started}

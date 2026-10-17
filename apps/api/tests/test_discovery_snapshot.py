@@ -24,6 +24,7 @@ def test_discovery_parses_once_and_io_does_not_run_on_the_query_event_loop(
     calls = []
     loop_threads = []
     read_table, parse = service.parser.read_table, service.parser.parse
+    parse_table = service.parser.parse_table
     source_read = service.storage.read
     execute = service.executor.execute
 
@@ -35,6 +36,10 @@ def test_discovery_parses_once_and_io_does_not_run_on_the_query_event_loop(
         calls.append(("table", threading.get_ident()))
         return read_table(*args, **kwargs)
 
+    def tracked_combined(*args, **kwargs):
+        calls.append(("validated_table", threading.get_ident()))
+        return parse_table(*args, **kwargs)
+
     def tracked_source(*args, **kwargs):
         calls.append(("source", threading.get_ident()))
         return source_read(*args, **kwargs)
@@ -45,13 +50,15 @@ def test_discovery_parses_once_and_io_does_not_run_on_the_query_event_loop(
 
     monkeypatch.setattr(service.parser, "parse", tracked_parse)
     monkeypatch.setattr(service.parser, "read_table", tracked_table)
+    monkeypatch.setattr(service.parser, "parse_table", tracked_combined)
     monkeypatch.setattr(service.storage, "read", tracked_source)
     monkeypatch.setattr(service.executor, "execute", tracked_execute)
     response = env.client.get(root + "/discovery", headers=owner)
     assert response.status_code == 200, response.text
     assert len(response.json()["findings"]) == 7
-    assert [kind for kind, _ in calls].count("validate") == 1
-    assert [kind for kind, _ in calls].count("table") == 1
+    assert [kind for kind, _ in calls].count("validated_table") == 1
+    assert [kind for kind, _ in calls].count("validate") == 0
+    assert [kind for kind, _ in calls].count("table") == 0
     assert [kind for kind, _ in calls].count("source") == 2
     assert len(loop_threads) == 7
     assert all(thread != loop_threads[0] for _, thread in calls)

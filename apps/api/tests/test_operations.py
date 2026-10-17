@@ -515,12 +515,14 @@ def test_failed_staff_audit_rolls_back_grant_and_ticket_change(integration, monk
         env.runtime.operations.change_staff(actor.email, "admin")
     with env.runtime.service.uow() as repo:
         assert repo.staff_grant(actor.id) is None
-    with pytest.raises(RuntimeError):
-        env.client.patch(
-            f"/admin/workspaces/{wid}/support-tickets/{value['ticket']['id']}",
-            headers=staff,
-            json={"expected_version": 1, "status": "triaged"},
-        )
+    failure = env.client.patch(
+        f"/admin/workspaces/{wid}/support-tickets/{value['ticket']['id']}",
+        headers=staff,
+        json={"expected_version": 1, "status": "triaged"},
+    )
+    assert failure.status_code == 500
+    assert failure.json()["error"]["code"] == "internal_error"
+    assert "audit outage" not in failure.text
     monkeypatch.setattr(SQLWorkspaceRepository, "add_staff_audit", original)
     assert (
         env.client.get(

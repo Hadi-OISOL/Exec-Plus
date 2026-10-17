@@ -19,6 +19,7 @@ from execplus.application.services.dataset_access import require_workspace_acces
 from execplus.application.usage_ports import UsageRepository
 from execplus.domain.ingestion import AuditEvent, IngestionError
 from execplus.domain.operations import StaffAudit
+from execplus.domain.plans import fingerprint
 from execplus.domain.usage_metering import (
     TokenUsage,
     UsageAttempt,
@@ -68,6 +69,23 @@ class SQLUsageRepository:
         self.connection = connection
         self.control = SQLWorkspaceRepository(connection)
 
+    def admit_model_attempt(
+        self,
+        attribution: UsageAttribution,
+        attempt_id: UUID,
+        provider: str,
+        model: str,
+        now: datetime,
+    ) -> None:
+        self.control.admit_plan_operation(
+            attribution.workspace_id,
+            attribution.actor_id,
+            "model_attempts",
+            attempt_id,
+            fingerprint({"attribution": asdict(attribution), "provider": provider, "model": model}),
+            now,
+        )
+
     def lock_workspace(self, workspace_id: UUID) -> None:
         self.control.workspace(workspace_id, lock=True)
 
@@ -80,6 +98,7 @@ class SQLUsageRepository:
         require_workspace_access(self.control, self.control.user(actor_id), workspace_id)
 
     def require_operator(self, actor_id: UUID) -> None:
+        self.control.require_active_actor(actor_id)
         grant = self.control.staff_grant(actor_id, lock=True)
         if grant is None or grant.revoked_at is not None or grant.role != "admin":
             raise IngestionError(

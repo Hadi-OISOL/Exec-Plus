@@ -59,7 +59,7 @@ def content(rows=None, charts=()):
 def test_excel_exact_text_cells_and_recoverable_types_without_formula_xml():
     value = PortableRenderer().render(content(), "xlsx")
     workbook = load_workbook(BytesIO(value), data_only=False)
-    row = list(workbook["Result 1"].rows)[1]
+    row = list(workbook["Original result"].rows)[1]
     assert row[0].value == "9007199254740993.000000000000000001"
     assert row[3].value == "false" and row[4].value == "2026-10-16"
     assert row[5].value.startswith("=HYPERLINK") and row[5].data_type == "s"

@@ -8,9 +8,11 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
+from execplus.application.plan_context import operation_id
 from execplus.application.services.company_consolidation import CompanyConsolidationService
 from execplus.application.services.consolidation_report_documents import build_consolidation_report
 from execplus.application.services.forecasts import read_complete
+from execplus.application.services.plans import admit
 from execplus.application.services.result_exports import ResultExportService
 from execplus.domain.exports import ExportDownload, validate_export
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
@@ -40,6 +42,28 @@ class ConsolidationExportService:
             before = await self.worksheets.open(actor, oid, rid)
             content = build_consolidation_report(before, now)
             validate_export(content)
+            run = before["run"]
+            identifier = operation_id("exports")
+            with self.worksheets.store.transaction() as repo:
+                self.worksheets._check(
+                    repo,
+                    actor,
+                    oid,
+                    run["request"]["companies"],
+                    run["evidence"]["companies"],
+                    require_current=False,
+                )
+                for wid in sorted(
+                    {UUID(item["workspace_id"]) for item in run["request"]["companies"]}, key=str
+                ):
+                    admit(
+                        repo,
+                        actor,
+                        wid,
+                        "exports",
+                        identifier,
+                        {"target": rid, "organization": oid, "format": format, "run": run},
+                    )
             payload = await read_complete(lambda: self.exports.renderer.render(content, format))
             after = await self.worksheets.open(actor, oid, rid)
             if after != before:

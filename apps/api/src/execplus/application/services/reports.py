@@ -68,8 +68,8 @@ class ReportService:
 
     async def list_schedules(self, actor: User, wid: UUID) -> tuple[ReportSchedule, ...]:
         with self.uow() as repo:
-            repo.membership(wid, actor.id)
             repo.workspace(wid, lock=True)
+            repo.membership(wid, actor.id)
             visible = []
             for schedule in repo.report_schedules(wid, actor.id):
                 try:

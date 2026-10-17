@@ -11,12 +11,14 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 from uuid import UUID, uuid4
 
+from execplus.application.plan_context import operation_id
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.dataset_access import authorize_sources
 from execplus.application.services.decision_analysis import DecisionAnalysisService
 from execplus.application.services.forecasts import ForecastService, read_complete
 from execplus.application.services.pdf_exports import PdfExportService, UnitOfWork
+from execplus.application.services.plans import admit
 from execplus.application.services.studies import StudyService, visible
 from execplus.application.services.thread_export_documents import thread_tables
 from execplus.domain.errors import AuthorizationError
@@ -230,6 +232,16 @@ class ResultExportService:
                 repo.workspace(wid, lock=True)
                 repo.membership(wid, actor.id)
                 authority = guard(repo) if guard else None
+                inputs = asdict(content)
+                inputs["document"].pop("generated_at")
+                admit(
+                    repo,
+                    actor,
+                    wid,
+                    "exports",
+                    operation_id("exports"),
+                    {"target": target_id, "format": format, "chart": chart, "content": inputs},
+                )
             data = await read_complete(lambda: self.renderer.render(content, format, chart))
             current, current_sources = await prepare(now)
             if current != content or current_sources != sources:

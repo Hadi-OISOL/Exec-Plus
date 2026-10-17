@@ -14,6 +14,7 @@ from sqlalchemy import Engine, create_engine
 from execplus import __version__
 from execplus.application.ports import IdentityProvider, LanguageModel
 from execplus.application.services.access_policies import AccessPolicyService
+from execplus.application.services.accounts import AccountService
 from execplus.application.services.activation import ActivationService
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.answers import AnswerAssembler
@@ -37,6 +38,7 @@ from execplus.application.services.monitoring import MonitoringService
 from execplus.application.services.operations import OperationsService
 from execplus.application.services.patterns import PatternService
 from execplus.application.services.pdf_exports import PdfExportService
+from execplus.application.services.plans import PlanService
 from execplus.application.services.product_usage import ProductUsageService
 from execplus.application.services.refresh import RefreshService
 from execplus.application.services.reports import ReportService
@@ -63,6 +65,8 @@ from execplus.infrastructure.knowledge import ReferenceHybridRanker
 from execplus.infrastructure.models.disabled import DisabledLanguageModel
 from execplus.infrastructure.models.openai_compatible import OpenAICompatibleLanguageModel
 from execplus.infrastructure.object_storage import S3ObjectStorage
+from execplus.infrastructure.passwords import ScryptPasswords
+from execplus.infrastructure.persistence.accounts import SQLAccountStore
 from execplus.infrastructure.persistence.consolidations import SQLConsolidationStore
 from execplus.infrastructure.persistence.incidents import SQLIncidentStore
 from execplus.infrastructure.persistence.integrations import SQLIntegrationStore
@@ -241,6 +245,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         settings.webhook_destinations,
         source_secret_directory=settings.source_secret_directory,
         source_allow_test_loopback=settings.source_allow_test_loopback,
+        local_registration_enabled=settings.local_registration_enabled,
     )
 
 
@@ -280,6 +285,19 @@ class Runtime:
 
     source_secret_directory: str = field(default="/run/execplus/source-secrets", repr=False)
     source_allow_test_loopback: bool = False
+    local_registration_enabled: bool = True
+
+    @cached_property
+    def plans(self) -> PlanService:
+        return PlanService(SQLUnitOfWork(self.engine))
+
+    @cached_property
+    def accounts(self) -> AccountService:
+        return AccountService(
+            SQLAccountStore(self.engine),
+            ScryptPasswords(),
+            registration_enabled=self.local_registration_enabled,
+        )
 
     @cached_property
     def source_imports(self) -> SourceImportService:

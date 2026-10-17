@@ -25,13 +25,24 @@ def migrate(env, direction, revision):
 
 def snapshots(env, names):
     with env.engine.connect() as connection:
-        return {
-            name: sorted(
-                json.dumps(dict(row), sort_keys=True, default=str)
-                for row in connection.execute(select(s.metadata.tables[name])).mappings()
+        inspector = inspect(connection)
+        result = {}
+        for name in names:
+            table = s.metadata.tables[name]
+            present = {column["name"] for column in inspector.get_columns(name)}
+            selected = [column for column in table.columns if column.name in present]
+            # A later nullable column is absent in the historical schema, not a lost value.
+            missing = [column for column in table.columns if column.name not in present]
+            assert all(column.nullable for column in missing)
+            result[name] = sorted(
+                json.dumps(
+                    {**{column.name: None for column in missing}, **dict(row)},
+                    sort_keys=True,
+                    default=str,
+                )
+                for row in connection.execute(select(*selected)).mappings()
             )
-            for name in names
-        }
+        return result
 
 
 def test_usage_migration_round_trip_preserves_every_0020_table(integration):

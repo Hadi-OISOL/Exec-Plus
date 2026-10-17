@@ -627,6 +627,17 @@ def test_policy_migration_preserves_existing_tables_and_refuses_nonempty_downgra
         "registered_sources",
         "source_imports",
         "consolidation_runs",
+        "local_accounts",
+        "account_events",
+        "account_rate_windows",
+        "invitation_identity_approvals",
+        "onboarding_progress",
+        "plan_catalog",
+        "workspace_plans",
+        "plan_admissions",
+        "request_metrics",
+        "request_metric_batches",
+        "incident_alert_policies",
     }
 
     def snapshot():

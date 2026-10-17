@@ -25,13 +25,71 @@ from execplus.domain.incidents import (
     observe,
 )
 from execplus.domain.ingestion import IngestionError
+from execplus.domain.operational_metrics import (
+    MAX_METRIC_BATCHES,
+    METRIC_RETENTION_DAYS,
+    AlertPolicy,
+    ObservationBatch,
+    RequestObservation,
+)
 from execplus.infrastructure.persistence import schema as s
 from execplus.infrastructure.persistence.operations import SQLOperationsRepository
+from execplus.infrastructure.persistence.repository import SQLWorkspaceRepository
 
 
 class SQLIncidentRepository(SQLOperationsRepository):
     def __init__(self, connection: Connection) -> None:
         self.connection = connection
+
+    def require_active_actor(self, user_id: UUID, *, lock: bool = True) -> None:
+        SQLWorkspaceRepository(self.connection).require_active_actor(user_id, lock=lock)
+
+    def metric_observations(self, since: datetime) -> tuple[RequestObservation, ...]:
+        rows = self.connection.execute(
+            select(s.request_metrics)
+            .where(s.request_metrics.c.minute >= since)
+            .order_by(s.request_metrics.c.minute, s.request_metrics.c.category)
+        ).mappings()
+        return tuple(RequestObservation(**row) for row in rows)
+
+    def alert_policies(self) -> tuple[AlertPolicy, ...]:
+        return tuple(
+            AlertPolicy(**row)
+            for row in self.connection.execute(select(s.incident_alert_policies)).mappings()
+        )
+
+    def save_alert_policy(self, value: AlertPolicy, expected_version: int) -> None:
+        table = s.incident_alert_policies
+        if expected_version == 0:
+            changed = self.connection.execute(
+                insert(table)
+                .values(**asdict(value))
+                .on_conflict_do_nothing(index_elements=[table.c.category])
+                .returning(table.c.category)
+            )
+        else:
+            changed = self.connection.execute(
+                update(table)
+                .where(table.c.category == value.category, table.c.version == expected_version)
+                .values(**asdict(value))
+                .returning(table.c.category)
+            )
+        if changed.scalar_one_or_none() is None:
+            raise IngestionError(
+                "alert_conflict", "These alert settings changed. Reload them first.", 409
+            )
+
+    def occurrence_references(self, code: str, limit: int) -> tuple[dict[str, object], ...]:
+        table = s.incident_occurrences
+        return tuple(
+            dict(row)
+            for row in self.connection.execute(
+                select(table.c.source_kind, table.c.source_id, table.c.occurred_at)
+                .where(table.c.code == code)
+                .order_by(table.c.occurred_at.desc(), table.c.source_id)
+                .limit(limit)
+            ).mappings()
+        )
 
     def list_incidents(self, status: str, limit: int) -> tuple[Incident, ...]:
         statement = select(s.incidents)
@@ -165,7 +223,70 @@ class SQLIncidentStore:
                 events.append(IncidentOccurrence(kind, row["id"], row[stamp], code))
         return tuple(events)
 
-    def collect(self, queued: tuple[IncidentOccurrence, ...], now: datetime) -> dict[str, int]:
+    def _metrics(
+        self,
+        connection: Connection,
+        batch: ObservationBatch | None,
+        now: datetime,
+        deadline: float,
+    ) -> dict[str, int]:
+        cutoff = now - timedelta(days=METRIC_RETENTION_DAYS)
+        self._budget(connection, deadline)
+        connection.execute(delete(s.request_metrics).where(s.request_metrics.c.minute < cutoff))
+        connection.execute(
+            delete(s.request_metric_batches).where(s.request_metric_batches.c.created_at < cutoff)
+        )
+        if batch is None:
+            return {}
+        # A retry older than the deduplication horizon is never counted again.
+        if batch.created_at < cutoff:
+            return {
+                "metrics_accepted": 1,
+                "metrics_expired": sum(item.requests for item in batch.observations),
+                "metrics_capacity_limited": 0,
+            }
+        if connection.execute(
+            select(s.request_metric_batches.c.id).where(s.request_metric_batches.c.id == batch.id)
+        ).first():
+            return {"metrics_accepted": 1, "metrics_expired": 0, "metrics_capacity_limited": 0}
+        count = connection.execute(
+            select(func.count()).select_from(s.request_metric_batches)
+        ).scalar_one()
+        if count >= MAX_METRIC_BATCHES:
+            return {"metrics_accepted": 0, "metrics_expired": 0, "metrics_capacity_limited": 1}
+        connection.execute(
+            insert(s.request_metric_batches).values(id=batch.id, created_at=batch.created_at)
+        )
+        for item in batch.observations:
+            self._budget(connection, deadline)
+            if item.minute < cutoff:
+                continue
+            table = s.request_metrics
+            statement = insert(table).values(**asdict(item))
+            connection.execute(
+                statement.on_conflict_do_update(
+                    index_elements=[table.c.minute, table.c.category],
+                    set_={
+                        **{
+                            name: table.c[name] + statement.excluded[name]
+                            for name in ("requests", "rejected", "failed", "response_start_ms")
+                        },
+                        "maximum_response_start_ms": func.greatest(
+                            table.c.maximum_response_start_ms,
+                            statement.excluded.maximum_response_start_ms,
+                        ),
+                    },
+                )
+            )
+        expired = sum(item.requests for item in batch.observations if item.minute < cutoff)
+        return {"metrics_accepted": 1, "metrics_expired": expired, "metrics_capacity_limited": 0}
+
+    def collect(
+        self,
+        queued: tuple[IncidentOccurrence, ...],
+        now: datetime,
+        observations: ObservationBatch | None = None,
+    ) -> dict[str, int]:
         cutoff = now - timedelta(days=RETENTION_DAYS)
         with self.engine.begin() as connection:
             deadline = monotonic() + 5
@@ -218,6 +339,7 @@ class SQLIncidentStore:
                             source_kind=item.source_kind,
                             source_id=item.source_id,
                             occurred_at=item.occurred_at,
+                            code=item.code,
                         )
                         for item in selected
                     ],
@@ -237,4 +359,5 @@ class SQLIncidentStore:
                     ),
                     deadline,
                 )
-            return {"accepted": len(selected), "capacity_limited": int(bool(capped))}
+            metrics = self._metrics(connection, observations, now, deadline)
+            return {"accepted": len(selected), "capacity_limited": int(bool(capped)), **metrics}

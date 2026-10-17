@@ -67,6 +67,7 @@ from execplus.domain.understanding import DataPreference, Understanding
 from execplus.infrastructure.persistence import schema as s
 from execplus.infrastructure.persistence.jobs import SQLJobRepository
 from execplus.infrastructure.persistence.operations import SQLOperationsRepository
+from execplus.infrastructure.persistence.plans import SQLPlanRepository
 from execplus.infrastructure.persistence.reporting import SQLReportingRepository
 from execplus.infrastructure.persistence.source_imports import SQLSourceMetadataRepository
 
@@ -111,7 +112,11 @@ Record = TypeVar(
 
 
 class SQLWorkspaceRepository(
-    SQLJobRepository, SQLOperationsRepository, SQLReportingRepository, SQLSourceMetadataRepository
+    SQLJobRepository,
+    SQLOperationsRepository,
+    SQLReportingRepository,
+    SQLSourceMetadataRepository,
+    SQLPlanRepository,
 ):
     def __init__(self, connection: Connection) -> None:
         self.connection = connection
@@ -327,6 +332,7 @@ class SQLWorkspaceRepository(
         return tuple((row.workspace_id, row.id) for row in rows)
 
     def organizations(self, actor_id: UUID) -> tuple[Organization, ...]:
+        self.require_active_actor(actor_id)
         accessible = (
             select(s.departments.c.organization_id)
             .join(s.memberships, s.departments.c.workspace_id == s.memberships.c.workspace_id)
@@ -544,7 +550,39 @@ class SQLWorkspaceRepository(
     def user(self, user_id: UUID) -> User:
         return self._one(User, s.users, id=user_id)
 
+    def require_active_actor(self, user_id: UUID, *, lock: bool = True) -> None:
+        statement = select(s.local_accounts.c.disabled_at).where(
+            s.local_accounts.c.user_id == user_id
+        )
+        if lock:
+            statement = statement.with_for_update(read=True)
+        row = self.connection.execute(statement).first()
+        if row is not None and row.disabled_at is not None:
+            raise IngestionError("account_unavailable", "This account is unavailable.", 403)
+
+    def is_native_account(self, user_id: UUID) -> bool:
+        return (
+            self.connection.execute(
+                select(s.local_accounts.c.user_id).where(s.local_accounts.c.user_id == user_id)
+            ).scalar_one_or_none()
+            is not None
+        )
+
+    def invitation_identity_allowed(self, invitation_id: UUID, user_id: UUID) -> bool:
+        if not self.is_native_account(user_id):
+            return True
+        return (
+            self.connection.execute(
+                select(s.invitation_identity_approvals.c.invitation_id).where(
+                    s.invitation_identity_approvals.c.invitation_id == invitation_id,
+                    s.invitation_identity_approvals.c.user_id == user_id,
+                )
+            ).scalar_one_or_none()
+            is not None
+        )
+
     def workspaces(self, user_id: UUID) -> tuple[Workspace, ...]:
+        self.require_active_actor(user_id)
         statement = (
             select(s.workspaces).join(s.memberships).where(s.memberships.c.user_id == user_id)
         )
@@ -560,6 +598,7 @@ class SQLWorkspaceRepository(
         return Workspace(**row)
 
     def membership(self, workspace_id: UUID, user_id: UUID) -> Membership:
+        self.require_active_actor(user_id)
         return self._one(Membership, s.memberships, workspace_id=workspace_id, user_id=user_id)
 
     def members(self, workspace_id: UUID) -> tuple[Membership, ...]:

@@ -1,0 +1,28 @@
+/* Use case: Styles the local account and resumable setup surfaces.
+What it does: Reuses workspace tokens with readable forms, accessible controls and restrained motion. */
+
+.access { border-bottom: 1px solid var(--border, #d9e3dd); margin-bottom: 1.5rem; padding-bottom: 1.5rem; }
+.access p, .guide p { max-width: 66ch; }
+.form { display: grid; gap: .65rem; max-width: 36rem; margin-block: 1rem; }
+.form label { font-weight: 600; }
+.form input:not([type="checkbox"]) { min-height: 44px; width: 100%; }
+.form button, .choices button, .guide button { min-height: 44px; }
+.form small { line-height: 1.5; color: var(--muted, #5b6b62); }
+.choices, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.choices button[aria-pressed="true"] { background: var(--accent-soft, #e8f2eb); border-color: var(--accent, #367455); color: var(--text, #193e2c); }
+.guide { border: 1px solid var(--border, #d9e3dd); border-radius: 16px; padding: 1rem 1.25rem; background: var(--surface, #fff); margin-block: 1rem; }
+.guide summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; gap: .5rem; }
+.guideTitle { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.steps { display: grid; gap: .6rem; padding-inline-start: 1.4rem; }
+.steps li { padding-inline-start: .4rem; }
+.steps button { border: 0; background: none; text-align: start; padding: .4rem; }
+.steps [aria-current="step"] { font-weight: 700; color: var(--accent, #367455); }
+.stepState { color: var(--muted, #5b6b62); font-size: .85rem; margin-inline-start: .5rem; }
+.current { border-block: 1px solid var(--border, #d9e3dd); padding-block: 1rem; margin-block: 1rem; }
+.checkbox { display: flex !important; align-items: flex-start; gap: .6rem; font-weight: 400 !important; line-height: 1.5; }
+.checkbox input { min-height: 1.3rem; width: 1.3rem; margin-top: .1rem; flex-shrink: 0; }
+.identifier { overflow-wrap: anywhere; }
+.security details { margin-block: 1.2rem; border-top: 1px solid var(--border, #d9e3dd); padding-top: 1rem; }
+.security summary { cursor: pointer; min-height: 44px; }
+.security button:focus-visible, .access button:focus-visible, .guide button:focus-visible { outline: 3px solid var(--accent, #367455); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) { .guide, .access { animation: appear 180ms ease-out; } @keyframes appear { from { opacity: .5; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } } }

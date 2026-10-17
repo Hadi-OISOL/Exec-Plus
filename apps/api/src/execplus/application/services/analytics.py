@@ -24,7 +24,9 @@ from execplus.application.services.dataset_access import (
     scope_snapshot,
 )
 from execplus.application.services.lineage import persist_query_execution
+from execplus.application.services.plan_executor import PlanAwareExecutor
 from execplus.application.services.understanding import current_meaning
+from execplus.application.validated_tables import read_validated_table
 from execplus.domain.dashboard_templates import TEMPLATES, DashboardTemplate, applicable_templates
 from execplus.domain.errors import ClarificationRequiredError, UnsupportedQuestionError
 from execplus.domain.evidence import receipt, result_evidence, scalar_from_record
@@ -95,7 +97,7 @@ class AnalyticsService:
         self.uow = unit_of_work
         self.storage = storage
         self.parser = parser
-        self.executor = executor
+        self.executor = PlanAwareExecutor(executor, unit_of_work)
         self.assembler = assembler
         self.row_limit = row_limit
 
@@ -106,10 +108,9 @@ class AnalyticsService:
         self, upload: Upload, revision: Revision
     ) -> tuple[TableData, DatasetView]:
         content = BytesIO(self.storage.read(upload))
-        self.parser.parse(
-            content, upload.filename, upload.content_type, stored_format=upload.format
+        table = read_validated_table(
+            self.parser, content, upload.filename, upload.content_type, upload.format
         )
-        table = self.parser.read_table(content, upload.format)
         table = reconstruct(table, revision)
         if revision.source_checksum != upload.checksum:
             raise IngestionError("lineage_mismatch", "The source integrity check failed.", 409)
@@ -310,10 +311,12 @@ class AnalyticsService:
                     "lineage_mismatch", "The retained source failed verification.", 409
                 )
             content = BytesIO(self.storage.read(upload))
-            self.parser.parse(
-                content, upload.filename, upload.content_type, stored_format=upload.format
+            table = reconstruct(
+                read_validated_table(
+                    self.parser, content, upload.filename, upload.content_type, upload.format
+                ),
+                revision,
             )
-            table = reconstruct(self.parser.read_table(content, upload.format), revision)
             frozen_source = {
                 key: source[key]
                 for key in (
@@ -784,10 +787,12 @@ class AnalyticsService:
                         "lineage_mismatch", "The snapshot no longer matches its receipt.", 409
                     )
                 content = BytesIO(self.storage.read(upload))
-                self.parser.parse(
-                    content, upload.filename, upload.content_type, stored_format=upload.format
+                table = reconstruct(
+                    read_validated_table(
+                        self.parser, content, upload.filename, upload.content_type, upload.format
+                    ),
+                    revision,
                 )
-                table = reconstruct(self.parser.read_table(content, upload.format), revision)
                 view = dataset_view(revision.profile)
                 if source.get("understanding_id"):
                     meaning = repo.understanding(
@@ -804,7 +809,7 @@ class AnalyticsService:
                     table, view, revision.profile, view.definition, access
                 )
                 tables.append(table)
-                views.append(view)
+                views.append(replace(view, sources=(source,)))
         scope = WorkspaceScope(
             workspace_id,
             actor.id,

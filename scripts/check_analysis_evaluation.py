@@ -27,6 +27,7 @@ class EvaluationCase:
     title: str
     expected_behavior: str
     node_ids: tuple[str, ...]
+    measurement_dimension: str = "behavioral_regression"
 
 
 def _text(value: Any, name: str) -> str:
@@ -74,6 +75,7 @@ def read_manifest(path: Path) -> tuple[dict[str, Any], tuple[EvaluationCase, ...
                 _text(row.get("title"), "title"),
                 _text(row.get("expected_behavior"), "expected_behavior"),
                 tuple(nodes),
+                _text(row.get("measurement_dimension", "behavioral_regression"), "dimension"),
             )
         )
     if len({case.id for case in cases}) != len(cases):
@@ -134,6 +136,22 @@ def summarize(
             )
         )
     counts = Counter(result["status"] for result in results)
+    dimensions = {}
+    for dimension in sorted({case.measurement_dimension for case in cases}):
+        dimension_nodes = {
+            node
+            for case in cases
+            if case.measurement_dimension == dimension
+            for node in case.node_ids
+        }
+        dimensions[dimension] = {
+            "selected_checks": len(dimension_nodes),
+            "passed_checks": sum(
+                by_node.get(node, {}).get("status") == "passed" and frequencies[node] == 1
+                for node in dimension_nodes
+            ),
+            "scope": "Fixed synthetic regression checks, not representative accuracy.",
+        }
     passed = (
         returncode == 0
         and not missing
@@ -155,6 +173,7 @@ def summarize(
         duplicate_results=duplicates,
         pytest_returncode=returncode,
         cases=case_reports,
+        measurement_dimensions=dimensions,
     )
 
 

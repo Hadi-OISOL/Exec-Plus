@@ -4,8 +4,12 @@ What it does: Validates startup, composes dependencies, and maps safe API failur
 """
 
 import asyncio
+import json
+import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from time import monotonic
+from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -14,6 +18,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from execplus import __version__
+from execplus.application.plan_context import plan_request_context
 from execplus.bootstrap import Runtime, build_runtime
 from execplus.config import Settings
 from execplus.domain.errors import (
@@ -25,8 +30,11 @@ from execplus.domain.errors import (
     UnverifiedAnswerError,
 )
 from execplus.domain.ingestion import IngestionError
+from execplus.presentation.account_request_guard import AccountRequestGuard
 from execplus.presentation.private_json import EvidenceJSONResponse
+from execplus.presentation.request_observation import category_for, configure_observation_logging
 from execplus.presentation.routes.access_policies import router as access_policies_router
+from execplus.presentation.routes.accounts import router as accounts_router
 from execplus.presentation.routes.activation import router as activation_router
 from execplus.presentation.routes.analytics import router as analytics_router
 from execplus.presentation.routes.artifacts import router as artifacts_router
@@ -41,6 +49,7 @@ from execplus.presentation.routes.jobs import router as jobs_router
 from execplus.presentation.routes.joins import router as joins_router
 from execplus.presentation.routes.operations import router as operations_router
 from execplus.presentation.routes.pdf_exports import router as pdf_exports_router
+from execplus.presentation.routes.plans import router as plans_router
 from execplus.presentation.routes.product_usage import router as product_usage_router
 from execplus.presentation.routes.refresh import router as refresh_router
 from execplus.presentation.routes.result_exports import router as result_exports_router
@@ -71,7 +80,14 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
             notifications.stop.set()
             await notification_task
             await collection_task
-            if collector.pending:
+            if (
+                collector.pending
+                or collector.observations
+                or collector.observation_batch is not None
+                or collector.collector_extras
+                or collector.dropped
+                or collector.outages
+            ):
                 await collector.collect_once()
             if runtime is None:
                 application.state.runtime.engine.dispose()
@@ -84,13 +100,15 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         default_response_class=EvidenceJSONResponse,
     )
     configured = settings or Settings()
+    configure_observation_logging()
     application.state.web_origin = configured.web_origin
+    application.add_middleware(AccountRequestGuard, web_origin=configured.web_origin)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[configured.web_origin],
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type"],
-        expose_headers=["Content-Disposition"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        expose_headers=["Content-Disposition", "X-Request-ID"],
     )
 
     @application.middleware("http")
@@ -98,19 +116,61 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         current_runtime = getattr(request.app.state, "runtime", None)
+        request_id = uuid4()
+        request.state.request_id = request_id
+        started = monotonic()
         try:
-            response = await call_next(request)
+            with plan_request_context(request.headers.get("Idempotency-Key")):
+                response = await call_next(request)
+        except IngestionError as exc:
+            response = JSONResponse(
+                status_code=exc.status, content={"error": {"code": exc.code, "message": str(exc)}}
+            )
+            if request.headers.get("origin") == configured.web_origin:
+                response.headers["Access-Control-Allow-Origin"] = configured.web_origin
+                response.headers["Access-Control-Expose-Headers"] = "X-Request-ID"
+                response.headers["Vary"] = "Origin"
         except Exception:
-            if current_runtime is not None:
-                current_runtime.incidents.record_http_failure()
-            raise
+            # Do not let framework tracebacks disclose SQL, credentials or uploaded content.
+            response = JSONResponse(
+                status_code=500,
+                content={
+                    "error": {
+                        "code": "internal_error",
+                        "message": "The request could not be completed. Try again.",
+                    }
+                },
+            )
+            if request.headers.get("origin") == configured.web_origin:
+                response.headers["Access-Control-Allow-Origin"] = configured.web_origin
+                response.headers["Access-Control-Expose-Headers"] = "X-Request-ID"
+                response.headers["Vary"] = "Origin"
+        category = category_for(request)
         if response.status_code >= 500 and current_runtime is not None:
-            current_runtime.incidents.record_http_failure()
+            current_runtime.incidents.record_http_failure(request_id, category or "other")
+            logging.getLogger("execplus.requests").error(
+                json.dumps(
+                    {
+                        "event": "request_failed",
+                        "request_id": str(request_id),
+                        "category": category or "other",
+                        "status": response.status_code,
+                    },
+                    separators=(",", ":"),
+                )
+            )
+        if current_runtime is not None and category is not None:
+            current_runtime.incidents.record_request(
+                category, response.status_code, int((monotonic() - started) * 1000)
+            )
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Request-ID"] = str(request_id)
         return response
 
     application.include_router(activation_router)
+    application.include_router(accounts_router)
+    application.include_router(plans_router)
     application.include_router(access_policies_router)
     application.include_router(health_router)
     application.include_router(incidents_router)
