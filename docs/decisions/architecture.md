@@ -3,13 +3,14 @@
 
 # ExecPlus Architecture
 
-## October 17 two-phase candidate
+## October 17 two-phase release
 
-The current local candidate reaches schema **0029**. Phase 1 is locally accepted
+The current private release reaches schema **0029**. Phase 1 is locally accepted
 at `2ee7d9c`; the reviewed connector merge is `142a7dd`. Phase 2 implementation
 and the combined local gate are accepted (2,937 backend cases;107 browser passes
-and3 named model-only skips). This section
-describes implemented architecture, not a claim that the backend is already live.
+and3 named model-only skips). Private release `4fff22633f0c5f44` is active; its
+[separate release ledger](../verification-codex-private-release.md) records actual
+images, preservation, fictional API/UI checks and backup verification.
 The [implementation matrix](../codex-two-phase-implementation.md) and
 [Phase 2 evidence](../verification-codex-phase2.md) own acceptance and release status.
 

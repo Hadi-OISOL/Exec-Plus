@@ -24,8 +24,8 @@ Starting commit: `d4db038`, personal branch `phase2`. Pre-existing changes are t
 generated `apps/web/next-env.d.ts`, the untracked original October 13 PDF and the
 untracked `docs/verification-independent-tools-release.md`. Preserve all three.
 The starting local schema is **0024**. Later authorized private-release preparation
-confirms the live application still uses **0020**; it has not yet been activated
-to the Phase 1 candidate.
+initially found the live application on **0020**. This starting-state observation
+is historical; the final private release below reaches **0029**.
 
 The October 13 report is historical: 37 Done / 16 Partial / 11 Not implemented.
 The checked-in October 16 ledger is 39 Done / 16 Partial / 9 Not yet: exports and
@@ -187,9 +187,9 @@ explicit repaired-source supplements reconcile the current2,937 cases with no
 missing, skipped or unresolved backend nodes. All37 original requirement mappings
 pass. Browser evidence reconciles107 latest passes and3 named model-only skips. The
 separately authorized private-VPS candidate now targets **0029**, not the earlier
-0027 preparation. Its immutable image checks pass; activation still requires the
-full gate, checked backup and original database/object/configuration preservation.
-The separately accepted CSS release leaves the current live backend on0020.
+0027 preparation. The immutable image checks passed, followed by the separately
+authorized private activation with checked backup and original database/object/
+configuration preservation. Read the [private release ledger](verification-codex-private-release.md).
 
 ## Final local acceptance
 
@@ -197,5 +197,6 @@ Both phases are complete within their documented local scope. All20 targeted IDs
 have delivered independently testable behavior; wider feature status and external
 gates remain explicit in the [final report](codex-two-phase-final-report.md).
 The ledger is41 Done /17 Partial /6 Not yet, preserving all64 IDs and8 open
-production gates. Private release4fff22633f0c5f44 is independently gated below
-local acceptance; its prepared images have not yet been activated at this checkpoint.
+production gates. Private release **4fff22633f0c5f44 /0029** is now active after
+its independent activation gate; fictional live checks and checked backups are
+recorded separately from local acceptance. Implementation checkpoint: `00be9da`.

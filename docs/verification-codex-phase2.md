@@ -114,9 +114,10 @@ original table projections, exactly 27 new empty tables, retained fictional
 account/workspace/memory rows and the intended invitation FK, in 1.901 seconds.
 This is synthetic local evidence, not a live restore or recovery-time objective.
 
-A separate CSS-only private release is documented in
-[its ledger](verification-oct17-styling-release.md). It leaves the live database
-at0020 and does not deploy this backend.
+The earlier CSS-only private release is documented in
+[its ledger](verification-oct17-styling-release.md). It retained schema0020. The
+subsequent **0029** activation and fictional live API/UI verification are recorded
+in the [private release ledger](verification-codex-private-release.md).
 
 The immutable release candidate is `4fff22633f0c5f44`, built from 973 explicitly
 listed files without private data or Git metadata. Both VPS candidate images build;
@@ -124,7 +125,8 @@ their non-root, network-disabled, read-only checks pass with bounded memory and 
 They cover prior exact computation/patterns, native password and portable exports,
 new contribution/scenario/anomaly/allocation methods, chronological Holt/seasonal
 fixtures and explicit-FX consolidation. API image `ab3d84bf` and web image `4d348afd`
-remain inactive at this local-acceptance checkpoint. The initial wrapper stopped because
+were inactive at that local-acceptance checkpoint and are now active in the
+separately verified private release. The initial wrapper stopped because
 Docker's image-ID file lacked a trailing newline; its successful build logs and
 failure are retained. The corrected reader passes 25 selfchecks, and a separate
 resume helper verifies the original source and immutable image IDs before checks.
@@ -153,7 +155,10 @@ The prepared fictional live-verification helpers also pass disposable-runtime
 selfchecks. Phase 1 covers lost-login-response recovery and independent account
 cleanup in four cases; Phase 2 covers its full journey and cleanup failures in three
 distinct cases. The helpers disable only accounts they generated. These local
-checks are not yet evidence of execution against the VPS.
+selfchecks are separate from the later passing VPS executions in the private
+release ledger. The final live browser helper adds bounded production homepage
+prefetch and safe diagnostics, with 34 local guard/cleanup checks and a real
+loopback transport selfcheck; no automatic write retries are used.
 
 ## Boundaries retained
 

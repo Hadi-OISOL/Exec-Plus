@@ -3,8 +3,14 @@
 
 # Phase 1 verification — local gate accepted
 
+The accepted Phase 1 checkpoint is included in the active schema0029 private release.
+See [Phase 2 acceptance](verification-codex-phase2.md) and its separately recorded
+[private release](verification-codex-private-release.md). The historical0027
+results and initial failures below remain unchanged.
+
 The Phase 1 local implementation gate is accepted within the recorded scope.
-Private-VPS activation and Phase 2 remain separate unfinished work. See
+At that checkpoint, private-VPS activation and Phase 2 were unfinished; the
+linked later ledgers now record their completion within explicit bounds. See
 [the implementation matrix](codex-two-phase-implementation.md) for authorized scope.
 The acceptance runs use local synthetic data, with hosted models and external
 delivery disabled. The later October 17 user instruction additionally authorizes

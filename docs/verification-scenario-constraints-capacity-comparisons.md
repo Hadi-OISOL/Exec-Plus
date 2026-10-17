@@ -3,6 +3,10 @@
 
 # Verification — scenario limits and capacity comparisons
 
+Subsequent combined local acceptance is recorded in [Phase 2 verification](verification-codex-phase2.md).
+The separately authorized [private release](verification-codex-private-release.md)
+does not change the local-only scope of the focused executions below.
+
 Date: October 17, 2026. Contract:
 [`scenario-constraints-capacity-comparisons.md`](scenario-constraints-capacity-comparisons.md).
 Work extends the accepted Phase 1/connector source; existing uncommitted work was

@@ -3,6 +3,10 @@
 
 # Governed distribution verification — October 17
 
+Subsequent combined local acceptance is recorded in [Phase 2 verification](verification-codex-phase2.md).
+The separately authorized [private release](verification-codex-private-release.md)
+does not change the local-only scope of the focused executions below.
+
 These changes extend the existing services; they add no migration, dependency,
 provider, credential requirement or external delivery. All tests use synthetic
 data and isolated PostgreSQL/MinIO. No deployment or production-data access occurred

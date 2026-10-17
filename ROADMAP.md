@@ -44,9 +44,11 @@ Feature counts are **41 Done /17 Partial /6 Not yet**, preserving all64 IDs and
 all8 open production gates. #61 is Done only for governed prepared-ledger manual
 consolidation; #63 is Partial for tested local embedding with external hosting
 acceptance still open. Other Partial rows retain their documented broader limits.
-Private candidate4fff22633f0c5f44/schema0029 is built and verified but not yet
-activated at this checkpoint. The separately authorized release requires backup,
-source/data preservation and fictional live checks; no push or provider call.
+Private release **4fff22633f0c5f44 /0029** is now active, with separate
+[release evidence](docs/verification-codex-private-release.md) for checked backups,
+original data/configuration preservation and fictional API/UI journeys. Local
+checkpoint `00be9da` preserves the connector ancestry. No push or provider call.
+The earlier release entries below are historical checkpoints.
 
 ## October 17 — Private-demo styling release
 

@@ -4,8 +4,10 @@
 # Two-phase implementation report
 
 **Both phases are accepted within the documented local scope.** The backend,
-frontend, browser, migration and recovery evidence is reconciled. Private-VPS
-activation is a separate step and remains pending at this checkpoint.
+frontend, browser, migration and recovery evidence is reconciled. Release
+**4fff22633f0c5f44** is now active on the private VPS at schema **0029**;
+[private release evidence](verification-codex-private-release.md) records its
+separate preservation, synthetic live checks and checked backups.
 The connector merge is integrated as `142a7dd`, preserving the accepted Phase 1
 parent `2ee7d9c` and incoming `2188a2e` ancestry. Existing working changes and
 private data were preserved. No push was performed.
@@ -84,11 +86,11 @@ expected calculations and a reproducible held-back forecast/actual comparison.
 Native signup works without external credentials. Model/email/vector services and
 outgoing delivery can remain disabled for the local demonstration.
 
-The private VPS currently has only the separately verified
-[CSS update](verification-oct17-styling-release.md), on schema0020. Its checked
-backups and actual image/container/source preservation are recorded separately.
-The full0029 release requires its own completed gate, immutable build, checked
-backup, old-data/object preservation, fictional live checks and post-release backup.
+The private VPS now runs the complete **0029** release, including the earlier
+[CSS update](verification-oct17-styling-release.md). The separately documented
+[release verification](verification-codex-private-release.md) preserves original
+data, objects and configuration and verifies new fictional API/UI journeys.
+Local implementation checkpoint: `00be9da`. No push was performed.
 No localhost result establishes production readiness.
 
 External exclusions remain: payment/billing activation, SMTP/verified-email reset,

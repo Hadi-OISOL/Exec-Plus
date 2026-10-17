@@ -40,6 +40,33 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 17 — Both phases delivered and private0029 release verified
+
+- Both development phases are accepted within documented local bounds at
+  **00be9da**. Connector merge **142a7dd** and incoming **2188a2e** ancestry remain.
+  Private release **4fff22633f0c5f44 /0029** is active: API/jobs **ab3d84bf**,
+  web **4d348afd**. No push or live connector/provider calls occurred.
+- Local evidence: **2,937 latest passing backend cases**, all37 original mapped
+  requirements, **107 browser passes /3 named model skips**, **59 frontend tests**,
+  static/build checks,112 offline evaluation checks and isolated0029 recovery.
+  Combined coverage and initial failures remain explicit, not one clean full run.
+- Separate live fictional checks pass five Phase1 API groups (64.479s), twelve
+  Phase2 groups (140.485s) and five native UI groups/nine desktop/mobile layouts
+  (40.652s). Generated accounts are disabled and sessions revoked. The initial
+  tunnel/verifier failures and exact synthetic-account cleanup remain recorded.
+- Activation preserves **50 original table projections**, **167 stored files**
+  and configuration. Checked backups: **20261017T161322Z** before and
+  **20261017T162930Z** after. All five services, six loopback listeners, readiness,
+  website and model/timers pass. Preserve newly saved work; never restore an old
+  database over later work. Existing real sessions/secrets were not changed.
+- Read [private release evidence](docs/verification-codex-private-release.md),
+  [final report](docs/codex-two-phase-final-report.md) and
+  [local walkthrough](docs/two-phase-local-walkthrough.md). Counts remain
+  **41 Done /17 Partial /6 Not yet** across64 IDs; all8 production gates stay open.
+  Broader limits and external acceptance remain explicit. Earlier entries below
+  are historical. No automatic next task is scheduled.
+
+
 ### October 17 — Both phases accepted locally; private release prepared
 
 - Both phases pass the combined local gate: **2,937 latest passing backend cases**,

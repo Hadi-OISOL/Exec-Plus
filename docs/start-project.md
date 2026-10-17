@@ -5,11 +5,11 @@
 
 Choose **A** to use the existing VPS demo. Choose **B** to run a separate copy on your computer.
 
-**October 17 version boundary:** the local two-phase candidate uses schema
-**0029**. The currently deployed private demo remains on **0020** until its
-separate release checks and activation finish. Starting the demo does not deploy
-this checkout. Use section B and the [local walkthrough](two-phase-local-walkthrough.md)
-to demonstrate the new work without touching the VPS.
+**October 17 version boundary:** the accepted local work and the private VPS
+release **4fff22633f0c5f44** use schema **0029**. Starting the demo does not deploy
+this checkout. See [private release evidence](verification-codex-private-release.md).
+Use section B and the [local walkthrough](two-phase-local-walkthrough.md) for a
+separate fictional-data demonstration without touching the VPS.
 
 ## A. Open the VPS demo
 
@@ -130,8 +130,8 @@ make init-storage
 ```
 
 Run `make migrate` after pulling changes. This checkout requires migration **0029**;
-the currently deployed private demo remains on **0020** until the pending release
-passes its checks. Check the local migration with `python3 -m alembic current`.
+the private release also uses **0029**, with separate release evidence.
+Check the local migration with `python3 -m alembic current`.
 The new tables include local accounts, resumable setup, allowances and internal
 request metrics, alongside the earlier integration/import/worksheet support.
 External connectors remain unused in this walkthrough. Existing data is retained;

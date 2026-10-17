@@ -9,7 +9,7 @@
       "section": "Month 1",
       "feature": "Company registration and secure login",
       "status": "partial",
-      "note": "Native email/password registration, owner workspace setup, login/logout, expiring and revocable sessions, password change, account disable and authorized operator recovery pass local backend/UI checks. Operator demo access remains. Email is an unverified identifier; verified-email reset, production identity/security review and activation remain open. The accepted 0027 candidate is not deployed.",
+      "note": "Native email/password registration, owner workspace setup, login/logout, expiring and revocable sessions, password change, account disable and authorized operator recovery pass local backend/UI checks. Operator demo access remains. Email remains an unverified identifier. Native account code is active in private release 4fff22633f0c5f44 on 0029; synthetic API/UI registration, password and session checks pass. Verified-email reset and production identity/security acceptance remain open.",
       "evidence": [
         "apps/api/src/execplus/infrastructure/identity.py",
         "apps/api/src/execplus/manage.py",
@@ -21,13 +21,15 @@
         "apps/api/tests/test_local_accounts_integration.py",
         "apps/web/e2e/local-accounts.spec.ts",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
       "evidence_groups": [
         "E1",
-        "E30"
+        "E30",
+        "E32"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged."
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open."
     },
     {
       "id": 2,
@@ -269,7 +271,7 @@
       "section": "Month 1",
       "feature": "PDF/Excel export",
       "status": "done",
-      "note": "Protected PDF, precise Excel, CSV/evidence and supported chart PNG exports retain current authorization, source versions and exact results. The local Phase 1 candidate adds professional paginated reports, report metadata, deterministic generation and synthetic source/dashboard/export agreement, with bounds, missing-value and formula-injection checks. The older 0020 export release remains live; new 0027 behavior is locally accepted only.",
+      "note": "Protected PDF, precise Excel, CSV/evidence and supported chart PNG exports retain current authorization, source versions and exact results. The local Phase 1 candidate adds professional paginated reports, report metadata, deterministic generation and synthetic source/dashboard/export agreement, with bounds, missing-value and formula-injection checks. The accepted implementation is active in private release 4fff22633f0c5f44 on 0029; live fictional query/dashboard/study and PDF/Excel/CSV agreement checks pass.",
       "evidence": [
         "ROADMAP.md",
         "README.md",
@@ -286,15 +288,17 @@
         "apps/web/e2e/result-exports.spec.ts",
         "docs/verification-local-workflow.md",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
       "evidence_groups": [
         "E8",
         "E26",
         "E29",
-        "E30"
+        "E30",
+        "E32"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged."
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open."
     },
     {
       "id": 14,
@@ -312,13 +316,15 @@
         "apps/api/tests/test_local_plans.py",
         "apps/web/e2e/local-plans.spec.ts",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
       "evidence_groups": [
         "E1",
-        "E30"
+        "E30",
+        "E32"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged."
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open."
     },
     {
       "id": 15,
@@ -650,13 +656,15 @@
         "apps/api/tests/test_contribution_studies.py",
         "apps/web/e2e/contribution-studies.spec.ts",
         "docs/verification-codex-phase2.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E5",
         "E22",
-        "E31"
+        "E31",
+        "E32"
       ]
     },
     {
@@ -781,7 +789,7 @@
       "section": "Commercial readiness",
       "feature": "Security hardening",
       "status": "partial",
-      "note": "Local native authentication, origin and streamed-body checks, safe errors, rate limits, account disable/revocation and shared authorization guards pass negative backend/UI tests. Existing private-resource and tenant boundaries remain. Public HTTPS/proxy setup, independent penetration/privacy review and production security acceptance remain open; the 0027 candidate is not deployed.",
+      "note": "Local native authentication, origin and streamed-body checks, safe errors, rate limits, account disable/revocation and shared authorization guards pass negative backend/UI tests. Existing private-resource and tenant boundaries remain. Public HTTPS/proxy setup, independent penetration/privacy review and production security acceptance remain open; the accepted code is active in private release 4fff22633f0c5f44 on 0029, with separate synthetic API boundary checks.",
       "evidence": [
         "apps/api/src/execplus/main.py",
         "apps/api/src/execplus/infrastructure/identity.py",
@@ -793,13 +801,15 @@
         "apps/api/tests/test_local_accounts_integration.py",
         "apps/api/tests/test_dataset_access.py",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged.",
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
         "E6",
         "E7",
-        "E30"
+        "E30",
+        "E32"
       ]
     },
     {
@@ -835,7 +845,7 @@
       "section": "Commercial readiness",
       "feature": "Backup and recovery",
       "status": "partial",
-      "note": "The local 0027 recovery rehearsal checks archive integrity, restores only disposable empty targets and verifies 73 table fingerprints, three uploads/revisions and three exact receipts. An expanded rehearsal includes native account, private onboarding, plan and incident records; disabled-account and revoked-source replay denials pass. Earlier private-demo backups remain historical evidence. Production restore, off-server custody/retention and formal recovery objectives remain open.",
+      "note": "The local 0029 recovery rehearsal checks archive integrity, restores only disposable empty targets and verifies 77 matching table fingerprints, three uploads/revisions and three exact replays. The earlier expanded 0027 rehearsal includes native account, private onboarding, plan and incident records; disabled-account and revoked-source replay denials pass. Private 0029 release pre/post backups 20261017T161322Z/20261017T162930Z pass checksum and archive-readability checks; no live restore occurred. Production restore, off-server custody/retention and formal recovery objectives remain open.",
       "evidence": [
         "deploy/vps/backup.sh",
         "apps/api/tests/test_backup_worker_coordination.py",
@@ -849,13 +859,16 @@
         "docs/verification-local-workflow.md",
         "scripts/rehearse_local_recovery.py",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-phase2.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged.",
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
         "E9",
         "E28",
-        "E30"
+        "E30",
+        "E32"
       ]
     },
     {
@@ -863,7 +876,7 @@
       "section": "Commercial readiness",
       "feature": "Error monitoring",
       "status": "done",
-      "note": "Existing staff-only incident review remains delivered. Local Phase 1 adds redacted request/job correlation, bounded request/error aggregates, actual observation windows, versioned in-app alert thresholds and retention/deduplication checks. The API and admin UI pass local tests; no raw customer content or private prompts are collected. New 0027 monitoring is not deployed; external paging and uptime guarantees are not claimed.",
+      "note": "Existing staff-only incident review remains delivered. Local Phase 1 adds redacted request/job correlation, bounded request/error aggregates, actual observation windows, versioned in-app alert thresholds and retention/deduplication checks. The API and admin UI pass local tests; no raw customer content or private prompts are collected. The monitoring code is included in the active 0029 private release; its API/admin verification remains the recorded local evidence. External paging and uptime guarantees are not claimed.",
       "evidence": [
         "apps/api/src/execplus/infrastructure/readiness.py",
         "apps/api/src/execplus/application/services/activation.py",
@@ -875,14 +888,16 @@
         "apps/api/tests/test_operational_metrics.py",
         "apps/web/e2e/incidents.spec.ts",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged.",
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
         "E6",
         "E8",
         "E29",
-        "E30"
+        "E30",
+        "E32"
       ]
     },
     {
@@ -905,7 +920,7 @@
         "docs/verification-codex-phase1.md",
         "docs/regression-original-37.md"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged.",
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
         "E7",
         "E22",
@@ -931,7 +946,7 @@
         "docs/verification-codex-phase1.md",
         "docs/regression-original-37.md"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged.",
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
         "E6",
         "E7",
@@ -943,7 +958,7 @@
       "section": "Commercial readiness",
       "feature": "Plan-specific usage limits",
       "status": "done",
-      "note": "Demo, Starter, Growth and Enterprise are configurable local capacity presets with versioned administrator assignments, explicit periods and backend-enforced seat, dataset, file/storage, study, processing, export, forecast and model-attempt allowances. Concurrency, retries, period changes and actual owner/admin UI journeys pass. Done applies only to this price-free internal entitlement scope; it is not subscriptions, billing, payment activation or a deployed VPS change.",
+      "note": "Demo, Starter, Growth and Enterprise are configurable local capacity presets with versioned administrator assignments, explicit periods and backend-enforced seat, dataset, file/storage, study, processing, export, forecast and model-attempt allowances. Concurrency, retries, period changes and actual owner/admin UI journeys pass. Done applies only to this price-free internal entitlement scope. The code is active in the private 0029 release and synthetic accounts receive Demo allowances through API/UI checks; this is not subscriptions, billing or payment activation.",
       "evidence": [
         "apps/api/src/execplus/config.py",
         "apps/api/src/execplus/application/services/workspaces.py",
@@ -955,12 +970,14 @@
         "apps/api/tests/test_local_plans.py",
         "apps/web/e2e/local-plans.spec.ts",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged.",
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
         "E8",
-        "E30"
+        "E30",
+        "E32"
       ]
     },
     {
@@ -968,7 +985,7 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "partial",
-      "note": "Native registration and workspace provisioning connect to a private versioned setup guide: upload/sample, quality and meaning review, safe cleaning, first analysis/dashboard, recommendations and teammates. Resume, pause/skip, explicit Finish and reopen pass through the actual UI/backend; shared corrections still require confirmation. Production onboarding, verified-email recovery/delivery and representative customer acceptance remain open; 0027 is locally accepted, not deployed.",
+      "note": "Native registration and workspace provisioning connect to a private versioned setup guide: upload/sample, quality and meaning review, safe cleaning, first analysis/dashboard, recommendations and teammates. Resume, pause/skip, explicit Finish and reopen pass through the actual UI/backend; shared corrections still require confirmation. The code is active in private release 4fff22633f0c5f44 on 0029, and synthetic API/UI setup persistence checks pass. Production onboarding, verified-email recovery/delivery and representative customer acceptance remain open.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
@@ -988,16 +1005,18 @@
         "apps/api/tests/test_local_accounts_integration.py",
         "apps/web/e2e/local-accounts.spec.ts",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged.",
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
         "E10",
         "E16",
         "E19",
         "E21",
         "E26",
-        "E30"
+        "E30",
+        "E32"
       ]
     },
     {
@@ -1047,7 +1066,7 @@
         "docs/verification-codex-phase1.md",
         "docs/regression-original-37.md"
       ],
-      "roadmap": "October 17 Phase 1 locally accepted on schema 0027; not deployed. Live schema 0020 and all eight production gates remain unchanged.",
+      "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
         "E12",
         "E22",
@@ -1151,7 +1170,7 @@
         "apps/api/tests/test_forecast_hardening.py",
         "docs/regression-original-37.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E8",
         "E29",
@@ -1185,14 +1204,16 @@
         "apps/api/tests/test_scenario_capacity_integration.py",
         "apps/web/e2e/scenario-capacity.spec.ts",
         "docs/verification-codex-phase2.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E15",
         "E18",
         "E20",
-        "E31"
+        "E31",
+        "E32"
       ]
     },
     {
@@ -1220,13 +1241,15 @@
         "apps/api/tests/test_advanced_anomaly_integration.py",
         "apps/api/tests/test_multivariate_query_boundary.py",
         "apps/web/e2e/advanced-anomalies.spec.ts",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E14",
         "E18",
-        "E31"
+        "E31",
+        "E32"
       ]
     },
     {
@@ -1256,14 +1279,16 @@
         "apps/api/tests/test_scenario_capacity_integration.py",
         "apps/web/e2e/scenario-capacity.spec.ts",
         "docs/verification-codex-phase2.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E14",
         "E18",
         "E22",
-        "E31"
+        "E31",
+        "E32"
       ]
     },
     {
@@ -1302,12 +1327,14 @@
         "apps/web/src/app/workspace/consolidation-panel.tsx",
         "apps/web/e2e/consolidation.spec.ts",
         "docs/verification-codex-phase2.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E8",
-        "E31"
+        "E31",
+        "E32"
       ]
     },
     {
@@ -1331,12 +1358,14 @@
         "apps/api/tests/test_webhooks_integration.py",
         "apps/web/e2e/integrations.spec.ts",
         "docs/verification-codex-phase2.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E8",
-        "E31"
+        "E31",
+        "E32"
       ]
     },
     {
@@ -1358,12 +1387,14 @@
         "apps/api/tests/test_customer_results_api.py",
         "apps/web/e2e/integrations.spec.ts",
         "docs/verification-codex-phase2.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E8",
-        "E31"
+        "E31",
+        "E32"
       ]
     },
     {
@@ -1389,13 +1420,15 @@
         "apps/api/tests/test_company_consolidation_integration.py",
         "apps/api/tests/test_customer_results_api.py",
         "docs/verification-codex-phase2.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-codex-private-release.md"
       ],
-      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
+      "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
         "E8",
         "E29",
-        "E31"
+        "E31",
+        "E32"
       ]
     }
   ],
@@ -1656,7 +1689,7 @@
       ]
     ],
     "E30": [
-      "October 17 accepted local Phase 1 foundation; not deployed",
+      "October 17 accepted local Phase 1 foundation; included in private release 4fff22633f0c5f44 on 0029",
       [
         "docs/verification-codex-phase1.md",
         "docs/codex-two-phase-implementation.md",
@@ -1678,10 +1711,16 @@
         "docs/customer-results-api.md",
         "examples/local-embed-host/README.md"
       ]
+    ],
+    "E32": [
+      "October 17 active private release 4fff22633f0c5f44 on 0029; separately recorded synthetic verification",
+      [
+        "docs/verification-codex-private-release.md"
+      ]
     ]
   },
   "section_intros": {
-    "Month 1": "Core analysis and protected PDF/Excel exports work. Native registration and internal allowances are locally accepted on 0027 but not deployed; production identity review, payments and paid-plan operation remain open.",
+    "Month 1": "Core analysis and protected PDF/Excel exports work. Native registration and internal allowances are locally accepted on 0027 and included in private release 4fff22633f0c5f44 on 0029; production identity review, payments and paid-plan operation remain open.",
     "Improve activation": "Upload-first onboarding and usage reporting are delivered. The local native setup guide and price-free allowance UI pass backend/browser checks; live email delivery and billing remain unfinished.",
     "Growth-plan features": "Basic forecasting, accuracy checks, later-actual comparisons, grounded commentary and searchable audit history now join the delivered team, dashboard, refresh and alert features. Proven root-cause analysis remains open.",
     "Commercial readiness": "Private-demo admin/support/usage reporting remain delivered. Local Phase 1 adds tested native accounts, internal plans, recovery, monitoring and measured optimizations. Production launch, representative performance and paid-plan operation remain open.",
@@ -1788,9 +1827,9 @@
     ]
   ],
   "narrative": {
-    "p01": "A working private analytics demo exists. October 17 Phase 1 is additionally accepted locally on schema 0027 and is not deployed; the live private demo remains on 0020. Noncommercial use and all eight production gates remain unchanged.",
+    "p01": "Both development phases are accepted within their documented local scope at checkpoint 00be9da. Private release 4fff22633f0c5f44 is active on schema 0029. Noncommercial use and all eight open production gates remain unchanged; private-release verification is recorded separately.",
     "p02": "Governed files, dashboards/chat, measured relationships, saved work, basic and opt-in advanced forecasts, refresh/alerts, audit, support/usage, anomaly checks, budget choices and explicit what-if scenarios. Field diagrams, private context, protected portable results and row/column policies are delivered.",
-    "p03": "Production identity/security acceptance; payments and paid subscriptions; live external connectors and embedding; representative advanced-method acceptance and complete production operations. Native registration and price-free internal plans are locally delivered; Phase 2 final acceptance remains pending.",
+    "p03": "Production identity/security acceptance, payments and paid subscriptions, real external delivery and hosting, representative advanced-method acceptance and complete production operations remain open. Native registration and price-free internal plans are delivered; both local development phases are accepted.",
     "p04": "Done means the requested function is implemented and supported by tests within its stated local or private-demo scope. Local acceptance does not mean deployment. Partly done means a subset works or required setup/acceptance remains. Not yet means the end-to-end capability is absent. Every row states its limits.",
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
     "p06": "“Company registration” means software account signup, not legal incorporation.",
@@ -1805,14 +1844,14 @@
     "p15": "Start with read-only Google Sheets and an approved PostgreSQL source. Add accounting systems and BigQuery only after safe connection/refresh behavior is verified.",
     "p16": "Internal administration, support and usage reporting remain delivered. Local native setup and administrator-controlled tier allowances now pass real backend/UI tests. Payments, subscriptions, payment-derived upgrades and real email delivery remain unfinished.",
     "p17": "Representative evaluations, identity/security, recovery and provider privacy must pass. Private-demo evidence does not clear production launch gates.",
-    "p18": "The independent remaining-work instruction is active. Phase 1 is locally accepted on 0027; Phase 2 final verification remains pending. The live 0020 private demo is unchanged. External integrations and production launch require their own reviewed evidence.",
+    "p18": "The requested two-phase local implementation is accepted at checkpoint 00be9da. Private release 4fff22633f0c5f44 is active on schema 0029, with passing synthetic API/UI journeys and checked pre/post backups. External integrations and production launch require their own reviewed evidence.",
     "p19": "PDF/Excel exports remain Done within the tested scope. Native signup and internal tier allowances are locally verified; production identity acceptance, payments and paid-plan configuration remain unfinished. No payment activation is simulated.",
     "p20": "Representative customer examples and labels; retrieval/citation quality; a tested production search provider; backup/restore proof; model quality/speed/cost comparison; hosted-provider privacy; real email delivery; and production identity/security. A successful demo does not close these checks. [E7]",
     "p21": "Durable chat requests with real activity, reconnect/resume, cancellation and Simple/Expert views.",
     "p22": "These extras are not added to the 64-item score. The optional AI judge was evaluated and rejected; it is not a delivered runtime capability.",
     "p23": "Advertise tested descriptive analytics, basic forecasts and bounded conditional analysis with limitations. Do not claim full predictive or prescriptive analytics.",
-    "p24": "Live web 5c48d3c and API/jobs 867c5a0 remain on schema 0020. The accepted October 17 local Phase 1 candidate reaches 0027 with native accounts, guided setup, price-free plans and operational checks; it has not been activated on the VPS. Personal phase2 includes phase3 data-reading commit 2a93080.",
-    "p25": "Phase 1 reconciliation accounts for all 2,580 collected backend cases with latest passing executions and maps all 37 original completed requirements. Nine initial harness failures remain recorded; five generated-XLSX node aliases were verified from identical uncompressed fixtures. This is combined full/focused coverage, not one clean run. Frontend checks, builds, offline browser journeys and targeted onboarding/allowance paths pass; three model-dependent journeys remain skipped. Phase 2 final regression and all eight production gates remain open.",
+    "p24": "Private release 4fff22633f0c5f44 is active on schema 0029 from accepted local checkpoint 00be9da, preserving connector merge 142a7dd. Activation preserved the original database rows, stored files and configuration. Exact runtime artifacts, synthetic checks and checked backups 20261017T161322Z/20261017T162930Z are recorded in docs/verification-codex-private-release.md.",
+    "p25": "Phase 1 reconciles 2,580 latest passing backend cases. Phase 2 passes 2,932 frozen cases and reconciles 2,937 current cases after explicit security repairs; all 37 original requirements remain covered. Local browser coverage is 107 latest passes and three named model-only skips. Initial failures and strict XLSX alias proofs remain retained. Combined coverage is not one clean current-source run. Private-release checks are separate, and all eight production gates remain open.",
     "p26": "Current evidence outranks old phase labels. Complete applies only to the tested scope.",
     "p27": "One score per original VC line, in order; keep overlapping requests separate.",
     "p28": "Combined requests need all key parts; variance and root cause are different.",

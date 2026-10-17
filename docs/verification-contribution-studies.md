@@ -3,6 +3,10 @@
 
 # Contribution study verification
 
+Subsequent combined local acceptance is recorded in [Phase 2 verification](verification-codex-phase2.md).
+The separately authorized [private release](verification-codex-private-release.md)
+does not change the local-only scope of the focused executions below.
+
 Status: backend and browser implementation with focused verification complete on top of accepted
 Phase 1 and connector checkpoint `142a7dd`. Local synthetic data only; no provider,
 customer data, VPS, deployment, schema or dependency change. The full Phase 2
