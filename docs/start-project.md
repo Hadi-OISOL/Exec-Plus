@@ -5,6 +5,12 @@
 
 Choose **A** to use the existing VPS demo. Choose **B** to run a separate copy on your computer.
 
+**October 17 version boundary:** the local two-phase candidate uses schema
+**0029**. The currently deployed private demo remains on **0020** until its
+separate release checks and activation finish. Starting the demo does not deploy
+this checkout. Use section B and the [local walkthrough](two-phase-local-walkthrough.md)
+to demonstrate the new work without touching the VPS.
+
 ## A. Open the VPS demo
 
 ### 1. Open a terminal in the project
@@ -114,17 +120,22 @@ The copy commands keep any existing settings. Run `make install` again after pul
 
 In the same terminal:
 
+First check that `.env` points to your separate local database and storage.
+Never run these migrations against a VPS database.
+
 ```bash
 make dev-infra COMPOSE="docker compose"
 make migrate
 make init-storage
 ```
 
-Run `make migrate` after pulling changes. This checkout requires migration **0024**;
+Run `make migrate` after pulling changes. This checkout requires migration **0029**;
 the currently deployed private demo remains on **0020** until the pending release
-passes its checks. Existing data is retained. The new tables support usage,
-integrations, approved source imports and private company worksheets. Do not
-downgrade across retained saved work.
+passes its checks. Check the local migration with `python3 -m alembic current`.
+The new tables include local accounts, resumable setup, allowances and internal
+request metrics, alongside the earlier integration/import/worksheet support.
+External connectors remain unused in this walkthrough. Existing data is retained;
+do not downgrade across retained saved work.
 
 If Docker needs sudo on Linux, use this instead of the first command:
 
@@ -134,28 +145,34 @@ make dev-infra COMPOSE="sudo docker compose"
 
 If your installation uses `docker-compose`, substitute that for `docker compose`. Do not run the whole `make` command with sudo: Python needs your active virtual environment.
 
-### 3. Get a local sign-in token
+### 3. Keep the local demonstration offline
 
-```bash
-python3 -m execplus.manage provision-user --email owner@example.test
-```
-
-Copy the printed token privately. Run this command again when it expires.
+The commands below explicitly disable models, vectors and email for this local
+run. They leave existing settings files unchanged. Use fictional uploads and
+samples; no provider key, email account, connector or billing setup is needed.
+Keep webhook destinations unconfigured. These steps demonstrate deterministic
+tools and their evidence; open-ended model conversation is a separate capability.
 
 ### 4. Start the API — terminal 1
 
 ```bash
-cd /home/it-admin/OISOL
+cd /home/hadiabbasisdev/Desktop/OISOL
 source .venv/bin/activate
-make api
+EXECPLUS_LLM_MODE=disabled EXECPLUS_VECTOR_MODE=disabled \
+  EXECPLUS_EMAIL_MODE=disabled EXECPLUS_WEBHOOK_MASTER_SECRET= \
+  EXECPLUS_WEBHOOK_DESTINATIONS='{}' \
+  python3 -m uvicorn execplus.main:app --app-dir apps/api/src \
+    --reload --no-access-log --no-proxy-headers --host 127.0.0.1 --port 8000
 ```
 
 ### 5. Start the chat worker — terminal 2
 
 ```bash
-cd /home/it-admin/OISOL
+cd /home/hadiabbasisdev/Desktop/OISOL
 source .venv/bin/activate
-make jobs
+EXECPLUS_LLM_MODE=disabled EXECPLUS_VECTOR_MODE=disabled \
+  EXECPLUS_EMAIL_MODE=disabled EXECPLUS_WEBHOOK_MASTER_SECRET= \
+  EXECPLUS_WEBHOOK_DESTINATIONS='{}' make jobs
 ```
 
 Keep this running: it processes chat questions. Without it, queued requests cannot finish.
@@ -163,41 +180,63 @@ Keep this running: it processes chat questions. Without it, queued requests cann
 ### 6. Start the website — terminal 3
 
 ```bash
-cd /home/it-admin/OISOL
-make web
+cd /home/hadiabbasisdev/Desktop/OISOL
+npm --workspace @execplus/web run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
-Keep all three terminals open.
+Keep all three terminals open. Replace the checkout path in each terminal on
+another computer. The API and web commands bind only to this computer. Preserve
+`--no-proxy-headers`: direct-peer account rate limits must not trust arbitrary
+forwarded headers.
 
 ### 7. Open and use the app
 
-Open **http://localhost:3000/workspace** and sign in with the local token from step 3.
+Open **http://localhost:3000/workspace**. Choose **New account**, enter a fictional
+local identifier such as `learner@example.test`, your display name, a password of
+15–128 characters twice and a workspace name, then submit **Create local account**.
+Use **Sign in with
+password** to enter. Registration creates a private owned workspace and a local
+Demo allowance; it does not verify the mailbox or activate a paid subscription.
 
-1. Open **Data library** and upload a CSV/XLSX or choose a fictional sample.
-2. Use **Overview** for starting insights and questions.
-3. Open **Ask ExecPlus** for chat, or **Search data** for the dashboard.
-4. Browse **Saved work**, **Studies & dashboards**, **Forecasts** and **Support** as needed.
+An operator may still create a separate demo-token account:
+
+```bash
+python3 -m execplus.manage provision-user --email operator-demo@example.test
+```
+
+Copy that printed token privately into **Session token → Sign in**. This command
+refuses an existing password account; use its password or the authorized recovery
+procedure in [local accounts](local-accounts-onboarding.md). Tokens are never a
+password-recovery shortcut.
+
+1. Follow **Your setup guide**, or pause it and resume later.
+2. Open **Data library** and upload a CSV/XLSX or choose **Explore retail demo**.
+3. Review quality, meanings and units in **Prepare data** before confirming them.
+4. Follow the [two-phase local walkthrough](two-phase-local-walkthrough.md) for
+   exact calculations, saved results, exports and advanced tools.
 
 API readiness: **http://localhost:8000/health/ready**. API documentation: **http://localhost:8000/docs**.
 
-### 8. Enable AI chat if this is a fresh installation
+### 8. Know what this offline run proves
 
-The example configuration has models disabled. Basic dashboards and forecasts can run without a model; full natural-language planning needs one.
+Guided calculations, quality checks, cleaning, forecasts, explicit scenarios,
+decision tools and protected downloads run locally. The model is disabled, so
+an arbitrary conversational question may need a supported guided action or show
+an explicit unavailable response. Do not treat that as a measured hosted-model
+result. No provider setup is required for either local implementation phase.
 
-In the root `.env`, set these values and add your own approved key locally:
-
-```dotenv
-EXECPLUS_LLM_MODE=hosted
-EXECPLUS_LLM_BASE_URL=https://api.deepseek.com
-EXECPLUS_LLM_SMALL_MODEL=deepseek-v4-pro
-EXECPLUS_LLM_LARGE_MODEL=deepseek-v4-pro
-```
-
-Put the key in `EXECPLUS_LLM_API_KEY`, then restart **both `make api` and `make jobs`**. Keep existing working model settings if already configured. The VPS demo already has its model configuration.
+The [Phase 1](verification-codex-phase1.md) and
+[Phase 2](verification-codex-phase2.md) records separate passed checks, retained
+failures and open gates. Local HTTP, synthetic data and a successful build do not
+establish public deployment or representative customer acceptance.
 
 ### 9. Start again another day
 
-Activate `.venv`, run `make dev-infra COMPOSE="docker compose"`, then start the API, worker and website in their three terminals. Get a new token if needed. There is no need to recreate `.env` or the virtual environment each time.
+Activate `.venv`, run `make dev-infra COMPOSE="docker compose"`, then use the API,
+worker and website commands above. Sign in again with your local password;
+browser reload does not retain a session. There is no need to recreate `.env` or
+the virtual environment each time. Operator-token accounts can request a fresh
+token through the same local provisioning command.
 
 To stop locally, press **Ctrl + C** in each app terminal, then run:
 
@@ -214,6 +253,8 @@ This preserves database/storage volumes. Do not add `-v` if you want to keep you
 | `No module named execplus` | From the project root, run `source .venv/bin/activate`, then `make install`. Use that environment for every Python command. |
 | Port `5432` is occupied | In root `.env`, set `EXECPLUS_POSTGRES_PORT=55433` and `EXECPLUS_DATABASE_URL=postgresql+psycopg://execplus:execplus@localhost:55433/execplus` **before** running `make dev-infra`. Use a free port and update both settings together; these credentials are the local Compose defaults. |
 | Chat stays queued | Check that `make jobs` is running with the same configuration as the API. |
-| Token rejected | Generate a fresh token for the same deployment and account; local and VPS tokens are separate. |
+| Token rejected | For a password account, sign in with its password. For an operator account, issue a fresh token on that same installation; local and VPS tokens are separate. |
+| New account is unavailable | Check the local `EXECPLUS_LOCAL_REGISTRATION_ENABLED` setting. Do not use token provisioning to replace an existing native account. |
+| New work hits an allowance | Open **Usage & retention → Workspace allowances**. A local platform administrator can assign a valid internal allowance; saved evidence remains retained. This is not a payment flow. |
 | Sign-in does nothing through a LAN address | Configure the browser API address, CORS origin and allowed dev host as shown in [LAN setup](week1-api.md#access-through-a-network-address), then restart API/web. |
 | Port `3000` or `8000` is occupied | Check whether your earlier ExecPlus process is still running. Reuse or stop that process before starting another copy. |

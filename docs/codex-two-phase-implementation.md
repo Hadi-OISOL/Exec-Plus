@@ -1,4 +1,4 @@
-> **File use case:** Tracks the October 17 local-only two-phase implementation.
+> **File use case:** Tracks the October 17 two-phase implementation and separately authorized private release.
 > **What it does:** Connects the original requirements to inspected code, implementation, tests and honest acceptance boundaries.
 
 # Two-phase implementation
@@ -40,7 +40,7 @@ evidence, not a substitute for the requested baseline.
 
 ## Phase 1 implementation matrix
 
-| Slice / IDs | Current ledger | Inspected local foundation and required increment | Expected checks / dependencies | State |
+| Slice / IDs | Prior ledger | Inspected local foundation and required increment | Expected checks / dependencies | State |
 | --- | --- | --- | --- | --- |
 | P1.1 / 13 | Done | Reuse `result_exports`, PDF/portable renderers and protected downloads. Verify supported study/dashboard/KPI/forecast/comparison round trips, metadata, precision, nulls, dates, units, pagination and bounds; repair actual gaps. | Synthetic report fixtures; PDF text/pages, XLSX explicit cells/evidence, injection, forged IDs, current grants and oversized results. Existing ReportLab/Pillow/openpyxl only. | Locally accepted; deployment separate |
 | P1.2 / 1 | Partial | Extend existing opaque sessions with local password registration/login/change/disable and documented operator recovery. Reuse users, workspace/organization provisioning and current authorization. Registration must never claim an existing operator identity or treat an unverified email as invitation proof. | Password hashing, generic errors, throttling/concurrency, expiry/revocation, CSRF/origin, reset/disable, cross-user denial, real UI registration/login. No SMTP/OAuth. | Locally accepted; deployment separate |
@@ -72,22 +72,22 @@ reliable local operation quotas; do not manufacture token counts from text bytes
 
 ## Phase 2 implementation matrix
 
-| Slice / IDs | Current ledger | Inspected local foundation and required increment | Expected checks / dependencies | State |
+| Slice / IDs | Prior ledger | Inspected local foundation and required increment | Expected checks / dependencies | State |
 | --- | --- | --- | --- | --- |
-| P2.1 / 33 | Partial | Extend existing exact change/group comparisons with a standalone saved period/dataset contribution workflow and eligible price/volume/mix formulas. Preserve source receipts and explicit observed-contribution wording. | Independent exact decomposition, missing groups/units/periods, source/version changes, drilldown permissions and export parity. | Audit |
-| P2.2 / 56 | Partial | Existing naive/seasonal-naive/SES/Holt/damped/Holt-Winters selection uses chronological validation/holdout. Verify sufficiency, train-only preparation, metrics, empirical interval labels and immutable vintages; repair gaps. | Leakage adversaries, seasonal/missing periods, benchmark comparison, exact actual comparisons, save/replay/export. Existing local numerical stack. | Audit |
-| P2.3 / 57 | Partial | Existing private source scenarios accept up to four explicit drivers with immutable successors. Extend declared constraints and meaningful sensitivity/variant presentation without learned causal claims. | Unit/formula consistency, simultaneous change/no double count, conservative/baseline/optimistic assumptions, source lineage and private revisions. | Audit |
-| P2.4 / 58 | Partial | Reuse MAD/IQR, seasonal residual and distribution-drift engines. Add justified bounded rolling and multivariate methods where synthetic evidence supports them; retain exact flagged records and feedback. | Seasonal alignment, insufficient/dirty observations, thresholds, exact replay, labeled-fixture alert precision/recall, permission scopes. | Audit |
-| P2.5 / 59 | Partial | Reuse exact enumeration and bounded CP-SAT, multi-resource constraints and approval histories. Add transparent alternative/sensitivity comparisons and infeasibility explanations where missing. | Independent objective/utilization checks, infeasible/unknown outcomes, explicit assumptions, source changes invalidate new approval, preserved history. Existing vetted solver. | Audit |
-| P2.6 / 61 | Missing | Local company worksheets already implement mappings, explicit FX, balanced user eliminations and protected exports. Add/verify explicit consolidation grant and current access to every source. | Synthetic companies, missing periods/FX/nonadditive metrics, exact layers, revoked grant/result/export denial, no private automatic merge. | Audit |
-| P2.7 / 62 | Partial | Reuse issuer-scoped hashed keys, outbox/signature/retry engine. Extend allowed saved analysis/forecast/job status surfaces through existing services and local loopback receiver tests. | Scope/expiry/revocation/quotas, row/column privacy, deterministic payloads, retry/idempotency and SSRF defenses. Real delivery disabled. | Audit |
-| P2.8 / 63 | Missing | Reuse existing one-use host-bound embed grants and dashboard-only sessions; verify local host, short expiry/revocation and protected exports. | Valid/forged/expired/wrong-host/wrong-tenant/session escalation, response/frame policy and local browser embedding. No external hosting. | Audit |
-| P2.9 / 64 | Partial | Extend existing server-side source policy/replay guards to every new route and artifact. Audit aggregate/profile/suggestions/cache/error paths and conservative small-group limits. | Permission matrix across source, query, saved result, search, forecast, export, integration and embed; grant/revoke races and redacted audit events. | Audit |
-| P2.10 / 1–64 applicable | Mixed | Connect supported lifecycle steps through existing Simple/Expert views and contextual actions, preserving the always-open Overview repair. | Full synthetic lifecycle, keyboard/mobile/reduced-motion, evidence/units/missing-input labels, explicit recommendation review and later actuals. | Audit |
+| P2.1 / 33 | Partial | Extend existing exact change/group comparisons with a standalone saved period/dataset contribution workflow and eligible price/volume/mix formulas. Preserve source receipts and explicit observed-contribution wording. | Independent exact decomposition, missing groups/units/periods, source/version changes, drilldown permissions and export parity. | Locally accepted; deployment separate |
+| P2.2 / 56 | Partial | Existing naive/seasonal-naive/SES/Holt/damped/Holt-Winters selection uses chronological validation/holdout. Verify sufficiency, train-only preparation, metrics, empirical interval labels and immutable vintages; repair gaps. | Leakage adversaries, seasonal/missing periods, benchmark comparison, exact actual comparisons, save/replay/export. Existing local numerical stack. | Locally accepted; deployment separate |
+| P2.3 / 57 | Partial | Existing private source scenarios accept up to four explicit drivers with immutable successors. Extend declared constraints and meaningful sensitivity/variant presentation without learned causal claims. | Unit/formula consistency, simultaneous change/no double count, conservative/baseline/optimistic assumptions, source lineage and private revisions. | Locally accepted; deployment separate |
+| P2.4 / 58 | Partial | Reuse MAD/IQR, seasonal residual and distribution-drift engines. Add justified bounded rolling and multivariate methods where synthetic evidence supports them; retain exact flagged records and feedback. | Seasonal alignment, insufficient/dirty observations, thresholds, exact replay, labeled-fixture alert precision/recall, permission scopes. | Locally accepted; deployment separate |
+| P2.5 / 59 | Partial | Reuse exact enumeration and bounded CP-SAT, multi-resource constraints and approval histories. Add transparent alternative/sensitivity comparisons and infeasibility explanations where missing. | Independent objective/utilization checks, infeasible/unknown outcomes, explicit assumptions, source changes invalidate new approval, preserved history. Existing vetted solver. | Locally accepted; deployment separate |
+| P2.6 / 61 | Missing | Local company worksheets already implement mappings, explicit FX, balanced user eliminations and protected exports. Add/verify explicit consolidation grant and current access to every source. | Synthetic companies, missing periods/FX/nonadditive metrics, exact layers, revoked grant/result/export denial, no private automatic merge. | Locally accepted; deployment separate |
+| P2.7 / 62 | Partial | Reuse issuer-scoped hashed keys, outbox/signature/retry engine. Extend allowed saved analysis/forecast/job status surfaces through existing services and local loopback receiver tests. | Scope/expiry/revocation/quotas, row/column privacy, deterministic payloads, retry/idempotency and SSRF defenses. Real delivery disabled. | Locally accepted; deployment separate |
+| P2.8 / 63 | Missing | Reuse existing one-use host-bound embed grants and dashboard-only sessions; verify local host, short expiry/revocation and protected exports. | Valid/forged/expired/wrong-host/wrong-tenant/session escalation, response/frame policy and local browser embedding. No external hosting. | Locally accepted; deployment separate |
+| P2.9 / 64 | Partial | Extend existing server-side source policy/replay guards to every new route and artifact. Audit aggregate/profile/suggestions/cache/error paths and existing method-specific sample bounds; no aggregate-only anonymity guarantee. | Permission matrix across source, query, saved result, search, forecast, export, integration and embed; grant/revoke races and redacted audit events. | Locally accepted; deployment separate |
+| P2.10 / 1–64 applicable | Mixed | Connect supported lifecycle steps through existing Simple/Expert views and contextual actions, preserving the always-open Overview repair. | Full synthetic lifecycle, keyboard/mobile/reduced-motion, evidence/units/missing-input labels, explicit recommendation review and later actuals. | Locally accepted; deployment separate |
 
 ## Regression and acceptance records
 
-The planned standalone contribution method will compare explicit authorized
+The implemented standalone contribution method compares explicit authorized
 sources/windows and preserve group row counts alongside exact differences.
 Absent groups and zero-valued groups must remain distinguishable. Eligible
 price/volume/mix decomposition uses declared compatible quantity/currency fields,
@@ -177,9 +177,25 @@ A separate nine-API first/warm measurement covers the new account/guide/plan/inc
 paths with 36 timed requests and privacy/version checks. See the Phase 1 ledger for
 commands, mixed timings and retained failure evidence.
 
-Root will checkpoint only reviewed Phase 1 files. The connector candidate remains
-in its isolated worktree with 0028→0027 and 0029→0028; its security, source and UI
-merge must pass combined checks before an explicit root integration window. The
-separately authorized private-VPS release targets exactly 0027, uses checked backups
-and original database/object preservation, and is not inferred from this local gate.
-Phase 2 functional work and final two-phase regression remain unfinished.
+Root checkpointed reviewed Phase 1 files as `2ee7d9c`. The connector candidate
+subsequently passed its combined checks and was integrated as the true two-parent
+merge `142a7dd`, with 0028→0027 and 0029→0028 and all 17 existing working-file hashes
+preserved. Its isolated worktree/evidence remain retained; no push was made.
+
+Phase 2 is locally accepted: 2,932 frozen backend tests pass in2,333.55 seconds;
+explicit repaired-source supplements reconcile the current2,937 cases with no
+missing, skipped or unresolved backend nodes. All37 original requirement mappings
+pass. Browser evidence reconciles107 latest passes and3 named model-only skips. The
+separately authorized private-VPS candidate now targets **0029**, not the earlier
+0027 preparation. Its immutable image checks pass; activation still requires the
+full gate, checked backup and original database/object/configuration preservation.
+The separately accepted CSS release leaves the current live backend on0020.
+
+## Final local acceptance
+
+Both phases are complete within their documented local scope. All20 targeted IDs
+have delivered independently testable behavior; wider feature status and external
+gates remain explicit in the [final report](codex-two-phase-final-report.md).
+The ledger is41 Done /17 Partial /6 Not yet, preserving all64 IDs and8 open
+production gates. Private release4fff22633f0c5f44 is independently gated below
+local acceptance; its prepared images have not yet been activated at this checkpoint.

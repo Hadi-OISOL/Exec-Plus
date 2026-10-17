@@ -73,10 +73,12 @@ for (const method of ["seasonal", "drift"] as const) test(`${method} calendar ch
     expect(body.run.result.review_flag).toBe(true);
   }
   await expect(panel.getByRole("alert")).toContainText("Your result is saved. History could not reload");
-  await expect(calculate).toBeDisabled();
+  await expect(panel.getByRole("region", { name: "Saved calendar result", exact: true })).toHaveCount(0);
+  await expect(calculate).toHaveCount(0);
   failHistory = false;
   await panel.getByRole("button", { name: "Reload saved results", exact: true }).click();
   await expect(panel.getByRole("region", { name: "Saved calendar checks", exact: true })).toContainText(`Explicit ${method} final`);
+  await panel.getByRole("region", { name: "Saved calendar checks", exact: true }).getByRole("button", { name: `Explicit ${method} final`, exact: true }).click();
   const result = panel.getByRole("region", { name: "Saved calendar result", exact: true });
   await result.getByRole("button", { name: "Replay original calendar evidence", exact: true }).click();
   await expect(panel).toContainText("The original result and every receipt were verified");

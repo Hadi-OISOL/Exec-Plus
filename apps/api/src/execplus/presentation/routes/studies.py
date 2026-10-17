@@ -81,6 +81,48 @@ def study_body(value: tuple[Study, StudyVersion, list[Result]]) -> dict[str, Any
     output: list[dict[str, Any]] = [query_body(result, lineage) for result, lineage in results]
     method = version.method
     limitations = list(version.evidence["limitations"])
+    if method["kind"] == "contribution":
+        calculation = version.evidence["calculation"]
+        if not calculation["rows"]:
+            limitations.append(
+                "No matching records on either side; "
+                "empty sums do not establish observed performance."
+            )
+        if calculation["excluded_missing"]:
+            limitations.append(
+                "Missing amounts were excluded only where the confirmed policy allows it; "
+                "coverage is shown for each side."
+            )
+        if not calculation["reconciled"]:
+            limitations.append(
+                "A present group has no measured amount. "
+                "The overall difference and reconciliation are unavailable."
+            )
+        if any(
+            row[side]["present"] and row[side]["rows"] < 5
+            for row in calculation["rows"]
+            for side in ("baseline", "comparison")
+        ):
+            limitations.append(
+                "Some groups contain fewer than five records; "
+                "these are descriptive records, not anonymous population estimates."
+            )
+        return dict(
+            study=asdict(study),
+            version=asdict(version),
+            results=output,
+            display=dict(
+                columns=["Category", "Recorded change"],
+                rows=[
+                    [row["segment"], row["delta"]["display"] if row["delta"] else None]
+                    for row in calculation["rows"]
+                ],
+            ),
+            sample_count=calculation["baseline_rows"] + calculation["comparison_rows"],
+            unit=version.evidence["units"]["amount"],
+            limitations=limitations,
+            contribution=calculation,
+        )
     if method["kind"] == "distribution":
         rows = list(output[0]["rows"])
         if method["order"]:

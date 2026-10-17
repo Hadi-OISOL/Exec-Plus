@@ -25,6 +25,47 @@ from test_studies import prepare
 from test_workspace_integration import identity, workspace
 
 
+@pytest.mark.parametrize("kind", ["local_password", "external_google"])
+def test_staff_picker_excludes_disabled_identities_but_retains_grant_history(integration, kind):
+    env = integration
+    _, _, _, _, _, admin, _ = setup(env)
+    _, actor = identity(env, f"disabled-staff-{uuid4().hex}@example.test")
+    now = datetime.now(timezone.utc)
+    table = s.local_accounts if kind == "local_password" else s.external_identities
+    values = (
+        dict(user_id=actor.id, password_hash="synthetic-unused", password_changed_at=now)
+        if kind == "local_password"
+        else dict(
+            user_id=actor.id, provider="google", subject="synthetic-" + uuid4().hex, created_at=now
+        )
+    )
+    with env.engine.begin() as connection:
+        connection.execute(table.insert().values(**values))
+    env.runtime.operations.change_staff(
+        actor.email, "support", confirmed_user_id=actor.id, identity_checked=True
+    )
+    before = env.runtime.operations.staff(
+        env.runtime.identity.authenticate(admin["Authorization"].split()[1])
+    )
+    assert any(item["id"] == actor.id for item in before["staff"])
+    with env.engine.begin() as connection:
+        connection.execute(
+            table.update().where(table.c.user_id == actor.id).values(disabled_at=now)
+        )
+    after = env.runtime.operations.staff(
+        env.runtime.identity.authenticate(admin["Authorization"].split()[1])
+    )
+    assert all(item["id"] != actor.id for item in after["staff"])
+    assert len(after["staff"]) == len(before["staff"]) - 1
+    with env.engine.connect() as connection:
+        saved = (
+            connection.execute(select(s.staff_grants).where(s.staff_grants.c.user_id == actor.id))
+            .mappings()
+            .one()
+        )
+    assert saved["role"] == "support" and saved["revoked_at"] is None
+
+
 def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration):
     env = integration
     headers, _, wid, did, _, root = prepare(env, daily())

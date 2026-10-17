@@ -1,10 +1,12 @@
 > **File use case:** Contract for requirement 33's governed contribution studies.
-> **What it does:** Defines exact comparisons, saved-study permissions and acceptance checks before the Phase 2 implementation.
+> **What it does:** Defines implemented exact comparisons, saved-study permissions and their local acceptance checks.
 
 # Contribution studies
 
-Status: design prepared while the frozen Phase 1 gate runs. The behavior below is
-the implementation contract, not a claim of delivered or verified functionality.
+Status: implemented in the Phase 2 working tree, not deployed. Local numerical,
+API, access and export verification is recorded in
+[the contribution verification ledger](verification-contribution-studies.md).
+The full Phase 2 acceptance gate remains separate.
 
 The study answers “Which recorded groups account for this difference?” It does
 not identify business causes. It compares two explicitly selected authorized
@@ -112,7 +114,7 @@ the contribution study. Existing descriptive-study and private-analysis tests
 remain required regressions. Final commands/results belong in the Phase 2
 verification ledger after execution.
 
-## Pre-implementation permission audit
+## Permission binding
 
 The existing study records already retain `evidence.sources`; both source
 references must continue using that contract so exports, API keys and embedding
@@ -129,7 +131,7 @@ weakening ordinary analysis ownership. Shared study access must resolve the
 exact saved version, confirm that it owns the query UUID and recheck both source
 references. A failed or unpublished study must not become a public receipt.
 
-The planned bounded method reads at most 10,000 matching rows per side and at
+The bounded method reads at most 10,000 matching rows per side and at
 most 128 distinct groups, with no truncation represented as a full population.
 Each selected measure uses its existing confirmed aggregation and required
 filters. Price/volume/mix measures must use the same filtered population on a
@@ -143,3 +145,49 @@ or exit contribution, but a present group with no measured values cannot be
 turned into zero. Opposing contributions may cancel to a zero net change, in
 which case percentage contribution is unavailable. The complete exact component
 sum and its reconciliation status remain visible alongside rounded charts.
+
+
+## Implementation and local demonstration
+
+The engine is `apps/api/src/execplus/domain/contributions.py`; the bounded study
+workflow is `application/services/contribution_studies.py`. The existing study
+route returns a `contribution` result beside two replayed record tables. No
+migration, provider call, solver, runtime dependency or new sharing subsystem is
+required. The method identifier is `segment-contribution-v1`.
+
+In **Studies & dashboards**, open **Explain a change**. Choose **Two date ranges**
+or **Two file snapshots**, select the amount/category on each side, and confirm
+that rows contain additive amounts without duplicate totals. Period comparisons
+use the same fields and filters on both sides, with inclusive ISO dates and the
+comparison starting after the baseline ends. This does not certify complete
+calendar coverage. Snapshot comparisons permit explicit field mappings, require
+current confirmed meanings and remain within one workspace.
+
+Enable the optional volume/mix/unit-revenue calculation only when the file has
+complete positive quantities and currency revenue. The server validates required
+metric filters, units and supported additive row meanings. Total/category cards
+and signed charts remain visible; supporting records, exact fractions, coverage
+and formulas have named secondary views. These views reuse Radix Select and the
+existing ECharts/table components. Nothing infers a catalog price or cause.
+
+A rerun preserves original versions. For a period study it applies the two saved
+windows to the newly selected baseline snapshot. For a two-file study it changes
+only the selected baseline snapshot; the comparison snapshot stays fixed. If
+that comparison's confirmed meaning has changed, create an explicit new
+comparison after reviewing both files. The saved method and both sets of source
+IDs remain inspectable. Sharing/pinning follows the ordinary study controls.
+
+PDF, Excel, CSV-evidence bundles and PNG use server-replayed rows. Reports include
+exact changes, coverage, optional decomposition, formulas and both source
+references. Existing portable-export bounds and Excel's exact-text-cell contract
+remain unchanged; the evidence retains original types. Each projection uses the
+existing processing allowance. A refused or failed publication does not create
+a saved study or make its provisional receipts readable.
+
+Limits: 10,000 matching rows per side, 128 distinct categories across both sides,
+20 effective filters per side and the existing export file/cell limits. Unsupported
+stock snapshots, conflicting metric populations, mixed/per-row units, missing-only
+groups, excessive populations and stale permissions are never silently repaired.
+Missing-only groups make the net result unavailable; absent groups are explicitly
+labelled entries/exits. Empty selected populations have empty sums, not an observed
+performance finding. Wider causal or predictive conclusions are outside this method.

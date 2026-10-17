@@ -75,7 +75,13 @@ class SQLOperationsRepository:
             for row in self.connection.execute(
                 select(s.users.c.id, s.users.c.email, s.staff_grants.c.role)
                 .join(s.staff_grants, s.users.c.id == s.staff_grants.c.user_id)
-                .where(s.staff_grants.c.revoked_at.is_(None))
+                .outerjoin(s.local_accounts, s.users.c.id == s.local_accounts.c.user_id)
+                .outerjoin(s.external_identities, s.users.c.id == s.external_identities.c.user_id)
+                .where(
+                    s.staff_grants.c.revoked_at.is_(None),
+                    s.local_accounts.c.disabled_at.is_(None),
+                    s.external_identities.c.disabled_at.is_(None),
+                )
                 .order_by(s.users.c.id)
                 .limit(100)
             ).mappings()

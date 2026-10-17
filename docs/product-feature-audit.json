@@ -633,19 +633,30 @@
       "section": "Growth-plan features",
       "feature": "Variance and root-cause analysis",
       "status": "partial",
-      "note": "Shows exact changes and contributing groups, plus pooled-versus-within-group relationships on identical covered rows. These are descriptive differences and associations; business causes remain unproven.",
+      "note": "Local saved studies compare nonoverlapping periods or two explicitly mapped files, rank exact signed category contributions, and decompose eligible matched groups into volume, mix and unit-revenue effects with separate entries/exits. Both-source permissions, original receipts, drilldown, sharing and exports are checked. These are observed accounting contributions and associations, not proven business causes; broader causal methods remain open.",
       "evidence": [
         "apps/api/src/execplus/domain/refresh.py",
         "apps/api/src/execplus/application/services/monitoring.py",
         "apps/api/tests/test_refresh.py",
         "docs/phase4-refresh-monitoring.md",
         "docs/internal-analytics-depth.md",
-        "docs/verification-internal-analytics-depth.md"
+        "docs/verification-internal-analytics-depth.md",
+        "docs/contribution-studies.md",
+        "docs/verification-contribution-studies.md",
+        "apps/api/src/execplus/domain/contributions.py",
+        "apps/api/src/execplus/application/services/contribution_studies.py",
+        "apps/api/src/execplus/application/services/result_exports.py",
+        "apps/api/tests/test_contributions.py",
+        "apps/api/tests/test_contribution_studies.py",
+        "apps/web/e2e/contribution-studies.spec.ts",
+        "docs/verification-codex-phase2.md",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "4B delivered descriptive drivers; advanced causal methods remain Phase 6",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
         "E5",
-        "E22"
+        "E22",
+        "E31"
       ]
     },
     {
@@ -1127,16 +1138,24 @@
       "section": "Integration with other Solutions",
       "feature": "Advanced forecasts",
       "status": "partial",
-      "note": "Opt-in advanced forecasts select naive, seasonal-naive, SES, Holt, damped or additive Holt-Winters candidates using chronological validation and a later holdout. Saved results, comparisons, policies and exports are verified. External regressors, calibrated uncertainty and representative customer acceptance remain open.",
+      "note": "Existing opt-in advanced forecasts compare naive, seasonal-naive, SES, Holt, damped and additive Holt-Winters candidates using chronological validation and a later untouched holdout. Phase 2 focused regression rechecks train-only fitting, numerical results, immutable vintages, later actuals, permissions, replay and exports. Empirical error ranges are not calibrated probability intervals; external regressors and representative customer acceptance remain open.",
       "evidence": [
         "docs/phase4-forecasting.md",
         "ROADMAP.md",
-        "docs/verification-remaining-work-release.md"
+        "docs/verification-remaining-work-release.md",
+        "docs/advanced-forecasting.md",
+        "docs/verification-advanced-forecasting.md",
+        "docs/verification-codex-phase2.md",
+        "apps/api/tests/test_advanced_forecasting.py",
+        "apps/api/tests/test_advanced_forecast_integration.py",
+        "apps/api/tests/test_forecast_hardening.py",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "October 16 tested local/private-demo release 867c5a0; production gates remain separate",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
         "E8",
-        "E29"
+        "E29",
+        "E31"
       ]
     },
     {
@@ -1144,7 +1163,7 @@
       "section": "Integration with other Solutions",
       "feature": "Scenario planning",
       "status": "partial",
-      "note": "Private scenarios combine explicit percentage drivers or a declared daily change over bounded days, with exact checkpoints, replay and successors. Learned dynamics, demand response and uncertainty remain unfinished.",
+      "note": "Local private source-derived scenarios combine confirmed quantity, price/revenue and cost inputs with explicit simultaneous drivers, up to five named alternatives, sensitivity tables and immutable successors. Declared unit-checked outcome limits use exact checks, including rational margin boundaries; authorized charts and exports preserve source evidence. Fixed mix and supplied formulas are assumptions, not learned demand response or probabilistic forecasts; nonlinear dynamics and representative acceptance remain open.",
       "evidence": [
         "docs/scenario-planning.md",
         "docs/verification-scenario-planning.md",
@@ -1155,13 +1174,25 @@
         "apps/api/tests/test_analysis_extensions_integration.py",
         "apps/web/e2e/analysis-extensions.spec.ts",
         "docs/measured-patterns.md",
-        "docs/verification-measured-patterns.md"
+        "docs/verification-measured-patterns.md",
+        "docs/source-derived-scenarios.md",
+        "docs/scenario-constraints-capacity-comparisons.md",
+        "docs/verification-scenario-constraints-capacity-comparisons.md",
+        "apps/api/src/execplus/domain/source_scenarios.py",
+        "apps/api/src/execplus/domain/scenario_constraints.py",
+        "apps/api/tests/test_scenario_constraints.py",
+        "apps/api/tests/test_source_scenarios_integration.py",
+        "apps/api/tests/test_scenario_capacity_integration.py",
+        "apps/web/e2e/scenario-capacity.spec.ts",
+        "docs/verification-codex-phase2.md",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "October 14 bounded local/test and private-demo extension verified; broader Phase 6 remains Frozen",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
         "E15",
         "E18",
-        "E20"
+        "E20",
+        "E31"
       ]
     },
     {
@@ -1169,7 +1200,7 @@
       "section": "Integration with other Solutions",
       "feature": "Anomaly detection",
       "status": "partial",
-      "note": "Private demo: weighted MAD/IQR now supports separate group baselines and visible missing/sparse coverage. Seasonal, multivariate, drift and calibrated false-alarm methods remain unfinished.",
+      "note": "Local private analyses include weighted MAD/IQR, fixed seasonal-residual checks, two-window distribution drift, strictly earlier-window rolling flags and reference-only multivariate distance for two to four confirmed measures. Thresholds, exact flagged records, source versions, review feedback, replay and exports remain inspectable. Synthetic labeled checks measure their own precision/recall, including adaptation limits; flags are not proof of fraud/errors and calibrated false-alarm rates or customer reliability remain open.",
       "evidence": [
         "docs/decision-analysis.md",
         "docs/verification-decision-analysis.md",
@@ -1178,12 +1209,24 @@
         "docs/analysis-extensions.md",
         "docs/verification-analysis-extensions.md",
         "apps/api/tests/test_analysis_extensions_integration.py",
-        "apps/web/e2e/analysis-extensions.spec.ts"
+        "apps/web/e2e/analysis-extensions.spec.ts",
+        "docs/advanced-anomaly-review.md",
+        "docs/verification-codex-phase2.md",
+        "apps/api/src/execplus/domain/rolling_anomalies.py",
+        "apps/api/src/execplus/domain/multivariate_anomalies.py",
+        "apps/api/src/execplus/domain/distribution_drift.py",
+        "apps/api/tests/test_rolling_anomalies.py",
+        "apps/api/tests/test_multivariate_anomalies.py",
+        "apps/api/tests/test_advanced_anomaly_integration.py",
+        "apps/api/tests/test_multivariate_query_boundary.py",
+        "apps/web/e2e/advanced-anomalies.spec.ts",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "October 14 bounded local/test and private-demo extension verified; broader Phase 6 remains Frozen",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
         "E14",
-        "E18"
+        "E18",
+        "E31"
       ]
     },
     {
@@ -1191,7 +1234,7 @@
       "section": "Integration with other Solutions",
       "feature": "Prescriptive recommendations",
       "status": "partial",
-      "note": "Private demo: exact bounded allocation supports budget, a second resource, quantity bounds, explicit prerequisites and exclusions with independently checked selected quantities. Business modules, larger solvers and validated action effects remain unfinished. No external action executes.",
+      "note": "Local conditional decisions retain exact small enumeration and a bounded CP-SAT model for up to 50 actions, a budget and three additional resources, quantity bounds, prerequisites and exclusions. Capacity alternatives retain exact checked quantities, objectives, utilization and provable shortfalls; optimal, feasible-only, infeasible and unknown remain distinct. Private approval applies only to the original model and becomes ineffective when inputs change. Assumed additive benefits are not causal uplift; general nonlinear models and validated action effects remain open, and no external action executes.",
       "evidence": [
         "docs/decision-analysis.md",
         "docs/verification-decision-analysis.md",
@@ -1202,13 +1245,25 @@
         "apps/api/tests/test_analysis_extensions_integration.py",
         "apps/web/e2e/analysis-extensions.spec.ts",
         "docs/internal-analytics-depth.md",
-        "docs/verification-internal-analytics-depth.md"
+        "docs/verification-internal-analytics-depth.md",
+        "docs/large-allocation-method.md",
+        "docs/scenario-constraints-capacity-comparisons.md",
+        "docs/verification-scenario-constraints-capacity-comparisons.md",
+        "apps/api/src/execplus/domain/allocation_sensitivity.py",
+        "apps/api/src/execplus/domain/large_allocation.py",
+        "apps/api/tests/test_allocation_sensitivity.py",
+        "apps/api/tests/test_large_allocation_integration.py",
+        "apps/api/tests/test_scenario_capacity_integration.py",
+        "apps/web/e2e/scenario-capacity.spec.ts",
+        "docs/verification-codex-phase2.md",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "October 16 bounded local/test and private-demo extension verified; broader Phase 6 remains Frozen",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
         "E14",
         "E18",
-        "E22"
+        "E22",
+        "E31"
       ]
     },
     {
@@ -1232,17 +1287,27 @@
       "id": 61,
       "section": "Integration with other Solutions",
       "feature": "Multi-company consolidation",
-      "status": "missing",
-      "note": "Organizations group separate workspaces. They do not combine company accounts, handle currency/period differences or remove inter-company transactions.",
+      "status": "done",
+      "note": "Done within the accepted bounded local scope: organization owners with current full access to every source can consolidate complete prepared ledgers from two to eight company workspaces. Explicit account mappings, a common declared period, confirmed currencies, supplied dated rates and balanced approved elimination entries produce exact private worksheets with company/source lineage, exceptions, replay and four protected export formats. No rates, balancing entries or private sharing are inferred; statutory, acquisition and live accounting integrations are outside this bounded manual scope.",
       "evidence": [
         "ROADMAP.md",
         "apps/api/src/execplus/application/services/studies.py",
         "apps/api/tests/test_studies.py",
-        "docs/phase4-studies.md"
+        "docs/phase4-studies.md",
+        "docs/company-consolidation.md",
+        "docs/verification-governed-distribution.md",
+        "apps/api/src/execplus/application/services/company_consolidation.py",
+        "apps/api/tests/test_company_consolidation.py",
+        "apps/api/tests/test_company_consolidation_integration.py",
+        "apps/web/src/app/workspace/consolidation-panel.tsx",
+        "apps/web/e2e/consolidation.spec.ts",
+        "docs/verification-codex-phase2.md",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "Phase 6, Frozen",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
-        "E8"
+        "E8",
+        "E31"
       ]
     },
     {
@@ -1250,32 +1315,55 @@
       "section": "Integration with other Solutions",
       "feature": "API and webhooks",
       "status": "partial",
-      "note": "The app has an authenticated backend API. A customer integration API with scoped keys and signed, retried outgoing webhooks is not implemented.",
+      "note": "The local customer API has separately hashed, scoped, expiring and revocable keys, atomic limits, audited access and eight documented operations using existing governed query/result services. Studies and dashboards require every source and current sharing at final delivery; other private results remain issuer-owned. A signed metadata-only outbox provides deduplication, bounded retry/backoff and status with loopback tests. Real outbound delivery is disabled by default and needs explicit network allowlisting; external delivery, production capacity and security acceptance remain unverified.",
       "evidence": [
         "apps/api/src/execplus/main.py",
         "apps/api/src/execplus/presentation/routes/workspaces.py",
         "apps/api/src/execplus/infrastructure/identity.py",
-        "ROADMAP.md"
+        "ROADMAP.md",
+        "docs/customer-results-api.md",
+        "docs/integration-access-plan.md",
+        "docs/verification-governed-distribution.md",
+        "apps/api/src/execplus/application/services/integration_access.py",
+        "apps/api/src/execplus/presentation/routes/integrations.py",
+        "apps/api/tests/test_customer_results_api.py",
+        "apps/api/tests/test_integration_access_integration.py",
+        "apps/api/tests/test_webhooks_integration.py",
+        "apps/web/e2e/integrations.spec.ts",
+        "docs/verification-codex-phase2.md",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "Phase 6 customer API and webhooks",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
-        "E8"
+        "E8",
+        "E31"
       ]
     },
     {
       "id": 63,
       "section": "Integration with other Solutions",
       "feature": "Embedded dashboards",
-      "status": "missing",
-      "note": "Dashboards work inside ExecPlus. Third-party embedding, tenant-bound embed tokens and allowed-host controls are not implemented.",
+      "status": "partial",
+      "note": "A local private embed path now uses a one-use tenant/dashboard/host-bound bootstrap and short-lived separate in-memory frame session. Current shared studies, every source, expiry and revocation are checked before and after replay; frame-host restrictions and redacted read audits are enforced. The runnable local host and browser tests cover handshake, forgery, expiry, revocation and refusal of ordinary session/export authority. Production HTTPS, approved deployment domains and real hosting acceptance remain open; already displayed authorized content cannot be remotely retracted before the next check.",
       "evidence": [
         "apps/web/src/app/workspace/dashboard-panel.tsx",
         "apps/web/src/app/workspace/studies-panel.tsx",
-        "ROADMAP.md"
+        "ROADMAP.md",
+        "docs/customer-results-api.md",
+        "docs/integration-access-plan.md",
+        "docs/verification-governed-distribution.md",
+        "examples/local-embed-host/README.md",
+        "apps/api/src/execplus/application/services/integration_access.py",
+        "apps/api/tests/test_integration_access_integration.py",
+        "apps/api/tests/test_customer_results_api.py",
+        "apps/web/e2e/integrations.spec.ts",
+        "docs/verification-codex-phase2.md",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "Phase 6, Frozen",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
-        "E8"
+        "E8",
+        "E31"
       ]
     },
     {
@@ -1283,19 +1371,31 @@
       "section": "Integration with other Solutions",
       "feature": "Detailed permissions and audit logs",
       "status": "partial",
-      "note": "Opt-in versioned row/column grants are applied before profiling, planning and calculation, and rechecked for saved results, exports and publication races. Owner/admin roles cannot bypass a source grant. Regulated-customer audit and independent production privacy acceptance remain open.",
+      "note": "Versioned server-side row/column grants and private ownership remain enforced before calculations and when reopening or delivering saved evidence. Phase 2 adds both-source contribution guards, organization-owner plus every-company authorization, scoped-key dataset checks and embed rechecks, including final-transaction sharing races. Permission edits, keys, consolidation, downloads and embed reads retain redacted audit history. Cell grants authorize visible cells, not aggregate-only anonymity; regulated audit, independent privacy/security review and compliance certification remain open.",
       "evidence": [
         "apps/api/src/execplus/domain/ingestion.py",
         "apps/api/src/execplus/application/services/workspaces.py",
         "apps/api/tests/test_workspace_integration.py",
         "apps/api/tests/test_studies.py",
         "ROADMAP.md",
-        "docs/verification-remaining-work-release.md"
+        "docs/verification-remaining-work-release.md",
+        "docs/dataset-access-policies.md",
+        "docs/verification-dataset-access.md",
+        "docs/verification-contribution-studies.md",
+        "docs/verification-governed-distribution.md",
+        "docs/verification-scenario-constraints-capacity-comparisons.md",
+        "apps/api/tests/test_analysis_access_policies.py",
+        "apps/api/tests/test_contribution_studies.py",
+        "apps/api/tests/test_company_consolidation_integration.py",
+        "apps/api/tests/test_customer_results_api.py",
+        "docs/verification-codex-phase2.md",
+        "docs/regression-original-37.md"
       ],
-      "roadmap": "October 16 tested local/private-demo release 867c5a0; production gates remain separate",
+      "roadmap": "October 17 combined local Phase 2 gate accepted on0029: 2937 latest passing backend cases,107 passing browser journeys and3 explicit model skips. Private release is recorded separately; all eight production gates remain open.",
       "evidence_groups": [
         "E8",
-        "E29"
+        "E29",
+        "E31"
       ]
     }
   ],
@@ -1564,6 +1664,19 @@
         "docs/verification-local-accounts-onboarding.md",
         "docs/verification-local-plan-entitlements.md",
         "docs/verification-local-workflow.md"
+      ]
+    ],
+    "E31": [
+      "October 17 Phase 2 local implementation and accepted combined regression",
+      [
+        "docs/codex-two-phase-implementation.md",
+        "docs/verification-codex-phase2.md",
+        "docs/verification-contribution-studies.md",
+        "docs/advanced-anomaly-review.md",
+        "docs/verification-scenario-constraints-capacity-comparisons.md",
+        "docs/verification-governed-distribution.md",
+        "docs/customer-results-api.md",
+        "examples/local-embed-host/README.md"
       ]
     ]
   },

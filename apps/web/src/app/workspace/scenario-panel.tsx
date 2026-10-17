@@ -7,7 +7,7 @@ import type { ApiRequest } from "./profile-panel";
 import type { AnalysisOptions, AnalysisSummary } from "./decision-types";
 import { AnswerVisualization } from "./answer-visualization";
 import { SourceScenarioPanel } from "./source-scenario-panel";
-import { SOURCE_SCENARIO_METHOD } from "./source-scenario-types";
+import { isSourceScenarioMethod } from "./source-scenario-types";
 
 type Alternative = { name: string; operation: "replace" | "percent_change" | "compound_percent" | "daily_change"; value?: string; daily_change?: string; days?: number; drivers?: { name: string; percent_change: string }[] };
 type ScenarioBody = {
@@ -49,7 +49,7 @@ function AggregateScenarioPanel({ root, request, onReview, initialMetric = "", i
   useEffect(() => {
     const c = new AbortController();
     Promise.all([request<AnalysisOptions>(`${root}/decision-analysis/options`, { signal: c.signal }), request<AnalysisSummary[]>(runsRoot, { signal: c.signal })])
-      .then(([value, saved]) => { if (!c.signal.aborted) { setOptions(value); setHistory(saved.filter(r => r.kind === "scenario_comparison" && r.method_version !== SOURCE_SCENARIO_METHOD)); } })
+      .then(([value, saved]) => { if (!c.signal.aborted) { setOptions(value); setHistory(saved.filter(r => r.kind === "scenario_comparison" && !isSourceScenarioMethod(r.method_version))); } })
       .catch(e => { if (!c.signal.aborted) setError(e instanceof Error ? e.message : "Could not load comparisons."); });
     return () => { c.abort(); operation.current?.abort(); };
   }, [root, request, runsRoot]);
@@ -66,13 +66,13 @@ function AggregateScenarioPanel({ root, request, onReview, initialMetric = "", i
       const body = { name: name.trim() || "What-if comparison", metric: metric || options.metrics[0]?.name, aggregation, revision_id: options.revision_id, understanding_id: options.understanding_id, filters: filter ? [{ column: filter, operator: "eq", value: filterValue }] : [], alternatives: alternatives.map(a => a.operation === "compound_percent" ? { name: a.name, operation: a.operation, drivers: a.drivers } : a.operation === "daily_change" ? { name: a.name, operation: a.operation, daily_change: a.daily_change, days: a.days } : { name: a.name, operation: a.operation, value: a.value }), assumptions_confirmed: confirmed, parent_run_id: parent };
       const value = await request<ScenarioBody>(`${root}/decision-analysis/scenarios`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
       const saved = await request<AnalysisSummary[]>(runsRoot, { signal });
-      if (!signal.aborted) { setSelected(value); setHistory(saved.filter(r => r.kind === "scenario_comparison" && r.method_version !== SOURCE_SCENARIO_METHOD)); setParent(null); setMessage("Comparison saved privately. Original data is unchanged."); }
+      if (!signal.aborted) { setSelected(value); setHistory(saved.filter(r => r.kind === "scenario_comparison" && !isSourceScenarioMethod(r.method_version))); setParent(null); setMessage("Comparison saved privately. Original data is unchanged."); }
     });
   }
   async function open(id: string) {
     await work(async signal => {
       const value = await request<ScenarioBody>(`${runsRoot}/${id}`, { signal });
-      if (value.run.result.version === SOURCE_SCENARIO_METHOD) throw new Error("Open this comparison under Price, quantity and costs instead.");
+      if (isSourceScenarioMethod(value.run.result.version)) throw new Error("Open this comparison under Price, quantity and costs instead.");
       if (!signal.aborted) { setSelected(value); setMessage("Baseline, coverage and alternatives reproduced from original evidence."); }
     });
   }

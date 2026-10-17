@@ -10,6 +10,8 @@ from execplus.domain.decision_analysis import METHODS, fail
 from execplus.domain.large_allocation import is_large_allocation
 from execplus.domain.large_allocation_queries import large_allocation_plan
 from execplus.domain.models import QueryPlan, WorkspaceScope
+from execplus.domain.multivariate_anomalies import is_multivariate
+from execplus.domain.multivariate_queries import multivariate_plan
 from execplus.domain.profiling import TableData
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
 from execplus.domain.semantics import (
@@ -28,6 +30,8 @@ def analysis_plan(
     scope: WorkspaceScope, did: UUID, view: DatasetView, table: TableData, raw: dict[str, Any]
 ) -> tuple[QueryPlan, dict[str, str]]:
     kind = raw["kind"]
+    if is_multivariate(raw):
+        return multivariate_plan(scope, did, view, table, raw)
     if is_large_allocation(raw):
         return large_allocation_plan(scope, did, view, table, raw)
     if kind == "scenario_comparison" and is_source_scenario(raw):

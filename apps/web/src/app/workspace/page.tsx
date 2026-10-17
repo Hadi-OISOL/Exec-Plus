@@ -1682,7 +1682,7 @@ export default function WorkspacePage() {
                   }}
                 />
               )}
-              {workspace && section === "team" && <ConsolidationPanel key={`consolidation-${workspace.id}-${user.id}`} request={request} />}
+              {workspace && section === "team" && <ConsolidationPanel key={`consolidation-${workspace.id}-${user.id}`} request={request} actorId={user.id} />}
               {workspace && section === "audit" && (
                 <AuditPanel
                   key={workspace.id}

@@ -4,16 +4,19 @@ What it does: Governs source queries, exact replay, current-source approval and 
 """
 
 import asyncio
+from collections.abc import Sequence
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
 from execplus.application.allocation_ports import AllocationSolver
+from execplus.application.plan_context import operation_id
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.calendar_analysis import CalendarAnalysis
 from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.forecasts import ForecastService, read_complete
+from execplus.application.services.plans import admit
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
 from execplus.domain.allocation_constraints import (
@@ -21,6 +24,11 @@ from execplus.domain.allocation_constraints import (
     allocate_selection_rules,
     selection_rules,
     verify_selection_result,
+)
+from execplus.domain.allocation_sensitivity import (
+    checked_sensitivity,
+    prepare_sensitivity,
+    reopen_sensitivity,
 )
 from execplus.domain.analysis_extensions import (
     RESOURCE_METHOD,
@@ -43,6 +51,7 @@ from execplus.domain.errors import AuthorizationError, ClarificationRequiredErro
 from execplus.domain.evidence import receipt
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.large_allocation import METHOD as LARGE_ALLOCATION_METHOD
+from execplus.domain.large_allocation import SENSITIVITY_METHOD as CAPACITY_METHOD
 from execplus.domain.large_allocation import (
     checked_allocation,
     is_large_allocation,
@@ -50,6 +59,9 @@ from execplus.domain.large_allocation import (
     reopen_allocation,
 )
 from execplus.domain.models import CalculationLineage, QueryResult
+from execplus.domain.multivariate_anomalies import METHOD as MULTIVARIATE_METHOD
+from execplus.domain.multivariate_anomalies import detect_multivariate, is_multivariate
+from execplus.domain.scenario_constraints import METHOD as CONSTRAINED_SCENARIO_METHOD
 from execplus.domain.scenarios import COMPOUND_METHOD, DAILY_METHOD, alternatives, compare_scenarios
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
 from execplus.domain.source_scenarios import METHOD as SOURCE_SCENARIO_METHOD
@@ -97,12 +109,14 @@ def scenario_successor_compatible(
 
 
 def method_version(raw: dict[str, Any]) -> str:
+    if is_multivariate(raw):
+        return MULTIVARIATE_METHOD
     if is_large_allocation(raw):
-        return LARGE_ALLOCATION_METHOD
+        return str(raw["model"])
     if is_calendar_anomaly(raw):
         return str(raw["model"])
     if raw["kind"] == "scenario_comparison" and is_source_scenario(raw):
-        return SOURCE_SCENARIO_METHOD
+        return str(raw["model"])
     if raw["kind"] == "scenario_comparison" and any(
         item["operation"] == "daily_change" for item in raw["alternatives"]
     ):
@@ -121,6 +135,8 @@ def method_version(raw: dict[str, Any]) -> str:
 
 
 def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
+    if is_multivariate(raw):
+        return detect_multivariate(raw, value.rows)
     if raw["kind"] == "scenario_comparison":
         if is_source_scenario(raw):
             return compare_source_scenarios(raw, value.rows)
@@ -214,6 +230,7 @@ class DecisionAnalysisService:
             entities=[c["name"] for c in columns if c["role"] in {"dimension", "identifier"}],
             source_scenarios=dict(
                 model=SOURCE_SCENARIO_METHOD,
+                constrained_model=CONSTRAINED_SCENARIO_METHOD,
                 grain=definition.get("grain"),
                 columns=[
                     dict(name=c["name"], unit=c["unit"], currency=c["currency"])
@@ -221,8 +238,17 @@ class DecisionAnalysisService:
                 ],
             ),
             calendar_anomalies={**forecast_options(context), "methods": sorted(CALENDAR_METHODS)},
+            multivariate_anomalies=dict(
+                model=MULTIVARIATE_METHOD,
+                identifiers=[c["name"] for c in columns if c["role"] == "identifier"],
+                groups=[c["name"] for c in columns if c["role"] == "dimension"],
+                maximum_records=1000,
+                minimum_reference=30,
+                maximum_reference=500,
+            ),
             large_allocations=dict(
                 model=LARGE_ALLOCATION_METHOD,
+                sensitivity_model=CAPACITY_METHOD,
                 available=self.allocation_solver is not None,
                 maximum_actions=50,
                 maximum_resources=4,
@@ -230,6 +256,8 @@ class DecisionAnalysisService:
             methods=REGISTERED_METHODS,
             extensions=[
                 LARGE_ALLOCATION_METHOD,
+                CAPACITY_METHOD,
+                CONSTRAINED_SCENARIO_METHOD,
                 SEGMENT_METHOD,
                 RESOURCE_METHOD,
                 RULE_METHOD,
@@ -237,6 +265,7 @@ class DecisionAnalysisService:
                 DAILY_METHOD,
                 SOURCE_SCENARIO_METHOD,
                 *sorted(CALENDAR_METHODS),
+                MULTIVARIATE_METHOD,
             ],
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
@@ -263,6 +292,42 @@ class DecisionAnalysisService:
             repo.upload(wid, did, run.upload_id)
             authorize_sources(repo, actor, wid, run.evidence.get("sources"), did)
             return run
+
+    def _admit_model(
+        self,
+        actor: User,
+        wid: UUID,
+        did: UUID,
+        uid: UUID,
+        raw: dict[str, Any],
+        sources: Sequence[dict[str, Any]],
+        *,
+        variant: str = "baseline",
+    ) -> None:
+        """Admit new bounded model work separately from its governed projection query."""
+        self._current(actor, wid, did, uid, raw)
+        inputs = dict(
+            actor_id=str(actor.id),
+            workspace_id=str(wid),
+            dataset_id=str(did),
+            upload_id=str(uid),
+            method=method_version(raw),
+            request=raw,
+            sources=list(sources),
+            variant=variant,
+        )
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            authorize_sources(repo, actor, wid, sources, did)
+            self._current(actor, wid, did, uid, raw)
+            admit(
+                repo,
+                actor,
+                wid,
+                "processing",
+                operation_id("analysis-model", derived=checksum(inputs)),
+                inputs,
+            )
 
     def list(self, actor: User, wid: UUID, did: UUID) -> list[dict[str, Any]]:
         with self.uow() as repo:
@@ -345,12 +410,15 @@ class DecisionAnalysisService:
                 if method_version(raw)
                 in {
                     LARGE_ALLOCATION_METHOD,
+                    CAPACITY_METHOD,
+                    CONSTRAINED_SCENARIO_METHOD,
                     SEGMENT_METHOD,
                     RESOURCE_METHOD,
                     RULE_METHOD,
                     COMPOUND_METHOD,
                     DAILY_METHOD,
                     SOURCE_SCENARIO_METHOD,
+                    MULTIVARIATE_METHOD,
                 }
                 else SCENARIO_METHOD
                 if raw["kind"] == "scenario_comparison"
@@ -411,10 +479,22 @@ class DecisionAnalysisService:
                     "The larger allocation solver is not configured.",
                     503,
                 )
-            problem = prepare_allocation(raw, result.rows)
-            outcome = await self.allocation_solver.solve(problem.integers)
-            calculated = checked_allocation(problem, outcome)
+            if raw["model"] == CAPACITY_METHOD:
+                problems = prepare_sensitivity(raw, result.rows)
+                outcomes = []
+                for index, problem in enumerate(problems):
+                    self._admit_model(
+                        actor, wid, did, uid, raw, view.sources, variant=f"capacity-{index}"
+                    )
+                    outcomes.append(await self.allocation_solver.solve(problem.integers))
+                calculated = checked_sensitivity(raw, problems, tuple(outcomes))
+            else:
+                problem = prepare_allocation(raw, result.rows)
+                outcome = await self.allocation_solver.solve(problem.integers)
+                calculated = checked_allocation(problem, outcome)
         else:
+            if raw.get("model") in {CONSTRAINED_SCENARIO_METHOD, MULTIVARIATE_METHOD}:
+                self._admit_model(actor, wid, did, uid, raw, view.sources)
             calculated = await read_complete(lambda: calculate(raw, result))
         await read_complete(
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
@@ -570,9 +650,12 @@ class DecisionAnalysisService:
                     raise invalid
                 result = replace(result, rows=((result.rows[0][0], *coverage_values),))
             if is_large_allocation(run.request):
-                rebuilt = reopen_allocation(
-                    prepare_allocation(run.request, result.rows), run.result
-                )
+                if run.request["model"] == CAPACITY_METHOD:
+                    rebuilt = reopen_sensitivity(run.request, result.rows, run.result)
+                else:
+                    rebuilt = reopen_allocation(
+                        prepare_allocation(run.request, result.rows), run.result
+                    )
             else:
                 rebuilt = await read_complete(lambda: calculate(run.request, result))
             if rebuilt != run.result or checksum(rebuilt) != run.evidence["result_checksum"]:

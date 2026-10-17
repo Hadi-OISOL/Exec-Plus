@@ -23,7 +23,10 @@ from execplus.application.services.dataset_access import (
     dataset_access,
     scope_snapshot,
 )
-from execplus.application.services.lineage import persist_query_execution
+from execplus.application.services.lineage import (
+    authorize_analysis_receipt,
+    persist_query_execution,
+)
 from execplus.application.services.plan_executor import PlanAwareExecutor
 from execplus.application.services.understanding import current_meaning
 from execplus.application.validated_tables import read_validated_table
@@ -447,8 +450,7 @@ class AnalyticsService:
             authorize_sources(
                 repo, actor, workspace_id, execution.receipt.get("sources"), execution.dataset_id
             )
-            if execution.aggregation == "analysis" and execution.actor_id != actor.id:
-                raise IngestionError("not_found", "The private query is unavailable.", 404)
+            authorize_analysis_receipt(repo, actor, execution)
         return execution.lineage()
 
     async def get_view(
@@ -844,6 +846,10 @@ class AnalyticsService:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
             authorize_sources(repo, actor, workspace_id, sources)
+            if lineage.aggregation == "analysis":
+                authorize_analysis_receipt(
+                    repo, actor, repo.query_execution(workspace_id, query_id)
+                )
         if result_evidence(result)["checksum"] != evidence["result_checksum"]:
             raise IngestionError(
                 "lineage_mismatch", "The replay did not reproduce the recorded answer.", 409

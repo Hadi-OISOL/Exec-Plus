@@ -6,9 +6,10 @@ import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import type { AllocationResult, AnalysisBody, AnalysisOptions, AnalysisSummary, AnomalyResult } from "./decision-types";
 import { ScenarioPanel } from "./scenario-panel";
-import { LargeAllocationPanel, LARGE_ALLOCATION_METHOD } from "./large-allocation-panel";
+import { LargeAllocationPanel, isLargeAllocationMethod } from "./large-allocation-panel";
 import { CalendarAnomalyPanel } from "./calendar-anomaly-panel";
 import { isCalendarMethod } from "./calendar-anomaly-types";
+import { MultivariateAnomalyPanel, MULTIVARIATE_METHOD } from "./multivariate-anomaly-panel";
 const post = (body: object): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 export function DecisionPanel({ root, request, onReview, initialMethod, initialMetric = "", initialOperation }: {
     root: string;
@@ -150,11 +151,12 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
     const anomaly = selected?.run.kind === "robust_distribution" ? selected.run.result as AnomalyResult : null;
     const allocation = selected?.run.kind === "bounded_allocation" ? selected.run.result as AllocationResult : null;
     const selector = (label: string, value: string, change: (value: string) => void, items: string[]) => <label>{label}<select value={value} onChange={(e) => change(e.target.value)} required>{items.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>;
-    const methodOptions = <><option value="anomalies">Unusual values · snapshot distribution</option><option value="seasonal">Unusual periods · seasonal reference</option><option value="drift">Compare distributions · two time windows</option><option value="allocations">Recommendation · budget allocation</option><option value="large-allocations">Recommendation · larger resource allocation</option><option value="scenarios">What-if · scenario comparison</option></>;
+    const methodOptions = <><option value="anomalies">Unusual values · snapshot distribution</option><option value="seasonal">Unusual periods · seasonal reference</option><option value="rolling">Unusual periods · trailing window</option><option value="multivariate">Unusual combinations · reference group</option><option value="drift">Compare distributions · two time windows</option><option value="allocations">Recommendation · budget allocation</option><option value="large-allocations">Recommendation · larger resource allocation</option><option value="scenarios">What-if · scenario comparison</option></>;
     const changeMethod = (value: string) => { setKind(value); setSelected(null); setError(""); setMessage(""); };
+    if (kind === "multivariate") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><MultivariateAnomalyPanel key={root} root={root} request={request} onReview={onReview} /></>;
     if (kind === "scenarios") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><ScenarioPanel initialMetric={initialMetric} initialOperation={initialOperation} root={root} request={request} onReview={onReview} /></>;
     if (kind === "large-allocations") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><LargeAllocationPanel key={root} root={root} request={request} onReview={onReview} /></>;
-    if (kind === "seasonal" || kind === "drift") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><CalendarAnomalyPanel key={`${root}:${kind}`} root={root} request={request} onReview={onReview} method={kind} /></>;
+    if (kind === "seasonal" || kind === "drift" || kind === "rolling") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><CalendarAnomalyPanel key={`${root}:${kind}`} root={root} request={request} onReview={onReview} method={kind} /></>;
     return <section className="panel decisionPanel" aria-label="Anomalies and decisions">
     <header><p className="eyebrow">PRIVATE EVIDENCE · HUMAN REVIEW</p><h2>Find unusual values. Compare a declared decision.</h2>
       <p>Statistical findings need your context. Allocation benefits are conditional estimates from your declared inputs, never proven effects.</p></header>
@@ -220,7 +222,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
       <button disabled={Boolean(pending) || (kind === "allocations" && (!confirmed || !entityName || !benefitName || costName === benefitName))}>Calculate and save privately</button>
     </form>}
     <section aria-label="Private analysis history"><h3>Your saved analyses</h3><p>Only you can view these runs and reviews, including in a shared workspace.</p>
-      {history.filter(item => item.kind !== "scenario_comparison" && !isCalendarMethod(item.method_version) && item.method_version !== LARGE_ALLOCATION_METHOD).length ? <ul>{history.filter(item => item.kind !== "scenario_comparison" && !isCalendarMethod(item.method_version) && item.method_version !== LARGE_ALLOCATION_METHOD).map((item) => <li key={item.id}><button type="button" disabled={Boolean(pending)} onClick={() => open(item.id)}>{item.name} · {item.kind === "robust_distribution" ? "Unusual values" : "Allocation"}</button></li>)}</ul> : <p>No saved analyses yet.</p>}
+      {history.filter(item => item.kind !== "scenario_comparison" && !isCalendarMethod(item.method_version) && item.method_version !== MULTIVARIATE_METHOD && !isLargeAllocationMethod(item.method_version)).length ? <ul>{history.filter(item => item.kind !== "scenario_comparison" && !isCalendarMethod(item.method_version) && item.method_version !== MULTIVARIATE_METHOD && !isLargeAllocationMethod(item.method_version)).map((item) => <li key={item.id}><button type="button" disabled={Boolean(pending)} onClick={() => open(item.id)}>{item.name} · {item.kind === "robust_distribution" ? "Unusual values" : "Allocation"}</button></li>)}</ul> : <p>No saved analyses yet.</p>}
     </section>
     {selected && <section aria-label="Saved analysis result"><h3>{selected.run.name}</h3>
       <ResultExportActions path={`${datasetRoot}/analyses/${selected.run.id}/export?kind=${selected.run.kind === "robust_distribution" ? "anomaly" : "allocation"}`} charts={anomaly?.findings.length ? ["Flagged values"] : allocation ? ["Selected actions"] : []} />

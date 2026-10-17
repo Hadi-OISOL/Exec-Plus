@@ -3,6 +3,55 @@
 
 # ExecPlus Architecture
 
+## October 17 two-phase candidate
+
+The current local candidate reaches schema **0029**. Phase 1 is locally accepted
+at `2ee7d9c`; the reviewed connector merge is `142a7dd`. Phase 2 implementation
+and the combined local gate are accepted (2,937 backend cases;107 browser passes
+and3 named model-only skips). This section
+describes implemented architecture, not a claim that the backend is already live.
+The [implementation matrix](../codex-two-phase-implementation.md) and
+[Phase 2 evidence](../verification-codex-phase2.md) own acceptance and release status.
+
+Native password accounts extend the existing users and opaque sessions. Password
+hashing stays outside database locks; rotation, disabling and explicit operator
+recovery revoke access. Unverified email text is not identity proof. Actor-private
+onboarding state and owner-created workspaces reuse existing membership rules.
+Price-free plan assignments admit bounded operations atomically and preserve retry
+identity; metering remains separate from billing and from unknown provider charges.
+Operational observations contain fixed categories and identifiers, not source cells
+or prompts. The lock order remains workspace(s), account, then staff grant.
+
+Advanced work extends existing governed studies and immutable analysis records.
+Contribution studies bind both source receipts and exact ordered decomposition;
+scenario limits and capacity alternatives retain declared formulas and original
+approval history. Rolling anomaly references use preceding periods only.
+Multivariate distance uses an explicitly selected clean reference cohort, exact
+rational arithmetic and bounded dimensions, without inventing probabilities.
+Existing chronological forecasts retain train-only selection, separate holdouts
+and immutable vintages. Shared query execution still enforces row/field policies
+before calculation; chart coordinates never replace exact numerical evidence.
+
+Company reports require organization ownership and current access to every source.
+Saved-result API keys and dashboard embed sessions have narrower scopes than the
+issuer's ordinary session. Result export and customer distribution recheck sharing,
+current source grants and immutable result versions in the final publication
+transaction, including revocation while rendering. These surfaces reuse core
+services instead of creating a parallel analytics or authorization subsystem.
+
+The connector merge appends 0028 and 0029 after native account/plan/metrics
+migrations. Google and other external connectors remain disabled unless separately
+configured. Server-side browser-bound OAuth attempts, one-use session exchange,
+versioned connection lifecycle and bounded imports are exercised with local fake
+providers; their presence does not establish live provider readiness. No existing
+company identity, SMTP, payment account or mandatory external service is introduced.
+
+Simple/Expert navigation, always-open overview charts, exact tables, evidence,
+assumptions and explicit review actions remain the presentation foundation.
+All new UI panels call the same governed routes. The local walkthrough follows
+upload, review, safe cleaning, analysis, dashboard, anomalies, conditional forecast,
+scenario, bounded recommendation, approval, later actuals and protected distribution.
+
 ## October 16 open Overview and accessible controls
 
 Live web **5c48d3c** keeps charts/dashboard controls and first findings mounted and

@@ -12,6 +12,7 @@ export type AnalysisOptions = {
     entities: string[];
     large_allocations?: { model: string; available: boolean; maximum_actions: number; maximum_resources: number };
     calendar_anomalies?: ForecastOptions & { methods: string[] };
+    multivariate_anomalies?: { model: string; identifiers: string[]; groups: string[]; maximum_records: number; minimum_reference: number; maximum_reference: number };
     source_scenarios?: { model: string; grain: string | null; columns: { name: string; unit: string; currency: string }[] };
 };
 export type AnalysisSummary = {

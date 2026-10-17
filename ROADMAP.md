@@ -20,6 +20,46 @@ authorization to commercialize code restricted to noncommercial use.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
 
+## October 17 — Two-phase local acceptance
+
+**Status:** Complete within the documented local scope for both phases. The
+accepted connector merge142a7dd is preserved. The frozen backend run passes2,932
+cases; explicit security-repair supplements reconcile all2,937 current cases,
+with no unresolved or missing nodes. All37 original requirements have passing
+mapped cases. Browser coverage is107 latest passes plus3 named model-only skips;
+the initial timing failure remains retained. All59 frontend tests, static checks,
+local/VPS candidate builds, restricted-image checks, offline evaluation and
+isolated0029 recovery pass. This is combined evidence, not one clean run against
+code that was added after the frozen snapshot.
+
+The implemented local scope covers native accounts and setup, price-free capacity
+plans, deterministic protected exports, monitoring/recovery/evaluation, exact
+contribution/PVM studies, conditional forecasts, constrained scenarios, rolling
+and multivariate anomalies, bounded capacity decisions, manual consolidation and
+protected API/embed distribution. Read the [final report](docs/codex-two-phase-final-report.md),
+[Phase2 verification](docs/verification-codex-phase2.md) and
+[local walkthrough](docs/two-phase-local-walkthrough.md).
+
+Feature counts are **41 Done /17 Partial /6 Not yet**, preserving all64 IDs and
+all8 open production gates. #61 is Done only for governed prepared-ledger manual
+consolidation; #63 is Partial for tested local embedding with external hosting
+acceptance still open. Other Partial rows retain their documented broader limits.
+Private candidate4fff22633f0c5f44/schema0029 is built and verified but not yet
+activated at this checkpoint. The separately authorized release requires backup,
+source/data preservation and fictional live checks; no push or provider call.
+
+## October 17 — Private-demo styling release
+
+**Status:** Complete for the bounded CSS-only private release. Web image
+`ui-20261017-live5c48d3c` (`29a4f8f`) is active; API/jobs remain `867c5a0` and
+schema **0020**. Twenty deployed synthetic layouts, exact chart/table navigation,
+keyboard/reduced-motion checks, checked pre/post backups and health checks pass.
+The backup-name compatibility defect was repaired without changing archive bytes;
+original evidence remains. See [release verification](docs/verification-oct17-styling-release.md).
+The connector merge is integrated locally, while the Phase 2 backend gate and
+separate0029 activation remain pending. No feature-status promotion follows from
+this stylesheet release.
+
 ## October 17 — Two-phase implementation: Phase 1 locally accepted
 
 **Status:** Phase 1 Complete for the explicitly tested local scope; Phase 2 In progress.

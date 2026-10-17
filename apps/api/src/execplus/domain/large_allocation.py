@@ -14,6 +14,7 @@ from execplus.domain.allocation_constraints import selection_rules
 from execplus.domain.decision_analysis import checksum, encoded, fail, number
 
 METHOD = "cp-sat-integer-allocation-v1"
+SENSITIVITY_METHOD = "cp-sat-capacity-sensitivity-v2"
 VERSION = "multi-resource-allocation-v1"
 INTEGER_LIMIT = 2**53 - 1
 
@@ -58,7 +59,10 @@ class AllocationProblem:
 
 
 def is_large_allocation(raw: dict[str, Any]) -> bool:
-    return raw.get("kind") == "bounded_allocation" and raw.get("model") == METHOD
+    return raw.get("kind") == "bounded_allocation" and raw.get("model") in {
+        METHOD,
+        SENSITIVITY_METHOD,
+    }
 
 
 def exact_scale(
@@ -338,14 +342,15 @@ def checked_allocation(problem: AllocationProblem, outcome: SolverOutcome) -> di
 
 
 def reopen_allocation(problem: AllocationProblem, retained: dict[str, Any]) -> dict[str, Any]:
+    return checked_allocation(problem, retained_outcome(retained))
+
+
+def retained_outcome(retained: dict[str, Any]) -> SolverOutcome:
     evidence = retained["solver_evidence"]
     quantities = evidence["quantities"]
-    return checked_allocation(
-        problem,
-        SolverOutcome(
-            evidence["status"],
-            tuple(quantities) if quantities is not None else None,
-            evidence["objective"],
-            evidence["termination"],
-        ),
+    return SolverOutcome(
+        evidence["status"],
+        tuple(quantities) if quantities is not None else None,
+        evidence["objective"],
+        evidence["termination"],
     )

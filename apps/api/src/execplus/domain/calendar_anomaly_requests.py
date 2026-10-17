@@ -12,6 +12,8 @@ from execplus.domain.distribution_drift import METHOD as DRIFT_METHOD
 from execplus.domain.distribution_drift import DriftRequest, compare_drift
 from execplus.domain.forecast_series import coverage, series_values
 from execplus.domain.models import QueryResult
+from execplus.domain.rolling_anomalies import METHOD as ROLLING_METHOD
+from execplus.domain.rolling_anomalies import RollingRequest, detect_rolling
 from execplus.domain.temporal_anomalies import METHOD as SEASONAL_METHOD
 from execplus.domain.temporal_anomalies import (
     TemporalAnomalyRequest,
@@ -19,7 +21,7 @@ from execplus.domain.temporal_anomalies import (
     detect_seasonal,
 )
 
-CALENDAR_METHODS = frozenset({SEASONAL_METHOD, DRIFT_METHOD})
+CALENDAR_METHODS = frozenset({SEASONAL_METHOD, DRIFT_METHOD, ROLLING_METHOD})
 
 
 def is_calendar_anomaly(raw: dict[str, Any]) -> bool:
@@ -30,7 +32,7 @@ def calendar_windows(raw: dict[str, Any]) -> tuple[dict[str, Any], ...]:
     if not is_calendar_anomaly(raw) or raw.get("aggregation") not in {"sum", "avg"}:
         fail("calendar_method", "Choose a supported calendar method and total or average.")
     windows: tuple[dict[str, Any], ...]
-    if raw.get("model") == SEASONAL_METHOD:
+    if raw.get("model") in {SEASONAL_METHOD, ROLLING_METHOD}:
         windows = (dict(raw),)
     else:
         windows = tuple(
@@ -63,6 +65,22 @@ def calculate_calendar(raw: dict[str, Any], results: list[list[QueryResult]]) ->
         tuple(TemporalPoint(period, value) for period, value in series_values(values, window))
         for window, values in zip(windows, results, strict=True)
     ]
+    if raw["model"] == ROLLING_METHOD:
+        try:
+            start = date.fromisoformat(raw["evaluation_start"])
+        except (KeyError, TypeError, ValueError):
+            fail("rolling_start", "Choose an explicit first evaluation period.")
+        return detect_rolling(
+            points[0],
+            RollingRequest(
+                raw["frequency"],
+                start,
+                raw["reference_window"],
+                raw["season_length"],
+                raw["threshold"],
+                raw["materiality"],
+            ),
+        )
     if raw["model"] == SEASONAL_METHOD:
         try:
             training_end = date.fromisoformat(raw["training_end"])

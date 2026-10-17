@@ -190,7 +190,9 @@ class PlanService:
                     "These are local administrator-controlled allowances."
                 ),
                 "counting": (
-                    "Processing counts admitted upload profiling and governed query operations. "
+                    "Processing counts admitted upload profiling, governed queries "
+                    "and new bounded model work. A model's source query and each "
+                    "separately admitted computation count separately. "
                     "Failed started work counts. Original receipt replay is not charged again."
                 ),
             }

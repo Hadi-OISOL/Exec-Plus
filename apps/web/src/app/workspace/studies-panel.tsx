@@ -1,6 +1,7 @@
 /* Use case: Turns confirmed meanings into interactive, reproducible investigations.
 What it does: Runs supported studies, reopens versions and manages permission-aware six-pin dashboards. */
 
+import { ContributionForm, ContributionSummary, ContributionDetails, type Contribution, type ContributionRecords } from "./contribution-panel";
 import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useId, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
@@ -12,7 +13,7 @@ import styles from "./library.module.css";
 
 type Method = {
   kind: string;
-  column: string;
+  column?: string;
   aggregation?: string;
   group_by?: string[];
   filters?: object[];
@@ -33,6 +34,7 @@ type Views = {
   dismissed?: string[];
   recommendations: Suggestion[];
   columns?: { name: string; role: string }[];
+  date_columns?: string[];
   limitations: string[];
 };
 type Version = {
@@ -64,7 +66,8 @@ type Result = {
   sample_count: number;
   unit: string;
   limitations: string[];
-  results: object[];
+  results: ContributionRecords[];
+  contribution?: Contribution;
 };
 type Board = {
   id: string;
@@ -93,6 +96,9 @@ export const studyJson = (method: string, value: object): RequestInit => ({
 });
 
 export function StudyResult({ value, workspacePath }: { value: Result; workspacePath?: string }) {
+  const hasChart = value.contribution
+    ? value.contribution.rows.some(row => row.delta !== null)
+    : ["bar", "line", "distribution"].includes(value.version.evidence.component);
   return (
     <article
       className={`studyResult ${styles.result}`}
@@ -106,17 +112,18 @@ export function StudyResult({ value, workspacePath }: { value: Result; workspace
         </span>
       </div>
       <p>{value.version.question}</p>
-      {workspacePath && <ResultExportActions path={`${workspacePath}/study-versions/${value.version.id}/export`} charts={["bar", "line", "distribution"].includes(value.version.evidence.component) ? [value.version.question] : []} />}
+      {workspacePath && <ResultExportActions path={`${workspacePath}/study-versions/${value.version.id}/export`} charts={hasChart ? [value.version.question] : []} />}
       <p className="chartCaption">
         {value.sample_count} matching records · Unit: {value.unit} · Source
         uploaded{" "}
         {new Date(value.version.evidence.source_uploaded_at).toLocaleString()}
       </p>
+      {value.contribution && <ContributionSummary value={value.contribution} unit={value.unit} />}
       {value.version.evidence.component === "card" ? (
         <p className="kpiValue studyValue">{String(value.display.rows[0]?.at(-1) ?? "No matching values")}</p>
       ) : (
         <AnswerVisualization
-          key={value.version.id}
+          key={`chart-${value.version.id}`}
           title={value.version.question}
           columns={value.display.columns}
           rows={value.display.rows}
@@ -140,6 +147,7 @@ export function StudyResult({ value, workspacePath }: { value: Result; workspace
           />
         </details>
       )}
+      {value.contribution && <ContributionDetails key={`contribution-${value.version.id}`} value={value.contribution} results={value.results} />}
       <ul className="studyLimitations">
         {value.limitations.map((text) => (
           <li key={text}>{text}</li>
@@ -210,6 +218,7 @@ function StudyLibrary({ root, request, actorId, onReview }: {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [refreshPending, setRefreshPending] = useState(false);
   useEffect(() => {
     let active = true;
     Promise.all([
@@ -263,7 +272,7 @@ function StudyLibrary({ root, request, actorId, onReview }: {
     setBoards(await request(`${workspacePath}/study-boards`));
   }
   async function create(method: Method, question: string) {
-    if (!views) return;
+    if (!views || refreshPending) return;
     const next = await request<Result>(
       `${root}/studies`,
       studyJson("POST", {
@@ -277,7 +286,13 @@ function StudyLibrary({ root, request, actorId, onReview }: {
     setResult(next);
     setComparison(null);
     setMessage("Study saved privately with its original evidence.");
-    await refresh();
+    try {
+      await refresh();
+      setRefreshPending(false);
+    } catch {
+      setRefreshPending(true);
+      setError("Your study was saved. Reload the saved list before creating another; the calculation does not need to run again.");
+    }
   }
   async function updateBoard(
     next: Board,
@@ -324,6 +339,7 @@ function StudyLibrary({ root, request, actorId, onReview }: {
         </p>
       )}
       {message && <p role="status">{message}</p>}
+      {refreshPending && <button disabled={busy} onClick={() => void action(async () => { await refresh(); setRefreshPending(false); setMessage("Saved study list reloaded."); })}>Reload saved study list</button>}
       {!views && !error && <p>Reading confirmed data meaning…</p>}
       <button type="button" onClick={onReview} style={{ marginTop: 20 }}>
         Review meaning or change my goal
@@ -413,6 +429,7 @@ function StudyLibrary({ root, request, actorId, onReview }: {
               Restore dismissed suggestions
             </button>
           )}
+          <ContributionForm root={root} request={request} views={views} busy={busy} blocked={refreshPending} onCreate={(method, question) => action(() => create(method, question))} />
           <details className="studyBuilder">
             <summary>Build a descriptive study or ordered survey view</summary>
             <form

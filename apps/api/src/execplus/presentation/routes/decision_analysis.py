@@ -47,6 +47,19 @@ class AnomalyInput(SourceInput):
     minimum_segment_size: int = Field(default=8, ge=8, le=1000, strict=True)
 
 
+class MultivariateInput(SourceInput):
+    kind: Literal["robust_distribution"] = "robust_distribution"
+    model: Literal["reference-mahalanobis-squared-v1"] = "reference-mahalanobis-squared-v1"
+    metrics: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(
+        min_length=2, max_length=4
+    )
+    identifier_column: str = Field(min_length=1, max_length=200)
+    cohort_column: str = Field(min_length=1, max_length=200)
+    reference_label: str = Field(min_length=1, max_length=200)
+    comparison_label: str = Field(min_length=1, max_length=200)
+    threshold: str = Field(default="9", min_length=1, max_length=50)
+
+
 class CalendarInput(SourceInput):
     kind: Literal["robust_distribution"] = "robust_distribution"
     metric: str = Field(min_length=1, max_length=200)
@@ -63,6 +76,16 @@ class SeasonalAnomalyInput(CalendarInput):
     coverage_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     training_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     season_length: int = Field(ge=7, le=12, strict=True)
+    threshold: str = Field(default="3.5", min_length=1, max_length=50)
+
+
+class RollingAnomalyInput(CalendarInput):
+    model: Literal["rolling-reference-mad-iqr-v1"] = "rolling-reference-mad-iqr-v1"
+    coverage_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    coverage_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    evaluation_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    reference_window: int = Field(default=20, ge=20, le=120, strict=True)
+    season_length: int = Field(default=1, ge=1, le=12, strict=True)
     threshold: str = Field(default="3.5", min_length=1, max_length=50)
 
 
@@ -133,9 +156,20 @@ class AdditionalResource(Input):
     capacity: str = Field(min_length=1, max_length=100)
 
 
+class CapacitySensitivity(Input):
+    column: str = Field(min_length=1, max_length=200)
+    unit: str = Field(min_length=1, max_length=100)
+    capacities: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(
+        min_length=2, max_length=5
+    )
+
+
 class LargeAllocationInput(SourceInput):
     kind: Literal["bounded_allocation"] = "bounded_allocation"
-    model: Literal["cp-sat-integer-allocation-v1"] = "cp-sat-integer-allocation-v1"
+    model: Literal["cp-sat-integer-allocation-v1", "cp-sat-capacity-sensitivity-v2"] = (
+        "cp-sat-integer-allocation-v1"
+    )
+    capacity_sensitivity: CapacitySensitivity | None = None
     entity_column: str = Field(min_length=1, max_length=200)
     cost_column: str = Field(min_length=1, max_length=200)
     benefit_column: str = Field(min_length=1, max_length=200)
@@ -199,9 +233,28 @@ class SourceSensitivity(Input):
     percent_changes: list[str] = Field(min_length=2, max_length=21)
 
 
+class ScenarioConstraint(Input):
+    field: Literal[
+        "quantity",
+        "revenue",
+        "variable_cost",
+        "fixed_cost",
+        "total_cost",
+        "contribution",
+        "remaining",
+        "margin_percent",
+    ]
+    operator: Literal["minimum", "maximum"]
+    value: str = Field(min_length=1, max_length=100)
+    unit: str = Field(min_length=1, max_length=100)
+
+
 class SourceScenarioInput(SourceInput):
     kind: Literal["scenario_comparison"] = "scenario_comparison"
-    model: Literal["source-unit-economics-v1"] = "source-unit-economics-v1"
+    model: Literal["source-unit-economics-v1", "source-unit-economics-constrained-v2"] = (
+        "source-unit-economics-v1"
+    )
+    constraints: list[ScenarioConstraint] | None = Field(default=None, min_length=1, max_length=12)
     basis: Literal["per_unit", "row_totals"]
     quantity_column: str = Field(min_length=1, max_length=200)
     sales_column: str = Field(min_length=1, max_length=200)
@@ -300,6 +353,34 @@ async def seasonal_anomalies(
     dataset_id: UUID,
     upload_id: UUID,
     body: SeasonalAnomalyInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+    )
+
+
+@router.post(SOURCE + "/multivariate-anomalies", status_code=201)
+async def multivariate_anomalies(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: MultivariateInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+    )
+
+
+@router.post(SOURCE + "/rolling-anomalies", status_code=201)
+async def rolling_anomalies(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: RollingAnomalyInput,
     actor: Actor,
     analyses: Service,
 ) -> object:

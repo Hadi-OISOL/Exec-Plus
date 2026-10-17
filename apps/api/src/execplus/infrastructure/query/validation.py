@@ -23,6 +23,7 @@ _ALLOWED = {
     exp.Where,
     exp.And,
     exp.EQ,
+    exp.In,
     exp.Lower,
     exp.NEQ,
     exp.LT,
@@ -50,6 +51,14 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
     query = statements[0]
     if any(type(node) not in _ALLOWED for node in query.walk()):
         raise UnsafeQueryError("The query contains an unsupported operation")
+    if any(
+        not isinstance(node.this, exp.Column)
+        or len(node.expressions) != 2
+        or any(not isinstance(value, exp.Placeholder) for value in node.expressions)
+        or node.args.get("query") is not None
+        for node in query.find_all(exp.In)
+    ):
+        raise UnsafeQueryError("Cohort selection requires exactly two bound values on one field")
     if any(
         not isinstance(node.this, exp.Column)
         or not isinstance(node.args.get("unit"), exp.Placeholder)

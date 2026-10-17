@@ -17,6 +17,7 @@ from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.dataset_access import authorize_sources
 from execplus.application.services.decision_analysis import DecisionAnalysisService
 from execplus.application.services.forecasts import ForecastService, read_complete
+from execplus.application.services.lineage import authorize_analysis_receipt
 from execplus.application.services.pdf_exports import PdfExportService, UnitOfWork
 from execplus.application.services.plans import admit
 from execplus.application.services.studies import StudyService, visible
@@ -189,7 +190,14 @@ class ResultExportService:
                 actor, wid, build_analysis_report("dashboard_queries", record, now), sources
             ), sources
 
-        return await self._deliver(actor, wid, query_ids[0], format, chart, prepare)
+        def guard(repo: WorkspaceRepository) -> object:
+            executions = tuple(repo.query_execution(wid, query_id) for query_id in query_ids)
+            return tuple(
+                (execution, authorize_analysis_receipt(repo, actor, execution))
+                for execution in executions
+            )
+
+        return await self._deliver(actor, wid, query_ids[0], format, chart, prepare, guard)
 
     def _with_sources(
         self, actor: User, wid: UUID, content: ExportContent, sources: tuple[dict[str, str], ...]

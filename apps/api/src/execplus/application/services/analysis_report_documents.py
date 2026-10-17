@@ -30,6 +30,7 @@ from execplus.domain.pdf_exports import (
     PdfTable,
 )
 from execplus.domain.public_evidence import public_evidence
+from execplus.domain.scenario_constraints import METHOD as CONSTRAINED_SCENARIO_METHOD
 from execplus.domain.source_scenarios import METHOD as SOURCE_SCENARIO_METHOD
 
 
@@ -270,12 +271,16 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
         "history",
         "distribution",
         "observations",
+        "capacity_sensitivity",
     }
     report.metadata(
         "Recorded summary and coverage",
         {key: value for key, value in result.items() if key not in excluded},
     )
-    if kind == "scenario" and result.get("version") == SOURCE_SCENARIO_METHOD:
+    if kind == "scenario" and result.get("version") in {
+        SOURCE_SCENARIO_METHOD,
+        CONSTRAINED_SCENARIO_METHOD,
+    }:
         _source_scenario(report, run, result)
     elif kind == "scenario":
         alternatives = result["alternatives"]
@@ -327,6 +332,8 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
         )
     elif kind == "anomaly" and run["method_version"] in CALENDAR_METHODS:
         _calendar_anomaly(report, run, result)
+    elif kind == "anomaly" and result.get("version") == "multivariate-anomaly-v1":
+        _multivariate_anomaly(report, result)
     elif kind == "anomaly":
         report.objects(
             "Unusual values (not proof of errors)",
@@ -367,7 +374,10 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
             tuple(dict.fromkeys(key for row in result["allocations"] for key in row))
             or ("candidate", "quantity", "cost", "benefit"),
         )
-        if result.get("version") == "multi-resource-allocation-v1":
+        if result.get("version") in {
+            "multi-resource-allocation-v1",
+            "multi-resource-allocation-v2",
+        }:
             report.objects("Every declared resource limit and exact use", result["resources"])
             report.objects(
                 "Per-action resource contributions",
@@ -378,9 +388,14 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
                 ],
                 ("candidate", "quantity", "column", "per_unit", "used"),
             )
+        if result.get("capacity_sensitivity"):
+            _capacity_comparison(report, run, result)
         if result["allocations"]:
             measure = str(run["request"]["benefit_column"])
-            larger_method = result.get("version") == "multi-resource-allocation-v1"
+            larger_method = result.get("version") in {
+                "multi-resource-allocation-v1",
+                "multi-resource-allocation-v2",
+            }
             unit = run.get("evidence", {}).get("units", {}).get(measure, "")
             report.charts.append(
                 ExportChart(
@@ -411,6 +426,118 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
     report.objects("Private review history", record.get("reviews", []))
 
 
+def _capacity_comparison(report: _Report, run: dict[str, Any], result: dict[str, Any]) -> None:
+    comparison = result["capacity_sensitivity"]
+    report.text(
+        "Capacity comparison and approval",
+        "Approval applies only to the original model. "
+        "Alternatives require a separately saved model and review. "
+        "These are hypothetical capacities.",
+    )
+    report.table(
+        "Declared capacity alternatives",
+        (
+            "Resource",
+            "Unit",
+            "Capacity",
+            "Solver status",
+            "Benefit",
+            "Cost",
+            "Benefit difference",
+            "Cost difference",
+        ),
+        tuple(
+            (
+                comparison["column"],
+                comparison["unit"],
+                item["capacity"],
+                item["result"]["solver_status"],
+                item["result"]["benefit"],
+                item["result"]["cost"],
+                item["difference"]["benefit"] if item["difference"] else None,
+                item["difference"]["cost"] if item["difference"] else None,
+            )
+            for item in comparison["variants"]
+        ),
+    )
+    report.objects("Original model infeasibility evidence", result["infeasibility"])
+    for index, item in enumerate(comparison["variants"], start=1):
+        value = item["result"]
+        label = f"Capacity alternative {index}"
+        report.objects(f"{label}: exact quantities", value["allocations"])
+        report.objects(f"{label}: exact resource use", value["resources"])
+        report.objects(f"{label}: infeasibility evidence", value["infeasibility"])
+        report.metadata(f"{label}: retained solver evidence", value["solver_evidence"])
+    if not any(item["result"]["benefit"] is not None for item in comparison["variants"]):
+        return
+    measure = str(run["request"]["benefit_column"])
+    unit = run["evidence"]["units"][measure]
+    report.charts.append(
+        ExportChart(
+            "bar",
+            "Conditional benefit by declared capacity",
+            f"{comparison['column']} ({comparison['unit']})",
+            f"{measure} ({unit})",
+            tuple(item["capacity"] for item in comparison["variants"]),
+            (
+                ExportSeries(
+                    "Conditional benefit",
+                    tuple(item["result"]["benefit"] for item in comparison["variants"]),
+                ),
+            ),
+            notes=(
+                "Null values mean no usable selection, never zero benefit.",
+                "Only optimal outcomes prove the declared model optimum; "
+                "feasible selections can differ between bounded searches.",
+                "Every capacity is an explicit assumption; no causal uplift is inferred.",
+            ),
+        )
+    )
+
+
+def _multivariate_anomaly(report: _Report, result: dict[str, Any]) -> None:
+    report.objects("Every reference and comparison record", result["records"])
+    report.objects("Unusual combinations to review", result["findings"])
+    report.metadata("Reference-only fitted model", result["reference"])
+    report.metadata("Declared squared-distance threshold", result["threshold"])
+    compared = [row for row in result["records"] if row["phase"] == "comparison"]
+    report.table(
+        "Exact comparison distances",
+        ("Record", "Numerator", "Denominator", "Display", "Display exact", "Flagged"),
+        tuple(
+            (
+                row["record_id"],
+                row["squared_distance"]["numerator"],
+                row["squared_distance"]["denominator"],
+                row["squared_distance"]["display"],
+                row["squared_distance"]["display_exact"],
+                row["flagged"],
+            )
+            for row in compared
+        ),
+    )
+    report.charts.append(
+        ExportChart(
+            "bar",
+            "Observed combination distances",
+            "Record identifier",
+            "Squared distance",
+            tuple(row["record_id"] for row in compared),
+            (
+                ExportSeries(
+                    "Squared distance (display)",
+                    tuple(row["squared_distance"]["display"] for row in compared),
+                ),
+            ),
+            notes=(
+                "The chart uses decimal displays; exact fractions determine flags. "
+                "Distances are not probabilities.",
+                *result["limitations"],
+            ),
+        )
+    )
+
+
 def _calendar_anomaly(report: _Report, run: dict[str, Any], result: dict[str, Any]) -> None:
     metric = run["request"]["metric"]
     unit = run["evidence"]["units"][metric]
@@ -418,21 +545,33 @@ def _calendar_anomaly(report: _Report, run: dict[str, Any], result: dict[str, An
     report.objects("Recorded review findings", result["findings"])
     if "history" in result:
         history = result["history"]
-        report.objects("Every chronological period and seasonal reference", history)
-        report.metadata("Frozen training reference", result["reference"])
+        rolling = result["version"] == "rolling-anomaly-v1"
+        reference_label = "Trailing reference" if rolling else "Seasonal reference"
+        report.objects(
+            "Every chronological period and trailing reference"
+            if rolling
+            else "Every chronological period and seasonal reference",
+            history,
+        )
+        if not rolling:
+            report.metadata("Frozen training reference", result["reference"])
         report.charts.append(
             ExportChart(
                 "line",
-                "Observed periods and seasonal reference",
+                "Observed periods and trailing reference"
+                if rolling
+                else "Observed periods and seasonal reference",
                 "Observed period",
                 f"{metric} ({unit})",
                 tuple(row["period"] for row in history),
                 tuple(
                     ExportSeries(label, tuple(_chart_value(row[field]) for row in history))
-                    for field, label in (("actual", "Observed"), ("expected", "Seasonal reference"))
+                    for field, label in (("actual", "Observed"), ("expected", reference_label))
                 ),
                 notes=(
-                    "Later observed values are compared with earlier seasonal references; "
+                    "Every trailing reference uses only earlier comparable periods."
+                    if rolling
+                    else "Later observed values are compared with earlier seasonal references; "
                     "this is not a future forecast. Training ends "
                     f"{result['reference']['training_end']}.",
                     *notes,
@@ -541,6 +680,43 @@ def _source_scenario(report: _Report, run: dict[str, Any], result: dict[str, Any
             for item in alternatives
         ),
     )
+    if result.get("constraints"):
+        checks = [("Source baseline", result["baseline_constraints"])]
+        checks.extend((item["name"], item["constraints"]) for item in alternatives)
+        if result.get("sensitivity"):
+            checks.extend(
+                (f"Sensitivity {point['percent_change']}%", point["constraints"])
+                for point in result["sensitivity"]["points"]
+            )
+        report.table(
+            "Declared scenario limits and exact checks",
+            (
+                "Outcome",
+                "Measure",
+                "Bound",
+                "Threshold",
+                "Unit",
+                "Actual display",
+                "Exact ratio",
+                "Status",
+                "Explanation",
+            ),
+            tuple(
+                (
+                    name,
+                    item["field"],
+                    item["operator"],
+                    item["value"],
+                    item["unit"],
+                    item["actual"],
+                    _json(item["exact_actual"]),
+                    item["status"],
+                    item["reason"],
+                )
+                for name, values in checks
+                for item in values
+            ),
+        )
     notes = tuple([*result["assumptions"], *result["limitations"], *result["warnings"]])
     report.table(
         "Model assumptions and limits",
@@ -621,6 +797,10 @@ def _dashboard(report: _Report, record: dict[str, Any]) -> None:
             {key: value for key, value in version.items() if key != "evidence"},
         )
         report.text(f"{title} - limitations", *version["evidence"].get("limitations", []))
+        if version["method"]["kind"] == "contribution":
+            from execplus.application.services.contribution_reports import add_contribution
+
+            add_contribution(report, title, version["evidence"])
         for position, item in enumerate(saved["results"], 1):
             chart_kind = (
                 ("line" if version["evidence"].get("component") == "line" else "bar")

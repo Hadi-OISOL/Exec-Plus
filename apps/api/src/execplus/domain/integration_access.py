@@ -14,7 +14,18 @@ from uuid import UUID
 
 from execplus.domain.ingestion import IngestionError
 
-OPERATIONS = frozenset({"profile:read", "rows:read", "query:read", "boards:read"})
+OPERATIONS = frozenset(
+    {
+        "profile:read",
+        "rows:read",
+        "query:read",
+        "boards:read",
+        "studies:read",
+        "forecasts:read",
+        "analyses:read",
+        "jobs:read",
+    }
+)
 TOKEN_PREFIXES = frozenset({"epk", "epb", "eps"})
 KEY_MAX_SECONDS = 90 * 24 * 60 * 60
 BOOTSTRAP_MAX_SECONDS = 300

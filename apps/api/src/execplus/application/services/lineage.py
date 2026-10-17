@@ -7,11 +7,11 @@ recorded identically regardless of which engine path produced it (AGENTS.md rule
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.dataset_access import authorize_sources
-from execplus.domain.ingestion import AuditEvent, User
+from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryExecution
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
@@ -56,3 +56,39 @@ def persist_query_execution(uow: UnitOfWork, actor: User, lineage: CalculationLi
                 now,
             )
         )
+
+
+def authorize_analysis_receipt(
+    repo: WorkspaceRepository, actor: User, execution: QueryExecution
+) -> str:
+    """Private analysis receipts only become shareable through their exact saved study."""
+    if execution.aggregation != "analysis":
+        return "workspace"
+    binding = execution.receipt.get("study_binding")
+    if binding is None:
+        if execution.actor_id != actor.id:
+            raise IngestionError("not_found", "The private query is unavailable.", 404)
+        return "private"
+    try:
+        if not isinstance(binding, dict):
+            raise ValueError
+        version = repo.study_version(execution.workspace_id, UUID(binding["version_id"]))
+        study = repo.study(execution.workspace_id, version.study_id)
+        query_ids = version.evidence["query_ids"]
+        sources = version.evidence["sources"]
+        position = query_ids.index(str(execution.id))
+        if (
+            version.method.get("kind") != "contribution"
+            or study.owner_id != execution.actor_id
+            or version.created_by != execution.actor_id
+            or (not study.shared and study.owner_id != actor.id)
+            or binding.get("sources") != sources
+            or len(query_ids) != 2
+            or len(sources) != 2
+            or execution.receipt.get("sources") != [sources[position]]
+        ):
+            raise ValueError
+    except (ValueError, KeyError, TypeError, IndexError, AttributeError):
+        raise IngestionError("not_found", "The saved study query is unavailable.", 404) from None
+    authorize_sources(repo, actor, execution.workspace_id, sources, study.dataset_id)
+    return "workspace" if study.shared else "private"

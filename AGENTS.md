@@ -40,6 +40,49 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 17 — Both phases accepted locally; private release prepared
+
+- Both phases pass the combined local gate: **2,937 latest passing backend cases**,
+  all37 original mapped requirements, **107 browser passes /3 explicit model skips**,
+  **59 frontend tests**, types/lint/Ruff/mypy319 and production builds. The frozen
+  full run is2,932 passes in2,333.55seconds; five later security cases and two
+  service repairs have explicit supplements. Initial failures remain retained.
+- Release candidate **4fff22633f0c5f44** is built and restricted-image checked on
+  schema0029; it is not active at this checkpoint. Root alone owns the separately
+  authorized private activation, checked backup, original50table/object/config
+  preservation and fictional live verification. No push or provider calls.
+- Ledger: **41 Done /17 Partial /6 Not yet**; all64 IDs and8 blocked production
+  gates remain. See the two-phase final report, original37 regression ledger and
+  local walkthrough. Connector142a7dd preserves accepted2ee7d9c/incoming2188a2e.
+- Preserve unrelated next-env, originalPDF, independent-tools doc and UI coordination
+  file. Do not alter session secrets, customer definitions or external settings.
+
+### October 17 — Connector integrated; CSS live; Phase 2 gate running
+
+- Root phase2 contains true merge **142a7dd**, parents accepted Phase1 **2ee7d9c**
+  and incoming connector **2188a2e**. All17 existing WIP hashes were preserved.
+  Connector peer task is complete; no push or connector/provider calls occurred.
+- CSS-only web image **ui-20261017-live5c48d3c /29a4f8f** is live. API/jobs remain
+  **867c5a0**, schema **0020**. Twenty deployed synthetic layouts pass; root
+  inspected desktop/mobile captures. Read `docs/verification-oct17-styling-release.md`.
+  Checked backups **20261017T153602Z**/**20261017T153628Z** retain unchanged bytes
+  after a separately documented backup-name compatibility repair. No data restore.
+- Phase2 code exists for contribution/PVM, constrained scenarios, capacity
+  sensitivities, rolling/multivariate anomalies, owner-governed consolidation and
+  expanded scoped API/embed paths. Full frozen backend2932 and current browser110
+  gates are running; five appended sharing-race regressions are separate supplements.
+  Preserve original failures and source hashes. Final backend acceptance is pending.
+- Focused browser/core tests pass,59frontend/types/lint/Ruff/mypy319 pass;
+  offline evaluation112checks/40cases and disposable0029 recovery77tables/3replays
+  pass. These do not deploy the backend or clear production gates. Root alone
+  prepares the separately authorized exact0029 private release after final evidence.
+- Continue `docs/codex-two-phase-implementation.md`, both phase verification ledgers
+  and `docs/codex-two-phase-final-report.md`. The report explicitly remains pending
+  until full reconciliation. Operator steps are in `docs/two-phase-local-walkthrough.md`.
+  Do not overwrite unrelated files or private evidence; no push is authorized in
+  this two-phase slice. All64IDs/original37features and8blocked production gates remain.
+
+
 ### October 17 — Two-phase Phase 1 accepted locally; Phase 2 continues
 
 - Phase 1 native accounts/private guide, internal price-free tiers, exact exports,

@@ -10,6 +10,7 @@ from uuid import UUID
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.analytics import UnitOfWork
 from execplus.application.services.dataset_access import authorize_sources, require_full_access
+from execplus.application.services.lineage import authorize_analysis_receipt
 from execplus.application.services.studies import visible
 from execplus.domain.artifacts import (
     TABULAR_CAPABILITIES,
@@ -244,8 +245,7 @@ class ArtifactService:
             )
         if kind == ArtifactKind.QUERY_RESULT:
             execution = repo.query_execution(wid, reference.id)
-            if execution.aggregation == "analysis" and execution.actor_id != actor.id:
-                raise IngestionError("not_found", "The artifact is unavailable.", 404)
+            visibility = authorize_analysis_receipt(repo, actor, execution)
             if execution.dataset_id != did:
                 raise IngestionError("not_found", "The artifact is unavailable.", 404)
             receipt = execution.receipt
@@ -268,7 +268,7 @@ class ArtifactService:
                 str(receipt.get("version", "legacy-unavailable")),
                 execution.actor_id,
                 execution.created_at,
-                "private" if execution.aggregation == "analysis" else "workspace",
+                visibility,
                 (Capability.INSPECT, Capability.REPLAY) if replayable else (Capability.INSPECT,),
                 sources,
                 dict(

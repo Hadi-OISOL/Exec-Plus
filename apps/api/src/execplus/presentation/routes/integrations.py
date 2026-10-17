@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field
 
 from execplus.application.services.forecasts import read_complete
@@ -21,6 +22,7 @@ from execplus.presentation.routes.analytics import (
     metric_filters,
     query_body,
 )
+from execplus.presentation.routes.jobs import body as job_body
 from execplus.presentation.routes.studies import study_body
 from execplus.presentation.routes.workspaces import Actor
 
@@ -28,6 +30,15 @@ router = APIRouter(tags=["customer-integrations"])
 ROOT = "/workspaces/{workspace_id}/integrations"
 READ = "/integration/v1/workspaces/{workspace_id}"
 SOURCE = READ + "/datasets/{dataset_id}/uploads/{upload_id}"
+KEY_AUTH = [
+    Depends(
+        HTTPBearer(
+            auto_error=False,
+            scheme_name="ScopedIntegrationKey",
+            description="An expiring epk_ key scoped to a workspace, datasets and read operations.",
+        )
+    )
+]
 
 
 def runtime(request: Request) -> Runtime:
@@ -46,9 +57,18 @@ class KeyInput(Input):
     name: str = Field(min_length=1, max_length=100)
     user_id: UUID | None = None
     dataset_ids: list[UUID] = Field(min_length=1, max_length=20)
-    operations: list[Literal["profile:read", "rows:read", "query:read", "boards:read"]] = Field(
-        min_length=1, max_length=4
-    )
+    operations: list[
+        Literal[
+            "profile:read",
+            "rows:read",
+            "query:read",
+            "boards:read",
+            "studies:read",
+            "forecasts:read",
+            "analyses:read",
+            "jobs:read",
+        ]
+    ] = Field(min_length=1, max_length=8)
     expires_seconds: int = Field(default=86400, ge=1, le=7776000, strict=True)
 
 
@@ -110,7 +130,7 @@ def revoke_key(
     return Response(status_code=204)
 
 
-@router.get(SOURCE + "/profile")
+@router.get(SOURCE + "/profile", dependencies=KEY_AUTH)
 async def profile(
     workspace_id: UUID,
     dataset_id: UUID,
@@ -129,7 +149,7 @@ async def profile(
     )
 
 
-@router.post(SOURCE + "/query")
+@router.post(SOURCE + "/query", dependencies=KEY_AUTH)
 async def query(
     workspace_id: UUID,
     dataset_id: UUID,
@@ -149,7 +169,7 @@ async def query(
     )
 
 
-@router.post(SOURCE + "/rows")
+@router.post(SOURCE + "/rows", dependencies=KEY_AUTH)
 async def rows(
     workspace_id: UUID,
     dataset_id: UUID,
@@ -169,7 +189,7 @@ async def rows(
     )
 
 
-@router.get(READ + "/boards/{board_id}")
+@router.get(READ + "/boards/{board_id}", dependencies=KEY_AUTH)
 async def board(
     workspace_id: UUID, board_id: UUID, request: Request, runtime: RuntimeDependency
 ) -> object:
@@ -177,6 +197,74 @@ async def board(
         token(request), workspace_id, board_id
     )
     return {"board": asdict(board), "studies": [study_body(value) for value in studies]}
+
+
+@router.get(READ + "/studies/{version_id}", dependencies=KEY_AUTH)
+async def study(
+    workspace_id: UUID,
+    version_id: UUID,
+    request: Request,
+    runtime: RuntimeDependency,
+) -> object:
+    return study_body(
+        await runtime.integration_access.study_for_key(token(request), workspace_id, version_id)
+    )
+
+
+@router.get(READ + "/datasets/{dataset_id}/forecasts/{forecast_id}", dependencies=KEY_AUTH)
+async def forecast(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    forecast_id: UUID,
+    request: Request,
+    runtime: RuntimeDependency,
+) -> object:
+    async def read(actor: User, key: IntegrationKey) -> object:
+        runtime.integration_access.authorize_result_for_key(
+            actor, key, workspace_id, dataset_id, forecast_id, forecast=True
+        )
+        return asdict(await runtime.forecasts.open(actor, workspace_id, dataset_id, forecast_id))
+
+    return await runtime.integration_access.perform(
+        token(request), workspace_id, None, "forecasts:read", read
+    )
+
+
+@router.get(READ + "/datasets/{dataset_id}/analyses/{analysis_id}", dependencies=KEY_AUTH)
+async def analysis(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    analysis_id: UUID,
+    request: Request,
+    runtime: RuntimeDependency,
+) -> object:
+    async def read(actor: User, key: IntegrationKey) -> object:
+        runtime.integration_access.authorize_result_for_key(
+            actor, key, workspace_id, dataset_id, analysis_id, forecast=False
+        )
+        return await runtime.decision_analysis.open(actor, workspace_id, dataset_id, analysis_id)
+
+    return await runtime.integration_access.perform(
+        token(request), workspace_id, None, "analyses:read", read
+    )
+
+
+@router.get(READ + "/jobs/{job_id}", dependencies=KEY_AUTH)
+async def job(
+    workspace_id: UUID,
+    job_id: UUID,
+    request: Request,
+    runtime: RuntimeDependency,
+) -> object:
+    async def read(actor: User, key: IntegrationKey) -> object:
+        runtime.integration_access.authorize_job_for_key(actor, key, workspace_id, job_id)
+        result = await read_complete(lambda: runtime.jobs.get(actor, workspace_id, job_id))
+        runtime.integration_access.authorize_job_for_key(actor, key, workspace_id, job_id)
+        return job_body(result)
+
+    return await runtime.integration_access.perform(
+        token(request), workspace_id, None, "jobs:read", read
+    )
 
 
 @router.post(ROOT + "/embeds", status_code=201)

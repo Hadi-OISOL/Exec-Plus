@@ -9,23 +9,23 @@ import type { CompanyDraft, CompanyOption, Journal, Rate, SourceOptions, Workshe
 import styles from "./consolidation.module.css";
 
 const emptyCompany = (): CompanyDraft => ({ workspace_id: "", file: "", account_column: "", amount_column: "", counterparty_column: "", currency: "", mappings: [], rates: [], parties: {} });
-type Organization = { id: string; name: string };
+type Organization = { id: string; name: string; owner_id: string };
 type Saved = { id: string; name: string; current: boolean };
 const steps = ["Choose company files", "Map accounts & rates", "Review adjustments"];
 
-export function ConsolidationPanel({ request }: { request: ApiRequest }) {
+export function ConsolidationPanel({ request, actorId }: { request: ApiRequest; actorId: string }) {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organization, setOrganization] = useState("");
   const [loadError, setLoadError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
-    request<Organization[]>("/organizations", { signal: controller.signal }).then(value => { if (!controller.signal.aborted) setOrganizations(value); }).catch(error => { if (!controller.signal.aborted) setLoadError(error.message); });
+    request<Organization[]>("/organizations", { signal: controller.signal }).then(value => { if (!controller.signal.aborted) setOrganizations(value.filter(item => item.owner_id === actorId)); }).catch(error => { if (!controller.signal.aborted) { setOrganizations([]); setOrganization(""); setLoadError(error.message); } });
     return () => controller.abort();
-  }, [request]);
+  }, [request, actorId]);
   return <section className={`panel ${styles.panel}`} aria-label="Company consolidation">
     <header><p className="studioEyebrow">PRIVATE COMPANY WORKSHEET</p><h2>Bring company accounts together</h2><p>Choose prepared ledgers, map their accounts, then declare your rates and internal adjustments. Your original files stay unchanged.</p></header>
     <label>Worksheet organization<select value={organization} onChange={event => setOrganization(event.target.value)}><option value="">Choose an organization</option>{organizations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-    {!organizations.length && !loadError && <p>Group at least two company workspaces using Organization & departments first. You need full source access to each company.</p>}
+    {!organizations.length && !loadError && <p>Use an organization you own with at least two company workspaces. You also need full source access to each company.</p>}
     {loadError && <p role="alert">{loadError}</p>}
     {organization && <Worksheet key={organization} organization={organization} request={request} />}
   </section>;

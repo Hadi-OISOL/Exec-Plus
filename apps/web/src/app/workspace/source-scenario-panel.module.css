@@ -4,8 +4,8 @@ What it does: Uses existing workspace colors, generous controls and narrow-scree
 .steps { display: flex; flex-wrap: wrap; gap: .6rem; padding: 0; list-style: none; }
 .steps li { padding: .55rem .8rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
 .steps [aria-current="step"] { background: color-mix(in srgb, var(--green) 7%, var(--surface)); color: var(--green); font-weight: 700; }
-.form { display: grid; gap: 1rem; }
-.form fieldset { min-width: 0; margin: 0; padding: 1.1rem; border: 1px solid var(--line); border-radius: 16px; }
+.form { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 1rem; }
+.form fieldset { min-width: 0; min-inline-size: 0; width: 100%; max-width: 100%; margin: 0; padding: 1.1rem; border: 1px solid var(--line); border-radius: 16px; }
 .form legend { padding: 0 .35rem; font-weight: 700; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .grid label, .form label { display: grid; gap: .45rem; min-width: 0; }
