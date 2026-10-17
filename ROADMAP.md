@@ -20,6 +20,21 @@ authorization to commercialize code restricted to noncommercial use.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
 
 
+## October 17 — Language and selected-group comparison repair
+
+**Status:** Complete for the documented local and private-demo scope. Release
+`c34536b8540f7c6d` runs on unchanged 0029. Exact record counts, tied min/max record
+selection, source-bound follow-ups and a bounded target-versus-other comparison
+reuse existing governed services. 442 affected backend/architecture cases,
+63 frontend tests and9 targeted browser journeys have latest passing executions;
+four hosted live questions andnine deployed layouts also pass. Checked backups and
+all 77 table / 179 file activation-preservation checks pass. Read the
+[contract](docs/harvest-language-repair.md) and
+[verification](docs/verification-harvest-language-repair.md).
+This repairs the reported behavior without changing model configuration, all 64
+feature statuses or the eight open production gates. Wider model-quality and
+causal/predictive claims remain outside this evidence.
+
 ## October 17 — Two-phase local acceptance
 
 **Status:** Complete within the documented local scope for both phases. The

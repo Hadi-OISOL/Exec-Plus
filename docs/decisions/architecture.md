@@ -3,6 +3,19 @@
 
 # ExecPlus Architecture
 
+## October 17 language and selected-group comparison repair
+
+Private release `c34536b8540f7c6d` extends the existing planner/query/pattern
+services on unchanged 0029. Typed `COUNT(*)` preserves row counts, while field
+counts preserve nonnull semantics. Validated min/max row selection retains ties.
+The registered `compare_cohort` tool uses the existing permission-scoped pattern
+projection and private replay receipts; structured target context survives genuine
+follow-ups. Model suggestions remain untrusted, exact computations stay server-side
+and unsupported extra scopes clarify. Existing providers/budgets are unchanged.
+See [contract](../harvest-language-repair.md) and
+[verification](../verification-harvest-language-repair.md) for current acceptance.
+The release entries below remain historical checkpoints.
+
 ## October 17 two-phase release
 
 The current private release reaches schema **0029**. Phase 1 is locally accepted

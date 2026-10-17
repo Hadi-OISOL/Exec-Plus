@@ -40,6 +40,34 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 17 — Natural record questions and selected-group comparison
+
+- Private release **c34536b8540f7c6d** is active on unchanged **0029**; source
+  checkpoint **4ec1b00**. Read `docs/harvest-language-repair.md` and
+  `docs/verification-harvest-language-repair.md`. This is the current runtime;
+  earlier phase/release entries remain historical.
+- Record counts include matching rows with missing unrelated cells. Named-field
+  counts remain nonnull counts. Highest/lowest-record requests retain ties.
+  A registered group-comparison tool reuses governed projections, source-bound
+  private context, exact receipts and protected PDF/Excel/CSV outputs. Unsupported
+  extra scopes clarify; missing units and causal effects are never invented.
+- 442 distinct affected backend/architecture cases,63 frontend tests,9 targeted browser
+  journeys, Ruff/mypy 320 and both VPS image builds/restricted checks pass. Retained
+  initial failures have passing rechecks. This is not a fresh full-repository gate.
+  Four hosted natural-language live jobs pass in 83.551s; live UI nine layouts pass in 48.220s.
+  All three fictional live accounts are disabled/revoked afterward.
+- Activation preserves 77 tables and179 stored files/configuration. Checked backups:
+  pre **20261017T170043Z**, post **20261017T170737Z**. Final readiness/web, five
+  services, six loopback listeners, model/timers and unchanged runtime identities
+  pass. A Python 3.10/JavaScript-timestamp verifier issue is fixed with retained
+  failure evidence; no app/schema/data rollback occurs.
+- Local qwen3:4b is advisory selection; hosted deepseek-v4-pro remains configured
+  for interpretation/readings/summaries. Server tools calculate the results.
+  No specialized-provider switch, new dependency, feature-count change or push.
+  Preserve current saved work and all unrelated root files. Private memory carries
+  the supplied farm-file analysis; do not turn its associations into crop advice.
+
+
 ### October 17 — Both phases delivered and private0029 release verified
 
 - Both development phases are accepted within documented local bounds at
