@@ -7,7 +7,7 @@ results alongside their calculation lineage.
 import asyncio
 from dataclasses import asdict
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -33,7 +33,14 @@ from execplus.application.usage_context import usage_scope
 from execplus.domain.kpi_library import KpiMatch
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
 from execplus.domain.pdf_exports import ReportAnswer
-from execplus.domain.semantics import AggregationKind, FilterOperator, MetricFilter, MetricRequest
+from execplus.domain.semantics import (
+    AggregationKind,
+    FilterOperator,
+    MetricFilter,
+    MetricRequest,
+    RowExtremum,
+    RowRequest,
+)
 from execplus.domain.usage_metering import UsageAttribution
 from execplus.presentation.routes.workspaces import Actor
 
@@ -96,10 +103,17 @@ class DashboardInput(BaseModel):
     template_id: str | None = Field(default=None, max_length=100)
 
 
+class ExtremumInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    column: str = Field(min_length=1, max_length=100)
+    direction: Literal["min", "max"]
+
+
 class RowsInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     filters: list[FilterInput] = Field(default_factory=list, max_length=20)
     limit: int = Field(default=100, ge=1, le=_MAX_DRILL_DOWN_ROWS)
+    extremum: ExtremumInput | None = None
 
 
 class AskInput(BaseModel):
@@ -341,9 +355,20 @@ async def rows(
     actor: Actor,
     service: Service,
 ) -> object:
-    result, lineage = await service.drill_down(
-        actor, workspace_id, dataset_id, upload_id, metric_filters(body.filters), body.limit
+    request = RowRequest(
+        metric_filters(body.filters),
+        extremum=RowExtremum(body.extremum.column, body.extremum.direction)
+        if body.extremum
+        else None,
     )
+    if body.extremum is None:
+        result, lineage = await service.drill_down(
+            actor, workspace_id, dataset_id, upload_id, request.filters, body.limit
+        )
+    else:
+        result, lineage = await service.query_records(
+            actor, workspace_id, dataset_id, upload_id, request, body.limit, "structured:records"
+        )
     return query_body(result, lineage)
 
 

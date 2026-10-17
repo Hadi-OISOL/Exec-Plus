@@ -209,7 +209,7 @@ class DuckDBQueryExecutor:
                 if cancelled.is_set():
                     raise UnsafeQueryError("Query exceeded the time limit")
                 matched_records = None
-                if not list(query.find_all(exp.AggFunc)):
+                if not any(expression.find(exp.AggFunc) for expression in query.expressions):
                     count_query = query.copy()
                     count_query.set("expressions", [exp.Count(this=exp.Star())])
                     count_query.set("limit", None)
@@ -273,6 +273,11 @@ class DuckDBQueryExecutor:
     ) -> QueryResult:
         self._check_inputs(table)
         query = validated_query(plan.sql, {VIEW_NAME}, len(plan.params))
+        if query.find(exp.Subquery) is not None and (
+            len(plan.params) % 2
+            or plan.params[: len(plan.params) // 2] != plan.params[len(plan.params) // 2 :]
+        ):
+            raise UnsafeQueryError("The extremum must bind identical inner and outer filters")
         return await self._run(
             plan,
             scope,

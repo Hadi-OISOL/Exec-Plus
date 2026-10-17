@@ -687,7 +687,7 @@ export function AskPanel({
               ) : turn.answer?.report ? (
                 <section aria-label="Requested PDF report"><h3>Your answer, ready to download</h3><p>{turn.answer.report.label}</p><p>The PDF uses the saved answer and its original source evidence.</p>{downloadPdf && <AnswerPdfDownload path={turn.answer.report.download_url} download={downloadPdf} />}</section>
               ) : turn.answer?.patterns ? (
-                <PatternResults result={turn.answer.patterns} evidence={turn.answer.pattern_evidence} sources={turn.answer.sources} />
+                <PatternResults result={turn.answer.patterns} evidence={turn.answer.pattern_evidence} sources={turn.answer.sources} onAsk={question => void ask(question)} busy={busy} />
               ) : turn.answer?.guidance ? (
                 <div className="datasetGuidance" aria-label="Data explanation">
                   <DataExplanation message={turn.answer.message ?? ""} />
@@ -823,7 +823,7 @@ export function AskPanel({
                       title={turn.answer.label ?? turn.question}
                       columns={turn.answer.columns.map((column, index) =>
                         column === "__value" && index === turn.answer!.columns!.length - 1
-                          ? "Calculated value" : column,
+                          ? turn.answer!.lineage!.metric === "*" && turn.answer!.lineage!.aggregation === "count" ? "Records" : "Calculated value" : column,
                       )}
                       rows={turn.answer.rows}
                       recordsAnalyzed={turn.answer.records_analyzed ?? turn.answer.lineage.records_analyzed}
@@ -890,7 +890,7 @@ export function AskPanel({
                   />
                 </details>
               )}
-              {threadId && turn.serverId && turn.answer && !turn.answer.report && (turn.answer.lineage || turn.answer.guidance || turn.answer.diagram || turn.answer.patterns) && <ResultExportActions path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export`} charts={turn.answer.diagram ? ["Data map"] : turn.answer.patterns ? ("pooled" in turn.answer.patterns ? (turn.answer.patterns.pooled ? ["Pooled relationship"] : []) : [...turn.answer.patterns.findings, ...(turn.answer.patterns.exploratory ?? [])].filter(value => value.chart.points.length > 0).map(value => value.title)) : turn.answer.rows && turn.answer.columns?.length === 2 ? ["Recorded comparison"] : []} />}
+              {threadId && turn.serverId && turn.answer && !turn.answer.report && (turn.answer.lineage || turn.answer.guidance || turn.answer.diagram || turn.answer.patterns) && <ResultExportActions path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export`} charts={turn.answer.diagram ? ["Data map"] : turn.answer.patterns ? ("target" in turn.answer.patterns ? [] : "pooled" in turn.answer.patterns ? (turn.answer.patterns.pooled ? ["Pooled relationship"] : []) : [...turn.answer.patterns.findings, ...(turn.answer.patterns.exploratory ?? [])].filter(value => value.chart.points.length > 0).map(value => value.title)) : turn.answer.rows && turn.answer.columns?.length === 2 ? ["Recorded comparison"] : []} />}
               <details className="saveQuestion">
                 <summary>Save question</summary>
                 <SaveControl

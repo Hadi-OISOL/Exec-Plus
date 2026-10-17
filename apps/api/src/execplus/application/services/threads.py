@@ -33,6 +33,7 @@ from execplus.application.services.intent_router import (
 from execplus.application.usage_context import attributed_operation
 from execplus.domain.analysis_plan import report_conversation_plan
 from execplus.domain.conversation_requirements import starts_new_orientation
+from execplus.domain.decision_analysis import checksum
 from execplus.domain.errors import (
     ClarificationRequiredError,
     ProviderUnavailableError,
@@ -482,6 +483,7 @@ class ThreadService:
         prior_document_query = ""
         prior_guide = None
         prior_clarification = None
+        prior_cohort = None
         with self.uow() as repo:
             self._thread(repo, actor, wid, thread.id)
             all_turns = repo.thread_turns(wid, thread.id)
@@ -497,6 +499,26 @@ class ThreadService:
                 if item.status == "complete" and (
                     item.evidence.get("diagram") or item.evidence.get("patterns")
                 ):
+                    pattern = item.evidence.get("patterns")
+                    if (
+                        isinstance(pattern, dict)
+                        and pattern.get("version") == "cohort-comparison-evidence-v1"
+                    ):
+                        self._authorize_evidence(repo, actor, wid, item.evidence)
+                        request, result = pattern.get("request"), pattern.get("result")
+                        if (
+                            not isinstance(request, dict)
+                            or not isinstance(result, dict)
+                            or checksum(request) != pattern.get("request_checksum")
+                            or checksum(result) != pattern.get("result_checksum")
+                        ):
+                            raise IngestionError(
+                                "lineage_mismatch", "The saved comparison is inconsistent.", 409
+                            )
+                        prior_cohort = {
+                            "sources": pattern["sources"],
+                            "request": pattern["request"],
+                        }
                     break
                 if not prior_document_query and item.evidence.get("document_query"):
                     self._authorize_evidence(repo, actor, wid, item.evidence)
@@ -533,6 +555,7 @@ class ThreadService:
                         prior_document_query,
                         prior_guide,
                         prior_clarification,
+                        prior_cohort,
                     ),
                     timeout=100,
                 )

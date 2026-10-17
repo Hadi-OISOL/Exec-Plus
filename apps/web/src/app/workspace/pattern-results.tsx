@@ -46,7 +46,20 @@ export type GroupRelationshipResult = {
   limitations: string[];
   exclusions: { column: string; reason: string }[];
 };
-export type PatternResult = ExplorationResult | GroupRelationshipResult;
+export type CohortComparisonResult = {
+  version: "cohort-comparison-v1";
+  engine_version: string;
+  status: "compared" | "insufficient_data";
+  target: { column: string; value: string };
+  coverage: { source_rows: number; filtered_rows: number; target_rows: number; other_rows: number; missing_target_rows: number };
+  numeric: { column: string; unit: string; target_count: number; other_count: number; target_mean: string | null; other_mean: string | null; target_median: string | null; other_median: string | null; difference: string | null; standardized_difference: string | null; status: "compared" | "insufficient_data" }[];
+  categories: { column: string; levels: { value: string; target_count: number; other_count: number; target_share: string | null; other_share: string | null }[]; target_observed: number; other_observed: number }[];
+  limitations: string[];
+  exclusions: { column: string; reason: string }[];
+  next_steps: string[];
+  suggestions: string[];
+};
+export type PatternResult = ExplorationResult | GroupRelationshipResult | CohortComparisonResult;
 export type PatternEvidence = { query_id: string; method_version?: string; result_checksum?: string };
 const groupColors = ["#087f8c", "#b35438", "#6657a5", "#406c3c", "#936713", "#a74473", "#276596", "#786650", "#34866e", "#8463a7", "#a14743", "#5d6684"];
 
@@ -197,8 +210,82 @@ function PatternCard({ finding, index, instance, weak = false }: { finding: Patt
   </article>;
 }
 
-export function PatternResults({ result, evidence, sources }: { result: PatternResult; evidence?: PatternEvidence; sources?: { revision_id: string; understanding_id?: string }[] }) {
+function CohortComparisonResults({ result, evidence, sources, onAsk, busy }: {
+  result: CohortComparisonResult;
+  evidence?: PatternEvidence;
+  sources?: { revision_id: string; understanding_id?: string }[];
+  onAsk?: (question: string) => void;
+  busy: boolean;
+}) {
+  const target = result.target.value;
+  const other = "All other named groups";
+  return <section className={`patternResults ${styles.results} ${styles.cohort}`} aria-label="Selected group comparison">
+    <header className="patternOverview">
+      <span className="analysisEyebrow">YOUR GROUP · COMPARED WITH THE REST</span>
+      <h3>{result.status === "compared" ? `What is different about ${target}?` : `What we can compare for ${target}`}</h3>
+      <p><strong>{result.target.column} = {target}</strong>, compared with all other nonmissing values of {result.target.column}. Missing group labels are kept out of both sides.</p>
+      <dl className="patternCoverage">
+        <div><dt>{target} rows</dt><dd>{result.coverage.target_rows}</dd></div>
+        <div><dt>Other group rows</dt><dd>{result.coverage.other_rows}</dd></div>
+        <div><dt>Missing group label</dt><dd>{result.coverage.missing_target_rows}</dd></div>
+      </dl>
+    </header>
+    <aside className={styles.cohortTakeaway}>
+      <h4>What this comparison can tell you</h4>
+      <p>These are differences in the recorded data. They help you choose what to check next; they do not explain why a difference happened or prove that changing a condition will change the outcome.</p>
+      {result.status === "insufficient_data" && <p>There is not enough usable data for a supported numerical comparison. Group counts and available category summaries are still shown.</p>}
+    </aside>
+    {result.numeric.length > 0 && <section aria-label="Measured group differences">
+      <h4>Compare the recorded measures</h4>
+      <p>Small, equal and unavailable differences stay visible. Each measure uses its own complete values; missing values are not treated as zero.</p>
+      <div className="patternFindings">{result.numeric.map(item => {
+        const comparable = item.status === "compared" && item.target_mean !== null && item.other_mean !== null;
+        return <article className="patternFinding" aria-label={`Comparison of ${item.column}`} key={item.column}>
+          <h5>{item.column} <span className={styles.cohortUnit}>({item.unit})</span></h5>
+          {comparable ? <>
+            <PatternChart finding={{ id: item.column, type: "group_difference", title: `Average ${item.column}`, summary: "", columns: [result.target.column, item.column], score: "", support: item.target_count + item.other_count, excluded: 0, notes: [], chart: { kind: "bar", x: result.target.column, y: item.column, y_unit: item.unit, points: [{ x: target, y: item.target_mean!, count: item.target_count }, { x: other, y: item.other_mean!, count: item.other_count }] } }} />
+            <dl className={styles.cohortDifference}><dt>Average difference · {target} minus the other groups</dt><dd>{item.difference === null ? "Not available" : `${item.difference} ${item.unit}`}</dd></dl>
+          </> : <p className={styles.cohortUnavailable}>There are not enough comparable values for a supported difference. The available summaries and counts are shown below.</p>}
+          <div className={`tableWrap ${styles.cohortTable}`} tabIndex={0} role="region" aria-label={`Exact group values for ${item.column}`}>
+            <table><caption>{item.column}: returned values in {item.unit}</caption><thead><tr><th scope="col">Group</th><th scope="col">Complete values</th><th scope="col">Average</th><th scope="col">Middle value</th></tr></thead><tbody>
+              <tr><th scope="row">{target}</th><td>{item.target_count}</td><td>{item.target_mean ?? "Not available"}</td><td>{item.target_median ?? "Not available"}</td></tr>
+              <tr><th scope="row">{other}</th><td>{item.other_count}</td><td>{item.other_mean ?? "Not available"}</td><td>{item.other_median ?? "Not available"}</td></tr>
+            </tbody></table>
+          </div>
+          <details className="patternDetails"><summary>How to read this comparison</summary><p>The middle value is the median. Averages and medians retain the server-returned precision; bar lengths are illustrative.</p><p>Standardized difference: <strong>{item.standardized_difference ?? "Not available"}</strong>. This describes the gap relative to variation in these rows. It is not a probability, a cause or a proven action benefit.</p></details>
+        </article>;
+      })}</div>
+    </section>}
+    {result.categories.length > 0 && <section className={styles.cohortCategories} aria-label="Category mix comparison">
+      <h4>Do the groups contain different kinds of records?</h4>
+      <p>Differences in the mix can suggest another comparison. They do not establish the reason for a measured gap.</p>
+      {result.categories.map(category => <article key={category.column}>
+        <h5>{category.column}</h5><p>{category.target_observed} usable {target} rows · {category.other_observed} usable rows in the other groups. Shares run from 0 to 1 within each side.</p>
+        <div className={`tableWrap ${styles.cohortTable}`} tabIndex={0} role="region" aria-label={`Category counts for ${category.column}`}>
+          <table><caption>{category.column}: counts and recorded shares</caption><thead><tr><th scope="col">Value</th><th scope="col">{target} rows</th><th scope="col">{target} share</th><th scope="col">Other rows</th><th scope="col">Other share</th></tr></thead><tbody>{category.levels.map((level, index) => <tr key={`${index}-${level.value}`}><th scope="row">{level.value}</th><td>{level.target_count}</td><td>{level.target_share ?? "Not available"}</td><td>{level.other_count}</td><td>{level.other_share ?? "Not available"}</td></tr>)}</tbody></table>
+        </div>
+      </article>)}
+    </section>}
+    {(result.next_steps.length > 0 || result.suggestions.length > 0) && <section className={styles.cohortNext} aria-label="Next checks for this group">
+      <h4>What to check next</h4>
+      {result.next_steps.length > 0 && <ul>{result.next_steps.map((step, index) => <li key={index}>{step}</li>)}</ul>}
+      {onAsk && result.suggestions.length > 0 && <div className="suggestionChips" role="group" aria-label="Ask about this comparison">{result.suggestions.map((question, index) => <button key={`${index}-${question}`} type="button" disabled={busy || question.length > 500} onClick={() => onAsk(question)}>{question}</button>)}</div>}
+      <p>These are investigation steps. This comparison does not prescribe a treatment, budget or operational change.</p>
+    </section>}
+    <details className="patternEvidence"><summary>Scope, method and source evidence</summary>
+      <p>{result.coverage.source_rows} source rows; {result.coverage.filtered_rows} rows after required filters. The comparison uses every eligible row within the method limits.</p>
+      <ul>{result.limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul>
+      {result.exclusions.length > 0 && <><h4>Fields left out</h4><ul>{result.exclusions.map((item, index) => <li key={index}><strong>{item.column}</strong>: {item.reason}</li>)}</ul></>}
+      <p>Method: {result.version} · Engine: {result.engine_version}</p>
+      {evidence && <p className="checksum">Source receipt: {evidence.query_id}{evidence.result_checksum ? ` · Result checksum: ${evidence.result_checksum}` : ""}</p>}
+      {sources?.map(source => <p className="checksum" key={source.revision_id}>Source revision: {source.revision_id}{source.understanding_id ? ` · Definitions: ${source.understanding_id}` : ""}</p>)}
+    </details>
+  </section>;
+}
+
+export function PatternResults({ result, evidence, sources, onAsk, busy = false }: { result: PatternResult; evidence?: PatternEvidence; sources?: { revision_id: string; understanding_id?: string }[]; onAsk?: (question: string) => void; busy?: boolean }) {
   const instance = useId();
+  if ("target" in result) return <CohortComparisonResults result={result} evidence={evidence} sources={sources} onAsk={onAsk} busy={busy} />;
   if ("pooled" in result) return <GroupRelationshipResults result={result} evidence={evidence} sources={sources} />;
   const empty = result.status === "insufficient_data" ? "A little more data is needed" : "No clear pattern found";
   return <section className={`patternResults ${styles.results}`} aria-label="Measured data patterns">

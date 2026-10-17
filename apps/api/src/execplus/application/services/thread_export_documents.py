@@ -86,6 +86,70 @@ def thread_tables(answer: object) -> tuple[ExportTable, ...]:
         )
     if isinstance(answer, PatternAnswer):
         result = answer.evidence["result"]
+        if result.get("version") == "cohort-comparison-v1":
+            return (
+                ExportTable(
+                    "Group comparison",
+                    (
+                        "Measure",
+                        "Unit",
+                        "Target count",
+                        "Other count",
+                        "Target mean",
+                        "Other mean",
+                        "Difference",
+                        "Target median",
+                        "Other median",
+                        "Status",
+                    ),
+                    tuple(
+                        tuple(
+                            item[key]
+                            for key in (
+                                "column",
+                                "unit",
+                                "target_count",
+                                "other_count",
+                                "target_mean",
+                                "other_mean",
+                                "difference",
+                                "target_median",
+                                "other_median",
+                                "status",
+                            )
+                        )
+                        for item in result["numeric"]
+                    ),
+                ),
+                ExportTable(
+                    "Category mix",
+                    (
+                        "Category",
+                        "Value",
+                        "Target count",
+                        "Other count",
+                        "Target share",
+                        "Other share",
+                    ),
+                    tuple(
+                        (
+                            item["column"],
+                            level["value"],
+                            level["target_count"],
+                            level["other_count"],
+                            level["target_share"],
+                            level["other_share"],
+                        )
+                        for item in result["categories"]
+                        for level in item["levels"]
+                    ),
+                ),
+                ExportTable(
+                    "Comparison method and evidence",
+                    ("Path", "Exact recorded value"),
+                    tuple(flatten_record(result)),
+                ),
+            )
         return (
             ExportTable(
                 "Recorded pattern output",

@@ -6,10 +6,11 @@ before it can ever reach the query engine.
 """
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
-from execplus.domain.guidance import GUIDANCE_FOCUSES
+from execplus.domain.guidance import GUIDANCE_FOCUSES, mentioned_columns, words
 from execplus.domain.models import QuestionKind
 from execplus.domain.semantics import (
     AggregationKind,
@@ -17,7 +18,9 @@ from execplus.domain.semantics import (
     FilterOperator,
     MetricFilter,
     MetricRequest,
+    RowExtremum,
     RowRequest,
+    supports_metric,
 )
 
 _AGGREGATIONS = {item.value for item in AggregationKind}
@@ -37,10 +40,13 @@ class RoutedIntent:
     data_intent: "RoutedIntent | None" = None
     guide_columns: tuple[str, ...] = ()
     guide_focus: str = "orientation"
+    validation_issue: str = ""
+    target_column: str = ""
+    target_value: str = ""
 
 
-def _unsupported(message: str) -> RoutedIntent:
-    return RoutedIntent(QuestionKind.UNSUPPORTED, message=message)
+def _unsupported(message: str, issue: str = "") -> RoutedIntent:
+    return RoutedIntent(QuestionKind.UNSUPPORTED, message=message, validation_issue=issue)
 
 
 def _parse_filters(raw: Any, view: DatasetView) -> tuple[MetricFilter, ...] | None:
@@ -72,14 +78,17 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
     group_by = plan.get("group_by") or []
     if (
         not isinstance(metric, str)
-        or metric not in view.metrics
         or not isinstance(aggregation, str)
         or aggregation not in _AGGREGATIONS
+        or not supports_metric(view, metric, AggregationKind(aggregation))
         or not isinstance(group_by, list)
         or len(group_by) > 10
         or not all(isinstance(name, str) and name in view.dimensions for name in group_by)
     ):
-        return _unsupported("The model proposed an unsupported metric or dimension.")
+        return _unsupported(
+            "The model proposed an unsupported metric or dimension.",
+            "count_plan" if aggregation == "count" else "",
+        )
     filters = _parse_filters(plan.get("filters") or [], view)
     if filters is None:
         return _unsupported("The model proposed an invalid filter.")
@@ -107,6 +116,31 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
 
     if kind == QuestionKind.NUMERICAL:
         return _parse_numerical(payload, view)
+    if kind == QuestionKind.COHORT_COMPARISON:
+        target, value, columns = (
+            payload.get("target_column"),
+            payload.get("target_value"),
+            payload.get("columns", []),
+        )
+        column = view.column(target) if isinstance(target, str) else None
+        if (
+            set(payload) - {"kind", "target_column", "target_value", "columns"}
+            or column is None
+            or column.type != "text"
+            or target not in view.dimensions
+            or "identifier" in column.tags
+            or not isinstance(value, str)
+            or not value.strip()
+            or len(value) > 200
+            or not isinstance(columns, list)
+            or len(columns) > 12
+            or not all(isinstance(name, str) and name in view.metrics for name in columns)
+            or len(set(columns)) != len(columns)
+        ):
+            return _unsupported("Choose one visible category value and up to twelve measures.")
+        return RoutedIntent(
+            kind, guide_columns=tuple(columns), target_column=target, target_value=value
+        )
     if kind == QuestionKind.MIXED:
         if set(payload) != {"kind", "data", "document_query"}:
             return _unsupported("A combined request needs one data step and one document question.")
@@ -126,11 +160,25 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
         return RoutedIntent(kind, document_query=query.strip(), data_intent=step)
     if kind == QuestionKind.ROWS:
         plan = payload.get("plan")
-        if not isinstance(plan, dict) or set(plan) - {"columns", "filters", "limit"}:
+        if not isinstance(plan, dict) or set(plan) - {"columns", "filters", "limit", "extremum"}:
             return _unsupported("The model did not propose a usable record query.")
         columns = plan.get("columns", [])
         filters = _parse_filters(plan.get("filters", []), view)
         limit = plan.get("limit", 100)
+        raw_extremum = plan.get("extremum")
+        extremum = None
+        if raw_extremum is not None:
+            if (
+                not isinstance(raw_extremum, dict)
+                or set(raw_extremum) != {"column", "direction"}
+                or not isinstance(raw_extremum["column"], str)
+                or raw_extremum["column"] not in view.metrics
+                or raw_extremum["direction"] not in ("min", "max")
+            ):
+                return _unsupported(
+                    "Choose a visible numeric field for the highest or lowest records."
+                )
+            extremum = RowExtremum(raw_extremum["column"], raw_extremum["direction"])
         if (
             not isinstance(columns, list)
             or not all(isinstance(name, str) and view.column(name) for name in columns)
@@ -140,7 +188,7 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
             or not 1 <= limit <= 1000
         ):
             return _unsupported("The model proposed invalid record fields, filters or limit.")
-        return RoutedIntent(kind, rows=RowRequest(filters, tuple(columns)), limit=limit)
+        return RoutedIntent(kind, rows=RowRequest(filters, tuple(columns), extremum), limit=limit)
     if kind == QuestionKind.DIAGRAM:
         columns = payload.get("columns", [])
         if (
@@ -186,3 +234,109 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
         return RoutedIntent(QuestionKind.TEXTUAL, message=message)
     fallback = payload.get("message") or "This question is outside the supported scope."
     return _unsupported(str(fallback))
+
+
+def canonical_cohort(question: str, view: DatasetView) -> RoutedIntent | None:
+    quoted = r'("(?:[^"\\]|\\.)*")'
+    match = re.fullmatch(
+        r"Compare records where " + quoted + r" equals " + quoted + r" with other records\.?",
+        question.strip(),
+        re.IGNORECASE,
+    )
+    if match is None:
+        return None
+    try:
+        target, value = (json.loads(part) for part in match.groups())
+    except (ValueError, TypeError):
+        return _unsupported("Choose an existing category and its exact value.")
+    return route_response(
+        json.dumps(
+            {
+                "kind": "cohort_comparison",
+                "target_column": target,
+                "target_value": value,
+            }
+        ),
+        view,
+    )
+
+
+def canonical_records(question: str, view: DatasetView) -> RoutedIntent | None:
+    quoted = r'("(?:[^"\\]|\\.)*")'
+    match = re.fullmatch(
+        r"Show records where " + quoted + r" equals " + quoted + r"\.?",
+        question.strip(),
+        re.IGNORECASE,
+    )
+    if match is None:
+        return None
+    try:
+        column, value = (json.loads(part) for part in match.groups())
+    except (ValueError, TypeError):
+        return _unsupported("Choose an existing field and its exact value.")
+    return route_response(
+        json.dumps(
+            {
+                "kind": "rows",
+                "plan": {
+                    "filters": [{"column": column, "operator": "eq", "value": value}],
+                    "limit": 100,
+                },
+            }
+        ),
+        view,
+    )
+
+
+def cohort_scope_needs_clarification(
+    question: str, intent: RoutedIntent, view: DatasetView
+) -> bool:
+    if canonical_cohort(question, view) is not None:
+        return False
+    named = set(mentioned_columns(question, view))
+    if named - {intent.target_column} - set(view.metrics):
+        return True
+    normalized = words(question)
+    value = re.escape(words(intent.target_value))
+    target = words(intent.target_column).split()
+    aliases = [" ".join(target[index:]) for index in range(len(target))]
+    aliases = [
+        alias
+        for alias in aliases
+        if sum(words(name).endswith(alias) for name in view.dimensions) == 1
+    ]
+    label = "(?:" + "|".join(re.escape(alias) for alias in aliases) + ")"
+    normalized = re.sub(
+        r"\b(?:where|with|whose|having|for|in|at)\s+(?:the\s+)?"
+        + label
+        + r"\s+(?:(?:is|equals|of|at)\s+)?"
+        + value
+        + r"\b",
+        " ",
+        normalized,
+    )
+    normalized = re.sub(
+        r"\b(?:for|in|at)\s+(?:the\s+)?" + value + r"(?:\s+(?:stage|group|category))?\b",
+        " ",
+        normalized,
+    )
+    normalized = re.sub(
+        r"\b(?:with|against|versus|from|than)\s+(?:the\s+)?other(?:s| records| groups)?\b",
+        " ",
+        normalized,
+    )
+    # Labels may themselves contain words such as 'after'; only residual request
+    # words are interpreted as unsupported restrictions.
+    for name in sorted(named | {intent.target_column}, key=len, reverse=True):
+        normalized = normalized.replace(words(name), " ")
+    normalized = normalized.replace(words(intent.target_value), " ")
+    return bool(
+        re.search(
+            r"\b(where|only|excluding|exclude|except|filters?|filtered|before|after|since|"
+            r"between|last|next|past|days?|weeks?|months?|years?|in|from|during|within|"
+            r"until|by|per|with|against|versus|vs|than|above|below|over|under|greater|less)\b",
+            normalized,
+        )
+        or re.search(r"\b(?:at least|at most|compared to)\b", normalized)
+        or re.search(r"[<>]=?|!=", question)
+    )

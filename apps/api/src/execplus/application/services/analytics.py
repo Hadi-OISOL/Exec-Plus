@@ -46,6 +46,7 @@ from execplus.domain.models import (
 )
 from execplus.domain.profiling import Revision, TableData, reconstruct
 from execplus.domain.semantics import (
+    RECORD_COUNT,
     VALUE_ALIAS,
     DatasetView,
     MetricFilter,
@@ -407,6 +408,14 @@ class AnalyticsService:
         limit: int,
         model_route: str | None = None,
     ) -> tuple[QueryResult, CalculationLineage]:
+        if request.extremum is not None:
+            column = request.extremum.column
+            governed = governed_request(
+                view,
+                table,
+                MetricRequest(column, preferred_aggregation(view, column), filters=request.filters),
+            )
+            request = replace(request, filters=governed.filters)
         plan = plan_rows(scope, dataset_id, view, request, row_limit=limit)
         lineage = CalculationLineage(
             query_id=plan.query_id,
@@ -503,7 +512,10 @@ class AnalyticsService:
         if not result.rows or result.rows[0][0] is None:
             raise UnsupportedQuestionError("No matching numeric values were found for this request")
         return self.assembler.assemble_metric(
-            label=request.metric, column=VALUE_ALIAS, result=result, lineage=lineage
+            label="Records" if request.metric == RECORD_COUNT else request.metric,
+            column=VALUE_ALIAS,
+            result=result,
+            lineage=lineage,
         )
 
     async def list_kpis(

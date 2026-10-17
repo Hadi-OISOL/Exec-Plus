@@ -54,6 +54,13 @@ CAPABILITIES = (
         "Twelve groups; adequate complete pairs; no causal interpretation.",
     ),
     AgentCapability(
+        "compare_cohort",
+        "Compare one recorded category value with the other rows and explain observed differences.",
+        "cohort_comparison",
+        "Confirmed text category, exact recorded label and fixed-unit measures.",
+        "Ten thousand rows; twelve measures; no causal, treatment or time-to-outcome claim.",
+    ),
+    AgentCapability(
         "retrieve_documents",
         "Find accessible supporting-document evidence.",
         "textual or mixed",
@@ -75,7 +82,7 @@ def capability_catalog(
 ) -> list[dict[str, Any]]:
     excluded = set()
     if not patterns:
-        excluded.update({"explore_patterns", "compare_group_relationship"})
+        excluded.update({"explore_patterns", "compare_group_relationship", "compare_cohort"})
     if not documents:
         excluded.add("retrieve_documents")
     if not reports:
