@@ -612,7 +612,6 @@ class ThreadService:
                 )
         answer: ConversationAnswer | None = None
         memory_use = None
-        context_memory = None
         try:
             if self.intent_router.context_enabled and result_turn is not None:
                 view = await self.intent_router.analytics.get_view(
@@ -625,7 +624,6 @@ class ThreadService:
                             result_turn.evidence.get("context_memory")
                             or result_turn.evidence.get("agent_memory"),
                         )
-                        context_memory = memory
                         if (
                             memory is not None
                             and repo.agent_memory(wid, actor.id).reference() != memory
@@ -801,7 +799,6 @@ class ThreadService:
         if access_reference is not None:
             turn = replace(turn, evidence={**turn.evidence, "access_reference": access_reference})
         memory_reference = memory_use.reference if memory_use is not None else None
-        memory_reference = memory_reference or context_memory
         if memory_reference is not None and turn.status in {"complete", "partial"}:
             turn = replace(turn, evidence={**turn.evidence, "agent_memory": memory_reference})
         return answer, turn
