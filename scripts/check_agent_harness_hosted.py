@@ -250,7 +250,7 @@ def verify(client, output, *, stage, synthesis, origin, release):
                 if name in {"sales", "discount"}
                 else "dimension",
                 meaning="Fictional " + name,
-                unit="USD" if name in {"sales", "discount"} else "",
+                unit="",
                 currency="USD" if name in {"sales", "discount"} else "",
                 unit_column="",
             )
