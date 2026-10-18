@@ -40,6 +40,27 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 19 — Natural social routing and responsive activity verified live
+
+- Private release **9ce1f703b13b957f /0029**, runtime **07c7b47**, is active.
+  Read `docs/verification-conversation-experience.md`. Model-enabled casual talk uses
+  a model-selected conversational focus and generated reply, not a how-are-you lookup.
+  Mixed data questions retain governed tools. Social prose is not verified analysis;
+  heuristic claim filters have documented limits and social report exports are refused.
+- Animated activity reflects actual server stages, supports cancellation/reduced motion,
+  and keeps recorded actions inspectable. Dark borders/forecast colors and reply hierarchy
+  are improved; mobile chat flows with the page while exact tables remain scrollable.
+- Local110 broader/31 final social tests overlap;72frontend, types/lint/Ruff/mypy269,
+  fresh VPS builds and restricted image checks pass. Browser13pass/1explicit model skip;
+  live4 legacy+11 social/mixed cases and3 widths/both themes pass. Initial assertion
+  failures retained. Five owned live fictional accounts disabled/revoked; real sessions
+  unchanged. No full-repository, universal-language or all-device guarantee.
+- Activation preserves77tables/221files/config. Checked backups **20261018T193228Z** /
+  **20261018T193504Z** UTC; five services, six loopback listeners, readiness/web,
+  model/timers/images/schema/config pass. No restore, push, provider/schema change.
+  Preserve unrelated WIP and all later saved work. Older entries are historical.
+
+
 ### October 19 — Reported conversation loop repaired and verified live
 
 - Private release **0d6af5f7b68d02d3 /0029**, runtime **ff1f27e**, is active.

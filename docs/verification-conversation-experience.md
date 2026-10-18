@@ -34,8 +34,8 @@ exact result tables retain their scrollable region. No new dependency or schema 
 
 ## Verification
 
-In progress. Evidence lives in `data/verification/2026-10-19/conversation-experience/` and
-`data/verification/2026-10-19/conversation-appearance/`. Deployment acceptance is not yet claimed.
+Evidence lives in `data/verification/2026-10-19/conversation-experience/` and
+`data/verification/2026-10-19/conversation-appearance/`. Final private release evidence is recorded below.
 
 ### Review and local checks
 
@@ -67,3 +67,46 @@ Candidate runtime checkpoint `07c7b47`, immutable content release `9ce1f703b13b9
 1,045 files, archive SHA-256
 `4194ac61ab8f885f141dafb1e361f18ed0f21f677b0c2dd634d7322d3c0903ad`.
 Later test-only assertion/cancellation supplements do not change runtime bytes.
+
+## Hosted candidate and activation
+
+Fresh VPS API/web production builds and restricted image computation checks pass.
+The isolated candidate passes four existing hosted analysis cases in29.661seconds and
+all eleven social/mixed/goal/harvest cases in58.312seconds. This includes unfamiliar social
+phrasing, a social preamble with a real grouped calculation, and social conversation after
+a pending objective clarification. Exact values, private reopening and outsider denials pass.
+Four owned candidate accounts are disabled/revoked; disposable containers are removed.
+Root inspected the actual synthetic model replies, not just response-kind flags.
+
+Release `9ce1f703b13b957f` is active on unchanged0029. Checked pre-release backup:
+`20261018T193228Z` (UTC). Activation preserves77 existing tables,221 files/4,017,363 bytes
+and configuration. Earlier counts refer to their own release snapshots, not this activation.
+Final live synthetic checks and checked post-release backup pass (details below).
+
+
+## Live verification
+
+The active release passes four legacy hosted analysis checks in60.078seconds and all eleven
+reported-style/social/mixed turns in100.429seconds. These are entire sequence durations,
+not per-question latency benchmarks. The live browser passes1440/390/320 layouts in light
+and dark themes, exact compound values/evidence, ideal-outcome clarification, and a model
+social reply after a pending data question. Social replies show no dataset-evidence block
+or analysis download. Root inspected the deployed dark320 social capture. Five owned live
+fictional accounts are disabled and sessions revoked; existing user sessions are unchanged.
+The isolated hosted gate used four additional accounts in disposable infrastructure.
+
+No schema/dependency/provider change, push, public exposure or customer-source analysis.
+The user's recent conversation was inspected read-only at their request. All five unrelated
+working files retain their original hashes. Model wording/classification remains bounded
+and fallible; these checks do not establish universal natural-language accuracy. The offline
+browser's one explicit model-dependent skip is retained separately from hosted checks.
+
+
+## Checked completion
+
+Post-release backup **20261018T193504Z** passes database/object SHA-256 validation,
+archive listing and final readiness/web checks. All five services, six loopback listeners,
+model/timers, schema0029, configuration and exact image/container identities pass afterward.
+No restore occurred. Runtime remains07c7b47/content9ce1f703b13b957f; API/jobs image
+cb5f92ca1484, web58c24d9a67a5. All64 feature statuses and eight production gates remain.
+This is focused verification, not a fresh full-repository or all-device acceptance claim.
