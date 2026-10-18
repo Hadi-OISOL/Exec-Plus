@@ -272,3 +272,26 @@ def test_grouped_aggregate_applies_verified_unit_only_to_value():
     )
     assert "2.00 USD" in str(body)
     assert "West USD" not in str(body)
+
+
+def test_data_only_causal_limit_is_mandatory_without_document_citations():
+    data = metric()
+    answer = EvidenceAnswer(
+        "mixed",
+        data,
+        (),
+        "",
+        "data",
+        ("These totals do not establish a causal explanation.",),
+        "fake",
+        (),
+    )
+    packet = build_fact_packet(answer)
+    body = render_selection(packet)
+    segment = body["segments"][-1]
+    assert segment["text"] == answer.limitations[0]
+    assert segment["kind"] == "limitation"
+    assert segment["evidence_ids"] == [str(data.lineage.query_id)]
+    assert validate_saved_narrative(packet, body)
+    body["segments"].pop()
+    assert not validate_saved_narrative(packet, body)

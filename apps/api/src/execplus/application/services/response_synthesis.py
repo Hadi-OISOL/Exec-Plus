@@ -155,6 +155,13 @@ def build_fact_packet(
                         ref,
                         "limitation",
                     )
+            if answer.limitations:
+                if answer.citations:
+                    ref = str(answer.citations[0]["chunk_id"])
+                elif answer.data is not None:
+                    ref = str(answer_lineage(answer.data).query_id)
+                else:
+                    return None
                 for limitation in answer.limitations:
                     add(limitation, ref, "limitation")
         elif isinstance(answer, PatternAnswer):
