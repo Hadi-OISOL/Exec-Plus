@@ -94,7 +94,8 @@ def test_model_guidance_handles_natural_and_roman_urdu_phrasing_without_saving_m
     assert "The profile found no missing cells" in second["answer"]["message"]
     assert "Everything is perfect" not in second["answer"]["message"]
     assert "PrivateItem" not in model.requests[-1].messages[-1].content
-    assert "Roman Urdu" in model.requests[-1].messages[0].content
+    # The October 18 product contract is English-only; keep historical input coverage.
+    assert "Interpret ordinary English" in model.requests[-1].messages[0].content
     with env.engine.connect() as connection:
         assert len(connection.execute(select(s.understandings)).all()) == 1
         assert connection.execute(select(s.query_executions)).first() is None
