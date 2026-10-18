@@ -52,19 +52,13 @@ class ResultContext:
                 result.update(
                     columns=list(table.columns[:12]),
                     columns_truncated=len(table.columns) > 12,
-                    rows=[
-                        [str(value) if value is not None else None for value in row[:12]]
-                        for row in table.rows[:12]
-                    ],
-                    rows_truncated=len(table.rows) > 12,
+                    returned_records=len(table.rows),
+                    matched_records=table.matched_records,
+                    rows_truncated=table.matched_records is not None
+                    and table.matched_records > len(table.rows),
                 )
             results.append(result)
         payload = {"turn_id": str(self.turn_id), "results": results}
-        if len(json.dumps(payload, ensure_ascii=False)) > 10000:
-            for result in results:
-                if "rows" in result:
-                    result.pop("rows")
-                    result["rows_truncated"] = True
         if len(json.dumps(payload, ensure_ascii=False)) > 16000:
             raise ClarificationRequiredError(
                 "The previous result has too much scope for a safe short follow-up. "

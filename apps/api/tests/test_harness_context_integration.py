@@ -296,3 +296,46 @@ async def test_memory_edit_invalidates_followup_without_changing_historical_rece
     restored = await threads.resolve(actor, wid, thread.id, first_turn.id)
     assert restored.value == first.value
     assert len(model.requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_compare_two_requires_two_distinct_verified_results(integration):
+    actor, wid, did, uid, model, threads = setup(integration, query())
+    thread = await threads.start_thread(actor, wid, did, uid)
+    await threads.ask(actor, wid, thread.id, "total revenue")
+    answer, turn = await threads.ask(actor, wid, thread.id, "Compare those two")
+    assert answer is None and turn.kind == "ambiguous"
+    assert "Which two" in turn.message
+    assert len(model.requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_private_record_cells_never_reenter_followup_planner_request(integration):
+    from test_workspace_integration import dataset, upload
+
+    headers, actor = identity(integration, "private-cells@example.test")
+    wid = workspace(integration, headers)
+    did = dataset(integration, headers, wid)
+    stored = upload(
+        integration,
+        headers,
+        wid,
+        did,
+        b"region,revenue\nPrivateCustomer,13.00\nSouth,20.00\n",
+        "private.csv",
+        "text/csv",
+    )
+    assert stored.status_code == 201
+    model = Planner(
+        {"kind": "rows", "plan": {"columns": [], "filters": [], "limit": 100}},
+        query("count", metric="*"),
+    )
+    router = IntentRouterService(model, integration.runtime.analytics, context_enabled=True)
+    threads = ThreadService(integration.runtime.threads.uow, router)
+    thread = await threads.start_thread(actor, UUID(wid), UUID(did), UUID(stored.json()["id"]))
+    result, _ = await threads.ask(actor, UUID(wid), thread.id, "Show records")
+    assert result[0].rows[0][0] == "PrivateCustomer"
+    answer, _ = await threads.ask(actor, UUID(wid), thread.id, "and count records?")
+    assert answer.value == 2
+    assert "PrivateCustomer" not in model.requests[-1].messages[-1].content
+    assert "Previous verified results" in model.requests[-1].messages[-1].content

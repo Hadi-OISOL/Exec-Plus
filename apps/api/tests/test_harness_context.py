@@ -145,3 +145,29 @@ def test_compound_keeps_requested_operations_and_refuses_unexecuted_dependencies
         json.dumps({"kind": "compound", "steps": [query(), query("avg")]}), view()
     )
     assert compound_covers_request(question, routed, view()) is allowed
+
+
+def test_table_context_never_contains_private_record_cells():
+    from execplus.domain.models import QueryResult
+
+    actor, wid, turn = uuid4(), uuid4(), uuid4()
+    query_id = uuid4()
+    lineage = CalculationLineage(
+        query_id,
+        wid,
+        uuid4(),
+        "Sales",
+        2,
+        "",
+        "rows",
+        (),
+        (),
+        "",
+        receipt={"sources": []},
+    )
+    table = QueryResult(query_id, ("customer", "revenue"), (("PrivateCustomer", "13"),), 2, 2)
+    description = ResultContext(actor, wid, turn, ((table, lineage),)).describe()
+    assert "PrivateCustomer" not in description
+    assert '"rows":' not in description
+    assert '"returned_records": 1' in description
+    assert '"matched_records": 2' in description
