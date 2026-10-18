@@ -439,8 +439,13 @@ def test_visual_value_query_keeps_requested_sum_and_exact_result(integration):
 
 
 def test_model_cannot_replace_requested_calculation_with_diagram(integration):
-    owner, _, _, path, _ = prepare(integration, {"kind": "diagram", "columns": []})
+    owner, _, _, path, model = prepare(
+        integration,
+        {"kind": "diagram", "columns": []},
+        {"kind": "diagram", "columns": []},
+    )
     result = ask(integration, owner, path, "Visualize total revenue by city")
+    assert len(model.requests) == 2  # One bounded correction; still no unverified diagram.
     assert result["answer"] is None and result["turn"]["kind"] == "ambiguous"
     assert "calculated values" in result["turn"]["message"]
 
@@ -556,10 +561,13 @@ def test_diagram_clarification_choice_cannot_use_changed_definition(integration)
     assert result["answer"] is None and "changed" in result["turn"]["message"]
 
 
-@pytest.mark.parametrize("question", [
-    "where does wheat grows better on? which soil type prove with data and diagrams",
-    "compare regions with a diagram",
-    "which crops have the most records? show diagrams",
-])
+@pytest.mark.parametrize(
+    "question",
+    [
+        "where does wheat grows better on? which soil type prove with data and diagrams",
+        "compare regions with a diagram",
+        "which crops have the most records? show diagrams",
+    ],
+)
 def test_analytical_visual_request_reaches_analysis_planner(question):
     assert diagram_request(question, description()) is None
