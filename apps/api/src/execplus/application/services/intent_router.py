@@ -1041,7 +1041,7 @@ class IntentRouterService:
         context += category_context
         hint, selection_route = (
             await self._selection(context, question, view)
-            if overview_requirements.needs_data_selection
+            if overview_requirements.needs_data_selection and not self.context_enabled
             else ("", "")
         )
         request = ModelRequest(
