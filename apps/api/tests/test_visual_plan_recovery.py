@@ -1,17 +1,26 @@
 """A chart presentation request can recover from a mistaken structural tool choice."""
 
+import pytest
+
 from test_conversational_explorer import ScriptedModel
 from test_dataset_guidance import ask
 from test_studies import prepare
 
 
-def test_stage_rainfall_chart_repairs_structural_proposal(integration):
+@pytest.mark.parametrize(
+    "proposal",
+    [
+        {"kind": "diagram", "columns": ["Crop_Growth_Stage", "Rainfall_mm"]},
+        {"kind": "unsupported", "message": "A diagram only maps field membership."},
+    ],
+)
+def test_stage_rainfall_chart_repairs_structural_proposal(integration, proposal):
     env = integration
     content = b"Crop_Growth_Stage,Rainfall_mm\nHarvest,20\nHarvest,40\nFlowering,10\nFlowering,30\n"
     owner, _, wid, _, _, root = prepare(env, content, domain="research")
     tid = env.client.post(root + "/threads", headers=owner).json()["id"]
     model = ScriptedModel(
-        {"kind": "diagram", "columns": ["Crop_Growth_Stage", "Rainfall_mm"]},
+        proposal,
         {
             "kind": "numerical",
             "plan": {

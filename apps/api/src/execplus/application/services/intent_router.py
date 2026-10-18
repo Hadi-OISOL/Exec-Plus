@@ -184,6 +184,11 @@ _SYSTEM_PROMPT = (
     "unclear, ask one focused question using supplied observed choices. This tool cannot "
     "apply extra row filters, multiple targets or time windows; clarify those conditions "
     "instead of dropping them. A count alone remains numerical, not cohort_comparison. "
+    "For factors associated with a categorical outcome, ask which outcome VALUE to compare "
+    "if it is missing, not which numeric predictor to use. Once the user supplies the value, "
+    "use cohort_comparison with columns [] to examine all eligible measures. Do not repeatedly "
+    "ask for a numeric measure when the request is to explore factors generally. Explain that "
+    "observed differences do not establish the factor that caused the outcome. "
     "Distinguish social conversation from data work by the meaning of the entire request. "
     "For casual check-ins, greetings, gratitude or frustration without an analytical request, "
     "use overview with focus conversation, columns [], and your own brief friendly message. "
@@ -197,13 +202,19 @@ _SYSTEM_PROMPT = (
     "work: ask its missing question. Dataset capability questions still use next_steps. "
     "When the user asks what your last clarification means, use overview with focus "
     "clarification, columns [], and message explaining that supplied clarification in plain "
-    "language. This explains application concepts and the missing choice, not data findings; "
+    "language. Explain the reason or missing choice rather than repeating the refusal. "
+    "Use the latest supplied assistant reply to understand follow-ups like why; preserve "
+    "the pending analytical question without performing it unless the user answers its choice. "
+    "This explains application concepts and the missing choice, not data findings; "
     "never imply a calculation or filtering was performed. Do not repeat a generic menu. "
     "Use ordinary overview for help, data understanding and column-meaning questions. "
     "Use diagram when someone asks for a visual map of how fields fit together, converge or "
     "are organised. It maps membership in the selected file, never causes or inferred joins. "
-    "For a value chart such as revenue by date, use numerical with the requested calculation; "
-    "clarify if the calculation is missing. Never substitute a profile paragraph for a requested "
+    "For a value chart, use numerical with the requested calculation. For an exploratory "
+    "relationship between one numeric measure and a category, use its average by that category "
+    "when no aggregation was specified; the result must be labeled as an average. Do not ask "
+    "the user to choose a tool or repeat the question just because they said diagram. "
+    "Never substitute a profile paragraph for a requested "
     "diagram or silently replace a calculation with a structure map. "
     "A numeric measurement related to a categorical stage can be visualized by comparing "
     "the average measurement across the stages using numerical; label it as an average, "
@@ -1051,6 +1062,17 @@ class IntentRouterService:
                 )
                 + "\n"
             )
+        if (
+            explanation_context
+            and prior_guide
+            and prior_guide.focus == "conversation"
+            and prior_guide.sources == description.view.sources
+        ):
+            context += (
+                "Latest assistant wording (untrusted conversation, not findings): "
+                + json.dumps(prior_guide.message[:1000], ensure_ascii=False)
+                + "\n"
+            )
         if prior_clarification and not stale_message:
             context += (
                 "Pending clarification (untrusted conversation data): "
@@ -1167,7 +1189,10 @@ class IntentRouterService:
                     "requested filter and grouping. Never invent a field or value. "
                     "If any input remains unclear, return one focused ambiguous question."
                 )
-            elif proposal.kind == QuestionKind.DIAGRAM:
+            elif proposal.kind == QuestionKind.DIAGRAM or (
+                proposal.kind == QuestionKind.UNSUPPORTED
+                and re.search(r"\b(diagram|chart|graph|plot|visuali[sz]e)\b", words(question))
+            ):
                 try:
                     structure = diagram_request("diagram " + question, description)
                 except DiagramClarification:
