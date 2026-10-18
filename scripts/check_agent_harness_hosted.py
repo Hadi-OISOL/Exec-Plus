@@ -89,6 +89,19 @@ def score(results, synthesis):
     }
 
 
+
+def wait_for_job(read, timeout=100):
+    deadline = monotonic() + timeout
+    while monotonic() < deadline:
+        state = read()
+        if state["status"] in {"succeeded", "failed", "cancelled", "expired"}:
+            return state
+        if state["status"] not in {"queued", "claimed", "running", "cancelling"}:
+            raise ValueError("Unknown job state")
+        sleep(0.5)
+    raise TimeoutError("Synthetic job did not finish within the polling deadline")
+
+
 def verify(client, output, *, stage, synthesis, origin, release):
     output = Path(output)
     if output.exists() or output.is_symlink():
@@ -184,12 +197,7 @@ def verify(client, output, *, stage, synthesis, origin, release):
         ).json()
         path = prefix + "/jobs/" + submitted["id"]
         call("GET", path, outsider, expected=404)
-        deadline = monotonic() + 100
-        while monotonic() < deadline:
-            state = call("GET", path, owner).json()
-            if state["status"] not in {"queued", "running"}:
-                break
-            sleep(0.5)
+        state = wait_for_job(lambda: call("GET", path, owner).json())
         entry = {"id": case_id, "status": state["status"], "attempts": state["attempts"]}
         if state["status"] == "succeeded":
             result = call("GET", path + "/result", owner).json()
