@@ -67,3 +67,15 @@ private application or backend.
 The current multi-result Overview can still be long with many eligible findings. All charts
 remain visible as requested; general layperson usability and competitor parity are not
 established by layout checks. Cognee is reviewed-only: see `docs/cognee-memory-assessment.md`.
+
+## Additional affected-surface gate
+
+Forecasting, upload reading, exports and visualization checks have 14 distinct latest
+passing browser journeys across the initial 13-pass/one-failure run and three passing
+supplements (35.3 seconds). The failed assertion expected the previous dashboard-first
+DOM order; it now verifies findings before dashboard controls, retaining exact values,
+filters, missing-value and keyboard checks. Two supplemented journeys explicitly exercise
+dark forecast and reading views. Logs: `browser-affected-surfaces.log` and
+`browser-affected-supplement.log`. Combined with the nine earlier journeys this is 23
+distinct local browser journeys with latest passing executions, not one clean full run.
+Frozen frontend rerun passes all 71 tests; lint and VPS image builds/restricted checks pass.

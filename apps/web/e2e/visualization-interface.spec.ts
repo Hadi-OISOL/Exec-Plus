@@ -45,8 +45,8 @@ test("chart and table exploration preserve exact values, gaps, source filters an
   );
   expect(await page.evaluate(() => {
     const controls = document.querySelector('[aria-label="Charts & dashboard controls"]');
-    const chat = document.querySelector('.askPanel');
-    return Boolean(controls && chat && (controls.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING));
+    const findings = document.querySelector('[aria-label="First findings from your file"]');
+    return Boolean(controls && findings && (findings.compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING));
   })).toBe(true);
   await expect(page.getByRole("region", { name: "Charts & dashboard controls", exact: true })).toBeVisible();
   const dashboard = page.getByRole("region", {

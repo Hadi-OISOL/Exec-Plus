@@ -52,6 +52,8 @@ test("advanced smoothing keeps rolling evidence, exact saved estimates and porta
   await expect(result).toContainText(run.evidence.query_ids[0]);
   await result.getByText("Method, backtest and source evidence", { exact: true }).click();
   for (const width of [1440, 390, 320]) {
+    const theme = width === 390 ? "dark" : "light";
+    await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
@@ -59,7 +61,7 @@ test("advanced smoothing keeps rolling evidence, exact saved estimates and porta
     const choice = await page.getByLabel("Advanced method family").boundingBox();
     expect(choice?.height).toBeGreaterThanOrEqual(44);
     expect(choice?.height).toBeLessThanOrEqual(64);
-    await result.screenshot({ path: `../../data/verification/2026-10-16/remaining-work/advanced-forecast-${width}.png` });
+    await result.screenshot({ path: `../../data/verification/2026-10-18/intelligence-upgrade/advanced-forecast-${theme}-${width}.png` });
   }
   await result.getByText("Download saved forecast", { exact: true }).click();
   await result.getByRole("combobox", { name: "File type", exact: true }).selectOption("xlsx");
