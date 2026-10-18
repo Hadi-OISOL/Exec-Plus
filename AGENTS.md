@@ -40,6 +40,31 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 18 — Bounded conversational harness verified live
+
+- Private release **831c6e06a8b55bdb** is active on unchanged **0029**. Runtime source
+  **5247867**, accepted test checkpoint **577d183**. Read `docs/agent-harness.md`,
+  `docs/agent-harness-implementation.md` and `docs/verification-agent-harness.md`.
+- Two independent governed queries can answer a compound question with both receipts.
+  Bounded private follow-ups and verified factual wording selection preserve exact math,
+  historical units, access checks and exports. No arbitrary tool loops or causal advice.
+- Local latest coverage: **3,168 backend nodes**, all37 original mappings, **69 frontend**,
+  **111 browser passes /3 explicit model skips**, static/build/restricted-image checks.
+  This combines a full3153-pass/1-failure run with passing supplements; failures retained.
+- Hosted before/after: **2/4 in51.268s →4/4 in52.567s**, allfour narratives selected.
+  Three live layouts pass35.114s, with keyboard evidence, no overflow/actual network errors.
+  Expected background signal cancellations are separately evidenced; synthetic accounts revoked.
+- Checked backups: **20261018T175026Z** before/**20261018T175717Z** after. Activation
+  preserves77tables,218files/4016809bytes andconfiguration; final services, loopback listeners,
+  model/timers and schema pass. No restore, schema change, dependency addition or push.
+- New context-enabled planning bypasses local Qwen; hosted DeepSeek handles interpretation
+  and factual wording selection. Dashboard summary selection still uses local Qwen, and
+  server tools calculate numbers. Main model names remain unchanged. Allfour private flags
+  are enabled; general defaults remain off. All8production gates andfeaturecounts unchanged.
+- Preserve newer saved work. Rollback means compatible flag disable/forward repair, never
+  an old reader that drops the second calculation. Latest private access/handoff is in
+  `data/agent-memory/private-vps-handoff.md`; never print sessions or provider credentials.
+
 ### October 17 — Natural record questions and selected-group comparison
 
 - Private release **c34536b8540f7c6d** is active on unchanged **0029**; source

@@ -1,58 +1,86 @@
 # Agent harness implementation — 18 October 2026
 
-Status: **In progress.** No new release is active or accepted. This ledger records the current authorized implementation, not production certification.
+Status: **implemented and active in the private demo** as release **`831c6e06a8b55bdb`** on unchanged schema **`0029`**. Local acceptance, restricted images, the isolated canary and the hosted API check pass. Live browser and checked post-release backup also pass; this is not production certification.
 
-## Ownership and integration
+## Delivered behavior
 
-Base `6bca30e`, branch `phase2`. Preserve the existing modified `apps/web/next-env.d.ts`, coordination document, historical PDF, independent-tools verification and architecture review handoff. The root application stays unchanged while baseline tests run.
+- Compound questions can execute at most two independently validated data queries. Both steps must succeed before publication, and each result keeps its own exact receipt.
+- Follow-ups reuse only bounded, typed, replay-verified result context bound to the actor, workspace, source and memory revision. Topic-changing questions stop reuse. Private table cells are never placed in the planning packet.
+- Verified narrative packets contain server-authored statement variants, evidence IDs, scope and limitations. The model returns only a complete statement ordering and variant choices. Invalid, unavailable or timed-out selection uses the existing deterministic renderer.
+- Saved narratives are revalidated against authorized historical receipt replay before delivery. Access, source, definition or memory changes prevent unsafe reuse.
+- Confirmed units come from the receipt's definition. Missing units stay explicit. Record counts, named-field counts, null handling and tied extrema keep their existing semantics.
+- Compound PDF, Excel and CSV exports replay and authorize both receipts. They preserve both result sections and do not replan the question.
+- Narrow English resolution supports plural operations, bounded temporal follow-ups, metric-operation pairing and exact visible category labels. It does not create field/value aliases or evidence.
+- Feature switches preserve the legacy path when disabled. Historical saved answers remain readable through the compatible reader.
 
-| Owner | Model | Isolated branch | Write scope |
-| --- | --- | --- | --- |
-| Agent 1 | GPT-6 Astra, Medium | `agent/harness-synthesis-20261018` | New verified narrative modules/tests; ask panel and narrative presentation. |
-| Agent 2 | GPT-6.1 Sol, Medium | `agent/harness-context-20261018` | Router, private thread context, bounded compound plans, capability contracts and focused tests. |
-| Agent 3 | GPT-5.6 Sol, Medium | `agent/harness-evaluation-20261018` | New synthetic evaluations, independent code/security review, verification plan. |
-| Lead | Current session | `agent/harness-integration-20261018` | Shared configuration, provider/job budgets, response serialization, exports, integration, release and final evidence. |
+## Integration record
 
-No agent can push, activate VPS changes, modify another worktree or change provider credentials. Lead integrates reviewed commits and runs combined gates.
+| Workstream | Delivered scope | Final state |
+| --- | --- | --- |
+| Verified synthesis | Fact packets, constrained selection, exact fallback, save/replay validation and UI presentation | Integrated, locally accepted and active |
+| Context and compound execution | Private result context, clarification boundaries, two-query plans, receipts and publication guards | Integrated, locally accepted and active |
+| Evaluation and exports | Synthetic before/after runner, adversarial replay checks and compound PDF/Excel/CSV coverage | Integrated and locally accepted |
+| Shared runtime | Flags, budgets, serializers, routes, worker/bootstrap wiring, prompt repair and bounded synonym discovery | Integrated, locally accepted and active |
+| Release verification | Pinned build, restricted checks, fresh-resource canary, activation and hosted checks | Accepted within documented private-demo bounds |
 
-## Implementation map
+The implementation began from `6bca30e`. Candidate source checkpoint `5247867` and accepted test checkpoint `577d183` produced release `831c6e06a8b55bdb`. No schema migration was required.
 
-| Phase | Scope | Acceptance evidence | State |
-| --- | --- | --- | --- |
-| 0 | Source/runtime inventory and frozen baseline | Actual health/version checks, baseline failures retained, isolated fixtures | Running |
-| 1 | Verified facts and conversational statement variants, optional bounded model selection, exact fallback | Invented numbers/claims/IDs rejected; units and caveats retained; UI exact data still accessible | Integrated; focused tests pass, browser gate running |
-| 2 | Bounded authorized result context, clarification and follow-up continuity | Scope/source/memory/access invalidation; topic boundaries; historical replay | Integrated; focused source/access/privacy tests pass |
-| 3 | At most two independently validated data steps using existing analytic services | Complete requested steps or explicit failure, two receipts, no arbitrary SQL; compound exports | Integrated; compound export gate running |
-| 4 | Synthetic before/after evaluations, privacy regressions, API/browser/build checks | Recorded actual outcomes, no invented hosted quality/cost | Baseline running |
-| 5 | Checked backup, exact candidate images, synthetic canary, controlled activation | Current schema/data/config preservation; health/worker/replay/exports; rollback instructions | Not started |
+## Security and evidence boundaries
 
-Feature switches default off. Existing saved answers and original service paths remain supported. No schema migration is planned unless implementation demonstrates a need. Definitions, required filters and exact math remain application-authoritative.
+- Definitions, required filters, calculations, evidence authorization and publication remain application-authoritative.
+- A compound answer is published only after both queries succeed and source/access checks still pass. Partial results are not presented as a complete answer.
+- Context carries verified scalar result data and bounded receipt/schema/scope metadata. It excludes full transcripts, prior model prose and private record rows/cells.
+- The narrative model cannot add numbers, claims, units or evidence IDs. Every mandatory scope and limitation statement must appear exactly once.
+- Model selection has an eight-second bound and one call. Failure falls back to deterministic rendering.
+- Provider credentials remain server-side. No provider name or credential changed as part of this release.
+- Installed development skills are not executable product plugins. Retrieval synonyms only find candidates; they do not rename fields or establish meaning.
 
-## Initial runtime inventory
+## Final local verification
 
-| Service | Location | Version/status observed this session | Dependencies / health | Deployment and rollback |
-| --- | --- | --- | --- | --- |
-| Developer source | Local checkout | `phase2`, `6bca30e`, existing unrelated WIP | Python venv and project Node | Separate worktrees; integrate reviewed commits, no reset of user work |
-| Local application | Developer machine | No existing web/API listeners before task | New restricted tunnel restores browser access to VPS | Tunnel only; not a local application deployment |
-| Test database/storage | Local disposable Docker containers | Started for this task; PostgreSQL and MinIO readiness pass | Loopback ports 25432/29000; per-test schema/bucket | Test-owned resources only, never production database |
-| Private web | VPS through existing restricted identity | HTTP 200; image `487ed108360d` | API | Existing immutable image pipeline; retain old images/source |
-| Private API | VPS through restricted tunnel | `/health/ready`: ready, PostgreSQL/storage healthy | PostgreSQL, object storage | Existing maintenance-lock pipeline; data-preserving rollback/forward repair |
-| Worker, schema, model, timers | VPS | Current schema `0029`; API/jobs image `8c12e8f9500e`; all five services running, zero restarts; model and refresh/backup timers active | Same API code, queue, local selector and hosted provider | Must verify before activation |
-| Hosted language model | External configured endpoint | Confirmed configured main tiers `deepseek-v4-pro`, selector `qwen3:4b`; no provider call in discovery | Server-held configuration/credentials | No provider-name change authorized by inference |
+- Backend primary run: **3,153 passed / 1 failed** in 2,098.56 seconds. The failure was an obsolete Roman-Urdu prompt-label assertion; the requested English-only behavior and all other assertions passed.
+- Reconciled latest backend status: **3,168 distinct nodes passed**, zero unresolved, across the complete run and explicit 83-case, 6-case and 15-case supplements. The original failure remains in the log, so this is not one clean final-source run.
+- Original requirement mapping: **37/37 passed**.
+- Frontend: **69/69 passed**. Offline browser: **111 passed / 3 explicit model skips** in 18.7 minutes.
+- Ruff, frontend types/lint/build and mypy for **266 source files** passed.
+- Exact candidate archives, manifests, VPS builds and restricted computation checks passed.
+- Focused tests cover packet validation, fallback, private context, cancellation/races, compound execution/export/replay, English resolution, source and memory changes, and tamper refusal.
 
-The user restored the administrator control session, verified on October 18. Read-only inventory confirms the current images, schema and configured model names; the restricted loopback app tunnel works. Current environment is `local`, so private-demo deployment is not independent production certification. Aggregate queue metadata showed 225 succeeded jobs and no active queued/running jobs at inspection. Latest backup `20261018T030005Z` passes archive checksums, object-tar listing and PostgreSQL archive listing; this is readability/integrity, not a fresh restore rehearsal. Historical handoff headings contain older releases and must not override actual observations.
+The baseline remains separate: **3,008 backend passes / 1 stale capability failure**, **63 frontend passes**, and **111/112 offline evaluation checks**. Focused and supplemental results are not added to the primary full-run count.
 
-## Shared contracts
+## Runtime comparison
 
-- `EvidenceAnswer.additional_data` is an additive tuple; first numerical result remains `data`. Compound turns retain existing `mixed` kind and use `coverage=data`, without pretending document retrieval occurred.
-- Two data steps plus assembly fit the existing four-step plan maximum. Resource budget permits two queries only when orchestration is enabled; original default remains one.
-- Narrative packets contain verified server-authored factual variants and evidence IDs. Model selection cannot add facts. Mandatory scope/limitations remain. Saved narrative is validated against authorized replay before delivery.
-- Unit metadata comes from the receipt's actual confirmed definition, not a current replacement or model guess. Explicit private preferences remain separate from numerical filters.
-- Relevant source/definition/access checks remain mandatory at execution and publication; partial compound results are never silently presented as a full answer.
-- Installed development skills are not loaded as arbitrary runtime code. Retrieval improvements are candidate discovery only, not evidence or semantic column aliases.
+The same four fixed hosted tasks improved from **2/4 passed in 51.268 seconds** on release `c34536b8540f7c6d` to **4/4 passed in 52.567 seconds** on `831c6e06a8b55bdb`. The after run selected verified narratives for **4/4** cases with zero fallbacks. This small synthetic corpus does not establish general language quality or speed.
 
-## Verification ledger
+After-run diagnostics for the four allowlisted turns record seven `deepseek-v4-pro` attempts: **12,175 input**, **425 output** and **11,776 cached input tokens**. Their accounting state is `unknown`, so no billing or cost claim is supported.
 
-Root baseline uses the unmodified source and isolated database/storage. Full backend run is in progress. Frontend baseline: 63 passed, zero failures, 2.210 seconds. Root foundation/upload-brief recheck: 36 passed with isolated services; an earlier run skipped eight service-dependent cases and is not counted as equivalent coverage. Agent-specific first failures and passing rechecks will be recorded separately. No deployment acceptance or hosted evaluation is claimed yet.
+The final isolated VPS canary used fresh loopback PostgreSQL and object storage. It passed **4/4 tasks**, selected **4/4 narratives**, verified worker readiness and removed all owned containers in 33.666 seconds. It did not read the live database or storage.
 
-Private evidence directory: `data/verification/2026-10-18/agent-harness/`. It must remain ignored and contain synthetic or redacted operational evidence only.
+## Active private runtime
+
+- Release: `831c6e06a8b55bdb`; source checkpoint: `5247867`; schema: `0029`.
+- Checked pre-release backup: `20261018T175026Z`; checked post-release backup: `20261018T175717Z`.
+- Activation preserved **77 tables** and **218 files / 4,016,809 bytes** before writer startup. Exact API/jobs/web image IDs and existing secret-file checksums were verified.
+- Harness flags are enabled. Existing web origin is retained; outbound webhooks and external connectors remain disabled.
+- The hosted after-check used two new fictional accounts, passed all four task checks, then disabled both accounts and revoked their sessions.
+
+## Final live acceptance and remaining limits
+
+The fresh browser check passes in 35.114 seconds: actual compound values and both evidence
+references, selected narrative, keyboard controls and 1440/390/320 layouts. Nine confirmed
+background signal cancellations during navigation are recorded separately; no actual request,
+HTTP or page error remains. Earlier checker failures are retained. All fictional browser
+accounts are disabled, sessions revoked and subsequent login denied.
+
+The final checked backup passes both archive listings and checksums. Readiness/web, five
+services, six loopback listeners, model/timers, unchanged schema/table set, configuration and
+container identities pass. The first preflight failure is retained; the fresh check passes
+without an application repair. No restore occurred.
+
+All eight production gates remain open. Two independent queries do not mean arbitrary
+multi-step analysis, dependent arithmetic or causal recommendations. Broader representative
+model-quality and performance acceptance remains unmeasured. No push occurred.
+
+Full evidence, original failures, measured provider usage and practical limits are in
+[the verification report](verification-agent-harness.md). Private evidence remains under
+`data/verification/2026-10-18/agent-harness/`. Use compatible flag rollback or forward repair;
+never restore old data over later work or use a reader that discards compound results.

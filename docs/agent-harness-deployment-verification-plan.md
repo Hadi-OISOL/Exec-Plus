@@ -28,7 +28,7 @@ corpus hash or mode differs. Retain initial failures and corrected rechecks as s
 - Review Agent 2's context and compound execution for actor/workspace/source/memory binding,
   topic-switch barriers, two-step limit, revocation between steps, source changes before
   publication, cancellation and no partial answer when either step fails.
-- Keep both feature flags off by default until root wires configuration and job serializers.
+- Keep all four feature flags off by default until root wires configuration and job serializers.
 - Run the focused unit/integration tests, the fixed two-phase evaluation manifest, then the frozen
   full backend and frontend gates. Do not add overlapping focused counts to the full-suite count.
 
@@ -57,18 +57,22 @@ restricted-image checks, backward-compatible flags, current table/object/config 
 maintenance lock and a readable checked backup. Stop if the backup, source manifest, image IDs,
 schema transition, environment names or rollback target are uncertain.
 
-Activate through the existing release helpers with flags initially disabled. Verify readiness,
-web, workers, loopback listeners, model/timers and old saved-answer replay. Enable one flag at a
-time for a newly created fictional account: synthesis first, context second, bounded compound
-execution last. At each step verify permission denial, source-change refusal, exact evidence,
-saved reopen/export and deterministic fallback.
+The implemented flags are process-wide, not per-account. Validate all enabled paths first in
+a disposable VPS API/worker with fresh PostgreSQL/object storage and fictional accounts.
+Only then activate the exact tested images through the maintenance-lock release helper.
+The release-owned nonsecret env file opts in; existing app.env overrides it. Verify readiness,
+web, workers, loopback listeners, model/timers, saved-answer replay, permission denial,
+exact evidence, saved reopen/export and deterministic fallback. Do not claim per-user rollout.
 
 ## Rollback conditions and method
 
 Rollback on an authorization leak, stale-source publication, numeric/unit mismatch, missing
 requested filter, partial compound publication, saved-answer incompatibility, worker backlog,
-readiness failure or material error increase. First disable the new flags. If health does not
-recover, use the retained prior images/source checkpoint through the existing activation helper.
+readiness failure or material error increase. First disable the new flags while retaining the compatible new reader images. After new
+compound answers have been saved, an older reader can omit their second calculation and is
+not a safe rollback. If health does not recover, stop affected writers and forward-repair the
+compatible implementation. Returning to old code is permitted only before candidate writers
+start and after proving unchanged stored state, as enforced by the activation helper.
 Do not restore an older database over later saved work. Restore data only through the separately
 approved recovery procedure after proving that a data rollback is required and safe.
 

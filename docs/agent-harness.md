@@ -44,7 +44,36 @@ Missing fixed units remain explicit. A historical USD result cannot be relabeled
 
 - The two-step plan supports independent calculations. Result-dependent arithmetic, implicit joins, arbitrary multi-step loops and causal prescriptions remain unsupported.
 - Existing forecast, anomaly, scenario and decision panels retain their governed services and prerequisites. This change does not make every panel operation autonomously executable from chat.
-- The main provider and local selector remain separately configured; model names are not changed by this implementation. Hosted task correctness and selector usefulness require actual synthetic measurements.
+- The main provider and local selector remain separately configured; model names are not changed by this implementation. With the new context flag enabled, planning skips the optional local selector after the recorded
+  three-case comparison. The legacy context-off path retains it, and dashboard statement selection
+  still uses local Qwen. Hosted interpretation and narrative selection use the existing main model;
+  no model name changed. This narrow measurement is not general language-quality proof.
 - Document expansion improves candidate discovery for a small explicit synonym set. It does not rename columns, establish equivalence, or turn a candidate passage into evidence without the existing quotation checks.
 - Operational diagnostics retain fixed outcome codes, route attribution and evidence references. General logs must not contain raw questions, model replies, credentials or uploaded records.
 - Private-VPS acceptance is distinct from independent production security, scale and availability acceptance.
+
+## Operator fallback for new turns
+
+Keep the current compatible API/jobs/web images and schema. In the existing private
+`/sdb-disk/OISOL_ExecPLUS/secrets/app.env`, set only these nonsecret keys to `false`:
+
+```dotenv
+EXECPLUS_AGENT_CONTEXT_ENABLED=false
+EXECPLUS_AGENT_ORCHESTRATION_ENABLED=false
+EXECPLUS_AGENT_SYNTHESIS_ENABLED=false
+EXECPLUS_AGENT_RETRIEVAL_EXPANSION_ENABLED=false
+```
+
+Do not replace the file or change credentials. Recreate the two processes under the existing lock:
+
+```sh
+sudo flock /run/lock/execplus-maintenance.lock docker compose \
+  -f /sdb-disk/OISOL_ExecPLUS/source/deploy/vps/compose.yaml \
+  up -d --no-build --no-deps --force-recreate api jobs
+curl --retry 10 --retry-delay 2 --retry-connrefused -fsS \
+  http://127.0.0.1:18401/health/ready
+```
+
+Check worker processing and reopen an existing compound result with both receipts. Disabling
+new planning must not erase historical results. These are operator fallback instructions,
+not actions performed by this document.
