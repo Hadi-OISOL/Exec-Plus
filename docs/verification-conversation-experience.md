@@ -36,3 +36,34 @@ exact result tables retain their scrollable region. No new dependency or schema 
 
 In progress. Evidence lives in `data/verification/2026-10-19/conversation-experience/` and
 `data/verification/2026-10-19/conversation-appearance/`. Deployment acceptance is not yet claimed.
+
+### Review and local checks
+
+The independent review found that plain text alone did not enforce the social prompt's
+no-claims rule. A conservative generic guard now refuses visible-field claims, pretend
+save/compute actions and explicit private-goal/notes disclosure. The demonstrated saved
+preferences and confidential goal payloads are rejected. An invented claim about an absent
+field can still evade these heuristics (for example, revenue doubling when revenue is not
+in the schema). This is an explicit residual limitation, not verified factual prose or a
+claim that all possible unsupported statements are caught. Social replies carry no verified
+analysis badge/evidence decoration and cannot export as analytical reports.
+
+Local backend:110 broader cases pass, final31 social cases pass; overlapping earlier42-case
+run had41 passes and one incorrect assertion that a completed refusal could not have status
+complete. Corrected assertion checks the unsupported kind, no answer and safe validation
+message; runtime was unchanged. Ruff and mypy269 pass. Frontend72 unit tests, types and lint
+pass. The checker smoke test initially used system Python without httpx; the project venv
+passes valid ten-case scoring and rejects a changed mixed-request calculation.
+
+Final local browser run:13 passed, one explicitly model-dependent continuation skipped,
+in1.5minutes. It includes real app sending-before-acceptance, cancellation, recovery and
+reduced-motion checks, overview/theme behavior and synthetic actual-CSS contrast/keyboard
+scroll checks at320/390/768/1024/1440 in both themes. Three initial test assertion failures
+(End key used for horizontal scrolling twice, stale pending wrapper selector once) are
+retained; corrected final rerun passes. Runtime source was unchanged. Root inspected real
+app dark320 progress and completed reply captures. This is not an all-device guarantee.
+
+Candidate runtime checkpoint `07c7b47`, immutable content release `9ce1f703b13b957f`:
+1,045 files, archive SHA-256
+`4194ac61ab8f885f141dafb1e361f18ed0f21f677b0c2dd634d7322d3c0903ad`.
+Later test-only assertion/cancellation supplements do not change runtime bytes.

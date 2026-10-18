@@ -228,6 +228,12 @@ test("explicit cancellation reports the actual terminal outcome and remains usab
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
+  let releaseCancel: () => void = () => {};
+  const cancelHeld = new Promise<void>(resolve => { releaseCancel = resolve; });
+  await page.route(/\/jobs\/[^/]+\/cancel$/, async route => {
+    await cancelHeld;
+    await route.continue();
+  });
   let paused = false;
   await page.route(/\/jobs\/[^/?]+$/, async (route) => {
     if (!paused && route.request().method() === "GET") {
@@ -279,6 +285,11 @@ test("explicit cancellation reports the actual terminal outcome and remains usab
     await page
       .getByRole("button", { name: "Cancel request", exact: true })
       .click();
+    await expect(progress).toHaveAttribute("data-paused", "true");
+    await expect(progress.getByText("Sending cancellation request…", { exact: true })).toBeVisible();
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await expect(progress.locator("[aria-hidden=true] span").first()).toHaveCSS("animation-name", "none");
+    releaseCancel();
     expect((await cancelled).ok()).toBe(true);
     release();
     await expect(page.locator(".conversationTurn")).toHaveCount(1);
@@ -304,6 +315,7 @@ test("explicit cancellation reports the actual terminal outcome and remains usab
       page.getByRole("button", { name: "New conversation", exact: true }),
     ).toBeEnabled();
   } finally {
+    releaseCancel();
     release();
     await page.unroute(/\/jobs\/[^/?]+$/);
   }

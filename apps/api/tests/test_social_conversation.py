@@ -163,5 +163,6 @@ def test_claimed_action_in_social_reply_is_not_published(integration):
     owner, _, _, path, _ = prepare(integration, {**SOCIAL, "message": "I saved your preferences."})
     result = ask(integration, owner, path, "how are you?")
     assert result["answer"] is None
-    assert result["turn"]["status"] != "complete"
+    assert result["turn"]["kind"] == "unsupported"
+    assert result["turn"]["message"] == "The conversational reply could not be validated."
     assert "I saved" not in result["turn"]["message"]
