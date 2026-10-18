@@ -53,7 +53,7 @@ def test_actual_compound_executes_two_exact_queries_and_reopens_both(integration
     owner, wid, path, model = staged(integration, plan, orchestration=True)
     response = ask(integration, owner, path, "Give me sales and count the orders.")
     assert response["turn"]["status"] == "complete"
-    assert response["answer"]["data"]["value"] == "27.000000000000"
+    assert response["answer"]["data"]["value"] == 27
     assert response["answer"]["additional_data"][0]["value"] == 4
     turn_id = response["turn"]["id"]
     reopened = integration.client.get(path + f"/turns/{turn_id}/answer", headers=owner)
@@ -73,13 +73,13 @@ def test_actual_result_followup_reuses_verified_receipt_without_second_model_cal
     plan = {"kind": "numerical", "plan": {"metric": "sales", "aggregation": "sum"}}
     owner, wid, path, model = staged(integration, plan, context=True)
     first = ask(integration, owner, path, "What are total sales?")
-    assert first["answer"]["data"]["value"] == "27.000000000000"
+    assert first["answer"]["value"] == 27
     second = ask(integration, owner, path, "Explain that simply")
     assert second["turn"]["status"] == "complete"
-    assert second["answer"]["data"]["value"] == first["answer"]["data"]["value"]
+    assert second["answer"]["data"]["value"] == first["answer"]["value"]
     assert (
         second["answer"]["data"]["lineage"]["query_id"]
-        == first["answer"]["data"]["lineage"]["query_id"]
+        == first["answer"]["lineage"]["query_id"]
     )
     assert len(model.requests) == 1
     with integration.engine.connect() as connection:

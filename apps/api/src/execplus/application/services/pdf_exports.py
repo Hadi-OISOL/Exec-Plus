@@ -13,6 +13,7 @@ from datetime import date, datetime, timezone
 from typing import cast
 from uuid import UUID, uuid4
 
+from execplus.application.conversation import EvidenceAnswer
 from execplus.application.export_ports import PdfRenderer, SavedAnswerResolver
 from execplus.application.plan_context import operation_id
 from execplus.application.ports import WorkspaceRepository
@@ -25,7 +26,11 @@ from execplus.application.services.dataset_access import (
 from execplus.application.services.forecasts import read_complete
 from execplus.application.services.intent_router import DatasetGuide, PatternAnswer
 from execplus.application.services.plans import admit
-from execplus.application.services.thread_export_documents import extended_sections, thread_charts
+from execplus.application.services.thread_export_documents import (
+    compound_sections,
+    extended_sections,
+    thread_charts,
+)
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, Scalar, VerifiedMetricAnswer
 from execplus.domain.pdf_exports import (
@@ -194,6 +199,9 @@ class PdfExportService:
             )
             if answer.suggestions:
                 sections.append(PdfSection("Suggested questions, not results", answer.suggestions))
+            sources = answer.sources
+        elif isinstance(answer, EvidenceAnswer) and answer.coverage == "data":
+            sections.extend(compound_sections(answer))
             sources = answer.sources
         elif isinstance(answer, DiagramAnswer | PatternAnswer):
             sections.extend(extended_sections(answer))
