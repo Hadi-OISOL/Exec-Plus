@@ -323,3 +323,36 @@ async def test_question_matched_category_packet_marks_its_values_as_incomplete()
     assert '"values_complete": false' in text
     assert "other labels may exist" in text
     assert "East" not in text
+
+
+@pytest.mark.parametrize(
+    "question,first,second",
+    [
+        ("revenue total and average", "sum", "avg"),
+        ("max and min revenue", "max", "min"),
+    ],
+)
+@pytest.mark.parametrize("correct", [True, False])
+def test_elliptical_compound_operations_bind_the_single_named_metric(
+    question, first, second, correct
+):
+    selected_view = dataset_view(
+        {
+            "columns": [
+                {"name": "revenue", "type": "decimal", "role": "metric"},
+                {"name": "cost", "type": "decimal", "role": "metric"},
+            ]
+        }
+    )
+    if question.startswith("revenue"):
+        steps = [
+            query(first, metric="revenue"),
+            query(second, metric="revenue" if correct else "cost"),
+        ]
+    else:
+        steps = [
+            query(first, metric="revenue" if correct else "cost"),
+            query(second, metric="revenue"),
+        ]
+    intent = route_response(json.dumps({"kind": "compound", "steps": steps}), selected_view)
+    assert compound_covers_request(question, intent, selected_view) is correct

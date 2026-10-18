@@ -287,6 +287,7 @@ def _compound_pairs_match(question: str, intent: RoutedIntent, view: DatasetView
             performed.add((step.request.metric, step.request.aggregation.value, "numerical"))
         if step.rows is not None and step.rows.extremum is not None:
             performed.add((step.rows.extremum.column, step.rows.extremum.direction, "rows"))
+    global_metrics = set(aliases.values()) & set(view.metrics)
     global_operations = {
         name for expression, name in operations if re.search(expression, normalized)
     }
@@ -310,8 +311,10 @@ def _compound_pairs_match(question: str, intent: RoutedIntent, view: DatasetView
             targets = fields
         else:
             targets = fields & set(view.metrics)
-        if not targets:
-            continue
+            if not targets and len(global_metrics) == 1:
+                targets = global_metrics
+            if not targets:
+                return False
         kind = "rows" if row_request and operation in {"min", "max"} else "numerical"
         if not {(name, operation, kind) for name in targets} <= performed:
             return False
