@@ -8,6 +8,8 @@ import re
 from dataclasses import dataclass
 
 from execplus.domain.guidance import mentioned_columns, words
+from execplus.domain.intent import RoutedIntent
+from execplus.domain.models import CalculationLineage, QuestionKind
 from execplus.domain.semantics import DatasetView
 
 
@@ -27,6 +29,10 @@ def is_guidance_followup(question: str) -> bool:
         "tell me more",
         "make it simpler",
         "explain simply",
+        "explain that simply",
+        "explain it simply",
+        "explain the result",
+        "what does this result mean",
     }
 
 
@@ -73,12 +79,29 @@ class RequestRequirements:
         return self.needs_data_selection or self.documents or self.artifact or self.analysis
 
 
+def is_result_explanation(question: str) -> bool:
+    return is_guidance_followup(question) or words(question) in {
+        "why",
+        "why is that",
+        "why might that be",
+        "why did that happen",
+        "what caused that",
+        "explain those results",
+        "compare those two",
+    }
+
+
 def is_contextual_reply(question: str, view: DatasetView) -> bool:
     normalized = words(question)
     return (
-        is_guidance_followup(question)
+        is_result_explanation(question)
         or normalized in {words(column.name) for column in view.columns}
-        or bool(re.match(r"^(and|also|then|their|its|same|by)\b", normalized))
+        or bool(
+            re.match(
+                r"^(and|also|then|their|its|same|by|what about|show me only|only|compare those)\b",
+                normalized,
+            )
+        )
     )
 
 
@@ -131,3 +154,91 @@ def request_requirements(question: str, view: DatasetView) -> RequestRequirement
             )
         ),
     )
+
+
+def requires_compound_data(question: str, view: DatasetView) -> bool:
+    normalized = words(question)
+    if not re.search(r"\b(and|also|plus|then)\b", normalized):
+        return False
+    named = set(mentioned_columns(question, view)) & set(view.metrics)
+    operations = re.findall(
+        r"\b(total|sum|average|avg|count|minimum|maximum|min|max)\b", normalized
+    )
+    return len(named) > 1 or len(operations) > 1
+
+
+def preserves_followup_scope(
+    question: str, intent: RoutedIntent, prior: CalculationLineage, view: DatasetView
+) -> bool:
+    """Allow explicit changes while refusing an accidentally broadened continuation."""
+    if intent.kind == QuestionKind.NUMERICAL and intent.request is not None:
+        filters = intent.request.filters
+        metric, aggregation, groups = (
+            intent.request.metric,
+            intent.request.aggregation.value,
+            intent.request.group_by,
+        )
+    elif intent.kind == QuestionKind.ROWS and intent.rows is not None:
+        filters = intent.rows.filters
+        metric, aggregation, groups = "", "rows", ()
+    else:
+        return True
+    normalized = words(question)
+    named = set(mentioned_columns(question, view))
+    rendered = {f"{item.column} {item.operator.value} {item.value!r}" for item in filters}
+    temporal = bool(
+        re.search(r"\b(year|month|week|day|yesterday|today|before|after|since)\b", normalized)
+    )
+    for previous in prior.filters:
+        if previous in rendered:
+            continue
+        column = next((col for col in view.columns if previous.startswith(col.name + " ")), None)
+        if column is None:
+            return False
+        replacements = [item for item in filters if item.column == column.name]
+        explicit_value = any(
+            words(str(item.value)) and words(str(item.value)) in normalized for item in replacements
+        )
+        if not replacements or not (
+            column.name in named or explicit_value or (temporal and column.type == "date")
+        ):
+            return False
+    if prior.aggregation != "rows" and aggregation != "rows":
+        if metric != prior.metric and metric not in named:
+            return False
+        explicit_operation = bool(
+            re.search(r"\b(total|sum|average|avg|mean|count|min|minimum|max|maximum)\b", normalized)
+        )
+        if aggregation != prior.aggregation and not explicit_operation:
+            return False
+        if not set(prior.grouping) <= set(groups) and not re.search(
+            r"\b(overall|ungrouped|without grouping|across all)\b", normalized
+        ):
+            return False
+    return True
+
+
+def compound_covers_request(question: str, intent: RoutedIntent, view: DatasetView) -> bool:
+    normalized = words(question)
+    if re.search(
+        r"\b(ratio|percentage|difference|subtract|divide|multiply|using the result|"
+        r"using that|then use|above average|below average)\b",
+        normalized,
+    ):
+        return False
+    requests = [step.request for step in intent.data_steps if step.request is not None]
+    named = set(mentioned_columns(question, view)) & set(view.metrics)
+    if not named <= {request.metric for request in requests}:
+        return False
+    requested = {
+        operation
+        for expression, operation in (
+            (r"\b(total|sum)\b", "sum"),
+            (r"\b(average|avg|mean)\b", "avg"),
+            (r"\bcount\b", "count"),
+            (r"\b(minimum|min)\b", "min"),
+            (r"\b(maximum|max)\b", "max"),
+        )
+        if re.search(expression, normalized)
+    }
+    return requested <= {request.aggregation.value for request in requests}

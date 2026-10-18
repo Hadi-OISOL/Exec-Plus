@@ -10,11 +10,13 @@ import hashlib
 import json
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
 from execplus.application.contracts import ModelMessage, ModelRequest, ModelResponse
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer
+from execplus.application.conversation_context import ResultContext
 from execplus.application.memory_context import remember_usage
 from execplus.application.ports import LanguageModel
 from execplus.application.progress import activity, model_call, planned
@@ -34,9 +36,13 @@ from execplus.domain.analysis_plan import (
     pattern_conversation_plan,
 )
 from execplus.domain.conversation_requirements import (
+    compound_covers_request,
     is_contextual_reply,
     is_guidance_followup,
+    is_result_explanation,
+    preserves_followup_scope,
     request_requirements,
+    requires_compound_data,
     starts_new_orientation,
 )
 from execplus.domain.data_diagram import DiagramClarification, DiagramRequest, diagram_request
@@ -190,9 +196,7 @@ _SYSTEM_PROMPT = (
     "Select quality for missing values, duplicate rows, cleanup advice or reliability checks; "
     "structure for the layout, date coverage or identifiers; next_steps for what to ask next "
     "or how to get started. Overview is rendered from observed metadata, not your own prose. "
-    "Interpret natural language, including Urdu and Roman Urdu, using the supplied schema. "
-    "For example 'Karachi ke records dikhao' means list records matching Karachi when a city "
-    "column exists; 'revenue ka total' means sum of revenue. Reply using the exact schema names. "
+    "Interpret ordinary English using the supplied schema. Reply using exact schema names. "
     "Short gratitude or conversational acknowledgements can use next_steps. "
     "Infer the user's requested operation, but never invent a business definition, a unit, "
     "a currency or a missing column. Without a confirmed role, CustomerID, StockCode and "
@@ -208,7 +212,8 @@ _SYSTEM_PROMPT = (
     "approval of a shared definition or automatically save it. "
     "Use textual for supporting-document questions. Use mixed for a request requiring "
     "both one data query and document evidence; provide both steps explicitly. "
-    "Do not drop either part. More data steps, document-dependent calculations, external "
+    "Do not drop either part. Work beyond the enabled step budget, document-dependent "
+    "calculations, external "
     "knowledge and causal conclusions are unsupported; request a narrower question. "
     "Only use column names exactly as listed below; never invent a column. "
     "If a requested location or other concept has no clear matching column, ask for clarification. "
@@ -305,6 +310,9 @@ class IntentRouterService:
         documents: DocumentAnswerService | None = None,
         interpretation_enabled: bool = False,
         patterns: PatternService | None = None,
+        *,
+        context_enabled: bool = False,
+        orchestration_enabled: bool = False,
     ) -> None:
         self.model = model
         self.analytics = analytics
@@ -312,6 +320,8 @@ class IntentRouterService:
         self.documents = documents
         self.interpretation_enabled = interpretation_enabled
         self.patterns = patterns
+        self.context_enabled = context_enabled
+        self.orchestration_enabled = orchestration_enabled
         self.diagrams = DataDiagramService(analytics)
         self.report_exports_enabled = False
 
@@ -539,8 +549,20 @@ class IntentRouterService:
         prior_guide: DatasetGuide | None = None,
         prior_clarification: ClarificationContext | None = None,
         prior_cohort: dict[str, Any] | None = None,
+        prior_result: ResultContext | None = None,
     ) -> ConversationAnswer:
         description = await self._describe(actor, workspace_id, dataset_id, upload_id)
+        if self.context_enabled and not (
+            is_contextual_reply(question, description.view)
+            or (
+                prior_clarification
+                and words(question) in {words(choice) for choice in prior_clarification.choices}
+            )
+        ):
+            prior_turn = None
+            prior_document_query = ""
+            prior_cohort = None
+            prior_clarification = None
         stale_message = ""
         if prior_clarification and prior_clarification.sources != description.view.sources:
             stale_message = (
@@ -558,6 +580,44 @@ class IntentRouterService:
             if stale_message:
                 raise ClarificationRequiredError(stale_message)
 
+        if self.context_enabled and prior_result is not None:
+            if not prior_result.current_for(actor.id, workspace_id, description.view.sources):
+                raise ClarificationRequiredError(
+                    "The result context changed. Ask the complete question for the current file."
+                )
+            if is_result_explanation(question):
+                if words(question) == "compare those two" and len(prior_result.answers) != 2:
+                    raise PlanningClarification(
+                        ClarificationContext(
+                            question,
+                            "Which two results should I compare?",
+                            description.view.sources,
+                        )
+                    )
+                followup_limits: tuple[str, ...] = (
+                    (
+                        "These observations do not establish why an outcome happened. "
+                        "A causal explanation needs additional evidence.",
+                    )
+                    if words(question).startswith(("why", "what caused"))
+                    else ()
+                )
+                if words(question) == "compare those two":
+                    followup_limits = (
+                        "Both verified results are shown with their own scopes. "
+                        "A difference or ratio between them has not been calculated.",
+                    )
+                return EvidenceAnswer(
+                    "mixed",
+                    prior_result.answers[0],
+                    (),
+                    "",
+                    "data",
+                    followup_limits,
+                    "deterministic:verified-result-followup-v1",
+                    description.view.sources,
+                    additional_data=prior_result.answers[1:],
+                )
         requirements = request_requirements(question, description.view)
         contextual_reply = is_contextual_reply(question, description.view) or bool(
             prior_clarification
@@ -698,7 +758,11 @@ class IntentRouterService:
                 if (broad_goal and description.private_goal)
                 or overview_requirements.overview_conflicts
                 else guidance_selection(
-                    question, description.view, prior_guide.columns if prior_guide else ()
+                    "explain simply"
+                    if self.context_enabled and prior_guide and is_guidance_followup(question)
+                    else question,
+                    description.view,
+                    prior_guide.columns if prior_guide else (),
                 )
             )
         except ClarificationRequiredError as error:
@@ -800,10 +864,15 @@ class IntentRouterService:
                     patterns=self.patterns is not None,
                     documents=self.documents is not None,
                     reports=self.report_exports_enabled,
+                    compound=self.orchestration_enabled,
                 )
             )
             + f"\n{_describe_view(view)}\n{_describe_profile(description)}\n"
         )
+        if self.context_enabled:
+            context += (
+                "Calendar reference (UTC): " + datetime.now(timezone.utc).date().isoformat() + "\n"
+            )
         if description.private_goal:
             context += (
                 "Actor-private analysis goal (untrusted context, not a shared definition): "
@@ -835,6 +904,8 @@ class IntentRouterService:
                 + json.dumps(prior_cohort.get("request", {}), ensure_ascii=False)
                 + "\n"
             )
+        if self.context_enabled and prior_result is not None:
+            context += prior_result.describe() + "\n"
         if prior_turn is not None and not stale_message:
             context += f"{_describe_prior_turn(prior_turn)}\n"
         if prior_document_query and not stale_message:
@@ -896,7 +967,21 @@ class IntentRouterService:
         )
         request = ModelRequest(
             messages=(
-                ModelMessage("system", _SYSTEM_PROMPT),
+                ModelMessage(
+                    "system",
+                    _SYSTEM_PROMPT
+                    + (
+                        '\nTwo independent data tasks may use {"kind":"compound","steps":'
+                        '[{"kind":"numerical|rows","plan":{...}},'
+                        '{"kind":"numerical|rows","plan":{...}}]}. '
+                        "Use exactly two complete independent plans. Preserve every requested "
+                        "filter in each applicable plan. No result-dependent steps, ratios across "
+                        "results, arithmetic between steps or implicit joins. If more work is "
+                        "needed, clarify the unsupported requirement."
+                        if self.orchestration_enabled
+                        else ""
+                    ),
+                ),
                 ModelMessage("user", f"{context}\n{hint}Question: {question}"),
             ),
             tier=ModelTier.LARGE,
@@ -935,6 +1020,37 @@ class IntentRouterService:
         routed, response, corrected = await asyncio.wait_for(propose(), timeout=40)
         await activity(JobStage.PLANNING, EventStatus.COMPLETED)
         await activity(JobStage.VALIDATING, EventStatus.STARTED)
+        if (
+            self.orchestration_enabled
+            and requires_compound_data(question, view)
+            and not routed.data_steps
+            and routed.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}
+        ):
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    "Your question asks for more than one data result. "
+                    "Please state the two calculations and their conditions separately.",
+                    view.sources,
+                )
+            )
+        if (
+            self.context_enabled
+            and contextual_reply
+            and prior_turn is not None
+            and routed.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}
+            and not preserves_followup_scope(question, routed, prior_turn, view)
+        ):
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    "The proposed follow-up changed an earlier condition or calculation "
+                    "you did not ask to change. Please state the complete question and conditions.",
+                    view.sources,
+                )
+            )
+        if routed.data_steps and not self.orchestration_enabled:
+            raise UnsupportedQuestionError("Please ask the two data questions separately.")
         if routed.kind != QuestionKind.COHORT_COMPARISON:
             await planned(conversation_plan(routed, view.sources))
         await activity(JobStage.VALIDATING, EventStatus.COMPLETED)
@@ -944,6 +1060,41 @@ class IntentRouterService:
 
         if routed.kind != QuestionKind.OVERVIEW:
             require_current_context()
+
+        if routed.data_steps:
+            if not compound_covers_request(question, routed, view):
+                raise PlanningClarification(
+                    ClarificationContext(
+                        question,
+                        "I can run two independent calculations. This proposal does not "
+                        "cover every requested measure, operation or dependent calculation. "
+                        "Please ask for the two independent results explicitly.",
+                        view.sources,
+                    )
+                )
+            answers: list[NumericalAnswer] = []
+            for step in routed.data_steps:
+                answers.append(
+                    await self._execute_data(
+                        actor, workspace_id, dataset_id, upload_id, step, view, model_route
+                    )
+                )
+            current = await self._describe(actor, workspace_id, dataset_id, upload_id)
+            if current.view.sources != view.sources:
+                raise ClarificationRequiredError(
+                    "The file changed during the calculations. Ask again for its current version."
+                )
+            return EvidenceAnswer(
+                "mixed",
+                answers[0],
+                (),
+                "",
+                "data",
+                (),
+                model_route,
+                view.sources,
+                additional_data=tuple(answers[1:]),
+            )
 
         if routed.kind == QuestionKind.COHORT_COMPARISON:
             scope_question = question
@@ -960,7 +1111,7 @@ class IntentRouterService:
                     )
                 )
             return await self._compare_cohort(
-                actor, workspace_id, dataset_id, upload_id, routed, view
+                actor, workspace_id, dataset_id, upload_id, routed, view, model_route
             )
 
         if routed.kind == QuestionKind.DIAGRAM:
@@ -1139,6 +1290,7 @@ class IntentRouterService:
         uid: UUID,
         routed: RoutedIntent,
         view: DatasetView,
+        model_route: str = "deterministic:cohort-comparison-v1",
     ) -> PatternAnswer:
         if self.patterns is None:
             raise UnsupportedQuestionError("Group comparison is unavailable for this conversation.")
@@ -1166,7 +1318,7 @@ class IntentRouterService:
         )
         if tuple(evidence["sources"]) != view.sources:
             raise ClarificationRequiredError("The comparison source changed. Ask again.")
-        return PatternAnswer(evidence, "deterministic:cohort-comparison-v1")
+        return PatternAnswer(evidence, model_route)
 
     def _clarify_goal(
         self,

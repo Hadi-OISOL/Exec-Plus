@@ -12,6 +12,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
+from execplus.application.conversation_context import ResultContext
 from execplus.application.export_ports import PdfDescriptorProvider
 from execplus.application.memory_context import capture_memory
 from execplus.application.ports import WorkspaceRepository
@@ -30,9 +31,10 @@ from execplus.application.services.intent_router import (
     PatternAnswer,
     PlanningClarification,
 )
+from execplus.application.services.lineage import authorize_analysis_receipt
 from execplus.application.usage_context import attributed_operation
 from execplus.domain.analysis_plan import report_conversation_plan
-from execplus.domain.conversation_requirements import starts_new_orientation
+from execplus.domain.conversation_requirements import is_contextual_reply, starts_new_orientation
 from execplus.domain.decision_analysis import checksum
 from execplus.domain.errors import (
     ClarificationRequiredError,
@@ -150,6 +152,28 @@ class ThreadService:
         if evidence.get("guide") or evidence.get("diagram"):
             for source in evidence.get("sources", []):
                 repo.upload(wid, UUID(source["dataset_id"]), UUID(source["upload_id"]))
+        steps = evidence.get("data_steps", [])
+        if not isinstance(steps, list) or len(steps) > 1:
+            raise IngestionError("lineage_mismatch", "The saved data steps are inconsistent.", 409)
+        for ref in steps:
+            if (
+                not isinstance(ref, dict)
+                or set(ref) - {"query_id", "data_kind", "label"}
+                or not {"query_id", "data_kind"} <= set(ref)
+                or ref["data_kind"] not in {"scalar", "table"}
+            ):
+                raise IngestionError("lineage_mismatch", "The saved data step is invalid.", 409)
+            try:
+                query_id = UUID(ref["query_id"])
+            except (TypeError, ValueError, AttributeError):
+                raise IngestionError(
+                    "lineage_mismatch", "The saved query is invalid.", 409
+                ) from None
+            execution = repo.query_execution(wid, query_id)
+            authorize_sources(repo, actor, wid, execution.receipt.get("sources"))
+            authorize_analysis_receipt(repo, actor, execution)
+            if execution.receipt.get("sources") != evidence.get("sources"):
+                raise IngestionError("lineage_mismatch", "The saved data scopes differ.", 409)
         for ref in evidence.get("citations", []):
             doc = repo.document(wid, UUID(ref["document_id"]))
             require_full_access(repo, actor, wid, doc.dataset_id)
@@ -205,6 +229,36 @@ class ThreadService:
                     result=result,
                     lineage=lineage,
                 )
+        if turn.evidence.get("coverage") == "data" and not turn.evidence.get("document_query"):
+            additional: list[NumericalAnswer] = []
+            for ref in cast(list[dict[str, str]], turn.evidence.get("data_steps", [])):
+                result, lineage = await self.intent_router.analytics.replay(
+                    actor, wid, UUID(ref["query_id"])
+                )
+                step_answer: NumericalAnswer = (result, lineage)
+                if ref["data_kind"] == "scalar":
+                    step_answer = self.intent_router.analytics.assembler.assemble_metric(
+                        label=ref.get("label", lineage.metric),
+                        column="__value",
+                        result=result,
+                        lineage=lineage,
+                    )
+                additional.append(step_answer)
+            if data is None:
+                raise IngestionError("lineage_mismatch", "The saved result is incomplete.", 409)
+            with self.uow() as repo:
+                self._authorize_evidence(repo, actor, wid, turn.evidence)
+            return EvidenceAnswer(
+                "mixed",
+                data,
+                (),
+                "",
+                "data",
+                tuple(cast(list[str], turn.evidence.get("limitations", []))),
+                turn.model_route or "historical",
+                tuple(cast(list[dict[str, str]], turn.evidence["sources"])),
+                additional_data=tuple(additional),
+            )
         if turn.kind in {"textual", "mixed"} and turn.evidence:
             citations = []
             documents = self.intent_router.documents
@@ -386,16 +440,21 @@ class ThreadService:
             )
             target = self._report_target(turn, turns)
             self._authorize_evidence(repo, actor, wid, target.evidence)
-        reference = turn.evidence.get("agent_memory")
+        reference = turn.evidence.get("context_memory") or turn.evidence.get("agent_memory")
         if reference is not None and repo.agent_memory(wid, actor.id).reference() != reference:
             raise IngestionError(
                 "memory_changed",
                 "Your personal memory changed. Ask again to use its latest version.",
                 409,
             )
-        if turn.evidence.get("patterns") or turn.evidence.get("diagram"):
+        if (
+            turn.evidence.get("patterns")
+            or turn.evidence.get("diagram")
+            or turn.evidence.get("coverage") == "data"
+        ):
             artifact = cast(
-                dict[str, Any], turn.evidence.get("patterns") or turn.evidence["diagram"]
+                dict[str, Any],
+                turn.evidence.get("patterns") or turn.evidence.get("diagram") or turn.evidence,
             )
             for source in artifact["sources"]:
                 _, current_sources = self.intent_router.analytics._current_description_source(
@@ -484,12 +543,20 @@ class ThreadService:
         prior_guide = None
         prior_clarification = None
         prior_cohort = None
+        result_turn = None
+        prior_result = None
         with self.uow() as repo:
             self._thread(repo, actor, wid, thread.id)
+            memory_revision = (
+                repo.agent_memory(wid, actor.id).reference()
+                if self.intent_router.context_enabled
+                else None
+            )
             all_turns = repo.thread_turns(wid, thread.id)
             position = next(i for i, item in enumerate(all_turns) if item.id == turn.id)
             prior_turns = all_turns[:position]
-            for item in reversed(prior_turns):
+            history = prior_turns[-6:] if self.intent_router.context_enabled else prior_turns
+            for item in reversed(history):
                 if item.status == "complete" and item.evidence.get("guide"):
                     guide = self._saved_guide(item)
                     if guide.columns or starts_new_orientation(
@@ -524,7 +591,11 @@ class ThreadService:
                     self._authorize_evidence(repo, actor, wid, item.evidence)
                     prior_document_query = str(item.evidence["document_query"])
                 if prior_lineage is None and item.query_id and not item.evidence.get("patterns"):
+                    self._authorize_turn(repo, actor, wid, thread, item)
                     prior_lineage = repo.query_execution(wid, item.query_id).lineage()
+                    result_turn = item
+                    if self.intent_router.context_enabled:
+                        break
             if prior_turns and prior_turns[-1].evidence.get("guide"):
                 self._authorize_evidence(repo, actor, wid, prior_turns[-1].evidence)
                 prior_guide = self._saved_guide(prior_turns[-1])
@@ -540,7 +611,37 @@ class ThreadService:
                     tuple(cast(list[str], saved.get("choices", []))),
                 )
         answer: ConversationAnswer | None = None
+        memory_use = None
+        context_memory = None
         try:
+            if self.intent_router.context_enabled and result_turn is not None:
+                view = await self.intent_router.analytics.get_view(
+                    actor, wid, thread.dataset_id, thread.upload_id
+                )
+                if is_contextual_reply(turn.question, view):
+                    with self.uow() as repo:
+                        memory = cast(
+                            dict[str, Any] | None,
+                            result_turn.evidence.get("context_memory")
+                            or result_turn.evidence.get("agent_memory"),
+                        )
+                        context_memory = memory
+                        if (
+                            memory is not None
+                            and repo.agent_memory(wid, actor.id).reference() != memory
+                        ):
+                            raise ClarificationRequiredError(
+                                "Your personal memory changed. Ask the complete question again."
+                            )
+                    restored = await self.resolve(actor, wid, thread.id, result_turn.id)
+                    if isinstance(restored, EvidenceAnswer) and restored.data is not None:
+                        answers = (restored.data, *restored.additional_data)
+                    elif isinstance(restored, (VerifiedMetricAnswer, tuple)):
+                        answers = (restored,)
+                    else:
+                        answers = ()
+                    if answers:
+                        prior_result = ResultContext(actor.id, wid, result_turn.id, answers)
             with capture_memory() as memory_use:
                 answer = await asyncio.wait_for(
                     self._prepare_report(actor, wid, thread, prior_turns, turn.question)
@@ -556,6 +657,7 @@ class ThreadService:
                         prior_guide,
                         prior_clarification,
                         prior_cohort,
+                        prior_result,
                     ),
                     timeout=100,
                 )
@@ -604,6 +706,20 @@ class ThreadService:
                     coverage=answer.coverage,
                     limitations=list(answer.limitations),
                     sources=list(answer.sources),
+                    data_steps=[
+                        {
+                            "query_id": str(answer_lineage(item).query_id),
+                            "data_kind": "scalar"
+                            if isinstance(item, VerifiedMetricAnswer)
+                            else "table",
+                            **(
+                                {"label": item.label}
+                                if isinstance(item, VerifiedMetricAnswer)
+                                else {}
+                            ),
+                        }
+                        for item in answer.additional_data
+                    ],
                     citations=[
                         {key: str(item[key]) for key in ("document_id", "chunk_id", "checksum")}
                         for item in answer.citations
@@ -680,8 +796,12 @@ class ThreadService:
                     "Start a new turn to try again."
                 ),
             )
+        if memory_revision is not None and turn.status in {"complete", "partial"}:
+            turn = replace(turn, evidence={**turn.evidence, "context_memory": memory_revision})
         if access_reference is not None:
             turn = replace(turn, evidence={**turn.evidence, "access_reference": access_reference})
-        if memory_use.reference is not None and turn.status in {"complete", "partial"}:
-            turn = replace(turn, evidence={**turn.evidence, "agent_memory": memory_use.reference})
+        memory_reference = memory_use.reference if memory_use is not None else None
+        memory_reference = memory_reference or context_memory
+        if memory_reference is not None and turn.status in {"complete", "partial"}:
+            turn = replace(turn, evidence={**turn.evidence, "agent_memory": memory_reference})
         return answer, turn

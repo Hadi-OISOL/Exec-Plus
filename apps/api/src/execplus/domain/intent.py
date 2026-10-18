@@ -6,6 +6,7 @@ before it can ever reach the query engine.
 """
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -43,6 +44,7 @@ class RoutedIntent:
     validation_issue: str = ""
     target_column: str = ""
     target_value: str = ""
+    data_steps: tuple["RoutedIntent", ...] = ()
 
 
 def _unsupported(message: str, issue: str = "") -> RoutedIntent:
@@ -63,6 +65,9 @@ def _parse_filters(raw: Any, view: DatasetView) -> tuple[MetricFilter, ...] | No
             or not isinstance(operator, str)
             or operator not in _OPERATORS
             or not isinstance(value, str | int | float | bool)
+            or (isinstance(value, str) and (len(value) > 500 or "\x00" in value))
+            or (isinstance(value, float) and not math.isfinite(value))
+            or set(item) != {"column", "operator", "value"}
         ):
             return None
         filters.append(MetricFilter(column, FilterOperator(operator), value))
@@ -108,6 +113,25 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
         return _unsupported(_UNINTERPRETABLE)
     if not isinstance(payload, dict):
         return _unsupported(_UNINTERPRETABLE)
+
+    if payload.get("kind") == "compound":
+        steps = payload.get("steps")
+        if (
+            set(payload) != {"kind", "steps"}
+            or not isinstance(steps, list)
+            or len(steps) != 2
+            or any(
+                not isinstance(step, dict)
+                or step.get("kind") not in {"numerical", "rows"}
+                or set(step) != {"kind", "plan"}
+                for step in steps
+            )
+        ):
+            return _unsupported("Choose two independent calculations or record selections.")
+        parsed = tuple(route_response(json.dumps(step), view) for step in steps)
+        if any(step.kind not in {QuestionKind.NUMERICAL, QuestionKind.ROWS} for step in parsed):
+            return _unsupported("Every compound step must be valid for the visible fields.")
+        return RoutedIntent(QuestionKind.MIXED, data_steps=parsed)
 
     try:
         kind = QuestionKind(payload.get("kind"))

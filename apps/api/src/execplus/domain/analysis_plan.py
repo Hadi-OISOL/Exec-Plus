@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 from uuid import UUID
 
+from execplus.domain.agent_capabilities import CAPABILITY_POLICIES
 from execplus.domain.dataset_access import ACCESS_KEYS
 from execplus.domain.guidance import GUIDANCE_FOCUSES
 from execplus.domain.ingestion import IngestionError
@@ -36,15 +37,8 @@ class AnalysisPlan:
 
     def __post_init__(self) -> None:
         policies = {
-            "export_report": ("report_link", "authorized_saved_answer"),
-            "map_dataset_structure": ("diagram", "source_checksum"),
-            "explore_patterns": ("patterns", "analysis_receipt"),
-            "compare_group_relationship": ("patterns", "analysis_receipt"),
-            "compare_cohort": ("patterns", "analysis_receipt"),
-            "inspect_profile": ("profile", "source_checksum"),
-            "query": ("query_result", "execution_receipt"),
-            "retrieve_documents": ("citations", "authorized_citation_checksum"),
-            "assemble_evidence": ("answer", "authorized_evidence"),
+            operation: (policy.output_kind, policy.verification)
+            for operation, policy in CAPABILITY_POLICIES.items()
         }
         seen: set[str] = set()
         required = {"dataset_id", "upload_id", "revision_id", "source_checksum", "output_checksum"}
@@ -263,6 +257,34 @@ class AnalysisPlan:
 def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...]) -> AnalysisPlan:
     if intent.kind == QuestionKind.DIAGRAM:
         return diagram_conversation_plan(intent.guide_columns, sources)
+    if intent.data_steps:
+        compound_steps = tuple(
+            AnalysisStep(
+                f"data_{index}",
+                "query",
+                (),
+                conversation_plan(step, sources).steps[0].parameters,
+                "query_result",
+                "execution_receipt",
+            )
+            for index, step in enumerate(intent.data_steps, 1)
+        )
+        return AnalysisPlan(
+            "conversation-plan-v1",
+            sources,
+            (
+                *compound_steps,
+                AnalysisStep(
+                    "answer",
+                    "assemble_evidence",
+                    tuple(step.id for step in compound_steps),
+                    {},
+                    "answer",
+                    "authorized_evidence",
+                ),
+            ),
+            ResourceBudget(max_queries=2),
+        )
     steps: list[AnalysisStep] = []
     data = intent.data_intent if intent.kind == QuestionKind.MIXED else intent
     if data and data.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}:

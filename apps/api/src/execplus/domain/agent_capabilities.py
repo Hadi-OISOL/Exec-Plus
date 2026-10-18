@@ -5,6 +5,7 @@ this is a catalog of trusted services, never an arbitrary code or plugin executo
 """
 
 from dataclasses import asdict, dataclass
+from types import MappingProxyType
 from typing import Any
 
 
@@ -15,6 +16,59 @@ class AgentCapability:
     route: str
     requirements: str
     limits: str
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilityPolicy:
+    input_contract: str
+    output_kind: str
+    verification: str
+    authorization: tuple[str, ...] = ("workspace_membership", "source_access", "current_revision")
+    timeout_seconds: int = 100
+    input_bytes: int = 20 * 1024 * 1024
+    max_model_calls: int = 0
+    max_result_records: int | None = None
+    error_codes: tuple[str, ...] = (
+        "clarification_required",
+        "unsupported_question",
+        "source_changed",
+        "not_found",
+        "provider_unavailable",
+        "query_data_error",
+    )
+
+
+CAPABILITY_POLICIES = MappingProxyType(
+    {
+        "query": CapabilityPolicy(
+            "MetricRequest | RowRequest", "query_result", "execution_receipt"
+        ),
+        "inspect_profile": CapabilityPolicy(
+            "columns, focus", "profile", "source_checksum", max_model_calls=2
+        ),
+        "map_dataset_structure": CapabilityPolicy("DiagramRequest", "diagram", "source_checksum"),
+        "explore_patterns": CapabilityPolicy(
+            "columns: tuple[str, ...]", "patterns", "analysis_receipt"
+        ),
+        "compare_group_relationship": CapabilityPolicy(
+            "columns: tuple[str, str], group_by: str", "patterns", "analysis_receipt"
+        ),
+        "compare_cohort": CapabilityPolicy(
+            "target_column: str, target_value: str, columns: tuple[str, ...]",
+            "patterns",
+            "analysis_receipt",
+        ),
+        "retrieve_documents": CapabilityPolicy(
+            "bounded question", "citations", "authorized_citation_checksum", max_model_calls=1
+        ),
+        "export_report": CapabilityPolicy(
+            "thread_id, turn_id", "report_link", "authorized_saved_answer"
+        ),
+        "assemble_evidence": CapabilityPolicy(
+            "verified results", "answer", "authorized_evidence", max_model_calls=1
+        ),
+    }
+)
 
 
 CAPABILITIES = (
@@ -78,7 +132,7 @@ CAPABILITIES = (
 
 
 def capability_catalog(
-    *, patterns: bool, documents: bool, reports: bool = False
+    *, patterns: bool, documents: bool, reports: bool = False, compound: bool = False
 ) -> list[dict[str, Any]]:
     excluded = set()
     if not patterns:
@@ -87,4 +141,16 @@ def capability_catalog(
         excluded.add("retrieve_documents")
     if not reports:
         excluded.add("export_report")
-    return [asdict(item) for item in CAPABILITIES if item.operation not in excluded]
+    return [
+        {
+            **asdict(item),
+            "limits": (
+                "Two independent governed data queries; at most one thousand records per result."
+                if compound and item.operation == "query"
+                else item.limits
+            ),
+            "contract": asdict(CAPABILITY_POLICIES[item.operation]),
+        }
+        for item in CAPABILITIES
+        if item.operation not in excluded
+    ]
