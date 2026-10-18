@@ -1,6 +1,10 @@
 /* Use case: Provides a conversation with grounded answers about the selected upload.
 What it does: Keeps paired turns, renders exact results and record tables, and exposes execution evidence. */
 
+import { CompoundResults } from "./compound-results";
+import type { AdditionalNumericalAnswer } from "./compound-results";
+import { VerifiedNarrative } from "./verified-narrative";
+import type { VerifiedNarrativeValue } from "./verified-narrative";
 import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
@@ -39,6 +43,8 @@ type Lineage = {
   receipt?: { sources: { revision_id: string; understanding_id?: string }[] };
 };
 type Answer = {
+  narrative?: VerifiedNarrativeValue;
+  additional_data?: AdditionalNumericalAnswer[];
   kind?: string;
   message?: string;
   label?: string;
@@ -682,6 +688,7 @@ export function AskPanel({
                   </span>
                 )}
               </span>
+              {turn.answer?.narrative && <VerifiedNarrative narrative={turn.answer.narrative} />}
               {turn.answer?.diagram ? (
                 <DiagramResults diagram={turn.answer.diagram} sources={turn.answer.sources} />
               ) : turn.answer?.report ? (
@@ -762,7 +769,7 @@ export function AskPanel({
                   Partial answer — review the limitations below.
                 </p>
               )}
-              {turn.answer?.citations && (
+              {turn.answer?.citations && turn.answer.coverage !== "data" && (
                 <ConversationEvidence
                   citations={turn.answer.citations}
                   limitations={turn.answer.limitations ?? []}
@@ -841,6 +848,7 @@ export function AskPanel({
                   )}
                 </>
               )}
+              {turn.answer?.additional_data && <CompoundResults results={turn.answer.additional_data} />}
               {turn.answer?.lineage && (
                 <>
                   <span className="kpiFootnote">
