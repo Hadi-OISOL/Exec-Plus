@@ -21,11 +21,11 @@ What it does: Separates observed and estimated regions with readable scales and 
 .plot { min-width: 0; border-radius: 8px; }
 .plot:focus-visible { outline: 2px solid light-dark(#176b57, var(--theme-accent)); outline-offset: 5px; }
 .plot.plot svg { display: block; margin: 0; height: 264px; width: 100%; }
-.forecastZone { fill: #7563a80a; }
+.forecastZone { fill: light-dark(#7563a80a, #c4adf414); }
 .grid { stroke: light-dark(#dce5dc, var(--theme-muted)); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .boundary { stroke: light-dark(#9483b4, var(--theme-muted)); stroke-dasharray: 4 5; vector-effect: non-scaling-stroke; }
 .cursor { stroke: light-dark(#7c9187, var(--theme-muted)); stroke-dasharray: 2 5; vector-effect: non-scaling-stroke; }
-.interval { stroke: light-dark(#7563a8, var(--theme-muted)); stroke-opacity: .3; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.interval { stroke: light-dark(#7563a8, #c4adf4); stroke-opacity: .5; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .dateRange, .periodRegions { display: flex; justify-content: space-between; gap: 18px; font-size: 12px; color: light-dark(#53685f, var(--theme-muted)); font-variant-numeric: tabular-nums; }
 .dateRange span:last-child, .periodRegions span:last-child { text-align: right; }
 .periodRegions { margin: 16px 0; padding: 10px 0; border-block: 1px solid light-dark(#e6eae2, var(--theme-border)); font-size: 12px; }

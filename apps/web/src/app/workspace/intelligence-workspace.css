@@ -59,3 +59,60 @@ What it does: Reduces competing controls, improves chat reading and preserves al
 @media (max-width: 600px) { .analyticsShell .workbenchTop > .themeControl { margin-inline-start: 0; } }
 .analyticsShell .dedicatedConversation .askPanel:not(:has(.conversationTurn)) .conversationLog { height: auto; min-height: 260px; }
 .analyticsShell .dedicatedConversation .welcomeMessage { margin-block: 0; }
+
+/* Keep result text readable and let narrow layouts grow instead of clipping chat. */
+.analyticsShell :is(.conversationTurn, .assistantMessage, .userMessage, .chatHeader, .chatSource, .chatComposer, .dataExplanation) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.analyticsShell .assistantMessage {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 3%);
+}
+.analyticsShell .assistantMessage .messageAuthor { color: var(--green); }
+.analyticsShell .assistantMessage :is(.explanationPlain, .explanationCard p) { color: var(--ink); }
+.analyticsShell .dataExplanation[aria-label="Result explanation"] {
+  padding: 18px 20px;
+  border-radius: 12px;
+  border-inline-start: 3px solid var(--green);
+  background: light-dark(#f0f8f5, #203a33);
+}
+.analyticsShell .dataExplanation[aria-label="Result explanation"] > p:first-child {
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.65;
+}
+.analyticsShell .dataExplanation > details { color: var(--muted); font-size: 12px; }
+.analyticsShell .dataExplanation > details > summary { cursor: pointer; padding-block: 8px; }
+.analyticsShell .explanationCard[data-kind="fields"] { border-inline-start: 3px solid light-dark(#527b99, #9bc9ed); }
+.analyticsShell .explanationCard[data-kind="explore"] { border-inline-start: 3px solid light-dark(#8267a5, #c4adf4); }
+.analyticsShell .explanationCard[data-kind="clarify"] { border-inline-start: 3px solid var(--orange); }
+.analyticsShell .askPanel .suggestionChips button { white-space: normal; overflow-wrap: anywhere; gap: 12px; }
+.analyticsShell .studioChartHeading { flex-wrap: wrap; }
+.analyticsShell :is(.studioChartRange, .forecastLegend) { flex-wrap: wrap; }
+.analyticsShell .studioChartHeading > span { flex-shrink: 1; overflow-wrap: anywhere; }
+.analyticsShell .workbenchTop { flex-wrap: wrap; }
+.analyticsShell .workbenchTop > .themeControl { max-width: 100%; }
+.analyticsShell .workbenchTop > .themeControl select { min-width: 0; max-width: 100%; }
+@media (max-width: 600px) {
+  .analyticsShell.workbench .askPanel { max-height: none; }
+  .analyticsShell .askPanel .conversationLog,
+  .analyticsShell .dedicatedConversation .conversationLog {
+    height: auto;
+    max-height: none;
+    flex: none;
+    padding: 12px 8px;
+  }
+  .analyticsShell .assistantMessage { padding: 14px 12px; }
+  .analyticsShell .dataExplanation[aria-label="Result explanation"] { padding: 14px 12px; }
+  .analyticsShell .chatComposer { padding: 14px 12px; }
+  .analyticsShell .userMessage { margin-inline-start: 12px; max-width: calc(100% - 12px); }
+  .analyticsShell .workbenchTop .sessionBar { flex-wrap: wrap; margin-inline-start: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analyticsShell .conversationLog { scroll-behavior: auto; }
+}
+/* Exact tables scroll within their existing region; never split numeric values. */
+.analyticsShell .assistantMessage .tableScroll { max-width: 100%; overflow-x: auto; }
+.analyticsShell .assistantMessage .tableScroll table { overflow-wrap: normal; }

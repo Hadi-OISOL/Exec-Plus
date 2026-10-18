@@ -140,6 +140,12 @@ class PdfExportService:
                 "pdf_export_unavailable", "Choose a completed saved answer to make a PDF.", 409
             )
         answer = await self.resolver.resolve(actor, wid, tid, turn_id)
+        if isinstance(answer, DatasetGuide) and answer.focus == "conversation":
+            raise IngestionError(
+                "pdf_export_unsupported",
+                "This is a conversational reply, not an analysis report. Choose a data answer.",
+                422,
+            )
         sections = [
             PdfSection(
                 "Saved answer",

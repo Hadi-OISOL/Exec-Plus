@@ -4,14 +4,19 @@ import pytest
 from sqlalchemy import select
 
 from execplus.infrastructure.persistence import schema as s
+from execplus.presentation.routes.analytics import get_intent_router_service
 from test_dataset_guidance import ask
 from test_dataset_reading import READING, prepare
 
 
 @pytest.mark.parametrize("question", ["hey there", "hello there!", "salam"])
-def test_greeting_is_brief_and_never_calls_model_or_query(integration, question):
+def test_greeting_without_interpretation_is_brief_and_never_calls_model_or_query(
+    integration, question
+):
     env = integration
     owner, _, _, path, model = prepare(env)
+    router = env.client.app.dependency_overrides[get_intent_router_service]()
+    router.interpretation_enabled = False
     answer = ask(env, owner, path, question)["answer"]
     assert answer["message"].startswith("Hey!")
     assert len(answer["message"]) < 260

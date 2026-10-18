@@ -58,7 +58,7 @@ def mentioned_columns(question: str, view: DatasetView) -> tuple[str, ...]:
     )
 
 
-GUIDANCE_FOCUSES = frozenset({"orientation", "quality", "structure", "next_steps"})
+GUIDANCE_FOCUSES = frozenset({"orientation", "quality", "structure", "next_steps", "conversation"})
 
 
 def is_greeting(question: str) -> bool:

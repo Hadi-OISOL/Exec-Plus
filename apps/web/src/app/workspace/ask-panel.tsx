@@ -17,6 +17,7 @@ import type { ApiRequest } from "./profile-panel";
 import { ConversationEvidence } from "./conversation-evidence";
 import type { Citation } from "./conversation-evidence";
 import { ConversationActivity } from "./conversation-activity";
+import { RequestProgress } from "./request-progress";
 import { DataExplanation } from "./data-explanation";
 import { PatternResults } from "./pattern-results";
 import { DiagramResults } from "./diagram-results";
@@ -63,6 +64,7 @@ type Answer = {
   diagram?: DatasetDiagram;
   report?: { thread_id: string; turn_id: string; label: string; format: "pdf"; download_url: string };
   guidance?: {
+    focus?: string;
     columns: string[];
     suggestions: string[];
     definition_state: string;
@@ -695,6 +697,8 @@ export function AskPanel({
                 <section aria-label="Requested PDF report"><h3>Your answer, ready to download</h3><p>{turn.answer.report.label}</p><p>The PDF uses the saved answer and its original source evidence.</p>{downloadPdf && <AnswerPdfDownload path={turn.answer.report.download_url} download={downloadPdf} />}</section>
               ) : turn.answer?.patterns ? (
                 <PatternResults result={turn.answer.patterns} evidence={turn.answer.pattern_evidence} sources={turn.answer.sources} onAsk={question => void ask(question)} busy={busy} />
+              ) : turn.answer?.guidance?.focus === "conversation" ? (
+                <p>{turn.answer.message}</p>
               ) : turn.answer?.guidance ? (
                 <div className="datasetGuidance" aria-label="Data explanation">
                   <DataExplanation message={turn.answer.message ?? ""} />
@@ -898,7 +902,7 @@ export function AskPanel({
                   />
                 </details>
               )}
-              {threadId && turn.serverId && turn.answer && !turn.answer.report && (turn.answer.lineage || turn.answer.guidance || turn.answer.diagram || turn.answer.patterns) && <ResultExportActions path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export`} charts={turn.answer.diagram ? ["Data map"] : turn.answer.patterns ? ("target" in turn.answer.patterns ? [] : "pooled" in turn.answer.patterns ? (turn.answer.patterns.pooled ? ["Pooled relationship"] : []) : [...turn.answer.patterns.findings, ...(turn.answer.patterns.exploratory ?? [])].filter(value => value.chart.points.length > 0).map(value => value.title)) : turn.answer.rows && turn.answer.columns?.length === 2 ? ["Recorded comparison"] : []} />}
+              {threadId && turn.serverId && turn.answer && !turn.answer.report && turn.answer.guidance?.focus !== "conversation" && (turn.answer.lineage || turn.answer.guidance || turn.answer.diagram || turn.answer.patterns) && <ResultExportActions path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export`} charts={turn.answer.diagram ? ["Data map"] : turn.answer.patterns ? ("target" in turn.answer.patterns ? [] : "pooled" in turn.answer.patterns ? (turn.answer.patterns.pooled ? ["Pooled relationship"] : []) : [...turn.answer.patterns.findings, ...(turn.answer.patterns.exploratory ?? [])].filter(value => value.chart.points.length > 0).map(value => value.title)) : turn.answer.rows && turn.answer.columns?.length === 2 ? ["Recorded comparison"] : []} />}
               <details className="saveQuestion">
                 <summary>Save question</summary>
                 <SaveControl
@@ -919,11 +923,10 @@ export function AskPanel({
               <p>{pending}</p>
             </div>
             {!activeJob && (
-              <p className="requestPending" role="status">
-                {pending === "Summarize the verified insights"
-                  ? "Requesting a summary of verified insights…"
-                  : "Submitting your request…"}
-              </p>
+              <RequestProgress
+                title={pending === "Summarize the verified insights" ? "Requesting your summary" : "Sending your message"}
+                detail="Waiting for the server to confirm your request."
+              />
             )}
           </>
         )}

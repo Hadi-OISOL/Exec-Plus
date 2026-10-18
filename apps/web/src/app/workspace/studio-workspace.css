@@ -6,7 +6,7 @@ What it does: Defines the light navigation, question canvas, source cards and pr
   --muted: light-dark(#5c6d65, var(--theme-muted));
   --paper: light-dark(#f6f8f7, var(--theme-subtle));
   --surface: light-dark(#fff, var(--theme-surface));
-  --line: light-dark(#e2e8e5, var(--theme-subtle));
+  --line: light-dark(#e2e8e5, var(--theme-border));
   --green: light-dark(#176b57, var(--theme-accent));
   --studio-secondary: light-dark(#5d6e57, var(--theme-muted));
   --studio-heading: light-dark(#203f30, var(--theme-ink));
@@ -15,7 +15,7 @@ What it does: Defines the light navigation, question canvas, source cards and pr
   --focus-ring: light-dark(#176b57, var(--theme-accent));
   --border-control: light-dark(#78988e, var(--theme-muted));
   --surface-subtle: light-dark(#f3f6f4, var(--theme-subtle));
-  --surface-selected: light-dark(#e5f0ea, var(--theme-subtle));
+  --surface-selected: light-dark(#e5f0ea, var(--theme-selected));
   --danger-ink: light-dark(#9b2c2c, var(--theme-warning));
   --danger-surface: light-dark(#fff4f2, var(--theme-surface));
   --radius-control: 8px;
@@ -391,10 +391,10 @@ What it does: Defines the light navigation, question canvas, source cards and pr
 .analyticsShell .studioChartRange { display: flex; justify-content: space-between; gap: 16px; color: var(--studio-secondary); font-size: 12px; margin: 2px 0 15px; line-height: 1.6; }
 .analyticsShell .studioChartRange span:last-child { text-align: right; }
 .analyticsShell .forecastLegend { gap: 14px 22px; font-size: 12px; color: var(--studio-secondary); }
-.analyticsShell .forecastLegend .actualKey, .analyticsShell .forecastActual { background: #176b57; fill: light-dark(#176b57, var(--theme-accent)); }
-.analyticsShell .forecastLegend .estimateKey, .analyticsShell .forecastEstimate { background: light-dark(#7563a8, var(--theme-selected)); fill: light-dark(#7563a8, var(--theme-muted)); }
+.analyticsShell .forecastLegend .actualKey, .analyticsShell .forecastActual { background: light-dark(#176b57, var(--theme-accent)); fill: light-dark(#176b57, var(--theme-accent)); }
+.analyticsShell .forecastLegend .estimateKey, .analyticsShell .forecastEstimate { background: light-dark(#7563a8, #c4adf4); fill: light-dark(#7563a8, #c4adf4); }
 .analyticsShell .forecastLegend .estimateKey { border-radius: 2px; }
-.analyticsShell .forecastBand, .analyticsShell .forecastLegend .rangeKey { fill: #7563a81a; background: #7563a81a; }
+.analyticsShell .forecastBand, .analyticsShell .forecastLegend .rangeKey { fill: light-dark(#7563a81a, #c4adf433); background: light-dark(#7563a81a, #c4adf433); }
 .analyticsShell .forecastScore { border-radius: var(--radius-panel); padding: 18px; border: 1px solid var(--line); background: var(--surface); }
 .analyticsShell .forecastScore > span { font-size: var(--text-small); color: var(--studio-secondary); line-height: 1.6; }
 .analyticsShell .forecastScore strong { font-size: 21px; color: var(--studio-heading); margin-top: 10px; }

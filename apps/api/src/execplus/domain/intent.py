@@ -106,6 +106,28 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
     return RoutedIntent(QuestionKind.NUMERICAL, request=request)
 
 
+def _social_claims(message: str, view: DatasetView) -> bool:
+    # This is a conservative claim boundary, not proof of arbitrary prose's truth.
+    normalized = words(message)
+    return bool(
+        mentioned_columns(message, view)
+        or re.search(
+            r"\b(?:i|we) (?:have |ve |just |already |now |successfully )*"
+            r"(?:saved|updated|changed|remember|remembered|recall|recalled|retrieved|"
+            r"analyzed|analysed|calculated|computed|checked|inspected|read|opened|loaded|"
+            r"stored|recorded|deleted|cleared|sent|exported|executed|ran|completed|"
+            r"finished|found|discovered|learned|learnt)\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(?:private|confidential|personal) (?:goal|notes?|memory|preferences?|context)\b"
+            r"|\byour (?:saved )?(?:goal|notes?|memory|preferences?)\b"
+            r"|\b(?:data|dataset|file|records|results) (?:shows?|indicates?|suggests?|proves?)\b",
+            normalized,
+        )
+    )
+
+
 def route_response(raw: str, view: DatasetView) -> RoutedIntent:
     try:
         payload = json.loads(raw)
@@ -227,6 +249,19 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
     if kind == QuestionKind.OVERVIEW:
         columns = payload.get("columns", [])
         focus = payload.get("focus", "orientation")
+        if focus == "conversation":
+            message = payload.get("message")
+            if (
+                set(payload) != {"kind", "focus", "columns", "message"}
+                or columns != []
+                or not isinstance(message, str)
+                or not 1 <= len(message.strip()) <= 400
+                or any(character.isdigit() or ord(character) < 32 for character in message)
+                or re.search(r"https?://|www\.|[<>`\[\]{}]", message, re.IGNORECASE)
+                or _social_claims(message, view)
+            ):
+                return _unsupported("The conversational reply could not be validated.")
+            return RoutedIntent(kind, message=message.strip(), guide_focus=focus)
         if (
             not isinstance(columns, list)
             or len(columns) > 3

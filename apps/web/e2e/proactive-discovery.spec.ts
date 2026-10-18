@@ -58,7 +58,7 @@ test("confirmed data automatically shows measured relationships and theme change
       await expect(findings.locator('[data-chart-renderer="apache-echarts"] svg').first()).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       await patterns.scrollIntoViewIfNeeded();
-      await page.screenshot({ path: `../../data/verification/2026-10-18/intelligence-upgrade/proactive-${theme}-${width}.png`, fullPage: true });
+      await page.screenshot({ path: `../../data/verification/2026-10-19/conversation-appearance/proactive-${theme}-${width}.png`, fullPage: true });
     }
   }
   expect(recalculations).toBe(0);

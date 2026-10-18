@@ -223,6 +223,7 @@ test("explicit cancellation reports the actual terminal outcome and remains usab
   const token = session();
   await signIn(page, token);
   await upload(page);
+  await page.getByLabel("Appearance", { exact: true }).selectOption("dark");
   let release: () => void = () => {};
   const held = new Promise<void>((resolve) => {
     release = resolve;
@@ -244,9 +245,12 @@ test("explicit cancellation reports the actual terminal outcome and remains usab
     await expect(
       page.getByRole("button", { name: "Cancel request", exact: true }),
     ).toBeVisible();
+    const progress = page.locator(".conversationActivity [data-paused]");
+    await expect(progress.getByRole("status")).toBeVisible();
+    await expect(progress.locator("[aria-hidden=true] span").first()).not.toHaveCSS("animation-name", "none");
     await page.setViewportSize({ width: 320, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await expect(page.locator(".activityIndicator")).toHaveCSS(
+    await expect(page.locator(".conversationActivity [data-paused] [aria-hidden=true] span").first()).toHaveCSS(
       "animation-name",
       "none",
     );
@@ -263,7 +267,7 @@ test("explicit cancellation reports the actual terminal outcome and remains usab
         ),
       ).toBe(true);
       await page.locator(".askPanel > .conversationActivity").screenshot({
-        path: `../../data/vps-private/jobs-active-${width}.png`,
+        path: `../../data/verification/2026-10-19/conversation-appearance/jobs-active-dark-${width}.png`,
       });
     }
     await page.setViewportSize({ width: 320, height: 844 });
@@ -317,6 +321,7 @@ test("switching files detaches old activity without cancelling or overwriting th
   await page.getByLabel("Dataset", { exact: true }).selectOption(first);
   await openConversation(page);
   await expect(page.locator(".chatSource")).toContainText("first-activity.csv");
+  await page.getByLabel("Appearance", { exact: true }).selectOption("dark");
   let release: () => void = () => {};
   const held = new Promise<void>((resolve) => {
     release = resolve;
@@ -408,4 +413,31 @@ test("a broad goal asks a source-specific follow-up and the chosen task executes
     await page.setViewportSize({ width, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   }
+});
+
+
+test("sending animation starts before job acceptance and honors reduced motion", async ({ page }) => {
+  await signIn(page, session());
+  await upload(page);
+  await page.getByLabel("Appearance", { exact: true }).selectOption("dark");
+  let release: () => void = () => {};
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route(/\/threads\/[^/]+\/jobs$/, async route => {
+    if (route.request().method() === "POST") await held;
+    await route.continue();
+  });
+  try {
+    await page.getByRole("button", { name: "Help me understand my data", exact: true }).click();
+    const pending = page.locator(".conversationLog [data-paused]");
+    await expect(pending.getByText("Sending your message", { exact: true })).toBeVisible();
+    const ring = pending.locator("[aria-hidden=true] span").first();
+    await expect(ring).not.toHaveCSS("animation-name", "none");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(ring).toHaveCSS("animation-name", "none");
+    await page.setViewportSize({ width: 320, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    release();
+    await expect(page.locator(".datasetGuidance")).toContainText("3 rows and 2 columns");
+    await page.locator(".assistantMessage").last().screenshot({ path: "../../data/verification/2026-10-19/conversation-appearance/conversation-dark-320.png", animations: "disabled" });
+  } finally { release(); }
 });

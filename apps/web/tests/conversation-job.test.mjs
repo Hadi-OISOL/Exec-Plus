@@ -130,3 +130,13 @@ test("compact activity preserves retry outcomes without fabricating stages or le
   assert.equal(stageLabel("toString"), "Waiting for a recorded activity update");
   assert.equal(activityStages(events.slice(1,4)).at(-1).status, "failed");
 });
+
+test("animated activity descriptions follow actual stages, including cancellation and unknown stages", async () => {
+  const { jobDetail } = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
+  assert.match(jobDetail({ status: "queued" }), /waiting to start/);
+  assert.match(jobDetail({ status: "running", current_stage: "planning" }), /what you mean/);
+  assert.match(jobDetail({ status: "running", current_stage: "executing_query" }), /permitted records/);
+  assert.match(jobDetail({ status: "running", cancel_requested: true }), /work has stopped/);
+  assert.match(jobDetail({ status: "failed" }), /history/);
+  assert.equal(jobDetail({ status: "running", current_stage: "private model reasoning" }), "Waiting for the next recorded activity update.");
+});

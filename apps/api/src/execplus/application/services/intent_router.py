@@ -39,6 +39,7 @@ from execplus.domain.analysis_plan import (
 from execplus.domain.conversation_requirements import (
     asks_for_ideal_conditions,
     compound_covers_request,
+    is_acknowledgement,
     is_contextual_reply,
     is_guidance_followup,
     is_result_explanation,
@@ -149,6 +150,8 @@ _SYSTEM_PROMPT = (
     '"extremum": {"column": "<numeric measure>", "direction": "max|min"}}}\n'
     '{"kind": "overview", "columns": ["<column to explain, optional>"], '
     '"focus": "orientation|quality|structure|next_steps"}\n'
+    '{"kind": "overview", "focus": "conversation", "columns": [], '
+    '"message": "<brief natural conversational reply>"}\n'
     '{"kind": "diagram", "columns": ["<existing field name, optional>"]}\n'
     '{"kind": "cohort_comparison", "target_column": "<text category>", '
     '"target_value": "<exact observed value>", "columns": ["<optional measure>"]}\n'
@@ -180,7 +183,18 @@ _SYSTEM_PROMPT = (
     "unclear, ask one focused question using supplied observed choices. This tool cannot "
     "apply extra row filters, multiple targets or time windows; clarify those conditions "
     "instead of dropping them. A count alone remains numerical, not cohort_comparison. "
-    "Use overview for explicit greetings, help, data understanding and column-meaning questions. "
+    "Distinguish social conversation from data work by the meaning of the entire request. "
+    "For casual check-ins, greetings, gratitude or frustration without an analytical request, "
+    "use overview with focus conversation, columns [], and your own brief friendly message. "
+    "Reply directly in the user's language and tone, without forcing a dataset explanation "
+    "or a menu. Do not pretend to have human experiences or emotions. This is conversation, "
+    "not analysis: never include measurements, numerical claims, source facts, private notes, "
+    "citations, links or claims that you inspected, calculated, changed or saved something. "
+    "Use plain text up to 400 characters, with no digits or formatting. "
+    "If a greeting, thanks or frustration accompanies a data request, fulfill the data request "
+    "using its appropriate tool instead. Never use conversation to avoid unclear analytical "
+    "work: ask its missing question. Dataset capability questions still use next_steps. "
+    "Use ordinary overview for help, data understanding and column-meaning questions. "
     "Use diagram when someone asks for a visual map of how fields fit together, converge or "
     "are organised. It maps membership in the selected file, never causes or inferred joins. "
     "For a value chart such as revenue by date, use numerical with the requested calculation; "
@@ -193,8 +207,8 @@ _SYSTEM_PROMPT = (
     "with usable choices grounded in the visible columns and observed labels. Never silently "
     "equate more crop records with better growth, or Harvest labels with proven success. "
     "For 'where are most records?', count matching records by the requested category. "
-    "For a simple greeting, respond briefly and offer useful exploration choices, not a "
-    "technical explanation of query context or confirmation mechanics. "
+    "A social reply should be brief and natural, not a technical explanation of query context "
+    "or confirmation mechanics. "
     "Do not use overview as a fallback for an unclear goal or failed calculation plan. "
     "A request to understand what the file is about, its general idea or what its rows mean "
     "is a complete overview task; it does not need a measure or calculation. Classify the "
@@ -212,9 +226,10 @@ _SYSTEM_PROMPT = (
     "A question about what a dataset field means is overview, not a document search. "
     "Select quality for missing values, duplicate rows, cleanup advice or reliability checks; "
     "structure for the layout, date coverage or identifiers; next_steps for what to ask next "
-    "or how to get started. Overview is rendered from observed metadata, not your own prose. "
+    "or how to get started. These data overview focuses are rendered from observed metadata, "
+    "not your own prose; only conversation focus uses your brief social message. "
     "Interpret ordinary English using the supplied schema. Reply using exact schema names. "
-    "Short gratitude or conversational acknowledgements can use next_steps. "
+    "Standalone gratitude or conversational acknowledgements use conversation. "
     "Infer the user's requested operation, but never invent a business definition, a unit, "
     "a currency or a missing column. Without a confirmed role, CustomerID, StockCode and "
     "similarly named codes suggest identifiers even when their values are numeric; do not "
@@ -869,6 +884,7 @@ class IntentRouterService:
                 None
                 if (broad_goal and description.private_goal)
                 or overview_requirements.overview_conflicts
+                or (self.interpretation_enabled and is_acknowledgement(question))
                 else guidance_selection(
                     "explain simply"
                     if self.context_enabled and prior_guide and is_guidance_followup(question)
@@ -1356,6 +1372,19 @@ class IntentRouterService:
             if overview_requirements.overview_conflicts:
                 require_current_context()
                 self._clarify_goal(description, question, prior_clarification)
+            if routed.guide_focus == "conversation":
+                current = await self._describe(actor, workspace_id, dataset_id, upload_id)
+                if current.view.sources != view.sources:
+                    raise ClarificationRequiredError(
+                        "The file or definitions changed. Ask again with the current version."
+                    )
+                return DatasetGuide(
+                    routed.message,
+                    model_route,
+                    sources=current.view.sources,
+                    definition_state=current.state,
+                    focus="conversation",
+                )
             return await self._overview(
                 actor,
                 workspace_id,
@@ -1511,16 +1540,13 @@ class IntentRouterService:
             raise ClarificationRequiredError(
                 "The file or definitions changed. Ask a new question about the current version."
             )
-        if is_greeting(question):
+        if not self.interpretation_enabled and is_greeting(question):
             return DatasetGuide(
-                f"Hey! I can help you explore {current.name}. We can understand the file, "
-                "look for patterns, or investigate a question you have. "
-                "What would you like to find out?",
-                "deterministic:greeting-v1",
-                suggestions=("Help me understand this data", "Find patterns across the whole file"),
+                "Hey! Good to see you. What's on your mind?",
+                "deterministic:greeting-v2",
                 sources=current.view.sources,
                 definition_state=current.state,
-                focus="next_steps",
+                focus="conversation",
             )
         if self.interpretation_enabled and not columns and focus in {"orientation", "next_steps"}:
             return await self._interpret(
