@@ -1,6 +1,7 @@
 # Intelligence experience verification — 18 October 2026
 
-Candidate `66ba6b1` is based on `387d884`; private deployment is pending at this checkpoint.
+Runtime checkpoint `66ba6b1` is based on `387d884`. Private release `57f425ce74e83c35`
+is active on unchanged schema `0029`; the bounded local and private live gates are complete.
 All fixtures described here are synthetic. Historical release evidence is separate.
 
 ## Local checks
@@ -79,3 +80,71 @@ dark forecast and reading views. Logs: `browser-affected-surfaces.log` and
 `browser-affected-supplement.log`. Combined with the nine earlier journeys this is 23
 distinct local browser journeys with latest passing executions, not one clean full run.
 Frozen frontend rerun passes all 71 tests; lint and VPS image builds/restricted checks pass.
+
+## Private release activation
+
+The immutable archive contains 1,036 files; SHA-256
+`74b9b48f7def0e04f81f05298be3180bcae90405de57631bb1388dc71809d381`.
+Later commits `cbc1f1d` and `1077f90` add documentation/tests; runtime, migration and
+dependency bytes are unchanged from `66ba6b1`. VPS image builds and restricted image
+checks pass. The isolated candidate canary passes all four hosted tasks (single total,
+verified follow-up, compound request and tied extrema), with selected narratives and
+both fictional accounts disabled/revoked; its disposable containers are cleaned up.
+
+An initial activation invocation incorrectly wrapped the helper's own maintenance lock
+in an outer lock. The exact blocked processes were stopped before maintenance began;
+all original services remained running. `activation-initial-lock.log` retains that failure.
+The successful retry uses only the helper's internal lock.
+
+Checked pre-release backup: `20261018T185019Z`. Before starting candidate writers,
+all 77 existing tables, 198 stored files (3,997,759 bytes) and configuration fingerprints
+match. No migration or data restore occurred. Running API/jobs image `04331cd56ad4`
+and web image `2cefaf5169d2` match the checked candidate. Ready/web checks pass.
+Fresh live API/browser checks and a checked post-release backup remain pending here.
+Evidence: `activation.log`, `activation-evidence/`, `isolated-canary.json` and
+`vps-build.log` in the same private evidence directory.
+
+The deployed API's four hosted tasks pass in 53.279 seconds combined; all four narratives
+use selected verified statements, with no fallback in this small fixture. Both created
+accounts are disabled and their sessions revoked. This is functional evidence, not a broad
+language-quality or latency benchmark (`live-api.json`).
+
+The initial live browser run passed exact compound values/evidence and all three layout
+widths in both themes, but retained a failure for a background data-brief cancellation.
+Source inspection confirms that panel aborts its own fetch on unmount. The checker now
+accepts only that exact POST during initial navigation when it independently observes the
+browser AbortSignal; connection resets, missing signals, writes and job-stage failures
+remain failures. Seven helper regression tests pass. The original report is retained;
+a fresh browser run remains pending at this checkpoint. No application code was changed
+for this checker correction.
+
+The fresh deployed browser recheck passes in 35.406 seconds: three widths, both themes,
+exact compound values, source references and keyboard evidence. There are no page errors,
+HTTP failures, unexplained request failures or horizontal overflow. Its own account is
+disabled, the session revoked and login refusal verified (`live-browser-recheck.json`).
+Root visually inspected the deployed dark desktop capture. The initial failed report
+and its cleaned-up separate account remain retained.
+
+The first post-release verifier refused its exact-five-service preflight while the existing
+refresh service ran (18:52:34–18:52:38 UTC). A subsequent read found all five application
+services healthy and the refresh task stopped. A transient extra operator container is
+consistent with that timing but was not captured in the failed report; the exact observed
+service set is unavailable. No backup or restore was attempted by that failed preflight.
+The unchanged verifier is being rerun with a new output file, preserving the failure.
+
+## Final release result
+
+The unchanged post-release verifier passes (`post-release-recheck.json`). Checked backup
+`20261018T185309Z` has matching archive checksums and readable database/object listings.
+After backup, the five services, exact candidate images, six loopback listeners, readiness,
+web response, schema `0029`, configuration hashes and model/refresh/backup units pass.
+The first failed preflight remains in `post-release-initial.json`; no data restore occurred.
+All four live-created fictional accounts (two API and one for each browser run) are
+explicitly disabled and their sessions revoked. Existing user sessions were not changed.
+
+The dedicated REA public-capture browser is closed; its evidence/profile remain private.
+All five unrelated initial working-file hashes are preserved, including the original
+`next-env.d.ts`. No push, public exposure, provider switch or runtime dependency addition.
+The result is a focused enhancement, not complete ThoughtSpot/Claude parity or proof of
+production-scale acceptance. Automatic pattern and one-click anomaly behavior have local
+real-service browser coverage; live checks target compound answers and themed presentation.

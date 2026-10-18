@@ -1,6 +1,6 @@
 # Proactive intelligence and clear workspace — implementation ledger
 
-Started 18 October 2026 from `387d884`. Status: implementation in progress, not deployed.
+Started 18 October 2026 from `387d884`. Status: implemented and activated as private release `57f425ce74e83c35`; the bounded local/private live gates pass.
 User requests a coherent automatic data exploration experience, stronger tool orchestration,
 private memory continuity, meaningful visuals, simpler controls and dark mode. Source-backed
 calculations, confirmed definitions and access boundaries remain authoritative.
@@ -77,3 +77,14 @@ mapping informed implementation. Agent Reach is an isolated assistant public-pag
 not a product dependency or a connected private account. Broad upstream skill/installer
 findings remain documented. No extra production service, model provider or migration was
 introduced by this candidate.
+
+## Completed private release
+
+Release `57f425ce74e83c35` runs checkpoint `66ba6b1` on unchanged `0029`. Local evidence:
+71 frontend tests, 23 distinct latest passing browser journeys, four overlapping backend
+groups, static/build and restricted-image checks. Private live evidence: four hosted tasks
+and three desktop/mobile widths in both themes; checked pre/post backups and preservation
+of all 77 existing tables, 198 stored files and configuration. See
+`docs/verification-intelligence-experience.md` for failures, supplements and limits.
+Cognee remains a pinned research reference, Agent Reach is an isolated assistant tool,
+and only scoped Replica reconnaissance is installed. No new mandatory product service.

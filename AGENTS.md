@@ -40,6 +40,30 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 18 — Proactive findings, private recall and dark mode verified live
+
+- Private release **57f425ce74e83c35** is active on unchanged **0029**, runtime **66ba6b1**.
+  API/jobs **04331cd56ad4**, web **2cefaf5169d2**. Read
+  `docs/intelligence-experience-upgrade.md` and `docs/verification-intelligence-experience.md`.
+- Eligible confirmed sources receive bounded automatic pattern evidence. Overview leads
+  with findings and keeps charts open; System/Light/Dark works across charts and panels.
+  Eligible anomaly checks have a one-click default. Narrative v2 adds readable values and
+  exact grouped highlights; common-unit guards prevent mixed-currency rankings. Old v1 replays.
+- Explicit earlier-answer recall uses authorized receipts and a narrow MIT Trellis tokenizer;
+  negative/ambiguous references clarify. No autonomous private-memory writes or causal advice.
+- Focused checks: overlapping backend177/133/24/51 groups,71frontend,23distinct latest browser
+  passes, static/build/restricted checks. Four live hosted tasks pass53.279s; browser3widths
+  inboth themes passes35.406s. Initial lock/checker/preflight failures remain in the ledger.
+- Checked backups **20261018T185019Z**/**20261018T185309Z**; activation preserves77tables,
+  198files/3997759bytes andconfiguration. Five services/sixloopbacklisteners/modeltimers
+  andreadyweb pass after backup. Allfour live fictional accounts disabled/revoked.
+- Scoped Replica reconnaissance and REA public ThoughtSpot evidence are used; Agent Reach
+  is installed as an isolated public-reader assistant tool. Cognee1.6.5 is reviewed/pinned
+  only, deferred pending retrieval/permission/forget benchmarks. Read their adoption docs.
+- No schema/provider/runtime-dependency change, push, public exposure or data restore.
+  Existing sessions and unrelated WIP preserved. All64IDs/counts/eightproduction gates unchanged.
+  Private access and current release are in `data/agent-memory/private-vps-handoff.md`.
+
 ### October 18 — Bounded conversational harness verified live
 
 - Private release **831c6e06a8b55bdb** is active on unchanged **0029**. Runtime source
