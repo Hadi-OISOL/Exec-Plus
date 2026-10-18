@@ -91,10 +91,15 @@ def is_result_explanation(question: str) -> bool:
     }
 
 
+def is_temporal_followup(question: str) -> bool:
+    return bool(re.fullmatch(r"(?:what about )?last year", words(question)))
+
+
 def is_contextual_reply(question: str, view: DatasetView) -> bool:
     normalized = words(question)
     return (
         is_result_explanation(question)
+        or is_temporal_followup(question)
         or normalized in {words(column.name) for column in view.columns}
         or bool(
             re.match(
@@ -115,7 +120,9 @@ def request_requirements(question: str, view: DatasetView) -> RequestRequirement
         re.search(r"\b(meaning|definition|means|represents|stands for)\b", residual)
         or re.search(r"\bdoes\b.*\bmean\b", residual)
     )
-    operations = r"\b(total|sum|average|avg|count|minimum|maximum|min|max|calculate|compute)\b"
+    operations = (
+        r"\b(totals?|sums?|averages?|avg|counts?|minimums?|maximums?|min|max|calculate|compute)\b"
+    )
     calculation = bool(
         re.search(operations, residual)
         or (not definition and re.search(r"\bmean\b", residual))
@@ -162,7 +169,8 @@ def requires_compound_data(question: str, view: DatasetView) -> bool:
         return False
     named = set(mentioned_columns(question, view)) & set(view.metrics)
     operations = re.findall(
-        r"\b(total|sum|average|avg|count|minimum|maximum|min|max)\b", normalized
+        r"\b(totals?|sums?|averages?|avg|counts?|minimums?|maximums?|min|max|highest|lowest)\b",
+        normalized,
     )
     return len(named) > 1 or len(operations) > 1
 
@@ -207,7 +215,10 @@ def preserves_followup_scope(
         if metric != prior.metric and metric not in named:
             return False
         explicit_operation = bool(
-            re.search(r"\b(total|sum|average|avg|mean|count|min|minimum|max|maximum)\b", normalized)
+            re.search(
+                r"\b(totals?|sums?|averages?|avg|mean|counts?|min|minimums?|max|maximums?)\b",
+                normalized,
+            )
         )
         if aggregation != prior.aggregation and not explicit_operation:
             return False
@@ -228,17 +239,80 @@ def compound_covers_request(question: str, intent: RoutedIntent, view: DatasetVi
         return False
     requests = [step.request for step in intent.data_steps if step.request is not None]
     named = set(mentioned_columns(question, view)) & set(view.metrics)
-    if not named <= {request.metric for request in requests}:
+    covered = {request.metric for request in requests}
+    operations = {request.aggregation.value for request in requests}
+    for step in intent.data_steps:
+        if step.rows is not None:
+            covered.update(step.rows.columns or view.metrics)
+            if step.rows.extremum is not None:
+                covered.add(step.rows.extremum.column)
+                operations.add(step.rows.extremum.direction)
+    if not named <= covered:
         return False
     requested = {
         operation
         for expression, operation in (
-            (r"\b(total|sum)\b", "sum"),
-            (r"\b(average|avg|mean)\b", "avg"),
-            (r"\bcount\b", "count"),
-            (r"\b(minimum|min)\b", "min"),
-            (r"\b(maximum|max)\b", "max"),
+            (r"\b(totals?|sums?)\b", "sum"),
+            (r"\b(averages?|avg|mean)\b", "avg"),
+            (r"\bcounts?\b", "count"),
+            (r"\b(minimums?|min|lowest)\b", "min"),
+            (r"\b(maximums?|max|highest)\b", "max"),
         )
         if re.search(expression, normalized)
     }
-    return requested <= {request.aggregation.value for request in requests}
+    return requested <= operations and _compound_pairs_match(question, intent, view)
+
+
+def _compound_pairs_match(question: str, intent: RoutedIntent, view: DatasetView) -> bool:
+    operations = (
+        (r"\b(totals?|sums?)\b", "sum"),
+        (r"\b(averages?|avg|mean)\b", "avg"),
+        (r"\bcounts?\b", "count"),
+        (r"\b(minimums?|min|lowest)\b", "min"),
+        (r"\b(maximums?|max|highest)\b", "max"),
+    )
+    normalized = " " + words(question) + " "
+    aliases: dict[str, str] = {}
+    for index, column in enumerate(
+        sorted(view.columns, key=lambda col: len(words(col.name)), reverse=True)
+    ):
+        alias = f"columnref{index}"
+        label = " " + words(column.name) + " "
+        if label in normalized:
+            normalized = normalized.replace(label, " " + alias + " ")
+            aliases[alias] = column.name
+    performed = set()
+    for step in intent.data_steps:
+        if step.request is not None:
+            performed.add((step.request.metric, step.request.aggregation.value, "numerical"))
+        if step.rows is not None and step.rows.extremum is not None:
+            performed.add((step.rows.extremum.column, step.rows.extremum.direction, "rows"))
+    global_operations = {
+        name for expression, name in operations if re.search(expression, normalized)
+    }
+    for clause in re.split(r"\b(?:and|also|plus|then)\b", normalized):
+        selected = {name for expression, name in operations if re.search(expression, clause)}
+        fields = {
+            name for alias, name in aliases.items() if re.search(r"\b" + alias + r"\b", clause)
+        }
+        row_request = bool(re.search(r"\b(records?|rows?|which|who)\b", clause))
+        if not selected:
+            if not row_request and len(global_operations) == 1 and global_operations != {"count"}:
+                selected = global_operations
+            else:
+                continue
+        if len(selected) != 1:
+            return False
+        operation = next(iter(selected))
+        if operation == "count" and (row_request or not fields):
+            targets = {"*"}
+        elif operation == "count":
+            targets = fields
+        else:
+            targets = fields & set(view.metrics)
+        if not targets:
+            continue
+        kind = "rows" if row_request and operation in {"min", "max"} else "numerical"
+        if not {(name, operation, kind) for name in targets} <= performed:
+            return False
+    return True

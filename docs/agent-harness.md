@@ -28,6 +28,8 @@ The recorded activity stages describe application operations, not private model 
 
 No migration is required. These switches govern new work; historical answers retain their original receipts. A compound result keeps the existing `mixed` answer kind, uses `coverage=data`, retains the first calculation in `data`, and adds the second in `additional_data`. It does not imply a document search occurred. PDF, Excel and CSV exports include both calculations and original source evidence.
 
+The private VPS composition explicitly opts in through `deploy/vps/agent-harness.env`. It loads the existing private `app.env` afterward, so an operator can persistently override individual switches there without editing credentials or replacing compatible readers. General application and `.env.example` defaults remain off. Activating this composition still requires the recorded release gates.
+
 Turning flags off is an operational fallback for new requests. Already saved compound answers and narratives require the compatible new reader; do not roll back to an older reader that silently omits their second result. Prefer disabling the new paths while retaining the compatible images. Never restore an earlier database over newer user work.
 
 ## Facts, language and privacy
