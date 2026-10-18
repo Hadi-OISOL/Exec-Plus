@@ -1,0 +1,34 @@
+{
+  "version": "analysis-evaluation-cases-v1",
+  "evaluation_id": "agent-harness-disposable-api-v1",
+  "scope": "Real disposable PostgreSQL/MinIO and application services with fictional data and scripted planner replies. This measures harness correctness, exact execution and replay; it does not measure hosted language quality.",
+  "cases": [
+    {
+      "id": "compound-two-query",
+      "title": "Execute and reopen two authorized calculations",
+      "expected_behavior": "One compound turn executes exactly two governed queries, returns both exact values and reopens both private receipts.",
+      "measurement_dimension": "compound_success",
+      "node_ids": [
+        "apps/api/tests/test_agent_harness_runtime_evaluation.py::test_actual_compound_executes_two_exact_queries_and_reopens_both"
+      ]
+    },
+    {
+      "id": "verified-followup",
+      "title": "Explain a result from one verified receipt",
+      "expected_behavior": "A natural explanation follow-up reuses the authorized exact result without another model call or calculation.",
+      "measurement_dimension": "followup_success",
+      "node_ids": [
+        "apps/api/tests/test_agent_harness_runtime_evaluation.py::test_actual_result_followup_reuses_verified_receipt_without_second_model_call"
+      ]
+    },
+    {
+      "id": "document-synonym-candidate",
+      "title": "Find a bounded English synonym candidate",
+      "expected_behavior": "Optional retrieval expansion finds the authorized personnel passage for employees without changing the default ranker or renaming a field.",
+      "measurement_dimension": "retrieval_success",
+      "node_ids": [
+        "apps/api/tests/test_agent_harness_runtime_evaluation.py::test_actual_synonym_expansion_finds_authorized_candidate_without_renaming_fields"
+      ]
+    }
+  ]
+}
