@@ -383,8 +383,8 @@ def cohort_scope_needs_clarification(
     target = words(intent.target_column).split()
     # A terminal reference to the selected outcome field names what is being
     # studied, not which rows to include. Recognize only unique multiword field
-    # spans (or the full name), with no following value/predicate. The optional
-    # repeated full name is an exact field-choice reply appended by the router.
+    # spans (or the full name). Optional trailing replies can repeat the exact
+    # field and then the exact selected category; no other predicate is consumed.
     # This does not supply or authorize a target category value.
     field_references = {
         " ".join(target[start:end])
@@ -409,6 +409,8 @@ def cohort_scope_needs_clarification(
             + reference
             + r"(?:\s+"
             + re.escape(words(intent.target_column))
+            + r")?(?:\s+"
+            + value
             + r")?\s*$",
             " ",
             normalized,

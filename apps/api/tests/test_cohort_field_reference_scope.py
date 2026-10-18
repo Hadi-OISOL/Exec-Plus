@@ -1,6 +1,7 @@
 """Field-selection replies are not extra filters or implied category values."""
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -33,16 +34,25 @@ def comparison():
     [
         QUESTION,
         QUESTION + " Crop_Growth_Stage",
+        QUESTION + " Crop_Growth_Stage Harvest",
+        QUESTION + " Crop_Growth_Stage Growing",
         "Which conditions differ for Crop_Growth_Stage?",
         "Which conditions differ in the crop growth? Crop_Growth_Stage",
     ],
 )
 def test_terminal_outcome_field_reference_is_not_an_extra_row_predicate(question):
     intent, view = comparison()
+    if question.endswith(" Growing"):
+        intent = replace(intent, target_value="Growing")
     assert not cohort_scope_needs_clarification(question, intent, view)
     # Scope validation never invents a target. The routing layer must separately
     # require a user-selected label before constructing this comparison intent.
-    assert intent.target_value == "Harvest"
+    assert intent.target_value == ("Growing" if question.endswith(" Growing") else "Harvest")
+
+
+def test_different_category_reply_cannot_be_consumed_as_the_proposed_target():
+    intent, view = comparison()
+    assert cohort_scope_needs_clarification(QUESTION + " Crop_Growth_Stage Growing", intent, view)
 
 
 @pytest.mark.parametrize(
@@ -60,6 +70,32 @@ def test_terminal_outcome_field_reference_is_not_an_extra_row_predicate(question
 def test_field_reference_does_not_consume_following_real_restrictions(suffix):
     intent, view = comparison()
     assert cohort_scope_needs_clarification(QUESTION + suffix + " Crop_Growth_Stage", intent, view)
+
+
+@pytest.mark.parametrize(
+    "restriction",
+    [
+        " in East",
+        " excluding Rice",
+        " before last year",
+        " with Soil_Moisture above 20",
+        " compared to Growing",
+        " by Crop_Type",
+        " not Harvest",
+    ],
+)
+def test_category_reply_preserves_restrictions_before_and_after_selection(restriction):
+    intent, view = comparison()
+    assert cohort_scope_needs_clarification(
+        QUESTION + restriction + " Crop_Growth_Stage Harvest",
+        intent,
+        view,
+    )
+    assert cohort_scope_needs_clarification(
+        QUESTION + " Crop_Growth_Stage Harvest" + restriction,
+        intent,
+        view,
+    )
 
 
 def test_shared_field_alias_is_not_assumed_to_be_selected_outcome():
