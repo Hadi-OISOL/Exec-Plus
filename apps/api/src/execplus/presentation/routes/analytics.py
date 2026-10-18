@@ -213,12 +213,17 @@ def numerical_answer_body(
         return {
             "kind": answer.kind,
             "data": numerical_answer_body(answer.data) if answer.data else None,
+            "additional_data": [numerical_answer_body(item) for item in answer.additional_data],
             "citations": answer.citations,
             "coverage": answer.coverage,
             "limitations": answer.limitations,
             "model_route": answer.model_route,
             "sources": answer.sources,
-            "message": "Calculated data and quoted source statements are shown separately.",
+            "message": (
+                "The requested calculations are shown with their individual evidence."
+                if answer.coverage == "data"
+                else "Calculated data and quoted source statements are shown separately."
+            ),
         }
     if isinstance(answer, DatasetGuide):
         return {

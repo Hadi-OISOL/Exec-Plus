@@ -63,7 +63,7 @@ class ResourceBudget:
             (self.max_steps, 1, 4),
             (self.max_model_calls, 0, 3),
             (self.max_provider_attempts, 0, 7),
-            (self.max_queries, 0, 1),
+            (self.max_queries, 0, 2),
             (self.max_retrievals, 0, 1),
         )
         if any(type(value) is not int or not low <= value <= high for value, low, high in bounds):

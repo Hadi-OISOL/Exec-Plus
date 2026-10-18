@@ -45,6 +45,7 @@ from execplus.application.services.plans import PlanService
 from execplus.application.services.product_usage import ProductUsageService
 from execplus.application.services.refresh import RefreshService
 from execplus.application.services.reports import ReportService
+from execplus.application.services.response_synthesis import ResponseSynthesisService
 from execplus.application.services.result_exports import ResultExportService
 from execplus.application.services.saved_items import SavedItemService
 from execplus.application.services.source_imports import SourceImportService
@@ -217,18 +218,32 @@ def build_runtime(settings: Settings) -> "Runtime":
     usage_metering = UsageMeteringService(SQLUsageUnitOfWork(engine))
     model = build_language_model(settings, metering=usage_metering)
     selector = build_selection_model(settings, metering=usage_metering)
-    knowledge = KnowledgeService(SQLUnitOfWork(engine), storage, ReferenceHybridRanker())
+    knowledge = KnowledgeService(
+        SQLUnitOfWork(engine),
+        storage,
+        ReferenceHybridRanker(expand_terms=settings.agent_retrieval_expansion_enabled),
+    )
     intent_router = IntentRouterService(
         model,
         analytics,
         selector,
         DocumentAnswerService(knowledge, model),
         interpretation_enabled=settings.llm_mode != "disabled",
+        context_enabled=settings.agent_context_enabled,
+        orchestration_enabled=settings.agent_orchestration_enabled,
         patterns=PatternService(SQLUnitOfWork(engine), analytics, ScipyPatternStatistics()),
     )
     uploads = WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes)
     refresh = RefreshService(SQLUnitOfWork(engine), uploads, analytics)
-    threads = ThreadService(SQLUnitOfWork(engine), intent_router)
+    threads = ThreadService(
+        SQLUnitOfWork(engine),
+        intent_router,
+        response_synthesis=(
+            ResponseSynthesisService(model if settings.llm_mode != "disabled" else None)
+            if settings.agent_synthesis_enabled
+            else None
+        ),
+    )
     pdf_exports = PdfExportService(SQLUnitOfWork(engine), threads, ReportLabPdfRenderer())
     threads.pdf_exports = pdf_exports
     intent_router.report_exports_enabled = True
@@ -321,6 +336,7 @@ def build_runtime(settings: Settings) -> "Runtime":
             lease_seconds=settings.jobs_lease_seconds,
             timeout_seconds=settings.jobs_timeout_seconds,
             queue_limit=settings.jobs_queue_limit,
+            max_queries=2 if settings.agent_orchestration_enabled else 1,
         ),
         ForecastService(SQLUnitOfWork(engine), analytics),
         operations,

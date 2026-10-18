@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     llm_selection_api_key: str = Field(default="", repr=False)
     data_brief_sample_values: int = Field(default=0, ge=0, le=20)
     data_brief_max_output_tokens: int = Field(default=4096, ge=1024, le=8192)
+    agent_context_enabled: bool = False
+    agent_orchestration_enabled: bool = False
+    agent_synthesis_enabled: bool = False
+    agent_retrieval_expansion_enabled: bool = False
     production_evidence_path: str = ""
     email_mode: Literal["disabled", "smtp"] = "disabled"
     smtp_host: str = ""

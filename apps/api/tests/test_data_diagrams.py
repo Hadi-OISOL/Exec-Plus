@@ -342,6 +342,7 @@ def test_model_diagram_grammar_and_tool_catalog_reject_unavailable_or_executable
         "map_dataset_structure",
         "explore_patterns",
         "compare_group_relationship",
+        "compare_cohort",
         "retrieve_documents",
         "export_report",
     }

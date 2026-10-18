@@ -12,8 +12,7 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from execplus.application.services.jobs import JobService
 from execplus.domain.jobs import Job
-from execplus.presentation.routes.analytics import numerical_answer_body
-from execplus.presentation.routes.threads import AskInThreadInput, _turn_body
+from execplus.presentation.routes.threads import AskInThreadInput, _turn_body, resolved_answer_body
 from execplus.presentation.routes.workspaces import Actor
 
 router = APIRouter(tags=["jobs"])
@@ -105,5 +104,12 @@ async def result(workspace_id: UUID, job_id: UUID, actor: Actor, jobs: Service) 
     answer, turn = await jobs.result(actor, workspace_id, job_id)
     return {
         "turn": _turn_body(turn),
-        "answer": numerical_answer_body(answer) if answer is not None else None,
+        "answer": await resolved_answer_body(
+            jobs.threads,
+            actor,
+            workspace_id,
+            turn.thread_id,
+            turn.id,
+            answer,
+        ),
     }

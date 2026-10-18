@@ -11,7 +11,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from execplus.application.services.intent_router import ConversationAnswer
 from execplus.application.services.threads import ThreadService
+from execplus.domain.ingestion import User
 from execplus.domain.threads import Thread, ThreadTurn
 from execplus.presentation.routes.analytics import numerical_answer_body
 from execplus.presentation.routes.workspaces import Actor
@@ -25,6 +27,29 @@ def get_thread_service(request: Request) -> ThreadService:
 
 
 Service = Annotated[ThreadService, Depends(get_thread_service)]
+
+
+async def resolved_answer_body(
+    service: ThreadService,
+    actor: User,
+    workspace_id: UUID,
+    thread_id: UUID,
+    turn_id: UUID,
+    answer: ConversationAnswer | None,
+) -> dict[str, object] | None:
+    if answer is None:
+        return None
+    body = numerical_answer_body(answer)
+    narrative = await service.validated_narrative(
+        actor,
+        workspace_id,
+        thread_id,
+        turn_id,
+        answer=answer,
+    )
+    if narrative is not None:
+        body["narrative"] = narrative
+    return body
 
 
 class AskInThreadInput(BaseModel):
@@ -95,7 +120,7 @@ async def historical_answer(
     workspace_id: UUID, thread_id: UUID, turn_id: UUID, actor: Actor, service: Service
 ) -> object:
     answer = await service.resolve(actor, workspace_id, thread_id, turn_id)
-    return numerical_answer_body(answer) if answer is not None else None
+    return await resolved_answer_body(service, actor, workspace_id, thread_id, turn_id, answer)
 
 
 @router.get("/workspaces/{workspace_id}/threads/{thread_id}")
@@ -115,5 +140,12 @@ async def ask_in_thread(
     answer, turn = await service.ask(actor, workspace_id, thread_id, body.question, body.request_id)
     return {
         "turn": _turn_body(turn),
-        "answer": numerical_answer_body(answer) if answer is not None else None,
+        "answer": await resolved_answer_body(
+            service,
+            actor,
+            workspace_id,
+            thread_id,
+            turn.id,
+            answer,
+        ),
     }
