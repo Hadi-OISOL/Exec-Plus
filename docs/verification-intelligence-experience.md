@@ -1,6 +1,6 @@
 # Intelligence experience verification — 18 October 2026
 
-Candidate is based on `387d884`; private deployment is pending at this checkpoint.
+Candidate `66ba6b1` is based on `387d884`; private deployment is pending at this checkpoint.
 All fixtures described here are synthetic. Historical release evidence is separate.
 
 ## Local checks
@@ -12,6 +12,7 @@ All fixtures described here are synthetic. Historical release evidence is separa
 | Focused proactive and narrative API | 24 pass | `intelligence-upgrade/combined-focused.log` |
 | Protected compound exports, replay, cohorts and discovery publication | 51 pass | `intelligence-upgrade/evidence-regression.log` |
 | Frontend unit tests | 71 pass | `intelligence-upgrade/frontend-combined.log` |
+| Production build and lint | pass | `intelligence-upgrade/build-combined.log`, `lint-combined.log`, `ruff-combined.log` |
 | Source typing | mypy 269 files, TypeScript pass | `intelligence-upgrade/mypy-combined.log`, `types-combined.log` |
 | Browser initial combined run | Six pass, two failures retained | `intelligence-upgrade/browser-combined-recheck.log` |
 | Browser repaired navigation, decisions and proactive evidence | Six pass in 58.9 seconds | `intelligence-upgrade/browser-ui-proactive.log` |
@@ -62,3 +63,7 @@ Agent Reach and Replica are assistant development tools. They are not executable
 skills or mandatory services. Their separate adoption reports retain source pins, licenses,
 scan findings and actual use. ThoughtSpot evidence is from a public product page, not its
 private application or backend.
+
+The current multi-result Overview can still be long with many eligible findings. All charts
+remain visible as requested; general layperson usability and competitor parity are not
+established by layout checks. Cognee is reviewed-only: see `docs/cognee-memory-assessment.md`.

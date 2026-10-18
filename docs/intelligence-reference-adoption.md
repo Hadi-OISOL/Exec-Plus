@@ -172,4 +172,3 @@ findings, question entry and contextual actions using its existing authorized se
 This is public product-page evidence, not access to ThoughtSpot's private application
 or backend. Marketing capability claims were not independently verified. No ThoughtSpot
 code, branding, customer records or proprietary assets were imported.
-
