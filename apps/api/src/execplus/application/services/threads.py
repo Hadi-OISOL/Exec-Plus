@@ -850,11 +850,22 @@ class ThreadService:
                     evidence["label"] = data.label
             if self.response_synthesis is not None:
                 remaining = max(0.001, 100 - (asyncio.get_running_loop().time() - started))
-                evidence.update(
-                    await asyncio.wait_for(
-                        self._narrative(actor, wid, answer, turn.question), timeout=remaining
+                try:
+                    evidence.update(
+                        await asyncio.wait_for(
+                            self._narrative(actor, wid, answer, turn.question), timeout=remaining
+                        )
                     )
-                )
+                except asyncio.TimeoutError:
+                    # Retain exact results; publication still checks source freshness and access.
+                    evidence.update(
+                        narrative_sources=list(narrative_sources(answer)),
+                        narrative_diagnostics={
+                            "mode": "fallback",
+                            "reason": "turn_deadline",
+                            "model_route": "deterministic:structured-answer",
+                        },
+                    )
             turn = replace(turn, evidence=evidence)
         except ClarificationRequiredError as error:
             answer = None
