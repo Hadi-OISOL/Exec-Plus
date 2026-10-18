@@ -354,6 +354,8 @@ def cohort_scope_needs_clarification(
     for name in sorted(named | {intent.target_column}, key=len, reverse=True):
         normalized = normalized.replace(words(name), " ")
     normalized = normalized.replace(words(intent.target_value), " ")
+    # A purpose phrase does not restrict rows; retain every word that follows it.
+    normalized = re.sub(r"\bin order to\b", " ", normalized)
     return bool(
         re.search(
             r"\b(where|only|excluding|exclude|except|filters?|filtered|before|after|since|"

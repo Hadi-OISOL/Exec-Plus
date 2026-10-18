@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 
 from execplus.domain.context_retrieval import references_earlier_result
-from execplus.domain.guidance import mentioned_columns, words
+from execplus.domain.guidance import is_greeting, mentioned_columns, words
 from execplus.domain.intent import RoutedIntent
 from execplus.domain.models import CalculationLineage, QuestionKind
 from execplus.domain.semantics import DatasetView
@@ -38,7 +38,7 @@ def is_guidance_followup(question: str) -> bool:
 
 
 def is_acknowledgement(question: str) -> bool:
-    return words(question) in {
+    return is_greeting(question) or words(question) in {
         "hi",
         "hello",
         "hey",
@@ -49,6 +49,16 @@ def is_acknowledgement(question: str) -> bool:
         "okay thanks",
         "shukriya",
     }
+
+
+def asks_for_ideal_conditions(question: str) -> bool:
+    """A desired outcome is needed; maximizing every input is not an objective."""
+    return bool(
+        re.search(
+            r"\b(perfect|ideal|optimal|best)\b.{0,80}\bconditions?\b",
+            words(question),
+        )
+    )
 
 
 def starts_new_orientation(

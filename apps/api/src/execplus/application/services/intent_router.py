@@ -37,6 +37,7 @@ from execplus.domain.analysis_plan import (
     pattern_conversation_plan,
 )
 from execplus.domain.conversation_requirements import (
+    asks_for_ideal_conditions,
     compound_covers_request,
     is_contextual_reply,
     is_guidance_followup,
@@ -68,6 +69,7 @@ from execplus.domain.guidance import (
     goal_choices,
     guidance_focus,
     guidance_selection,
+    is_greeting,
     mentioned_columns,
     needs_goal_clarification,
     words,
@@ -200,6 +202,10 @@ _SYSTEM_PROMPT = (
     "explanation supersedes an earlier pending calculation. A bare measure or short reply "
     "to that calculation retains the pending task instead. "
     "Ask one focused clarification identifying the missing measure, operation or filter. "
+    "Use at most three short choices. For ideal/perfect conditions, ask which recorded "
+    "outcome matters, not which input to maximize: higher pH, temperature, moisture or "
+    "spending is not automatically better. Once a recorded outcome is named, use "
+    "cohort_comparison to inspect observed differences, without claiming interventions. "
     "Once those are clear, propose the executable plan instead of repeating a capabilities menu. "
     "For an explanation of a column, select its exact name in columns (up to three); "
     "for a whole-dataset orientation, use an empty columns array. "
@@ -630,6 +636,7 @@ class IntentRouterService:
             prior_document_query = ""
             prior_cohort = None
             prior_clarification = None
+            prior_result = None
         if (
             self.context_enabled
             and is_temporal_followup(question)
@@ -701,6 +708,29 @@ class IntentRouterService:
                     additional_data=prior_result.answers[1:],
                 )
         requirements = request_requirements(question, description.view)
+        if asks_for_ideal_conditions(question):
+            outcome_fields = [
+                column.name
+                for column in description.view.columns
+                if column.name in description.view.dimensions
+                and "identifier" not in column.tags
+                and re.search(r"\b(stage|status|outcome|result)\b", words(column.name))
+            ][:3]
+            example = (
+                " Which recorded " + words(outcome_fields[0]) + " should we compare?"
+                if outcome_fields
+                else " What result would count as success for you?"
+            )
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    "I can compare the conditions recorded for an outcome with the other records."
+                    + example
+                    + " Higher measurements are not automatically better, and a comparison "
+                    "cannot prove what caused the outcome.",
+                    description.view.sources,
+                )
+            )
         contextual_reply = is_contextual_reply(question, description.view) or bool(
             prior_clarification
             and words(question) in {words(choice) for choice in prior_clarification.choices}
@@ -1481,7 +1511,18 @@ class IntentRouterService:
             raise ClarificationRequiredError(
                 "The file or definitions changed. Ask a new question about the current version."
             )
-        if self.interpretation_enabled and not columns and focus == "orientation":
+        if is_greeting(question):
+            return DatasetGuide(
+                f"Hey! I can help you explore {current.name}. We can understand the file, "
+                "look for patterns, or investigate a question you have. "
+                "What would you like to find out?",
+                "deterministic:greeting-v1",
+                suggestions=("Help me understand this data", "Find patterns across the whole file"),
+                sources=current.view.sources,
+                definition_state=current.state,
+                focus="next_steps",
+            )
+        if self.interpretation_enabled and not columns and focus in {"orientation", "next_steps"}:
             return await self._interpret(
                 actor, workspace_id, dataset_id, upload_id, current, question, prior_guide
             )

@@ -5,15 +5,16 @@ import json
 import pytest
 
 from execplus.domain.intent import cohort_scope_needs_clarification, route_response
+from execplus.domain.profiling import profile
+from execplus.domain.semantics import dataset_view
 from test_patterns import prepared
+from test_record_counts import crop_table
 
 
 def proposed_comparison():
     context, _ = prepared(
         ("stage", "reading", "crop"),
-        [("Ready", 2, "A")] * 10
-        + [("Growing", 4, "B")] * 10
-        + [("Starting", 8, "C")] * 10,
+        [("Ready", 2, "A")] * 10 + [("Growing", 4, "B")] * 10 + [("Starting", 8, "C")] * 10,
     )
     intent = route_response(
         json.dumps(
@@ -56,3 +57,64 @@ def test_unsupported_restrictions_and_named_comparators_cannot_be_dropped(questi
 def test_plain_selected_group_versus_every_other_group_stays_supported(question):
     intent, view = proposed_comparison()
     assert not cohort_scope_needs_clarification(question, intent, view)
+
+
+HARVEST_PURPOSE_QUESTION = (
+    "i meant how does one crop end up into harvest?? like what did the crops in harvest "
+    "did that others should do in order to end up here"
+)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        HARVEST_PURPOSE_QUESTION,
+        "What differs for crops in Harvest in order to reach this stage?",
+        "What did Harvest crops do IN ORDER TO get here?",
+    ],
+)
+def test_purpose_phrase_does_not_add_a_cohort_filter(question):
+    view = dataset_view(profile(crop_table()))
+    intent = route_response(
+        json.dumps(
+            {
+                "kind": "cohort_comparison",
+                "target_column": "Crop_Growth_Stage",
+                "target_value": "Harvest",
+            }
+        ),
+        view,
+    )
+    assert not cohort_scope_needs_clarification(question, intent, view)
+
+
+@pytest.mark.parametrize(
+    "restriction",
+    [
+        " in East",
+        " from last 7 days",
+        " during 2025",
+        " only maize",
+        " excluding Rice",
+        " except Wheat",
+        " where stage is not Harvest",
+        " where Soil_Moisture > 20",
+        " with Soil_Moisture above 20 and below 40",
+        " compared to Growing",
+        " by Crop_Type",
+        " within 2 weeks",
+    ],
+)
+def test_purpose_phrase_does_not_hide_real_scope_restrictions(restriction):
+    view = dataset_view(profile(crop_table()))
+    intent = route_response(
+        json.dumps(
+            {
+                "kind": "cohort_comparison",
+                "target_column": "Crop_Growth_Stage",
+                "target_value": "Harvest",
+            }
+        ),
+        view,
+    )
+    assert cohort_scope_needs_clarification(HARVEST_PURPOSE_QUESTION + restriction, intent, view)
