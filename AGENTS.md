@@ -40,6 +40,25 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 19 — Reported conversation loop repaired and verified live
+
+- Private release **0d6af5f7b68d02d3 /0029**, runtime **ff1f27e**, is active.
+  Read `docs/verification-conversation-goal-repair.md`. Greetings are brief;
+  capability/next-step readings use authorized context; ideal conditions ask for
+  the desired outcome; “in order to” no longer falsely blocks a harvest comparison.
+- Local34/156/78-case runs overlap; Ruff/mypy269 pass. Exact candidate builds and
+  restricted image checks pass. Live four legacy hosted tasks and seven reported-style
+  turns pass; fresh browser checks cover three widths in both themes. All six owned
+  live synthetic accounts are disabled/revoked. Old saved replies remain immutable.
+- Activation preserves77 tables/185 files/configuration. Checked backups
+  **20261018T191344Z**/**20261018T191744Z** (UTC); readiness/web, five services,
+  six loopback listeners, models/timers and unchanged schema/images pass. No restore.
+- This focused gate does not establish universal language accuracy, short-answer
+  continuation coverage or causal crop advice. No schema/dependency/provider change,
+  push or public exposure. All64 requirement statuses/eight external gates retained.
+  Previous release entries below are historical. Preserve unrelated working files.
+
+
 ### October 18 — Proactive findings, private recall and dark mode verified live
 
 - Private release **57f425ce74e83c35** is active on unchanged **0029**, runtime **66ba6b1**.
