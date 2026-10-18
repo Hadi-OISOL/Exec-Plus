@@ -1180,6 +1180,29 @@ class IntentRouterService:
             await model_call()
             first = await self.model.complete(request)
             proposal = route_response(first.content, view)
+            if (
+                proposal.kind == QuestionKind.UNSUPPORTED
+                and explanation_context is not None
+                and explanation_context.question
+                and explanation_context.sources == view.sources
+                and not requirements.overview_conflicts
+            ):
+                # A model may label a procedural explanation as social conversation.
+                # Revalidate its unchanged prose against the existing explanation contract.
+                try:
+                    payload = json.loads(first.content)
+                except (json.JSONDecodeError, TypeError):
+                    payload = None
+                if (
+                    isinstance(payload, dict)
+                    and payload.get("kind") == "overview"
+                    and payload.get("focus") == "conversation"
+                ):
+                    contextual = route_response(
+                        json.dumps({**payload, "focus": "clarification"}), view
+                    )
+                    if contextual.kind == QuestionKind.OVERVIEW:
+                        return contextual, first, "clarification-context normalization"
             correction = ""
             if proposal.validation_issue == "count_plan":
                 correction = (
