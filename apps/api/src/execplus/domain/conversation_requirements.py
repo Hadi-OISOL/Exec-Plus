@@ -130,7 +130,7 @@ def request_requirements(question: str, view: DatasetView) -> RequestRequirement
         residual = residual.replace(" " + words(name) + " ", " ")
     definition = bool(
         re.search(r"\b(meaning|definition|means|represents|stands for)\b", residual)
-        or re.search(r"\bdoes\b.*\bmean\b", residual)
+        or re.search(r"\bdoes\b.*\bmean\b|\bdo\s+(?:you|u)\b.*\bmean\b", residual)
     )
     operations = (
         r"\b(totals?|sums?|averages?|avg|counts?|minimums?|maximums?|min|max|calculate|compute)\b"
@@ -147,7 +147,11 @@ def request_requirements(question: str, view: DatasetView) -> RequestRequirement
         or re.search(r"\b(first|last|top|bottom)\s+\d+\b", residual)
     )
     row_scope = bool(
-        re.search(r"\b(filters?|filtered|excluding|exclude|except)\b", residual)
+        (
+            not definition
+            and re.search(r"\b(filters?|filtered|excluding|exclude|except)\b", residual)
+        )
+        or re.search(r"\bfilter\s+(?:to|by|out|the|these|rows?|records?)\b", residual)
         or re.search(
             r"\b(where|only)\s+(?!the\s+(?:data|file)\b|this\s+(?:data|file)\b)\S+", residual
         )

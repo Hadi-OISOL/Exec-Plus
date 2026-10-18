@@ -106,12 +106,11 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
     return RoutedIntent(QuestionKind.NUMERICAL, request=request)
 
 
-def _social_claims(message: str, view: DatasetView) -> bool:
+def _unverified_conversation_claims(message: str) -> bool:
     # This is a conservative claim boundary, not proof of arbitrary prose's truth.
     normalized = words(message)
     return bool(
-        mentioned_columns(message, view)
-        or re.search(
+        re.search(
             r"\b(?:i|we) (?:have |ve |just |already |now |successfully )*"
             r"(?:saved|updated|changed|remember|remembered|recall|recalled|retrieved|"
             r"analyzed|analysed|calculated|computed|checked|inspected|read|opened|loaded|"
@@ -124,6 +123,22 @@ def _social_claims(message: str, view: DatasetView) -> bool:
             r"|\byour (?:saved )?(?:goal|notes?|memory|preferences?)\b"
             r"|\b(?:data|dataset|file|records|results) (?:shows?|indicates?|suggests?|proves?)\b",
             normalized,
+        )
+    )
+
+
+def _social_claims(message: str, view: DatasetView) -> bool:
+    return bool(mentioned_columns(message, view) or _unverified_conversation_claims(message))
+
+
+def _clarification_claims(message: str) -> bool:
+    # Field names may explain an input; observations still need analytical evidence.
+    return bool(
+        _unverified_conversation_claims(message)
+        or re.search(
+            r"\b(?:doubled|tripled|increased|decreased|outperformed|correlated)\b"
+            r"|\b(?:is|are|was|were) (?:the )?(?:highest|lowest|higher|lower|high|low)\b",
+            words(message),
         )
     )
 
@@ -249,18 +264,26 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
     if kind == QuestionKind.OVERVIEW:
         columns = payload.get("columns", [])
         focus = payload.get("focus", "orientation")
-        if focus == "conversation":
+        if focus == "conversation" or focus == "clarification":
             message = payload.get("message")
             if (
                 set(payload) != {"kind", "focus", "columns", "message"}
                 or columns != []
                 or not isinstance(message, str)
-                or not 1 <= len(message.strip()) <= 400
+                or not 1 <= len(message.strip()) <= (700 if focus == "clarification" else 400)
                 or any(character.isdigit() or ord(character) < 32 for character in message)
                 or re.search(r"https?://|www\.|[<>`\[\]{}]", message, re.IGNORECASE)
-                or _social_claims(message, view)
+                or (
+                    _clarification_claims(message)
+                    if focus == "clarification"
+                    else _social_claims(message, view)
+                )
             ):
-                return _unsupported("The conversational reply could not be validated.")
+                return _unsupported(
+                    "The clarification explanation could not be validated."
+                    if focus == "clarification"
+                    else "The conversational reply could not be validated."
+                )
             return RoutedIntent(kind, message=message.strip(), guide_focus=focus)
         if (
             not isinstance(columns, list)
@@ -358,6 +381,38 @@ def cohort_scope_needs_clarification(
     normalized = words(question)
     value = re.escape(words(intent.target_value))
     target = words(intent.target_column).split()
+    # A terminal reference to the selected outcome field names what is being
+    # studied, not which rows to include. Recognize only unique multiword field
+    # spans (or the full name), with no following value/predicate. The optional
+    # repeated full name is an exact field-choice reply appended by the router.
+    # This does not supply or authorize a target category value.
+    field_references = {
+        " ".join(target[start:end])
+        for start in range(len(target))
+        for end in range(start + 2, len(target) + 1)
+    } | {words(intent.target_column)}
+    field_references = {
+        alias
+        for alias in field_references
+        if sum(f" {alias} " in f" {words(column.name)} " for column in view.columns) == 1
+    }
+    if field_references:
+        reference = (
+            "(?:"
+            + "|".join(
+                re.escape(alias) for alias in sorted(field_references, key=len, reverse=True)
+            )
+            + ")"
+        )
+        normalized = re.sub(
+            r"\b(?:in|of|on|for)\s+(?:the\s+)?"
+            + reference
+            + r"(?:\s+"
+            + re.escape(words(intent.target_column))
+            + r")?\s*$",
+            " ",
+            normalized,
+        )
     aliases = [" ".join(target[index:]) for index in range(len(target))]
     aliases = [
         alias

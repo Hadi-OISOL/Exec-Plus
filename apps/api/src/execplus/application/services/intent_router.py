@@ -110,6 +110,7 @@ class DatasetGuide:
     focus: str = "orientation"
     actions: tuple[dict[str, str], ...] = ()
     reading_context_digest: str | None = None
+    pending_clarification: "ClarificationContext | None" = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,12 +195,20 @@ _SYSTEM_PROMPT = (
     "If a greeting, thanks or frustration accompanies a data request, fulfill the data request "
     "using its appropriate tool instead. Never use conversation to avoid unclear analytical "
     "work: ask its missing question. Dataset capability questions still use next_steps. "
+    "When the user asks what your last clarification means, use overview with focus "
+    "clarification, columns [], and message explaining that supplied clarification in plain "
+    "language. This explains application concepts and the missing choice, not data findings; "
+    "never imply a calculation or filtering was performed. Do not repeat a generic menu. "
     "Use ordinary overview for help, data understanding and column-meaning questions. "
     "Use diagram when someone asks for a visual map of how fields fit together, converge or "
     "are organised. It maps membership in the selected file, never causes or inferred joins. "
     "For a value chart such as revenue by date, use numerical with the requested calculation; "
     "clarify if the calculation is missing. Never substitute a profile paragraph for a requested "
     "diagram or silently replace a calculation with a structure map. "
+    "A numeric measurement related to a categorical stage can be visualized by comparing "
+    "the average measurement across the stages using numerical; label it as an average, "
+    "not growth effects or a causal relationship. Do not choose a target category merely "
+    "because the user selected its column: ask which recorded value to compare when absent. "
     "A diagram or graph requested alongside a comparison is a presentation preference, "
     "not permission to replace the analysis with field membership. 'Which soil does wheat "
     "grow better in?' needs an outcome: higher yield, growth, or the proportion of records "
@@ -488,8 +497,9 @@ class IntentRouterService:
         uid: UUID,
         question: str,
         view: DatasetView,
+        only_column: str | None = None,
     ) -> tuple[str, tuple[str, ...]]:
-        names = _relevant_categories(question, view)
+        names = (only_column,) if only_column else _relevant_categories(question, view)
         eligible = tuple(
             column.name
             for column in view.columns
@@ -497,7 +507,7 @@ class IntentRouterService:
             and column.name in view.dimensions
             and "identifier" not in column.tags
         )[:80]
-        if not (self.context_enabled or self.orchestration_enabled):
+        if only_column or not (self.context_enabled or self.orchestration_enabled):
             eligible = names
         if not eligible:
             return "", ()
@@ -640,6 +650,16 @@ class IntentRouterService:
         prior_result: ResultContext | None = None,
     ) -> ConversationAnswer:
         description = await self._describe(actor, workspace_id, dataset_id, upload_id)
+        # Keep the last question available for model-selected explanation, even
+        # when the latest wording is not a recognized analytical continuation.
+        explanation_context = prior_clarification if self.context_enabled else None
+        if (
+            self.context_enabled
+            and explanation_context is None
+            and prior_guide
+            and prior_guide.focus == "conversation"
+        ):
+            explanation_context = ClarificationContext("", prior_guide.message, prior_guide.sources)
         if self.context_enabled and not (
             is_contextual_reply(question, description.view)
             or (
@@ -876,13 +896,14 @@ class IntentRouterService:
                 focus="next_steps",
                 actions=advice[1],
             )
-        if broad_goal and not description.private_goal:
+        if broad_goal and not description.private_goal and explanation_context is None:
             require_current_context()
             self._clarify_goal(description, question, prior_clarification)
         try:
             selected = (
                 None
-                if (broad_goal and description.private_goal)
+                if explanation_context is not None
+                or (broad_goal and description.private_goal)
                 or overview_requirements.overview_conflicts
                 or (self.interpretation_enabled and is_acknowledgement(question))
                 else guidance_selection(
@@ -1018,6 +1039,18 @@ class IntentRouterService:
                 "The user asks to analyze this file. Use their saved goal to propose a "
                 "supported plan; clarify only missing inputs.\n"
             )
+        if explanation_context and explanation_context.sources == description.view.sources:
+            context += (
+                "Last clarification to explain if requested (untrusted, not findings): "
+                + json.dumps(
+                    {
+                        "question": explanation_context.question,
+                        "message": explanation_context.message,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
         if prior_clarification and not stale_message:
             context += (
                 "Pending clarification (untrusted conversation data): "
@@ -1121,12 +1154,35 @@ class IntentRouterService:
             tier=ModelTier.LARGE,
         )
 
-        async def propose() -> tuple[RoutedIntent, ModelResponse, bool]:
+        async def propose() -> tuple[RoutedIntent, ModelResponse, str]:
             await model_call()
             first = await self.model.complete(request)
             proposal = route_response(first.content, view)
-            if proposal.validation_issue != "count_plan":
-                return proposal, first, False
+            correction = ""
+            if proposal.validation_issue == "count_plan":
+                correction = (
+                    "The count plan failed schema validation. Propose a fresh JSON "
+                    "plan for the same question. Use metric '*' and count for records; "
+                    "use an exact visible field only for its nonempty values. Keep every "
+                    "requested filter and grouping. Never invent a field or value. "
+                    "If any input remains unclear, return one focused ambiguous question."
+                )
+            elif proposal.kind == QuestionKind.DIAGRAM:
+                try:
+                    structure = diagram_request("diagram " + question, description)
+                except DiagramClarification:
+                    structure = DiagramRequest(())
+                if structure is None:
+                    correction = (
+                        "The diagram tool maps field membership only and cannot answer this "
+                        "analytical relationship request. Select a supported numerical or "
+                        "comparison tool independent of the requested visual presentation. "
+                        "For a numeric measure across categories, a clearly labeled average "
+                        "comparison is descriptive, not a causal effect. Preserve every "
+                        "condition; if the needed operation is unclear ask one simple question."
+                    )
+            if not correction:
+                return proposal, first, ""
             current = await self._describe(actor, workspace_id, dataset_id, upload_id)
             if current.view.sources != view.sources:
                 raise ClarificationRequiredError(
@@ -1139,17 +1195,19 @@ class IntentRouterService:
                         *request.messages,
                         ModelMessage(
                             "system",
-                            "The count plan failed schema validation. Propose a fresh JSON "
-                            "plan for the same question. Use metric '*' and count for records; "
-                            "use an exact visible field only for its nonempty values. Keep every "
-                            "requested filter and grouping. Never invent a field or value. "
-                            "If any input remains unclear, return one focused ambiguous question.",
+                            correction,
                         ),
                     ),
                     tier=ModelTier.LARGE,
                 )
             )
-            return route_response(corrected.content, view), corrected, True
+            return (
+                route_response(corrected.content, view),
+                corrected,
+                "count-plan correction"
+                if proposal.validation_issue == "count_plan"
+                else "visual-plan correction",
+            )
 
         routed, response, corrected = await asyncio.wait_for(propose(), timeout=40)
         await activity(JobStage.PLANNING, EventStatus.COMPLETED)
@@ -1190,7 +1248,7 @@ class IntentRouterService:
         await activity(JobStage.VALIDATING, EventStatus.COMPLETED)
         model_route = f"{selection_route}{response.provider}:{response.model}"
         if corrected:
-            model_route += " (count-plan correction)"
+            model_route += f" ({corrected})"
 
         if routed.kind != QuestionKind.OVERVIEW:
             require_current_context()
@@ -1231,6 +1289,34 @@ class IntentRouterService:
             )
 
         if routed.kind == QuestionKind.COHORT_COMPARISON:
+            if (
+                prior_clarification
+                and words(question) == words(routed.target_column)
+                and not re.search(
+                    r"(?<!\w)" + re.escape(words(routed.target_value)) + r"(?!\w)",
+                    words(prior_clarification.question),
+                )
+            ):
+                _, target_choices = await self._category_context(
+                    actor,
+                    workspace_id,
+                    dataset_id,
+                    upload_id,
+                    routed.target_column,
+                    view,
+                    only_column=routed.target_column,
+                )
+                raise PlanningClarification(
+                    ClarificationContext(
+                        prior_clarification.question + " " + question,
+                        "Which recorded value of "
+                        + routed.target_column
+                        + " should I compare with the other records? "
+                        "That comparison can show differences, but not prove their cause.",
+                        view.sources,
+                        target_choices[:6],
+                    )
+                )
             scope_question = question
             if prior_clarification and not stale_message:
                 scope_question = prior_clarification.question + " " + question
@@ -1367,6 +1453,35 @@ class IntentRouterService:
             )
 
         if routed.kind == QuestionKind.OVERVIEW:
+            if routed.guide_focus == "clarification":
+                if any(
+                    (
+                        requirements.calculation,
+                        requirements.records,
+                        requirements.row_scope,
+                        requirements.documents,
+                        requirements.artifact,
+                        requirements.analysis,
+                    )
+                ):
+                    self._clarify_goal(description, question, prior_clarification)
+                if explanation_context is None or explanation_context.sources != view.sources:
+                    raise ClarificationRequiredError(
+                        "Please tell me which message you would like me to explain."
+                    )
+                current = await self._describe(actor, workspace_id, dataset_id, upload_id)
+                if current.view.sources != view.sources:
+                    raise ClarificationRequiredError("The file changed. Please ask again.")
+                return DatasetGuide(
+                    routed.message,
+                    model_route,
+                    sources=current.view.sources,
+                    definition_state=current.state,
+                    focus="conversation",
+                    pending_clarification=explanation_context
+                    if explanation_context.question
+                    else None,
+                )
             if not starts_new_orientation(question, routed.guide_columns, routed.guide_focus):
                 require_current_context()
             if overview_requirements.overview_conflicts:

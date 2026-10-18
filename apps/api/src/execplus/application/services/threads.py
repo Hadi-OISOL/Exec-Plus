@@ -651,10 +651,20 @@ class ThreadService:
             prior_turns = all_turns[:position]
             history = prior_turns[-6:] if self.intent_router.context_enabled else prior_turns
             for item in reversed(history):
+                # A failed/clarifying task is the conversational subject now. Do not
+                # walk past it and silently resurrect an older calculation for "why".
+                if self.intent_router.context_enabled and (
+                    item.status != "complete" or item.kind in {"ambiguous", "unsupported"}
+                ):
+                    break
                 if item.status == "complete" and item.evidence.get("guide"):
                     guide = self._saved_guide(item)
-                    if guide.columns or starts_new_orientation(
-                        item.question, columns=guide.columns, focus=guide.focus
+                    if (
+                        guide.focus == "conversation"
+                        or guide.columns
+                        or starts_new_orientation(
+                            item.question, columns=guide.columns, focus=guide.focus
+                        )
                     ):
                         break
                 if item.status == "complete" and (
@@ -859,6 +869,14 @@ class ThreadService:
                     ),
                     sources=list(answer.sources),
                 )
+                if answer.pending_clarification is not None:
+                    pending = answer.pending_clarification
+                    evidence["clarification"] = {
+                        "question": pending.question,
+                        "message": pending.message,
+                        "sources": list(pending.sources),
+                        "choices": list(pending.choices),
+                    }
                 turn = replace(
                     turn,
                     kind="overview",
@@ -925,13 +943,25 @@ class ThreadService:
                 )
         except UnsupportedQuestionError as error:
             answer = None
+            # Retain this refusal as the subject of a follow-up explanation, not
+            # as evidence of a calculation or a reason to reuse an older answer.
+            current_view = await self.intent_router.analytics.get_view(
+                actor, wid, thread.dataset_id, thread.upload_id
+            )
             turn = replace(
                 turn,
                 kind="unsupported",
                 message=str(error)[:1000],
                 status="complete",
                 query_id=None,
-                evidence={},
+                evidence={
+                    "clarification": {
+                        "question": turn.question,
+                        "message": str(error)[:1000],
+                        "sources": list(current_view.sources),
+                        "choices": [],
+                    }
+                },
             )
         except QueryDataError as error:
             answer = None

@@ -339,3 +339,99 @@ async def test_private_record_cells_never_reenter_followup_planner_request(integ
     assert answer.value == 2
     assert "PrivateCustomer" not in model.requests[-1].messages[-1].content
     assert "Previous verified results" in model.requests[-1].messages[-1].content
+
+
+@pytest.mark.asyncio
+async def test_clarification_is_a_barrier_to_unrelated_old_result(integration):
+    clarify = {
+        "kind": "ambiguous",
+        "message": "Which category should I compare?",
+        "options": ["A", "B"],
+    }
+    explain = {
+        "kind": "overview",
+        "focus": "clarification",
+        "columns": [],
+        "message": (
+            "I was asking which group you want to look at, so the comparison matches your question."
+        ),
+    }
+    actor, wid, did, uid, model, threads = setup(integration, query(), clarify, explain)
+    thread = await threads.start_thread(actor, wid, did, uid)
+    await threads.ask(actor, wid, thread.id, "total revenue")
+    _, pending = await threads.ask(actor, wid, thread.id, "Which category has better outcomes?")
+    assert pending.kind == "ambiguous"
+    answer, turn = await threads.ask(actor, wid, thread.id, "why")
+    assert turn.query_id is None
+    assert answer.message == explain["message"]
+    assert "Last clarification to explain" in model.requests[-1].messages[-1].content
+    assert len(model.requests) == 3
+
+
+@pytest.mark.asyncio
+async def test_explain_filtered_file_keeps_latest_question_without_old_calculation(integration):
+    refusal = {
+        "kind": "unsupported",
+        "message": "This tool needs a filtered file for that comparison.",
+    }
+    explain = {
+        "kind": "overview",
+        "focus": "clarification",
+        "columns": [],
+        "message": (
+            "A filtered file means keeping only the rows you want to compare. "
+            "I have not changed your file."
+        ),
+    }
+    actor, wid, did, uid, model, threads = setup(integration, query(), refusal, explain)
+    thread = await threads.start_thread(actor, wid, did, uid)
+    await threads.ask(actor, wid, thread.id, "total revenue")
+    await threads.ask(actor, wid, thread.id, "Compare the outcomes for a selected population")
+    answer, turn = await threads.ask(actor, wid, thread.id, "filtered file? what do u mean")
+    assert turn.query_id is None
+    assert answer.message == explain["message"]
+    assert "filtered file" in model.requests[-1].messages[-1].content
+    assert len(model.requests) == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "question",
+    ["Now calculate total revenue", "What is the mean of revenue?", "Only East", "Filter to East"],
+)
+async def test_explanation_cannot_replace_new_calculation(integration, question):
+    clarify = {"kind": "ambiguous", "message": "Which category?", "options": ["A", "B"]}
+    explain = {
+        "kind": "overview",
+        "focus": "clarification",
+        "columns": [],
+        "message": "I was asking which group to compare.",
+    }
+    actor, wid, did, uid, _model, threads = setup(integration, clarify, explain)
+    thread = await threads.start_thread(actor, wid, did, uid)
+    await threads.ask(actor, wid, thread.id, "Which outcome is better?")
+    answer, turn = await threads.ask(actor, wid, thread.id, question)
+    assert answer is None
+    assert turn.kind == "ambiguous"
+
+
+@pytest.mark.asyncio
+async def test_explanation_preserves_pending_choice(integration):
+    clarify = {"kind": "ambiguous", "message": "Which category?", "options": ["A", "B"]}
+    explain = {
+        "kind": "overview",
+        "focus": "clarification",
+        "columns": [],
+        "message": "Choose the group whose records you want counted.",
+    }
+    actor, wid, did, uid, model, threads = setup(
+        integration, clarify, explain, query("count", metric="*")
+    )
+    thread = await threads.start_thread(actor, wid, did, uid)
+    await threads.ask(actor, wid, thread.id, "Count the records for a category")
+    answer, explained = await threads.ask(actor, wid, thread.id, "What do you mean?")
+    assert answer is not None, explained
+    assert answer.message == explain["message"]
+    assert explained.evidence["clarification"]["question"] == "Count the records for a category"
+    await threads.ask(actor, wid, thread.id, "And A?")
+    assert "Count the records for a category" in model.requests[-1].messages[-1].content
