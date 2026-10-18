@@ -82,8 +82,8 @@ export function AnalyticsHome({
       <div className="studioQuestionSpace">
       <div className="homeWelcome">
         <span className="studioEyebrow"><Icon name="sparkle" size={16} /> YOUR ANALYSIS STUDIO</span>
-        <h2>From a question<br />to a clearer next step.</h2>
-        <p>Understand what happened. Explore what connects. Decide what to look at next.</p>
+        <h2>What would you like to explore?</h2>
+        <p>Ask a follow-up or choose a suggested question.</p>
       </div>
       <form className="homeComposer" onSubmit={(event) => {
         event.preventDefault();
@@ -131,6 +131,7 @@ export function AnalyticsHome({
       <button className="studioMemoryShortcut" type="button" onClick={() => onNavigate("memory")}><Icon name="memory" size={18} /><span><strong>Make it your data partner</strong><small>Set what ExecPlus remembers about you</small></span><Icon name="arrow" size={16} /></button>
       </aside>
       </div>
+      <details className="homeMoreTools"><summary>Explore tools & saved work</summary>
       <section className="studioToolSection" aria-label="Analysis tools">
         <header className="studioSectionHeading"><div><span className="studioEyebrow">A GOOD PLACE TO START</span><h3>Choose a direction</h3></div><p>Real tools. Answers you can inspect.</p></header>
         <div className="studioToolGrid">
@@ -164,6 +165,7 @@ export function AnalyticsHome({
           </button></li>)}</ul>
         </section>
       </div>
+      </details>
     </section>
   );
 }

@@ -15,7 +15,7 @@ What it does: Styles open analytical sections, the keyboard-accessible mode swit
 .analyticsShell .workspaceSurfaceHeader > svg {
   flex-shrink: 0;
   margin-top: 3px;
-  color: var(--studio-secondary, #166e60);
+  color: var(--studio-secondary, light-dark(#166e60, var(--theme-accent)));
 }
 .analyticsShell .workspaceSurfaceHeader h2 {
   margin: 0;
@@ -60,7 +60,7 @@ What it does: Styles open analytical sections, the keyboard-accessible mode swit
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 13px;
-  background: #edf3f0;
+  background: light-dark(#edf3f0, var(--theme-subtle));
 }
 .analyticsShell .analysisViewIndicator {
   position: absolute;
@@ -69,7 +69,7 @@ What it does: Styles open analytical sections, the keyboard-accessible mode swit
   left: 4px;
   width: calc((100% - 8px) / 2);
   border-radius: 9px;
-  background: #fff;
+  background: light-dark(#fff, var(--theme-surface));
   box-shadow: 0 1px 4px #163d2e18, 0 0 0 1px #163d2e0a;
   pointer-events: none;
   transform: translateX(0);
@@ -92,12 +92,12 @@ What it does: Styles open analytical sections, the keyboard-accessible mode swit
   transition: color 160ms ease-out;
 }
 .analyticsShell .analysisViewChoice label:has(input:checked) {
-  color: #155f50;
+  color: light-dark(#155f50, var(--theme-accent));
   background: transparent;
 }
-.analyticsShell .analysisViewChoice label:hover { color: #155f50; }
+.analyticsShell .analysisViewChoice label:hover { color: light-dark(#155f50, var(--theme-accent)); }
 .analyticsShell .analysisViewChoice label:has(input:focus-visible) {
-  outline: 2px solid #267b69;
+  outline: 2px solid light-dark(#267b69, var(--theme-accent));
   outline-offset: 2px;
 }
 .analyticsShell .analysisViewChoice input {

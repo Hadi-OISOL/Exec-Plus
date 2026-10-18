@@ -113,14 +113,30 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
                 ...(exclusions.length ? { exclusions } : {}),
             };
             const value = await request<AnalysisBody>(`${root}/decision-analysis/${kind}`, { ...post(body), signal });
-            const saved = await request<AnalysisSummary[]>(runsRoot, { signal });
-            if (signal.aborted)
-                return;
+            if (signal.aborted) return;
             setSelected(value);
-            setHistory(saved);
+            setHistory(previous => [value.run, ...previous.filter(item => item.id !== value.run.id)]);
             setNote("");
             setTarget("");
             setMessage("Saved privately with original source evidence.");
+        });
+    }
+    async function quickAnomaly() {
+        const suggested = options?.anomaly_default;
+        if (!options || !suggested) return;
+        await work("Checking unusual values…", async signal => {
+            const value = await request<AnalysisBody>(`${root}/decision-analysis/anomalies`, {
+                ...post({ name: Array.from(`Unusual ${suggested.metric}`).slice(0, 100).join(""), revision_id: options.revision_id,
+                    understanding_id: options.understanding_id, filters: [], metric: suggested.metric,
+                    threshold: suggested.threshold, materiality: suggested.materiality,
+                    segment_column: null, minimum_segment_size: suggested.minimum_segment_size }), signal,
+            });
+            if (signal.aborted) return;
+            setSelected(value);
+            setMetric(suggested.metric);
+            setNote(""); setTarget("");
+            setHistory(previous => [value.run, ...previous.filter(item => item.id !== value.run.id)]);
+            setMessage("Saved privately. This checks unusual values across the visible file; it does not prove errors or causes.");
         });
     }
     async function open(id: string) {
@@ -163,6 +179,12 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
     {error && <p role="alert" className="error">{error}</p>}
     {message && <p role="status">{message}</p>}
     {pending && <p role="status">{pending}</p>}
+    {kind === "anomalies" && options?.anomaly_default && <div className="analysisQuickStart">
+      <h3>Start with one useful check</h3>
+      <p>{options.anomaly_default.reason}</p>
+      <p>Inspect {options.anomaly_default.metric.replaceAll("_", " ")} across the visible file, using the standard threshold of {options.anomaly_default.threshold}. Custom filters below apply only to the custom analysis.</p>
+      <button type="button" disabled={!!pending} onClick={() => void quickAnomaly()}>Check unusual values</button>
+    </div>}
     {!options ? <p>Loading source options…</p> : options.state !== "ready" ? <div><h3>Review meanings and units before analysis</h3><p>Confirm the selected source and a fixed unit for every numerical measure.</p><button type="button" onClick={onReview}>Review data meanings</button></div> : <form onSubmit={create} onInvalidCapture={event => { const disclosure = (event.target as HTMLElement).closest("details"); if (disclosure) disclosure.open = true; }}>
       <div className="formGrid">
         <label>Analysis method<select value={kind} onChange={(e) => changeMethod(e.target.value)}>{methodOptions}</select></label>

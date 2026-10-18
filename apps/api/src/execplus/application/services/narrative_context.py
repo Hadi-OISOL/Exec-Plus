@@ -7,11 +7,12 @@ from uuid import UUID
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.forecasts import read_complete
+from execplus.application.services.insight_presentation import build_insight_packet
 from execplus.application.services.intent_router import PatternAnswer
 from execplus.application.services.response_synthesis import build_fact_packet
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
-from execplus.domain.response_synthesis import FactPacket
+from execplus.domain.response_synthesis import INSIGHT_VERSION, VERSION, FactPacket
 
 
 def data_answers(answer: object) -> tuple[NumericalAnswer, ...]:
@@ -54,8 +55,16 @@ def narrative_sources(answer: object) -> tuple[dict[str, str], ...]:
 
 
 async def authorized_fact_packet(
-    analytics: AnalyticsService, actor: User, wid: UUID, answer: object, *, current: bool = False
+    analytics: AnalyticsService,
+    actor: User,
+    wid: UUID,
+    answer: object,
+    *,
+    current: bool = False,
+    version: str = VERSION,
 ) -> FactPacket | None:
+    if version not in {VERSION, INSIGHT_VERSION}:
+        return None
     sources = narrative_sources(answer)
     if not sources:
         return None
@@ -83,4 +92,5 @@ async def authorized_fact_packet(
                 label = field.get("currency") or field.get("unit")
                 if label:
                     units[str(lineage.query_id)] = label
-    return build_fact_packet(answer, units=units)
+    builder = build_insight_packet if version == INSIGHT_VERSION else build_fact_packet
+    return builder(answer, units=units)

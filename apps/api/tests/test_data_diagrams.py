@@ -554,3 +554,12 @@ def test_diagram_clarification_choice_cannot_use_changed_definition(integration)
     assert confirm(env, owner, root, current).status_code == 201
     result = ask(env, owner, path, first["turn"]["clarification"]["choices"][0])
     assert result["answer"] is None and "changed" in result["turn"]["message"]
+
+
+@pytest.mark.parametrize("question", [
+    "where does wheat grows better on? which soil type prove with data and diagrams",
+    "compare regions with a diagram",
+    "which crops have the most records? show diagrams",
+])
+def test_analytical_visual_request_reaches_analysis_planner(question):
+    assert diagram_request(question, description()) is None

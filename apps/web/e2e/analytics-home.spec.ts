@@ -86,6 +86,11 @@ test("analytics home opens real saved evidence and mobile search preserves its s
   await navigate(page, "Saved work");
   await navigate(page, "Overview");
   const home = page.getByRole("region", { name: "Analytics home", exact: true });
+  const moreTools = home.locator(".homeMoreTools");
+  await expect(moreTools).not.toHaveAttribute("open", "");
+  await moreTools.locator("summary").first().focus();
+  await page.keyboard.press("Enter");
+  await expect(moreTools).toHaveAttribute("open", "");
   await expect(home.getByRole("button", { name: /Regional sales review/ })).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: "../../data/interface-reference/execplus-home-desktop.png", fullPage: false });

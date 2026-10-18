@@ -16,6 +16,8 @@ import type { PlotPoint, VisualizationCell } from "./visualization-values";
 import type { AnswerVisualizationProps } from "./answer-visualization";
 import shared from "./answer-visualization.module.css";
 import styles from "./echarts-answer-plot.module.css";
+import { useDarkTheme } from "../theme-control";
+import { chartTheme } from "./chart-theme";
 
 registerECharts([BarChart, LineChart, ScatterChart, GridComponent, MarkLineComponent, TooltipComponent, DataZoomComponent, SVGRenderer]);
 
@@ -63,6 +65,7 @@ export function EChartsAnswerPlot({ props, kind }: { props: AnswerVisualizationP
   const engine = useRef<EChartsType | null>(null);
   const [width, setWidth] = useState(480);
   const reducedMotion = useSyncExternalStore(subscribeMotion, motionSnapshot, () => true);
+  const dark = useDarkTheme();
   const helpId = useId();
   const bounds = useMemo(() => plotBounds(points), [points]);
   const height = kind === "line" ? 300 : Math.max(260, Math.min(520, size * 46 + 32));
@@ -90,9 +93,9 @@ export function EChartsAnswerPlot({ props, kind }: { props: AnswerVisualizationP
   useEffect(() => {
     const chart = engine.current;
     if (!chart) return;
-    chart.setOption(option, { notMerge: true });
+    chart.setOption(chartTheme(option, dark), { notMerge: true });
     if (host.current) host.current.dataset.engineReady = "true";
-  }, [option]);
+  }, [option, dark]);
 
   useEffect(() => {
     const chart = engine.current;

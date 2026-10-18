@@ -221,7 +221,12 @@ class PatternService:
                     evidence["request"]["group_by"],
                 )
                 if grouped
-                else pattern_request(context, table, tuple(evidence["request"]["selected"]))
+                else pattern_request(
+                    context,
+                    table,
+                    tuple(evidence["request"]["selected"]),
+                    selection_version=evidence["request"].get("selection_version"),
+                )
             )
             if request != evidence["request"]:
                 raise invalid

@@ -7,6 +7,7 @@ an overview cannot fulfill, without requiring explanation requests to match a ph
 import re
 from dataclasses import dataclass
 
+from execplus.domain.context_retrieval import references_earlier_result
 from execplus.domain.guidance import mentioned_columns, words
 from execplus.domain.intent import RoutedIntent
 from execplus.domain.models import CalculationLineage, QuestionKind
@@ -99,6 +100,7 @@ def is_contextual_reply(question: str, view: DatasetView) -> bool:
     normalized = words(question)
     return (
         is_result_explanation(question)
+        or references_earlier_result(question)
         or is_temporal_followup(question)
         or normalized in {words(column.name) for column in view.columns}
         or bool(

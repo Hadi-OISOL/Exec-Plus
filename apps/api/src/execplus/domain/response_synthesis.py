@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 VERSION = "verified-narrative-v1"
+INSIGHT_VERSION = "verified-narrative-v2"
 MAX_STATEMENTS = 20
 MAX_PACKET_CHARS = 18000
 
@@ -20,10 +21,12 @@ class FactStatement:
 @dataclass(frozen=True)
 class FactPacket:
     statements: tuple[FactStatement, ...]
+    version: str = VERSION
 
     def __post_init__(self) -> None:
         if (
-            not 1 <= len(self.statements) <= MAX_STATEMENTS
+            self.version not in {VERSION, INSIGHT_VERSION}
+            or not 1 <= len(self.statements) <= MAX_STATEMENTS
             or len({s.id for s in self.statements}) != len(self.statements)
             or any(
                 not s.id
@@ -77,7 +80,9 @@ def render_selection(packet: FactPacket, content: str | None = None) -> dict[str
             )
         )
     return dict(
-        version=VERSION, mode="fallback" if content is None else "selected", segments=segments
+        version=packet.version,
+        mode="fallback" if content is None else "selected",
+        segments=segments,
     )
 
 
@@ -85,7 +90,7 @@ def validate_saved_narrative(packet: FactPacket, value: object) -> bool:
     """Rebuilt authorized facts must still exactly support every saved segment."""
     if not isinstance(value, dict) or set(value) != {"version", "mode", "segments"}:
         return False
-    if value["version"] != VERSION or value["mode"] not in ("fallback", "selected"):
+    if value["version"] != packet.version or value["mode"] not in ("fallback", "selected"):
         return False
     segments = value["segments"]
     if not isinstance(segments, list) or len(segments) != len(packet.statements):

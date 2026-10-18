@@ -163,3 +163,15 @@ test("negative outside values have their own gutter before the category labels",
   assert.equal(mobile.series[0].label.show, false);
   assert.equal(mobile.grid.left, 88);
 });
+
+const { chartTheme } = await loadPreset("chart-theme.ts");
+test("dark palette changes presentation while preserving exact rows, functions and light options", () => {
+  const formatter = value => value;
+  const option = { axisLabel: { color: "#53625f", formatter }, data: [["South", "9007199254740993.0001"], ["#176b57", null]], animation: false };
+  assert.equal(chartTheme(option, false), option);
+  const dark = chartTheme(option, true);
+  assert.equal(dark.axisLabel.color, "#bbcec7");
+  assert.equal(dark.axisLabel.formatter, formatter);
+  assert.deepEqual(dark.data, option.data);
+  assert.equal(option.axisLabel.color, "#53625f");
+});

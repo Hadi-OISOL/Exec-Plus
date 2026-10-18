@@ -39,6 +39,7 @@ from execplus.application.services.narrative_context import (
 from execplus.application.services.response_synthesis import ResponseSynthesisService
 from execplus.application.usage_context import attributed_operation
 from execplus.domain.analysis_plan import report_conversation_plan
+from execplus.domain.context_retrieval import references_earlier_result, retrieve_result
 from execplus.domain.conversation_requirements import is_contextual_reply, starts_new_orientation
 from execplus.domain.decision_analysis import checksum
 from execplus.domain.errors import (
@@ -334,7 +335,13 @@ class ThreadService:
             return None
         if answer is None:
             answer = await self.resolve(actor, wid, tid, turn_id)
-        packet = await authorized_fact_packet(self.intent_router.analytics, actor, wid, answer)
+        packet = await authorized_fact_packet(
+            self.intent_router.analytics,
+            actor,
+            wid,
+            answer,
+            version=narrative.get("version", "") if isinstance(narrative, dict) else "",
+        )
         if packet is None or not validate_saved_narrative(packet, narrative):
             raise IngestionError(
                 "lineage_mismatch",
@@ -357,7 +364,12 @@ class ThreadService:
         if self.response_synthesis is None:
             return {}
         packet = await authorized_fact_packet(
-            self.intent_router.analytics, actor, wid, answer, current=True
+            self.intent_router.analytics,
+            actor,
+            wid,
+            answer,
+            current=True,
+            version="verified-narrative-v2",
         )
         if packet is None:
             return {}
@@ -695,6 +707,28 @@ class ThreadService:
         answer: ConversationAnswer | None = None
         memory_use = None
         try:
+            if self.intent_router.context_enabled and references_earlier_result(turn.question):
+                with self.uow() as repo:
+                    self._thread(repo, actor, wid, thread.id)
+                    authorized = []
+                    for candidate in prior_turns[-100:]:
+                        if candidate.status != "complete" or not candidate.query_id:
+                            continue
+                        self._authorize_turn(repo, actor, wid, thread, candidate)
+                        authorized.append(candidate)
+                    result_turn = retrieve_result(turn.question, authorized)
+                    assert result_turn.query_id is not None
+                    if not (
+                        result_turn.evidence.get("context_memory")
+                        or result_turn.evidence.get("agent_memory")
+                    ):
+                        raise ClarificationRequiredError(
+                            "That earlier result has no current memory reference. "
+                            "Ask the complete calculation again."
+                        )
+                    prior_lineage = repo.query_execution(wid, result_turn.query_id).lineage()
+                    prior_document_query = ""
+                    prior_guide = prior_clarification = prior_cohort = None
             if self.intent_router.context_enabled and result_turn is not None:
                 view = await self.intent_router.analytics.get_view(
                     actor, wid, thread.dataset_id, thread.upload_id
@@ -915,6 +949,24 @@ class ThreadService:
                     "This request could not complete safely. No complete answer is available. "
                     "Start a new turn to try again."
                 ),
+            )
+        if (
+            prior_result is not None
+            and answer is not None
+            and turn.status in {"complete", "partial"}
+        ):
+            turn = replace(
+                turn,
+                evidence={
+                    **turn.evidence,
+                    "context_reference": {
+                        "version": "private-result-context-v1",
+                        "turn_id": str(prior_result.turn_id),
+                        "query_ids": [
+                            str(answer_lineage(item).query_id) for item in prior_result.answers
+                        ],
+                    },
+                },
             )
         if memory_revision is not None and turn.status in {"complete", "partial"}:
             turn = replace(turn, evidence={**turn.evidence, "context_memory": memory_revision})

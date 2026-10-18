@@ -14,12 +14,12 @@ import ts from "typescript";
 echarts.use([BarChart, LineChart, ScatterChart, GridComponent, MarkLineComponent, TooltipComponent, DataZoomComponent, SVGRenderer]);
 const require = createRequire(import.meta.url);
 const modules = {};
-for (const name of ["visualization-values", "lieflat-chart-presets", "documd-chart-presets", "echarts-answer-plot"]) {
-  const source = await readFile(new URL(`../src/app/workspace/${name}.${name === "echarts-answer-plot" ? "tsx" : "ts"}`, import.meta.url), "utf8");
+for (const name of ["../theme-control", "chart-theme", "visualization-values", "lieflat-chart-presets", "documd-chart-presets", "echarts-answer-plot"]) {
+  const source = await readFile(new URL(`../src/app/workspace/${name}.${["echarts-answer-plot", "../theme-control"].includes(name) ? "tsx" : "ts"}`, import.meta.url), "utf8");
   const compiled = { exports: {} };
   const load = path => path.endsWith(".module.css") ? { default: new Proxy({}, { get: (_, key) => key }) } : modules[path] ?? require(path);
   new Function("require", "module", "exports", ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText)(load, compiled, compiled.exports);
-  modules[`./${name}`] = compiled.exports;
+  modules[name.startsWith("../") ? name : `./${name}`] = compiled.exports;
 }
 const { makeLieflatBarOption } = modules["./lieflat-chart-presets"];
 const { makeDocumdLineOption } = modules["./documd-chart-presets"];

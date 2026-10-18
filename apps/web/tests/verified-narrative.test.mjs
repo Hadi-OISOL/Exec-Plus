@@ -46,3 +46,10 @@ test("source quotations and labels stay plain escaped text", () => {
 test("unknown narrative versions leave existing answer renderer unchanged", () => {
   assert.equal(render({ ...narrative, version: "unknown" }), "");
 });
+
+test("v2 readable statements retain their evidence and safe text rendering", () => {
+  const html = render({ ...narrative, version: "verified-narrative-v2" });
+  assert.match(html, /9007199254740993\.000001/);
+  assert.match(html, /receipt-one/);
+  assert.match(html, /Recorded association does not establish causation/);
+});

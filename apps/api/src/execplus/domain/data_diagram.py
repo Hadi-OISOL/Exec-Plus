@@ -116,6 +116,13 @@ def diagram_request(question: str, context: DescriptionContext) -> DiagramReques
     )
     if not (explicit or structural):
         return None
+    # A requested picture is an output preference, not necessarily a schema map.
+    # Let the analytical planner retain the question's outcome, groups and filters.
+    if explicit and not structural and re.search(
+        r"\b(compare|comparison|better|best|grows?|growth|yield|most|least|highest|lowest)\b",
+        normalized,
+    ):
+        return None
     if re.search(r"\b(documents?|policy|contract|according)\b", normalized):
         raise DiagramClarification(
             "This diagram tool maps the selected file's fields. "

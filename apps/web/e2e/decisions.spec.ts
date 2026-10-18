@@ -32,6 +32,12 @@ test("private anomaly and allocation evidence survives replay and human review",
     await meanings.getByRole("button", { name: "Confirm business definitions", exact: true }).click();
     await expect(meanings.getByText("confirmed", { exact: true })).toBeVisible();
     await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+    const quickResponse = page.waitForResponse(r => r.url().endsWith("/decision-analysis/anomalies") && r.request().method() === "POST");
+    await panel.getByRole("button", { name: "Check unusual values", exact: true }).click();
+    const quick = await quickResponse;
+    expect(quick.status()).toBe(201);
+    expect((await quick.json()).run.result.flagged_records).toBe(1);
+    await expect(panel.getByRole("region", { name: "Saved analysis result", exact: true })).toContainText("1 of 9 records flagged");
     await panel.getByRole("combobox", { name: "Measure to inspect", exact: true }).selectOption("amount");
     await panel.getByLabel("Analysis name", { exact: true }).fill("Reviewed anomaly sample");
     const savedResponse = page.waitForResponse((r) => r.url().endsWith("/decision-analysis/anomalies") && r.request().method() === "POST");
@@ -40,7 +46,9 @@ test("private anomaly and allocation evidence survives replay and human review",
     expect(saved.status()).toBe(201);
     const body = await saved.json();
     const result = panel.getByRole("region", { name: "Saved analysis result", exact: true });
+    await expect(result).toContainText("Reviewed anomaly sample");
     await expect(result).toContainText("1 of 9 records flagged");
+    await expect(panel.getByRole("button", { name: "Calculate and save privately", exact: true })).toBeEnabled();
     await panel.getByRole("combobox", { name: "Finding to review", exact: true }).selectOption(body.run.result.findings[0].id);
     await panel.getByLabel("Review note", { exact: true }).fill("Investigate the exceptional value with the data owner.");
     await panel.getByRole("button", { name: "Save finding feedback", exact: true }).click();

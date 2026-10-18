@@ -279,7 +279,16 @@ async def discovery(
     if await request.is_disconnected():
         return Response(status_code=499)
     finished = asyncio.Event()
-    computation = asyncio.create_task(discover(service, actor, workspace_id, dataset_id, upload_id))
+    computation = asyncio.create_task(
+        discover(
+            service,
+            actor,
+            workspace_id,
+            dataset_id,
+            upload_id,
+            patterns=request.app.state.runtime.intent_router.patterns,
+        )
+    )
     disconnected = asyncio.create_task(_wait_for_disconnect(request, finished))
     try:
         completed, _ = await asyncio.wait(

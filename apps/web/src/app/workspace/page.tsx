@@ -31,7 +31,9 @@ import "./analytics-shell.css";
 import "./product-polish.css";
 import "./focused-workspace.css";
 import "./studio-workspace.css";
+import { ThemeControl } from "../theme-control";
 import "./open-workspace.css";
+import "./intelligence-workspace.css";
 
 const loadingView = () => <WorkspaceLoading />;
 const SourcesPanel = dynamic(
@@ -1001,6 +1003,7 @@ export default function WorkspacePage() {
               <span className="liveDot" /> Private workspace
             </span>
           </div>
+          <ThemeControl />
           {user && (
             <div className="sessionBar">
               <span className="userIdentity">
@@ -1735,16 +1738,6 @@ export default function WorkspacePage() {
                       }}
                     /></div>
                   )}
-                  {section === "overview" && !reviewing && <AnalyticsHome
-                    key={`home-${root}-${revisionTick}`}
-                    root={root}
-                    filename={selectedUpload?.filename ?? "Selected upload"}
-                    request={request}
-                    onAsk={askFromHome}
-                    onSaved={(id) => { setSavedSelection({ root, id }); setSection("saved"); }}
-                    onNavigate={navigate}
-                    onReview={reviewUnderstanding}
-                  />}
                   {section === "forecasts" && !reviewing && expert && analysisFocusControl}
                   <div hidden={!["overview", "ask"].includes(section) || briefActive} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
                     <div className="analysisViewControls" hidden={reviewing}>
@@ -1797,29 +1790,6 @@ export default function WorkspacePage() {
                         }}
                       />
                     )}
-                    {section === "overview" && !reviewing && !briefActive && (
-                      <section className="workspaceSurface" aria-label="Charts & dashboard controls">
-                        <header className="workspaceSurfaceHeader">
-                          <Icon name="overview" />
-                          <div>
-                            <h2>Charts & dashboard controls</h2>
-                            <p>Explore trends, filters, saved cards and next steps</p>
-                          </div>
-                        </header>
-                        <div className="expandedWorkspaceTools">
-                          <DashboardPanel
-                            key={`dashboard-${root}-${revisionTick}`}
-                            root={root}
-                            request={request}
-                          />
-                          <ActivationPanel
-                            key={`insights-${root}-${revisionTick}`}
-                            root={root}
-                            request={request}
-                          />
-                        </div>
-                      </section>
-                    )}
                     <div className="exploreLayout discoveryLayout">
                       <section className="workspaceSurface overviewFindings" aria-label="First findings from your file" hidden={section !== "overview" || reviewing}>
                         <header className="workspaceSurfaceHeader">
@@ -1837,6 +1807,10 @@ export default function WorkspacePage() {
                           request={request}
                           onQuestion={askFromHome}
                           onReady={setStarterQuestions}
+                          onAnalysis={(tool, metric) => {
+                            if (tool === "patterns") askFromHome(metric ? `Find patterns related to ${metric}` : "Find patterns in my data");
+                            else { setToolSelection({ root, tool: "anomalies", ...(metric ? { metric } : {}) }); setSection("decisions"); }
+                          }}
                           onPrepare={() => setSection("prepare")}
                           onReview={reviewUnderstanding}
                           onChat={() => { setSection("ask"); window.requestAnimationFrame(() => chat.current?.focus()); }}
@@ -1865,6 +1839,39 @@ export default function WorkspacePage() {
                       />
                       </div>
                     </div>
+                  {section === "overview" && !reviewing && <AnalyticsHome
+                    key={`home-${root}-${revisionTick}`}
+                    root={root}
+                    filename={selectedUpload?.filename ?? "Selected upload"}
+                    request={request}
+                    onAsk={askFromHome}
+                    onSaved={(id) => { setSavedSelection({ root, id }); setSection("saved"); }}
+                    onNavigate={navigate}
+                    onReview={reviewUnderstanding}
+                  />}
+                    {section === "overview" && !reviewing && !briefActive && (
+                      <section className="workspaceSurface" aria-label="Charts & dashboard controls">
+                        <header className="workspaceSurfaceHeader">
+                          <Icon name="overview" />
+                          <div>
+                            <h2>Charts & dashboard controls</h2>
+                            <p>Explore trends, filters, saved cards and next steps</p>
+                          </div>
+                        </header>
+                        <div className="expandedWorkspaceTools">
+                          <DashboardPanel
+                            key={`dashboard-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                          />
+                          <ActivationPanel
+                            key={`insights-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                          />
+                        </div>
+                      </section>
+                    )}
                     {expert && !reviewing && (
                       <SourceDetails
                         key={`source-${root}-${revisionTick}`}

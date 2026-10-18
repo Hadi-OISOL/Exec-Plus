@@ -9,6 +9,7 @@ from typing import Any
 
 from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.errors import ClarificationRequiredError
+from execplus.domain.exploration_selection import exploration_rank, suggested_aggregation
 from execplus.domain.semantics import DatasetView
 
 _COMMON_MEANINGS = {
@@ -496,6 +497,8 @@ def suggested_exploration(context: DescriptionContext) -> tuple[str, ...]:
         and column.type != "date"
         and 1 < columns[column.name]["distinct_count"] <= 30
     ]
+    metrics.sort(key=lambda name: exploration_rank(context, name))
+    dimensions.sort(key=lambda name: exploration_rank(context, name))
     prompts = []
     if metrics:
         metric = metrics[0]
@@ -507,10 +510,9 @@ def suggested_exploration(context: DescriptionContext) -> tuple[str, ...]:
             ),
             None,
         )
-        metric_tokens = set(words(metric).split())
         aggregation = (saved or {}).get(
             "aggregation",
-            "avg" if metric_tokens & {"price", "rate", "ratio", "percentage", "score"} else "sum",
+            suggested_aggregation(metric),
         )
         label = {
             "sum": "total",

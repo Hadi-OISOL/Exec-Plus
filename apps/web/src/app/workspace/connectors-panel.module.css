@@ -4,7 +4,7 @@ What it does: Reuses the workspace colour tokens so the cards match the rest of 
 .connectors {
   margin-top: 22px;
   padding-top: 18px;
-  border-top: 1px solid var(--line, #e4e7ef);
+  border-top: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
 }
 .connectors h3 {
   margin: 0 0 6px;
@@ -12,7 +12,7 @@ What it does: Reuses the workspace colour tokens so the cards match the rest of 
 }
 .connectors p {
   margin: 0 0 12px;
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   font-size: 13px;
 }
 .list {
@@ -26,8 +26,8 @@ What it does: Reuses the workspace colour tokens so the cards match the rest of 
   display: grid;
   gap: 12px;
   padding: 14px;
-  background: var(--surface, #fff);
-  border: 1px solid var(--line, #e4e7ef);
+  background: var(--surface, light-dark(#fff, var(--theme-surface)));
+  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
   border-radius: 8px;
 }
 .card > div:first-child {
@@ -39,7 +39,7 @@ What it does: Reuses the workspace colour tokens so the cards match the rest of 
 }
 .card span,
 .card em {
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   font-size: 12px;
   font-style: normal;
 }
@@ -52,13 +52,13 @@ What it does: Reuses the workspace colour tokens so the cards match the rest of 
   display: grid;
   gap: 10px;
   padding: 12px;
-  background: var(--paper, #f6f7fb);
+  background: var(--paper, light-dark(#f6f7fb, var(--theme-surface)));
   border-radius: 8px;
 }
 .form label {
   display: grid;
   gap: 6px;
-  color: var(--ink, #222b3d);
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
   font-size: 12px;
   font-weight: 600;
 }
@@ -66,7 +66,7 @@ What it does: Reuses the workspace colour tokens so the cards match the rest of 
   display: grid;
   gap: 8px;
   padding: 12px;
-  background: var(--paper, #f6f7fb);
+  background: var(--paper, light-dark(#f6f7fb, var(--theme-surface)));
   border-radius: 8px;
 }
 .browser nav {
@@ -82,18 +82,18 @@ What it does: Reuses the workspace colour tokens so the cards match the rest of 
   list-style: none;
 }
 .connectors button.secondary {
-  background: #fff;
-  color: var(--ink, #222b3d);
-  border: 1px solid var(--line, #e4e7ef);
+  background: light-dark(#fff, var(--theme-surface));
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
+  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
 }
 .connectors button.link {
   background: transparent;
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   border: 0;
   padding-inline: 4px;
 }
 .error {
   margin: 12px 0 0;
-  color: #b42318;
+  color: light-dark(#b42318, var(--theme-warning));
   font-size: 13px;
 }

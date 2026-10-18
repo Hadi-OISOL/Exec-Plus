@@ -230,7 +230,7 @@ def test_narrative_keeps_immutable_usd_definition_after_current_currency_changes
     old_text = " ".join(
         segment["text"] for segment in first_body["answer"]["narrative"]["segments"]
     )
-    assert "350.000000000000 USD" in old_text and "EUR" not in old_text
+    assert "350 USD" in old_text and "EUR" not in old_text
     current = context(env, headers, root)
     definition = current["definition"]
     next(item for item in definition["columns"] if item["name"] == "revenue")["currency"] = "EUR"
@@ -247,4 +247,4 @@ def test_narrative_keeps_immutable_usd_definition_after_current_currency_changes
     new_text = " ".join(
         segment["text"] for segment in second.json()["answer"]["narrative"]["segments"]
     )
-    assert "350.000000000000 EUR" in new_text and "USD" not in new_text
+    assert "350 EUR" in new_text and "USD" not in new_text

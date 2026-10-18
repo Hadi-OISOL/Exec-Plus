@@ -49,6 +49,7 @@ from execplus.domain.decision_analysis import (
 )
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt
+from execplus.domain.exploration_selection import anomaly_default
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.large_allocation import METHOD as LARGE_ALLOCATION_METHOD
 from execplus.domain.large_allocation import SENSITIVITY_METHOD as CAPACITY_METHOD
@@ -227,6 +228,7 @@ class DecisionAnalysisService:
             revision_id=source["revision_id"],
             understanding_id=source.get("understanding_id"),
             metrics=metrics,
+            anomaly_default=anomaly_default(context),
             entities=[c["name"] for c in columns if c["role"] in {"dimension", "identifier"}],
             source_scenarios=dict(
                 model=SOURCE_SCENARIO_METHOD,

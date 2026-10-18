@@ -9,6 +9,7 @@ from typing import Any
 from uuid import UUID
 
 from execplus.application.services.analytics import AnalyticsService
+from execplus.application.services.patterns import PatternService
 from execplus.domain.discovery import (
     VERSION,
     DiscoveryFinding,
@@ -24,9 +25,11 @@ from execplus.domain.errors import (
     UnsupportedQuestionError,
 )
 from execplus.domain.evidence import receipt
-from execplus.domain.guidance import DescriptionContext
+from execplus.domain.exploration_selection import anomaly_default
+from execplus.domain.guidance import DescriptionContext, suggested_exploration
 from execplus.domain.ingestion import User
 from execplus.domain.models import CalculationLineage, QueryResult, WorkspaceScope
+from execplus.domain.patterns import MAX_ROWS, MIN_SUPPORT, pattern_request
 from execplus.domain.profiling import TableData
 from execplus.domain.semantics import DatasetView
 from execplus.domain.studies import count_plan
@@ -130,6 +133,8 @@ def _metadata(context: DescriptionContext) -> dict[str, Any]:
         },
         "quality": discovery_quality(context),
         "suggestions": [],
+        "analysis_suggestions": [],
+        "patterns_evidence": None,
         "limitations": limitations,
     }
 
@@ -140,6 +145,8 @@ async def discover(
     workspace_id: UUID,
     dataset_id: UUID,
     upload_id: UUID,
+    *,
+    patterns: PatternService | None = None,
 ) -> DiscoveryBrief:
     context, table, scope = await asyncio.to_thread(
         service.descriptive_snapshot, actor, workspace_id, dataset_id, upload_id
@@ -193,10 +200,51 @@ async def discover(
                 metadata["limitations"].append(message)
     metadata["suggestions"] = list(
         dict.fromkeys(
-            [finding.question for finding in findings if finding.aggregation != "min"]
+            list(suggested_exploration(context))
+            + [finding.question for finding in findings if finding.aggregation != "min"]
             + ["Are there any data quality issues?", "Help me understand my data"]
         )
     )[:6]
+    if patterns is not None and context.state == "confirmed":
+        if MIN_SUPPORT <= context.profile["row_count"] <= MAX_ROWS:
+            try:
+                pattern_request(context, table)
+                evidence = await patterns.discover(actor, workspace_id, dataset_id, upload_id)
+                if evidence["sources"] != list(view.sources):
+                    raise ClarificationRequiredError(
+                        "The source or data meaning changed. Reload the briefing."
+                    )
+                metadata["patterns_evidence"] = evidence
+            except (
+                ClarificationRequiredError,
+                UnsafeQueryError,
+                UnsupportedQuestionError,
+            ) as error:
+                metadata["limitations"].append(f"Measured relationships: {error}")
+        else:
+            metadata["limitations"].append(
+                "Automatic measured relationships require 20 to 10,000 rows; "
+                "the briefing still shows eligible descriptive findings."
+            )
+    default = anomaly_default(context)
+    if default:
+        metadata["analysis_suggestions"].append(
+            dict(
+                tool="anomalies",
+                label=f"Check unusual {default['metric']} values",
+                metric=default["metric"],
+                reason=default["reason"],
+            )
+        )
+    if context.state == "confirmed" and len(view.metrics) + len(view.dimensions) >= 2:
+        metadata["analysis_suggestions"].append(
+            dict(
+                tool="patterns",
+                label="Find measured relationships",
+                reason="Compare eligible fields with support counts and source evidence. "
+                "Associations do not establish causes; missing units may need review.",
+            )
+        )
     if not findings:
         metadata["limitations"].append(
             "No suitable measures or small category groups were found for automatic findings. "

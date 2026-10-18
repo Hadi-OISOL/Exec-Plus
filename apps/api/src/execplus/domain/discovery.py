@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+from execplus.domain.exploration_selection import exploration_rank
 from execplus.domain.guidance import DescriptionContext
 from execplus.domain.models import CalculationLineage, QueryResult
 from execplus.domain.semantics import AggregationKind, MetricRequest
@@ -68,14 +69,9 @@ def _candidate(context: DescriptionContext, column: dict[str, Any]) -> bool:
 
 def discovery_steps(context: DescriptionContext) -> tuple[DiscoveryStep, ...]:
     columns = context.profile["columns"]
-    priority = {"revenue", "sales", "amount", "quantity", "balance", "cost", "stock", "value"}
     candidates = sorted(
         (column for column in columns if _candidate(context, column)),
-        key=lambda column: (
-            not bool(name_words(column["name"]) & priority),
-            -column["distinct_count"],
-            column["name"],
-        ),
+        key=lambda column: exploration_rank(context, column["name"]),
     )[:2]
     metrics = {entry["column"]: entry for entry in (context.definition or {}).get("metrics", [])}
     steps: list[DiscoveryStep] = []
@@ -100,11 +96,7 @@ def discovery_steps(context: DescriptionContext) -> tuple[DiscoveryStep, ...]:
             )
             and not column["type_conflicts"]
         ),
-        key=lambda column: (
-            not bool(name_words(column["name"]) & {"category", "country", "city", "status", "job"}),
-            column["distinct_count"],
-            column["name"],
-        ),
+        key=lambda column: exploration_rank(context, column["name"]),
     )
     if dimensions:
         steps.append(DiscoveryStep(dimensions[0]["name"], AggregationKind.COUNT, True))

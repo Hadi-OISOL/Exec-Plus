@@ -6,8 +6,8 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   overflow-wrap: anywhere;
   margin: 0 0 22px;
   padding: 22px;
-  background: var(--surface, #fff);
-  border: 1px solid var(--line, #e4e7ef);
+  background: var(--surface, light-dark(#fff, var(--theme-surface)));
+  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
   border-radius: 8px;
   box-shadow: 0 1px 3px #1a234205;
 }
@@ -24,7 +24,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
 }
 .header p {
   margin: 0;
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   font-size: 13px;
 }
 .progressRow {
@@ -32,7 +32,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   font-size: 12px;
   font-weight: 600;
 }
@@ -40,12 +40,12 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   flex: 1;
   height: 6px;
   overflow: hidden;
-  background: var(--line, #e4e7ef);
+  background: var(--line, light-dark(#e4e7ef, var(--theme-subtle)));
   border-radius: 99px;
 }
 .fill {
   height: 100%;
-  background: var(--green, #5147d9);
+  background: var(--green, light-dark(#5147d9, var(--theme-selected)));
   border-radius: 99px;
   transition: width 0.25s;
 }
@@ -54,7 +54,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   font-size: 17px;
   font-weight: 650;
   letter-spacing: -0.02em;
-  color: var(--ink, #222b3d);
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
 }
 .peek {
   display: flex;
@@ -66,10 +66,10 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
 }
 .peek li {
   padding: 6px 10px;
-  background: var(--paper, #f6f7fb);
-  border: 1px solid var(--line, #e4e7ef);
+  background: var(--paper, light-dark(#f6f7fb, var(--theme-surface)));
+  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
   border-radius: 6px;
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   font-size: 12px;
 }
 .choices,
@@ -82,19 +82,19 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
 .nav {
   margin-top: 18px;
   padding-top: 14px;
-  border-top: 1px solid var(--line, #e4e7ef);
+  border-top: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
 }
 .spacer {
   flex: 1;
 }
 .guided button.secondary {
-  background: #fff;
-  color: var(--ink, #222b3d);
-  border: 1px solid var(--line, #e4e7ef);
+  background: light-dark(#fff, var(--theme-surface));
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
+  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
 }
 .guided button.link {
   background: transparent;
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   border: 0;
   padding-inline: 8px;
 }
@@ -103,14 +103,14 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   gap: 12px;
   margin-top: 16px;
   padding: 16px;
-  background: var(--paper, #f6f7fb);
-  border: 1px solid var(--line, #e4e7ef);
+  background: var(--paper, light-dark(#f6f7fb, var(--theme-surface)));
+  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
   border-radius: 8px;
 }
 .explain label {
   display: grid;
   gap: 6px;
-  color: var(--ink, #222b3d);
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
   font-size: 12px;
   font-weight: 600;
 }
@@ -123,7 +123,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   gap: 6px;
   max-width: 320px;
   margin-top: 14px;
-  color: var(--ink, #222b3d);
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
   font-size: 12px;
   font-weight: 600;
 }
@@ -133,12 +133,12 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
-  color: var(--ink, #222b3d);
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
   font-size: 13px;
 }
 .error {
   margin: 12px 0 0;
-  color: #b42318;
+  color: light-dark(#b42318, var(--theme-warning));
   font-size: 13px;
 }
 .share {
@@ -146,7 +146,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   align-items: center;
   gap: 8px;
   margin-top: 14px;
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   font-size: 12px;
 }
 .guided input,
