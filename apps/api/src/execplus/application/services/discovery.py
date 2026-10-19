@@ -10,6 +10,7 @@ from uuid import UUID
 
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.patterns import PatternService
+from execplus.domain.data_diagram import MAX_DIAGRAM_FIELDS, DiagramRequest, build_diagram
 from execplus.domain.discovery import (
     VERSION,
     DiscoveryFinding,
@@ -25,7 +26,7 @@ from execplus.domain.errors import (
     UnsupportedQuestionError,
 )
 from execplus.domain.evidence import receipt
-from execplus.domain.exploration_selection import anomaly_default
+from execplus.domain.exploration_selection import anomaly_default, exploration_rank
 from execplus.domain.guidance import DescriptionContext, suggested_exploration
 from execplus.domain.ingestion import User
 from execplus.domain.models import CalculationLineage, QueryResult, WorkspaceScope
@@ -116,6 +117,31 @@ def _metadata(context: DescriptionContext) -> dict[str, Any]:
                 f"{column['name']} is currently read as text. "
                 "Time analysis requires supported dates or reviewed source preparation."
             )
+    diagram = None
+    diagram_notice = ""
+    if 0 < len(context.view.columns) <= MAX_DIAGRAM_FIELDS:
+        diagram = build_diagram(context, DiagramRequest(())).body()
+    elif context.view.columns:
+        diagram_notice = (
+            "This file has more than 80 visible fields. Ask for a map of selected fields."
+        )
+    scenario_metrics = []
+    if context.state == "confirmed":
+        observed = {item["name"]: item for item in profile["columns"]}
+        rules = {item["column"]: item for item in (context.definition or {}).get("metrics", [])}
+        for column in (context.definition or {}).get("columns", []):
+            metric = column["name"]
+            aggregation = rules.get(metric, {}).get("aggregation", "avg")
+            if (
+                metric in context.view.metrics
+                and (column.get("unit") or column.get("currency"))
+                and not column.get("unit_column")
+                and not observed[metric]["missing"]
+                and not observed[metric]["type_conflicts"]
+                and profile["row_count"] > 0
+                and aggregation in {"avg", "sum"}
+            ):
+                scenario_metrics.append({"metric": metric, "aggregation": aggregation})
     return {
         "version": VERSION,
         "dataset_name": context.name,
@@ -135,6 +161,11 @@ def _metadata(context: DescriptionContext) -> dict[str, Any]:
         "suggestions": [],
         "analysis_suggestions": [],
         "patterns_evidence": None,
+        "diagram": diagram,
+        "diagram_notice": diagram_notice,
+        "scenario_metrics": sorted(
+            scenario_metrics, key=lambda item: exploration_rank(context, item["metric"])
+        )[:3],
         "limitations": limitations,
     }
 

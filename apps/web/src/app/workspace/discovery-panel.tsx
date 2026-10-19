@@ -6,9 +6,11 @@ import type { ApiRequest } from "./profile-panel";
 import { Icon } from "./explore-components";
 import { WorkspaceLoading } from "./workspace-loading";
 import { PatternResults, type PatternResult, type PatternEvidence } from "./pattern-results";
+import { DiagramResults, type DatasetDiagram } from "./diagram-results";
 import { AnswerVisualization } from "./answer-visualization";
 import { compareExactNumeric, displayMetric } from "./visualization-values";
 import styles from "./dashboard-presentation.module.css";
+import overview from "./discovery-panel.module.css";
 
 type Cell = string | number | boolean | null;
 type Finding = {
@@ -30,6 +32,9 @@ type Finding = {
 };
 type Discovery = {
   version: string;
+  diagram?: DatasetDiagram | null;
+  diagram_notice?: string | null;
+  scenario_metrics?: { metric: string; aggregation: "avg" | "sum" }[];
   dataset_name: string;
   summary: string;
   definition_state: string;
@@ -46,13 +51,11 @@ type Discovery = {
 
 function FindingEvidence({
   finding,
-  expert,
 }: {
   finding: Finding;
-  expert: boolean;
 }) {
   return (
-    <details className="findingEvidence" open={expert}>
+    <details className="findingEvidence">
       <summary>How this was calculated</summary>
       <p>{finding.text}</p>
       <p>
@@ -90,7 +93,7 @@ function FindingEvidence({
         </table>
       </div>
       {finding.query.lineage.sql && (
-        <details open={expert}>
+        <details>
           <summary>Executed query</summary>
           <pre>{finding.query.lineage.sql}</pre>
         </details>
@@ -102,11 +105,11 @@ function FindingEvidence({
 function MetricGroup({
   findings,
   ask,
-  expert,
+  unit,
 }: {
   findings: Finding[];
+  unit?: string;
   ask: (question: string) => void;
-  expert: boolean;
 }) {
   const labels: Record<string, string> = {
     min: "Lowest",
@@ -128,6 +131,7 @@ function MetricGroup({
             <strong className="discoveryValue" title={String(finding.query.rows[0]?.[0] ?? "Missing")}>
               {displayMetric(finding.query.rows[0]?.[0] ?? null)}
             </strong>
+            {unit && finding.aggregation !== "count" && <span>{unit}</span>}
             <button
               className="findingQuestion"
               type="button"
@@ -137,12 +141,12 @@ function MetricGroup({
               Explore
               <Icon name="arrow" size={13} />
             </button>
-            <FindingEvidence finding={finding} expert={expert} />
+            <FindingEvidence finding={finding} />
           </div>
         ))}
       </div>
 
-      <details className="discoveryMetricNote" open={expert}>
+      <details className="discoveryMetricNote">
         <summary>Metric notes & assumptions</summary>
         <p>{(findings.find(finding => finding.aggregation === "avg") ?? findings[0]).text}</p>
       </details>
@@ -153,11 +157,9 @@ function MetricGroup({
 function FindingCard({
   finding,
   ask,
-  expert,
 }: {
   finding: Finding;
   ask: (question: string) => void;
-  expert: boolean;
 }) {
   const rows = [...finding.query.rows].sort(
     (left, right) =>
@@ -197,7 +199,7 @@ function FindingCard({
         {finding.question}
         <Icon name="arrow" size={15} />
       </button>
-      <FindingEvidence finding={finding} expert={expert} />
+      <FindingEvidence finding={finding} />
     </article>
   );
 }
@@ -211,8 +213,8 @@ export function DiscoveryPanel({
   onReview,
   onChat,
   onAnalysis,
+  onScenario,
   enabled,
-  expert = false,
 }: {
   root: string;
   request: ApiRequest;
@@ -222,11 +224,14 @@ export function DiscoveryPanel({
   onReview: () => void;
   onChat: () => void;
   onAnalysis?: (tool: "patterns" | "anomalies", metric?: string) => void;
+  onScenario?: (metric: string, aggregation: "avg" | "sum") => void;
   enabled: boolean;
   expert?: boolean;
 }) {
-  const [discovery, setDiscovery] = useState<Discovery | null>(null);
-  const [error, setError] = useState("");
+  const [loaded, setLoaded] = useState<{ root: string; discovery: Discovery } | null>(null);
+  const discovery = loaded?.root === root ? loaded.discovery : null;
+  const [failure, setFailure] = useState<{ root: string; message: string } | null>(null);
+  const error = failure?.root === root ? failure.message : "";
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!enabled) return;
@@ -236,18 +241,16 @@ export function DiscoveryPanel({
       request<Discovery>(`${root}/discovery`, { signal: controller.signal })
         .then((result) => {
           if (active) {
-            setError("");
-            setDiscovery(result);
+            setFailure(null);
+            setLoaded({ root, discovery: result });
             onReady(result.suggestions);
           }
         })
         .catch((cause) => {
-          if (active && !controller.signal.aborted)
-            setError(
-              cause instanceof Error
-                ? cause.message
-                : "The first reading could not load.",
-            );
+          if (active && !controller.signal.aborted) {
+            setLoaded(null);
+            setFailure({ root, message: cause instanceof Error ? cause.message : "The first reading could not load." });
+          }
         });
     }, 250);
     return () => {
@@ -257,6 +260,7 @@ export function DiscoveryPanel({
     };
   }, [root, request, attempt, onReady, enabled]);
 
+  if (!enabled) return null;
   if (error)
     return (
       <section
@@ -271,7 +275,8 @@ export function DiscoveryPanel({
         <button
           type="button"
           onClick={() => {
-            setError("");
+            setFailure(null);
+            setLoaded(null);
             setAttempt((value) => value + 1);
           }}
         >
@@ -304,8 +309,8 @@ export function DiscoveryPanel({
     ),
   );
   return (
-    <section className="discoveryPanel" aria-label="First reading of your data">
-      <div className="discoveryIntro">
+    <section className={`discoveryPanel ${overview.overview}`} aria-label="First reading of your data">
+      <div className={`discoveryIntro ${overview.intro}`}>
         <div className="discoveryTitle">
           <span className="readingMark">
             <Icon name="sparkle" size={23} />
@@ -315,8 +320,9 @@ export function DiscoveryPanel({
           </div>
         </div>
         <p className="discoveryFilename">{discovery.dataset_name}</p>
+        <p className={overview.summary}>{discovery.summary.split("\n\n")[0]}</p>
         <span className="meaningState">{discovery.definition_state === "confirmed" ? "Confirmed meanings" : "Inferred meanings — not confirmed"}</span>
-        <div className="discoveryShape" aria-label="File structure">
+        <div className={`discoveryShape ${overview.shape}`} aria-label="File structure">
           <span>
             <strong>{discovery.shape.rows.toLocaleString()}</strong> rows
           </span>
@@ -332,10 +338,14 @@ export function DiscoveryPanel({
             {discovery.shape.dimensions === 1 ? "category" : "categories"}
           </span>
         </div>
+        {discovery.definition_state !== "confirmed" && <div className={overview.meaningPrompt}>
+          <div><strong>Help me put these numbers in context</strong><p>Confirm what one record represents and the units of your measures. This helps keep comparisons meaningful.</p></div>
+          <button type="button" onClick={onReview}>Review data meaning<Icon name="arrow" size={15} /></button>
+        </div>}
         <button className="discoveryChatJump" type="button" onClick={onChat}>
           <Icon name="chat" size={16} /> Ask about this file
         </button>
-        <details className="discoveryProvenance" open={expert}>
+        <details className="discoveryProvenance">
           <summary>Source & interpretation</summary>
           {discovery.summary.split("\n\n").map((paragraph, index) => <p key={index}>{paragraph}</p>)}
           <p>
@@ -360,6 +370,10 @@ export function DiscoveryPanel({
           ))}
         </details>
       </div>
+      {discovery.findings.length > 0 && <header className={overview.sectionHeading}>
+        <span>YOUR STARTING POINT</span><h3>The numbers and groups in your file</h3>
+        <p>These charts are calculated from the accessible records. Open a calculation only when you want the details.</p>
+      </header>}
       {discovery.findings.length > 0 && (
         <div
           className="discoveryFindings"
@@ -369,8 +383,11 @@ export function DiscoveryPanel({
             <MetricGroup
               key={findings[0].metric}
               findings={findings}
+              unit={(() => {
+                const field = discovery.diagram?.nodes.find(node => node.kind === "field" && node.label === findings[0].metric);
+                return field && !field.unit_column ? field.currency || field.unit : undefined;
+              })()}
               ask={onQuestion}
-              expert={expert}
             />
           ))}
           {discovery.findings
@@ -380,16 +397,19 @@ export function DiscoveryPanel({
                 key={finding.id}
                 finding={finding}
                 ask={onQuestion}
-                expert={expert}
               />
             ))}
         </div>
       )}
+      {discovery.diagram && <section className={overview.dataMap} aria-label="Map of your data">
+        <DiagramResults key={discovery.sources.map(source => source.revision_id).join(":")} diagram={discovery.diagram} sources={discovery.sources.map(source => ({ revision_id: source.revision_id, understanding_id: source.understanding_id ?? undefined }))} />
+      </section>}
+      {discovery.diagram_notice && <p className={overview.mapNotice}>{discovery.diagram_notice}</p>}
       {discovery.patterns_evidence && <div className="automaticPatterns" aria-label="Automatically checked relationships">
         <PatternResults result={discovery.patterns_evidence.result} evidence={discovery.patterns_evidence} sources={discovery.patterns_evidence.sources} onAsk={onQuestion} />
       </div>}
       {discovery.quality.length > 0 && (
-        <div className="discoveryChecks">
+        <div className={`discoveryChecks ${overview.checks}`}>
           <h3>
             {discovery.quality.every((item) => item.code === "basic_checks")
               ? "Data checks"
@@ -441,9 +461,14 @@ export function DiscoveryPanel({
       )}
       {onAnalysis && Boolean(discovery.analysis_suggestions?.length) && <div className="discoveryNext">
         <h3>Take a closer look</h3>
-        <div className="suggestionChips">{discovery.analysis_suggestions?.map(item => <button key={item.tool} type="button" title={item.reason} onClick={() => onAnalysis(item.tool, item.metric)}>{item.label}<Icon name="arrow" size={14} /></button>)}</div>
+        <div className={overview.nextActions}>{discovery.analysis_suggestions?.map(item => <button key={item.tool} type="button" onClick={() => onAnalysis(item.tool, item.metric)}><strong>{item.label}<Icon name="arrow" size={14} /></strong><span>{item.reason}</span></button>)}</div>
         <p>These are suggested checks, not findings. Review each result and its assumptions.</p>
       </div>}
+      {onScenario && Boolean(discovery.scenario_metrics?.length) && <section className="discoveryNext" aria-label="Explore a what-if">
+        <h3>Explore a what-if</h3>
+        <p>Change a confirmed measure and compare it with today’s baseline. This is hypothetical arithmetic, not a prediction of how another factor will respond.</p>
+        <div className={overview.nextActions}>{discovery.scenario_metrics?.map(item => <button key={`${item.metric}:${item.aggregation}`} type="button" onClick={() => onScenario(item.metric, item.aggregation)}><strong>What if {item.metric.replaceAll("_", " ")} changes?<Icon name="arrow" size={14} /></strong><span>Start from the {item.aggregation === "avg" ? "average" : "total"} in this file and adjust it yourself.</span></button>)}</div>
+      </section>}
       <div className="discoveryNext">
         <h3>Where would you like to go next?</h3>
         <div className="suggestionChips">

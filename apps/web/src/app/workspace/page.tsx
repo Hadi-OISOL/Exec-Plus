@@ -216,7 +216,7 @@ export default function WorkspacePage() {
   const [uploadDomain, setUploadDomain] = useState("auto");
   const [uploadGoal, setUploadGoal] = useState("");
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [toolSelection, setToolSelection] = useState<{root: string; tool: string; metric?: string; scenario_mode?: "daily_change"} | null>(null);
+  const [toolSelection, setToolSelection] = useState<{root: string; tool: string; metric?: string; aggregation?: "avg" | "sum"; scenario_mode?: "daily_change"} | null>(null);
   const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
   const [expert, setExpert] = useState(false);
   const [analysisIntent, setAnalysisIntent] = useState("descriptive");
@@ -872,7 +872,7 @@ export default function WorkspacePage() {
       : "";
   const briefActive = Boolean(root && user && !limitedUpload && briefFor === profileUpload && !reviewOpen);
   const guidedActive = Boolean(root && user && !limitedUpload && guidedFor === profileUpload && !briefActive && !reviewOpen);
-  const reviewing = ["overview", "ask"].includes(section) && (briefActive || guidedActive || reviewOpen);
+  const reviewing = ["overview", "ask"].includes(section) && (guidedActive || reviewOpen || (section === "overview" && briefActive && briefManual));
   const sections = [
     { id: "overview", name: "Overview", group: "INSIGHTS" },
     { id: "ask", name: "Ask ExecPlus", group: "INSIGHTS" },
@@ -1723,23 +1723,8 @@ export default function WorkspacePage() {
               </div>}
               {root ? (
                 <>
-                  {briefActive && user && (
-                    <div hidden={!["overview", "ask"].includes(section)}><DataBriefReview
-                      key={`brief-${user.id}-${root}`}
-                      root={root}
-                      request={request}
-                      manual={briefManual}
-                      onClose={closeBrief}
-                      onUnavailable={(reason) => {
-                        setBriefFor("");
-                        setBriefManual(false);
-                        if (reason || briefManual)
-                          setMessage(`${reason || "The data reading is unavailable right now."} The standard review is shown instead.`);
-                      }}
-                    /></div>
-                  )}
                   {section === "forecasts" && !reviewing && expert && analysisFocusControl}
-                  <div hidden={!["overview", "ask"].includes(section) || briefActive} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
+                  <div hidden={!["overview", "ask"].includes(section)} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
                     <div className="analysisViewControls" hidden={reviewing}>
                       <div>
                         <strong>{section === "ask" ? "Your conversation" : "Explore further"}</strong>
@@ -1801,7 +1786,7 @@ export default function WorkspacePage() {
                         </header>
                         <div className="insightCanvas">
                         <DiscoveryPanel
-                          enabled={!busy && section === "overview" && !reviewing && !briefActive}
+                          enabled={!busy && section === "overview" && !reviewing}
                           key={`discovery-${root}-${revisionTick}`}
                           root={root}
                           request={request}
@@ -1812,12 +1797,32 @@ export default function WorkspacePage() {
                             else { setToolSelection({ root, tool: "anomalies", ...(metric ? { metric } : {}) }); setSection("decisions"); }
                           }}
                           onPrepare={() => setSection("prepare")}
+                          onScenario={(metric, aggregation) => {
+                            setToolSelection({ root, tool: "scenarios", metric, aggregation });
+                            setSection("decisions");
+                          }}
                           onReview={reviewUnderstanding}
                           onChat={() => { setSection("ask"); window.requestAnimationFrame(() => chat.current?.focus()); }}
                           expert={expert}
                         />
                       </div>
                       </section>
+                  {briefActive && user && (
+                    <div hidden={section !== "overview"}><DataBriefReview
+                      key={`brief-${user.id}-${root}`}
+                      root={root}
+                      request={request}
+                      manual={briefManual}
+                      onClose={closeBrief}
+                      onUnavailable={(reason) => {
+                        setBriefFor("");
+                        setBriefManual(false);
+                        if (reason || briefManual)
+                          setMessage(`${reason || "The data reading is unavailable right now."} The standard review is shown instead.`);
+                      }}
+                    /></div>
+                  )}
+
                       <div className="conversationWorkspace" hidden={section !== "ask" || reviewing}>
                       <AskPanel
                         ref={chat}
@@ -2003,12 +2008,13 @@ export default function WorkspacePage() {
                   )}
                   {section === "decisions" && (
                     <DecisionPanel
-                      key={`decisions-${root}-${revisionTick}-${analysisIntent}-${toolSelection?.tool}-${toolSelection?.metric}-${toolSelection?.scenario_mode}`}
+                      key={`decisions-${root}-${revisionTick}-${analysisIntent}-${toolSelection?.tool}-${toolSelection?.metric}-${toolSelection?.aggregation}-${toolSelection?.scenario_mode}`}
                       root={root}
                       request={request}
                       initialMethod={toolSelection?.root === root && ["anomalies", "allocations", "scenarios"].includes(toolSelection.tool) ? toolSelection.tool as "anomalies" | "allocations" | "scenarios" : analysisIntent === "prescriptive" ? "allocations" : "anomalies"}
                       initialMetric={toolSelection?.root === root ? toolSelection.metric : ""}
                       initialOperation={toolSelection?.root === root ? toolSelection.scenario_mode : undefined}
+                      initialAggregation={toolSelection?.root === root ? toolSelection.aggregation : undefined}
                       onReview={reviewUnderstanding}
                     />
                   )}

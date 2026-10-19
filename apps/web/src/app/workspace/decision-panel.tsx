@@ -11,12 +11,13 @@ import { CalendarAnomalyPanel } from "./calendar-anomaly-panel";
 import { isCalendarMethod } from "./calendar-anomaly-types";
 import { MultivariateAnomalyPanel, MULTIVARIATE_METHOD } from "./multivariate-anomaly-panel";
 const post = (body: object): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-export function DecisionPanel({ root, request, onReview, initialMethod, initialMetric = "", initialOperation }: {
+export function DecisionPanel({ root, request, onReview, initialMethod, initialMetric = "", initialOperation, initialAggregation }: {
     root: string;
     request: ApiRequest;
     onReview: () => void;
     initialMethod: "anomalies" | "allocations" | "scenarios";
     initialMetric?: string;
+    initialAggregation?: "sum" | "avg";
     initialOperation?: "daily_change";
 }) {
     const datasetRoot = root.split("/uploads/")[0];
@@ -170,7 +171,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
     const methodOptions = <><option value="anomalies">Unusual values · snapshot distribution</option><option value="seasonal">Unusual periods · seasonal reference</option><option value="rolling">Unusual periods · trailing window</option><option value="multivariate">Unusual combinations · reference group</option><option value="drift">Compare distributions · two time windows</option><option value="allocations">Recommendation · budget allocation</option><option value="large-allocations">Recommendation · larger resource allocation</option><option value="scenarios">What-if · scenario comparison</option></>;
     const changeMethod = (value: string) => { setKind(value); setSelected(null); setError(""); setMessage(""); };
     if (kind === "multivariate") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><MultivariateAnomalyPanel key={root} root={root} request={request} onReview={onReview} /></>;
-    if (kind === "scenarios") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><ScenarioPanel initialMetric={initialMetric} initialOperation={initialOperation} root={root} request={request} onReview={onReview} /></>;
+    if (kind === "scenarios") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><ScenarioPanel initialAggregation={initialAggregation} initialMetric={initialMetric} initialOperation={initialOperation} root={root} request={request} onReview={onReview} /></>;
     if (kind === "large-allocations") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><LargeAllocationPanel key={root} root={root} request={request} onReview={onReview} /></>;
     if (kind === "seasonal" || kind === "drift" || kind === "rolling") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><CalendarAnomalyPanel key={`${root}:${kind}`} root={root} request={request} onReview={onReview} method={kind} /></>;
     return <section className="panel decisionPanel" aria-label="Anomalies and decisions">

@@ -35,3 +35,9 @@ What it does: Uses existing workspace colors, generous controls and narrow-scree
   .form fieldset { padding: .85rem; }
   .steps li { flex: 1 1 100%; }
 }
+
+.quickChanges { grid-column: 1 / -1; padding: 1rem; background: color-mix(in srgb, var(--green) 6%, var(--surface)); border-radius: 14px; min-width: 0; }
+.quickChanges > span { font-weight: 700; }
+.quickChanges .actions { margin: .65rem 0; }
+.quickChanges button[aria-pressed="true"] { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+.quickChanges p { margin: .5rem 0 0; overflow-wrap: anywhere; }
