@@ -40,6 +40,23 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 19 — Proactive overview and contextual what-if verified live
+
+- Private release **074a5821f55d2aff /0029**, runtime **c5b0b4a**, is active.
+  Read `docs/proactive-data-overview.md` and `docs/verification-proactive-data-overview.md`.
+  Overview leads with scoped summaries/charts, an automatic bounded structural map and
+  eligible explicit what-if shortcuts. Optional reading no longer hides overview/chat.
+  Internal details start closed; assumptions and limitations stay visible.
+- 217 distinct affected backend cases,72 frontend,5 distinct browser cases, static checks,
+  both VPS builds/restricted checks pass. Live4 hosted tasks and overview/scenario/chat
+  browser journey pass across3 widths/both themes. Initial failures remain recorded.
+- Checked backups **20261019T142919Z /20261019T143504Z**;77 table projections, objects,
+  configuration and real sessions preserved. Five services/six loopback listeners,
+  readiness/web/model/timers/exact images pass. All5 fictional check accounts revoked.
+- No schema/provider/dependency change, push or restore. Maps are structural; what-if
+  changes an explicit aggregate, not a causal prediction. Broader production gates remain.
+
+
 ### October 19 — Natural social routing and responsive activity verified live
 
 - Private release **9ce1f703b13b957f /0029**, runtime **07c7b47**, is active.
