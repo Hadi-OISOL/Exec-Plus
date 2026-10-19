@@ -718,7 +718,7 @@ export function AskPanel({
                       </button>
                     ))}
                   </div>
-                  <details className="answerEvidence" open={expert}>
+                  <details className="answerEvidence">
                     <summary>What this explanation is based on</summary>
                     <p>
                       Selected-file profile and saved workspace definitions.
@@ -860,7 +860,7 @@ export function AskPanel({
                     {turn.answer.lineage.records_analyzed.toLocaleString()}{" "}
                     source records
                   </span>
-                  <details className="answerEvidence" open={expert}>
+                  <details className="answerEvidence">
                     <summary>How this answer was verified</summary>
                     <p>
                       {turn.answer.lineage.filters.length
@@ -893,7 +893,7 @@ export function AskPanel({
                 </>
               )}
               {turn.job && (
-                <details className="answerEvidence" open={expert}>
+                <details className="answerEvidence">
                   <summary>Request activity</summary>
                   <ConversationActivity
                     job={turn.job}

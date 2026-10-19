@@ -78,7 +78,7 @@ export function ConversationActivity({
           ))}
         </ol>
       )}
-      <details open={expert} className="recordedActions">
+      <details className="recordedActions">
         <summary>
           Recorded actions{events.length ? ` (${events.length})` : ""}
         </summary>
