@@ -9,6 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { FormEvent } from "react";
+import type { SheetChoice } from "./google-sheets-import";
+import type { ConnectorChoice } from "./connectors-panel";
 
 import type { ChatHandle } from "./ask-panel";
 import { CatalogPanel } from "./catalog-panel";
@@ -46,6 +48,14 @@ const AgentMemoryPanel = dynamic(
 );
 const GuidedReview = dynamic(
   () => import("./guided-review").then(module => module.GuidedReview),
+  { loading: loadingView },
+);
+const ConnectorsPanel = dynamic(
+  () => import("./connectors-panel").then(module => module.ConnectorsPanel),
+  { loading: loadingView },
+);
+const GoogleSheetsImport = dynamic(
+  () => import("./google-sheets-import").then(module => module.GoogleSheetsImport),
   { loading: loadingView },
 );
 const DataBriefReview = dynamic(
@@ -118,6 +128,21 @@ const UsagePanel = dynamic(
 );
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const googleFailures: Record<string, string> = {
+  google_denied: "Google sign-in was cancelled.",
+  google_state_invalid: "The Google sign-in expired. Please try again.",
+  google_identity_invalid: "Google could not confirm your identity.",
+  google_exchange_failed: "Google could not complete the request. Please try again.",
+  google_wrong_account: "Choose the Google account that matches your ExecPlus email.",
+  google_scope_missing: "Allow ExecPlus to open the sheets you choose, then try again.",
+  connector_denied: "The connection was cancelled.",
+  connector_state_invalid: "The connection expired. Please try again.",
+  connector_credentials_rejected: "The platform did not accept the sign-in.",
+  connector_no_refresh: "The platform did not return a lasting connection. Try again.",
+  connector_forbidden: "That account is not allowed to read this data.",
+  connector_invalid_request: "The platform could not complete the request.",
+  connector_unavailable: "The platform is unavailable. Try again shortly.",
+};
 type Workspace = { id: string; name: string; seat_limit: number };
 type Dataset = { id: string; name: string };
 type Member = { user_id: string; role: string; email: string };
@@ -149,6 +174,10 @@ export default function WorkspacePage() {
   const [guidedFor, setGuidedFor] = useState("");
   const [briefFor, setBriefFor] = useState("");
   const [briefManual, setBriefManual] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [pendingSession, setPendingSession] = useState("");
+  const openSessionRef = useRef<() => Promise<void>>(async () => undefined);
+  const connectedReturn = useRef(false);
   const skippedBriefs = useRef(new Set<string>());
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
@@ -328,6 +357,72 @@ export default function WorkspacePage() {
   }
 
   useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${api}/auth/google/config`, { signal: controller.signal, cache: "no-store" })
+      .then(response => (response.ok ? response.json() : { enabled: false }))
+      .then(value => setGoogleEnabled(Boolean(value.enabled)))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const query = new URLSearchParams(window.location.search);
+    let resumed = "";
+    try {
+      resumed = window.sessionStorage.getItem("execplus.resume") ?? "";
+      window.sessionStorage.removeItem("execplus.resume");
+    } catch {
+      resumed = "";
+    }
+    const session = fragment.get("session") ?? resumed;
+    const failure =
+      fragment.get("google_error") ??
+      query.get("google_error") ??
+      query.get("connector_error");
+    const connected =
+      query.get("google") === "connected" || Boolean(query.get("connector_connected"));
+    if (!session && !failure && !connected) return;
+    connectedReturn.current = connected;
+    query.delete("google");
+    query.delete("google_error");
+    query.delete("connector_connected");
+    query.delete("connector_error");
+    query.delete("connector");
+    const rest = query.toString();
+    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    Promise.resolve().then(() => {
+      if (failure) setError(googleFailures[failure] ?? "Google sign-in could not be completed.");
+      if (session) {
+        setToken(session);
+        setPendingSession(session);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    openSessionRef.current = openSession;
+  });
+
+  useEffect(() => {
+    if (!pendingSession || token !== pendingSession) return;
+    let active = true;
+    Promise.resolve().then(async () => {
+      if (!active) return;
+      setPendingSession("");
+      await run(openSessionRef.current);
+      if (connectedReturn.current) {
+        connectedReturn.current = false;
+        setSection("data");
+        setMessage("Connected. Choose what to import.");
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [pendingSession, token]);
+
+  useEffect(() => {
     if (!workspace || !manager || section !== "team") return;
     const controller = new AbortController();
     Promise.resolve()
@@ -402,7 +497,10 @@ export default function WorkspacePage() {
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await run(async () => {
+    await run(openSession);
+  }
+
+  async function openSession() {
       const current = await request<User>("/auth/me");
       setUser(current);
       const [available, access] = await Promise.all([
@@ -439,7 +537,115 @@ export default function WorkspacePage() {
           ? ""
           : "Start with a file. We’ll organize it and find a starting point for you.",
       );
+  }
+
+  async function importGoogleSheet(choice: SheetChoice) {
+    await run(async () => {
+      let targetWorkspace = workspace;
+      if (!targetWorkspace) {
+        targetWorkspace = await request<Workspace>(
+          "/workspaces",
+          json("POST", { name: "My workspace", seat_limit: 3 }),
+        );
+        setWorkspace(targetWorkspace);
+        setWorkspaces(await request<Workspace[]>("/workspaces"));
+        setMembers(
+          await request<Member[]>(`/workspaces/${targetWorkspace.id}/members`),
+        );
+      }
+      let targetDataset = uploadTarget === "existing" ? dataset : "";
+      if (!targetDataset) {
+        const created = await request<Dataset>(
+          `/workspaces/${targetWorkspace.id}/datasets`,
+          json("POST", { name: choice.title.slice(0, 100) || "My data" }),
+        );
+        targetDataset = created.id;
+        setDataset(created.id);
+        setUploads([]);
+        setProfileUpload("");
+        setUploadTarget("existing");
+        setDatasets(
+          await request<Dataset[]>(`/workspaces/${targetWorkspace.id}/datasets`),
+        );
+      }
+      const prefix = `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}`;
+      const stored = await request<Upload>(
+        `${prefix}/google-sheets/import`,
+        json("POST", {
+          spreadsheet_id: choice.spreadsheetId,
+          sheet_id: choice.sheetId,
+        }),
+      );
+      setUploads(await request<Upload[]>(`${prefix}/uploads`));
+      setProfileUpload(stored.id);
+      setGuidedFor(stored.id);
+      setBriefFor(stored.id);
+      setReviewOpen(false);
+      setStarterQuestions([]);
+      setUploadTarget("new");
+      setAnalysisIntent("descriptive");
+      setSection("overview");
+      setMessage(
+        `${stored.filename} imported from Google Sheets. Your first findings are being prepared below.`,
+      );
     });
+  }
+
+  async function importConnector(choice: ConnectorChoice) {
+    await run(async () => {
+      let targetWorkspace = workspace;
+      if (!targetWorkspace) {
+        targetWorkspace = await request<Workspace>(
+          "/workspaces",
+          json("POST", { name: "My workspace", seat_limit: 3 }),
+        );
+        setWorkspace(targetWorkspace);
+        setWorkspaces(await request<Workspace[]>("/workspaces"));
+        setMembers(
+          await request<Member[]>(`/workspaces/${targetWorkspace.id}/members`),
+        );
+      }
+      let targetDataset = uploadTarget === "existing" ? dataset : "";
+      if (!targetDataset) {
+        const created = await request<Dataset>(
+          `/workspaces/${targetWorkspace.id}/datasets`,
+          json("POST", { name: choice.title.slice(0, 100) || "My data" }),
+        );
+        targetDataset = created.id;
+        setDataset(created.id);
+        setUploads([]);
+        setProfileUpload("");
+        setUploadTarget("existing");
+        setDatasets(
+          await request<Dataset[]>(`/workspaces/${targetWorkspace.id}/datasets`),
+        );
+      }
+      const prefix = `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}`;
+      const stored = await request<Upload>(
+        `${prefix}/connectors/${choice.provider}/import`,
+        json("POST", { source_id: choice.sourceId }),
+      );
+      setUploads(await request<Upload[]>(`${prefix}/uploads`));
+      setProfileUpload(stored.id);
+      setGuidedFor(stored.id);
+      setBriefFor(stored.id);
+      setReviewOpen(false);
+      setStarterQuestions([]);
+      setUploadTarget("new");
+      setAnalysisIntent("descriptive");
+      setSection("overview");
+      setMessage(
+        `${stored.filename} imported from ${choice.platform}. Your first findings are being prepared below.`,
+      );
+    });
+  }
+
+  function rememberSession() {
+    try {
+      window.sessionStorage.setItem("execplus.resume", token);
+    } catch {
+      return;
+    }
   }
 
   async function createWorkspace(event: FormEvent<HTMLFormElement>) {
@@ -840,6 +1046,13 @@ export default function WorkspacePage() {
           {!user ? (
             <section className="panel loginPanel">
               <h2>Sign in</h2>
+              {googleEnabled && (
+                <form method="get" action={`${api}/auth/google/start`}>
+                  <button type="submit" disabled={busy}>
+                    Continue with Google
+                  </button>
+                </form>
+              )}
               <p>
                 Use the development session token provided by your local
                 operator. Sessions expire after eight hours.
@@ -1019,6 +1232,20 @@ export default function WorkspacePage() {
                       </label>
                     </details>
                   </form>
+                  {googleEnabled && (
+                    <GoogleSheetsImport
+                      request={request}
+                      disabled={busy}
+                      onConnecting={rememberSession}
+                      onImport={importGoogleSheet}
+                    />
+                  )}
+                  <ConnectorsPanel
+                    request={request}
+                    disabled={busy}
+                    onConnecting={rememberSession}
+                    onImport={importConnector}
+                  />
                   <div
                     className="uploadPromises"
                     aria-label="What happens next"

@@ -57,6 +57,8 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
         "registered_sources",
         "source_imports",
         "consolidation_runs",
+        "google_connections",
+        "connector_connections",
     }
     original_tables = set(s.metadata.tables) - added - later_added
 

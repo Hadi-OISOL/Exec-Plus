@@ -39,6 +39,26 @@ sessions = Table(
     Column("user_id", Uuid, ForeignKey("users.id"), nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),
 )
+google_connections = Table(
+    "google_connections",
+    metadata,
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("google_email", String(254), nullable=False),
+    Column("scope", Text, nullable=False),
+    Column("refresh_token_encrypted", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+connector_connections = Table(
+    "connector_connections",
+    metadata,
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("provider", String(40), primary_key=True),
+    Column("display_name", String(200), nullable=False),
+    Column("sealed_credentials", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
 workspaces = Table(
     "workspaces",
     metadata,

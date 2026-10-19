@@ -627,6 +627,8 @@ def test_policy_migration_preserves_existing_tables_and_refuses_nonempty_downgra
         "registered_sources",
         "source_imports",
         "consolidation_runs",
+        "google_connections",
+        "connector_connections",
     }
 
     def snapshot():

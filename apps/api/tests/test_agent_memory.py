@@ -393,6 +393,8 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
                     "registered_sources",
                     "source_imports",
                     "consolidation_runs",
+                    "google_connections",
+                    "connector_connections",
                 }
             }
 
