@@ -1817,8 +1817,9 @@ export default function WorkspacePage() {
                       onUnavailable={(reason) => {
                         setBriefFor("");
                         setBriefManual(false);
+                        setGuidedFor("");
                         if (reason || briefManual)
-                          setMessage(`${reason || "The data reading is unavailable right now."} The standard review is shown instead.`);
+                          setMessage(`${reason || "The data reading is unavailable right now."} You can review data meaning from the overview.`);
                       }}
                     /></div>
                   )}
