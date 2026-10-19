@@ -13,7 +13,7 @@ export async function selectAnalysisFocus(page: Page, value: "descriptive" | "pr
 export async function finishInitialReview(page: Page) {
   const home = page.getByRole("region", { name: "Analytics home", exact: true });
   const skip = page.getByRole("button", { name: "Skip for now", exact: true }).first();
-  await expect(home.or(skip)).toBeVisible({ timeout: 60_000 });
+  await expect(home.or(skip).first()).toBeVisible({ timeout: 60_000 });
   if (await skip.isVisible()) await skip.click();
   await expect(home).toBeVisible();
 }
