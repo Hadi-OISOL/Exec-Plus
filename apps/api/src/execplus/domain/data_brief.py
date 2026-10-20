@@ -10,7 +10,7 @@ from typing import Any
 
 from execplus.domain.agent_memory import MEMORY_PROMPT
 from execplus.domain.profiling import TableData
-from execplus.domain.understanding import GRAINS, ROLES, questions
+from execplus.domain.understanding import GRAINS, ROLES, UNIT_SOURCE, questions, suggested_unit
 
 NUMERIC_TYPES = frozenset({"integer", "decimal"})
 MODEL_COLUMN_LIMIT = 80
@@ -355,9 +355,14 @@ def ground_brief(
                 rf"(?:^|[^a-zA-Z]){re.escape(suggested)}(?:$|[^a-zA-Z])", row["name"], re.I
             )
         )
-        row["unit"] = unit or (suggested if stated_in_name else "")
+        from_name = suggested_unit(row["name"]) if row["role"] == "metric" else None
+        named = (from_name or {}).get("unit") or (from_name or {}).get("currency") or ""
+        row["unit"] = unit or (suggested if stated_in_name else named)
+        row["unit_source"] = (
+            "saved" if unit else "model" if stated_in_name else UNIT_SOURCE if named else ""
+        )
         if preserve_saved and original.get("unit_column"):
-            row["unit"] = ""
+            row["unit"], row["unit_source"] = "", ""
         if preserve_saved and not missing_question(original):
             row["uncertain"] = False
             row["question"] = ""

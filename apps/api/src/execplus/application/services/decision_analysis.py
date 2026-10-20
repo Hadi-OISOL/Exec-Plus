@@ -72,6 +72,8 @@ from execplus.domain.source_scenarios import (
     is_source_scenario,
     validate_source_scenario,
 )
+from execplus.domain.unusual_values import VERSION as UNUSUAL_VERSION
+from execplus.domain.unusual_values import scan_plan, scan_request, scan_result
 
 REGISTERED_METHODS = {**METHODS, "scenario_comparison": SCENARIO_METHOD}
 
@@ -274,6 +276,74 @@ class DecisionAnalysisService:
                 "Exploratory anomalies are not confirmed errors; "
                 "decisions require declared assumptions.",
             ],
+        )
+
+    def _current_feed(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> None:
+        with self.uow() as repo:
+            dataset_access(repo, actor, wid, did)
+            repo.upload(wid, did, uid)
+            if any(
+                str(feed.source["upload_id"]) != str(uid) for feed in repo.refresh_feeds(wid, did)
+            ):
+                raise ClarificationRequiredError(
+                    "Use the current accepted refresh source before new analysis or approval."
+                )
+
+    async def unusual_values(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> dict[str, Any]:
+        """Check every eligible measure for unusual rows without asking for settings."""
+        self._current_feed(actor, wid, did, uid)
+        context, table, scope = await read_complete(
+            lambda: self.analytics.descriptive_snapshot(actor, wid, did, uid)
+        )
+        view = context.view
+        try:
+            request = scan_request(context, table)
+        except ClarificationRequiredError as error:
+            draft = any(source.get("understanding_id") for source in view.sources)
+            return dict(
+                version=UNUSUAL_VERSION,
+                state="needs_review" if draft and context.state != "confirmed" else "unavailable",
+                message=str(error),
+            )
+        plan = scan_plan(scope, did, request)
+        lineage = CalculationLineage(
+            plan.query_id,
+            wid,
+            did,
+            context.name,
+            len(table.rows),
+            "Unusual values scan",
+            "analysis",
+            (),
+            (),
+            plan.sql,
+            "deterministic:" + UNUSUAL_VERSION,
+        )
+        await read_complete(
+            lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
+        )
+        self._current_feed(actor, wid, did, uid)
+        try:
+            value = await self.analytics.executor.execute(plan, scope, table, view)
+        except (Exception, asyncio.CancelledError):
+            self.analytics._persist(
+                actor, replace(lineage, receipt=receipt(plan, view.sources, None))
+            )
+            raise
+        self.analytics._persist(actor, replace(lineage, receipt=receipt(plan, view.sources, value)))
+        result = await read_complete(lambda: scan_result(value, request))
+        await read_complete(
+            lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
+        )
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            authorize_sources(repo, actor, wid, view.sources, did)
+        return dict(
+            state="ready",
+            **result,
+            query_id=str(plan.query_id),
+            sources=list(view.sources),
+            result_checksum=checksum(result),
         )
 
     def _current(self, actor: User, wid: UUID, did: UUID, uid: UUID, raw: dict[str, Any]) -> None:

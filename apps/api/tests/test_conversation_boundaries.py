@@ -29,7 +29,7 @@ def test_new_task_prevents_resurrecting_an_older_measure_after_thanks(integratio
     )
     owner, _, root, path, _ = setup(env, model)
     before = env.client.get(root + "/understanding", headers=owner).json()
-    numeric = ask(env, owner, path, "What is the total attock_erp?")
+    numeric = ask(env, owner, path, "What's the total attock_erp?")
     assert numeric["answer"]["value"] == 5
     new_task = ask(env, owner, path, new_question)
     assert new_task["answer"] is not None
@@ -56,7 +56,7 @@ def test_a_new_calculation_after_orientation_becomes_the_followup_context(integr
     )
     owner, _, _, path, _ = setup(env, model)
     assert ask(env, owner, path, "Help me understand this data")["answer"] is not None
-    assert ask(env, owner, path, "What is the average attock_erp?")["answer"] is not None
+    assert ask(env, owner, path, "What's the average attock_erp?")["answer"] is not None
     ask(env, owner, path, "thank you")
     grouped = ask(env, owner, path, "and by category?")
     assert grouped["answer"]["lineage"]["grouping"] == ["category"]

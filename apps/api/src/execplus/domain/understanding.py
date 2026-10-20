@@ -32,6 +32,7 @@ DOMAINS = (
     "marketing",
     "operations",
     "research",
+    "agriculture",
     "other",
 )
 STATES = ("inferred", "confirmed", "rejected", "needs_review")
@@ -99,6 +100,117 @@ def _text(value: Any, limit: int) -> str:
     return value.strip()
 
 
+UNIT_TOKENS = {
+    "mm": "mm",
+    "cm": "cm",
+    "km": "km",
+    "kg": "kg",
+    "g": "g",
+    "mg": "mg",
+    "ml": "mL",
+    "l": "L",
+    "litre": "L",
+    "liter": "L",
+    "litres": "L",
+    "liters": "L",
+    "celsius": "°C",
+    "degc": "°C",
+    "fahrenheit": "°F",
+    "degf": "°F",
+    "kmh": "km/h",
+    "kph": "km/h",
+    "mph": "mph",
+    "hectare": "hectare",
+    "hectares": "hectare",
+    "ha": "hectare",
+    "acre": "acre",
+    "acres": "acre",
+    "pct": "%",
+    "percent": "%",
+    "percentage": "%",
+    "hours": "hours",
+    "hrs": "hours",
+    "hr": "hours",
+    "minutes": "minutes",
+    "mins": "minutes",
+    "seconds": "seconds",
+    "secs": "seconds",
+    "days": "days",
+    "ppm": "ppm",
+    "kwh": "kWh",
+}
+CURRENCY_TOKENS = frozenset(
+    {"usd", "pkr", "eur", "gbp", "inr", "aed", "sar", "cny", "jpy", "cad", "aud", "chf"}
+)
+TEMPERATURE_WORDS = frozenset({"temp", "temperature"})
+LENGTH_WORDS = frozenset({"height", "depth", "length", "distance", "width", "elevation"})
+AGRICULTURE_WORDS = frozenset(
+    {
+        "soil",
+        "crop",
+        "crops",
+        "irrigation",
+        "rainfall",
+        "harvest",
+        "sowing",
+        "mulching",
+        "fertilizer",
+        "fertiliser",
+        "farm",
+        "seed",
+        "livestock",
+        "pesticide",
+        "agronomy",
+        "cultivar",
+    }
+)
+UNIT_SOURCE = "suggested from column name"
+
+
+def _tokens(name: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", name.casefold())
+
+
+def suggested_unit(name: str) -> dict[str, str] | None:
+    tokens = _tokens(name)
+    if not tokens or "per" in tokens:
+        return None
+    last = tokens[-1]
+    if last in CURRENCY_TOKENS:
+        return dict(unit="", currency=last.upper(), source=UNIT_SOURCE)
+    unit = UNIT_TOKENS.get(last)
+    if last in {"c", "f"} and TEMPERATURE_WORDS & set(tokens):
+        unit = "°C" if last == "c" else "°F"
+    elif last == "m" and LENGTH_WORDS & set(tokens):
+        unit = "m"
+    elif tokens[-2:] == ["km", "h"]:
+        unit = "km/h"
+    elif "ph" in tokens:
+        unit = "pH"
+    elif unit is None and "humidity" in tokens:
+        unit = "%"
+    return dict(unit=unit, currency="", source=UNIT_SOURCE) if unit else None
+
+
+def unit_suggestions(definition: dict[str, Any]) -> list[dict[str, str]]:
+    result = []
+    for column in definition["columns"]:
+        if column["role"] != "metric" or column["unit"] or column["currency"]:
+            continue
+        if column["unit_column"]:
+            continue
+        suggestion = suggested_unit(column["name"])
+        if suggestion:
+            result.append(
+                dict(
+                    column=column["name"],
+                    **suggestion,
+                    question=f"What unit does {column['name']} measure?",
+                )
+            )
+    return result
+
+
 def infer_definition(profile: dict[str, Any], domain_hint: str = "auto") -> dict[str, Any]:
     view = dataset_view(profile)
     tags = set().union(*(column.tags for column in view.columns))
@@ -109,6 +221,11 @@ def infer_definition(profile: dict[str, Any], domain_hint: str = "auto") -> dict
         if tags & {"stock", "quantity"}
         else "hr"
         if tags & {"salary", "headcount"}
+        else "agriculture"
+        if len(
+            AGRICULTURE_WORDS & {token for column in view.columns for token in _tokens(column.name)}
+        )
+        >= 3
         else "other"
     )
     columns: list[dict[str, Any]] = []

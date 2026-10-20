@@ -92,6 +92,14 @@ class MetricRequest:
     aggregation: AggregationKind
     group_by: tuple[str, ...] = ()
     filters: tuple[MetricFilter, ...] = ()
+    order: Literal["asc", "desc"] | None = None
+    limit: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RowOrder:
+    column: str
+    direction: Literal["asc", "desc"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +113,7 @@ class RowRequest:
     filters: tuple[MetricFilter, ...] = ()
     columns: tuple[str, ...] = ()
     extremum: RowExtremum | None = None
+    order_by: RowOrder | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -272,9 +281,18 @@ def plan_query(
         sql += " GROUP BY " + ", ".join(quote_identifier(name) for name in request.group_by)
     if not 1 <= row_limit <= 100_000:
         raise UnsafeQueryError("The query row limit is outside supported bounds")
-    if isinstance(request, MetricRequest) and request.group_by:
-        sql += " ORDER BY " + ", ".join(quote_identifier(name) for name in request.group_by)
-    sql += f" LIMIT {row_limit}"
+    if request.order is not None and not request.group_by:
+        raise UnsupportedQuestionError("Ranking requires at least one group")
+    if request.limit is not None and (request.order is None or not 1 <= request.limit <= 1000):
+        raise UnsupportedQuestionError("A ranked result needs an order and 1 to 1000 groups")
+    if request.group_by:
+        ordering = [quote_identifier(name) for name in request.group_by]
+        if request.order is not None:
+            ordering.insert(
+                0, f"{quote_identifier(VALUE_ALIAS)} {request.order.upper()} NULLS LAST"
+            )
+        sql += " ORDER BY " + ", ".join(ordering)
+    sql += f" LIMIT {min(request.limit or row_limit, row_limit)}"
 
     validate_read_only(sql)
     question = (
@@ -284,6 +302,8 @@ def plan_query(
     )
     if request.group_by:
         question += f" grouped by {', '.join(request.group_by)}"
+    if request.order is not None:
+        question += f" ranked {request.order}"
     return QueryPlan(
         query_id=uuid4(),
         workspace_id=scope.workspace_id,
@@ -329,8 +349,12 @@ def plan_rows(
         sql += " WHERE " + " AND ".join(where_clauses)
     if not 1 <= row_limit <= 100_000:
         raise UnsafeQueryError("The query row limit is outside supported bounds")
-    if isinstance(request, MetricRequest) and request.group_by:
-        sql += " ORDER BY " + ", ".join(quote_identifier(name) for name in request.group_by)
+    if request.order_by is not None:
+        order = request.order_by
+        if request.extremum is not None or order.column not in view.metrics:
+            raise UnsupportedQuestionError("Order records by one visible numeric measure")
+        sql += f" ORDER BY {quote_identifier(order.column)} {order.direction.upper()} NULLS LAST"
+        sql += "".join(f", {quote_identifier(name)}" for name in selected)
     sql += f" LIMIT {row_limit}"
 
     validate_read_only(sql)
@@ -342,6 +366,8 @@ def plan_rows(
             f"records with {request.extremum.direction} of {request.extremum.column} "
             "(including ties)"
             if request.extremum
+            else f"records ordered by {request.order_by.column} {request.order_by.direction}"
+            if request.order_by
             else "row-level drill-down"
         ),
         sql=sql,

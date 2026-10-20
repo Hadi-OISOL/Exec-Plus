@@ -1,0 +1,981 @@
+{
+ "use_case": "Offline agent-harness evaluation questions for a 100-row farm table with no date column.",
+ "what_it_does": "Pairs each realistic question with the plan a well-instructed planner should return and the outcome the harness must deliver. Plans are scripted model replies; outcomes check routing, validation and presentation, not language quality.",
+ "cases": [
+  {
+   "id": "avg_by_region",
+   "question": "average rainfall by region",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Rainfall_mm",
+     "aggregation": "avg",
+     "group_by": [
+      "Region"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "metric": "Rainfall_mm",
+    "group_by": [
+     "Region"
+    ],
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "roman_urdu_avg",
+   "question": "rainfall ka average batao region wise",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Rainfall_mm",
+     "aggregation": "avg",
+     "group_by": [
+      "Region"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "metric": "Rainfall_mm",
+    "group_by": [
+     "Region"
+    ],
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "total_area",
+   "question": "what is the total field area?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Field_Area_hectare",
+     "aggregation": "sum"
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "sum",
+    "metric": "Field_Area_hectare",
+    "chart": "kpi",
+    "offline": true
+   }
+  },
+  {
+   "id": "record_count",
+   "question": "how many fields are there?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count"
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "metric": "*",
+    "chart": "kpi",
+    "offline": true
+   }
+  },
+  {
+   "id": "max_rainfall",
+   "question": "max rainfall",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Rainfall_mm",
+     "aggregation": "max"
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "max",
+    "metric": "Rainfall_mm",
+    "chart": "kpi",
+    "offline": true
+   }
+  },
+  {
+   "id": "top3_regions",
+   "question": "top 3 regions by average rainfall",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Rainfall_mm",
+     "aggregation": "avg",
+     "group_by": [
+      "Region"
+     ],
+     "order": "desc",
+     "limit": 3
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "group_by": [
+     "Region"
+    ],
+    "rows": 3,
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "crop_most_moisture",
+   "question": "which crop has the highest average soil moisture?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Soil_Moisture",
+     "aggregation": "avg",
+     "group_by": [
+      "Crop_Type"
+     ],
+     "order": "desc"
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "group_by": [
+     "Crop_Type"
+    ],
+    "rows": 6,
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "crop_most_irrigation",
+   "question": "which crop needs the most irrigation?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Previous_Irrigation_mm",
+     "aggregation": "avg",
+     "group_by": [
+      "Crop_Type"
+     ],
+     "order": "desc"
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "group_by": [
+     "Crop_Type"
+    ],
+    "rows": 6,
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "most_common_soil",
+   "question": "which soil type is most common?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "group_by": [
+      "Soil_Type"
+     ],
+     "order": "desc"
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Soil_Type"
+    ],
+    "rows": 4,
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "top5_rainfall_rows",
+   "question": "show the 5 fields with the highest rainfall",
+   "plan": {
+    "kind": "rows",
+    "plan": {
+     "columns": [],
+     "filters": [],
+     "limit": 5,
+     "order_by": {
+      "column": "Rainfall_mm",
+      "direction": "desc"
+     }
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "rows",
+    "rows": 5,
+    "chart": "table"
+   }
+  },
+  {
+   "id": "lowest_ph_row",
+   "question": "which field has the lowest soil pH?",
+   "plan": {
+    "kind": "rows",
+    "plan": {
+     "columns": [],
+     "filters": [],
+     "limit": 100,
+     "extremum": {
+      "column": "Soil_pH",
+      "direction": "min"
+     }
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "rows",
+    "chart": "table"
+   }
+  },
+  {
+   "id": "multi_filter_rows",
+   "question": "show fields in the North with rainfall above 1000 and sandy soil",
+   "plan": {
+    "kind": "rows",
+    "plan": {
+     "columns": [],
+     "filters": [
+      {
+       "column": "Region",
+       "operator": "ieq",
+       "value": "North"
+      },
+      {
+       "column": "Rainfall_mm",
+       "operator": "gt",
+       "value": 1000
+      },
+      {
+       "column": "Soil_Type",
+       "operator": "ieq",
+       "value": "Sandy"
+      }
+     ],
+     "limit": 100
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "rows",
+    "filters": 3,
+    "chart": "table"
+   }
+  },
+  {
+   "id": "multi_filter_count",
+   "question": "how many rice fields use drip irrigation in Kharif?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "filters": [
+      {
+       "column": "Crop_Type",
+       "operator": "ieq",
+       "value": "Rice"
+      },
+      {
+       "column": "Irrigation_Type",
+       "operator": "ieq",
+       "value": "Drip"
+      },
+      {
+       "column": "Season",
+       "operator": "ieq",
+       "value": "Kharif"
+      }
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "filters": 3,
+    "chart": "kpi",
+    "prompt_contains": [
+     "Kharif",
+     "Drip",
+     "Rice"
+    ]
+   }
+  },
+  {
+   "id": "drip_vs_canal",
+   "question": "compare soil moisture for drip vs canal irrigation",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Soil_Moisture",
+     "aggregation": "avg",
+     "group_by": [
+      "Irrigation_Type"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "group_by": [
+     "Irrigation_Type"
+    ],
+    "rows": 4,
+    "chart": "bar",
+    "prompt_contains": [
+     "Drip",
+     "Canal"
+    ]
+   }
+  },
+  {
+   "id": "mulching_share",
+   "question": "what % of fields use mulching?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "group_by": [
+      "Mulching_Used"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Mulching_Used"
+    ],
+    "chart": "pie",
+    "shares": true,
+    "offline": true
+   }
+  },
+  {
+   "id": "soil_distribution",
+   "question": "distribution of soil types",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "group_by": [
+      "Soil_Type"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Soil_Type"
+    ],
+    "chart": "pie",
+    "shares": true,
+    "offline": true
+   }
+  },
+  {
+   "id": "ph_distribution",
+   "question": "show the distribution of soil pH",
+   "plan": {
+    "kind": "rows",
+    "plan": {
+     "columns": [
+      "Soil_pH"
+     ],
+     "filters": [],
+     "limit": 1000
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "rows",
+    "chart": "histogram"
+   }
+  },
+  {
+   "id": "two_dims",
+   "question": "average temperature for each season and region",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Temperature_C",
+     "aggregation": "avg",
+     "group_by": [
+      "Season",
+      "Region"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "group_by": [
+     "Season",
+     "Region"
+    ],
+    "chart": "grouped_bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "count_per_crop_south",
+   "question": "how many fields per crop in the south?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "group_by": [
+      "Crop_Type"
+     ],
+     "filters": [
+      {
+       "column": "Region",
+       "operator": "ieq",
+       "value": "South"
+      }
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Crop_Type"
+    ],
+    "filters": 1,
+    "chart": "bar"
+   }
+  },
+  {
+   "id": "mulching_moisture",
+   "question": "compare average soil moisture with and without mulching",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Soil_Moisture",
+     "aggregation": "avg",
+     "group_by": [
+      "Mulching_Used"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "group_by": [
+     "Mulching_Used"
+    ],
+    "chart": "bar"
+   }
+  },
+  {
+   "id": "roman_urdu_count",
+   "question": "kitne fields mein mulching use hoti hai?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "filters": [
+      {
+       "column": "Mulching_Used",
+       "operator": "ieq",
+       "value": "Yes"
+      }
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "filters": 1,
+    "chart": "kpi"
+   }
+  },
+  {
+   "id": "scatter_rows",
+   "question": "plot rainfall against soil moisture",
+   "plan": {
+    "kind": "rows",
+    "plan": {
+     "columns": [
+      "Rainfall_mm",
+      "Soil_Moisture"
+     ],
+     "filters": [],
+     "limit": 1000
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "rows",
+    "chart": "scatter"
+   }
+  },
+  {
+   "id": "relationship",
+   "question": "does rainfall relate to soil moisture?",
+   "plan": {
+    "kind": "patterns",
+    "columns": [
+     "Rainfall_mm",
+     "Soil_Moisture"
+    ]
+   },
+   "expect": {
+    "outcome": "patterns",
+    "offline": true
+   }
+  },
+  {
+   "id": "cohort_harvest",
+   "question": "what differs for fields at the Harvest stage?",
+   "plan": {
+    "kind": "cohort_comparison",
+    "target_column": "Crop_Growth_Stage",
+    "target_value": "Harvest",
+    "columns": []
+   },
+   "expect": {
+    "outcome": "patterns"
+   }
+  },
+  {
+   "id": "anomalies",
+   "question": "any weird rows?",
+   "plan": {
+    "kind": "overview",
+    "columns": [],
+    "focus": "quality"
+   },
+   "expect": {
+    "outcome": "guide",
+    "offline": true
+   }
+  },
+  {
+   "id": "interesting",
+   "question": "tell me something interesting",
+   "plan": {
+    "kind": "overview",
+    "columns": [],
+    "focus": "next_steps"
+   },
+   "expect": {
+    "outcome": "guide"
+   }
+  },
+  {
+   "id": "focus",
+   "question": "what should I focus on?",
+   "plan": {
+    "kind": "overview",
+    "columns": [],
+    "focus": "next_steps"
+   },
+   "expect": {
+    "outcome": "guide"
+   }
+  },
+  {
+   "id": "column_meaning",
+   "question": "what does Electrical_Conductivity mean?",
+   "plan": {
+    "kind": "overview",
+    "columns": [
+     "Electrical_Conductivity"
+    ],
+    "focus": "orientation"
+   },
+   "expect": {
+    "outcome": "guide"
+   }
+  },
+  {
+   "id": "greeting",
+   "question": "hey, how are you?",
+   "plan": {
+    "kind": "overview",
+    "focus": "conversation",
+    "columns": [],
+    "message": "Doing well, thanks for asking. What would you like to explore?"
+   },
+   "expect": {
+    "outcome": "conversation"
+   }
+  },
+  {
+   "id": "roman_urdu_social",
+   "question": "kya haal hai?",
+   "plan": {
+    "kind": "overview",
+    "focus": "conversation",
+    "columns": [],
+    "message": "Main theek hoon, shukriya. Batayein aaj kya dekhna hai?"
+   },
+   "expect": {
+    "outcome": "conversation"
+   }
+  },
+  {
+   "id": "forecast_no_dates",
+   "question": "forecast rainfall for next year",
+   "plan": {
+    "kind": "unsupported",
+    "message": "This file has no date column, so a time-based forecast is not possible."
+   },
+   "expect": {
+    "outcome": "guide_or_unsupported"
+   }
+  },
+  {
+   "id": "followup_north",
+   "after": "avg_by_region",
+   "question": "and for the north only?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Rainfall_mm",
+     "aggregation": "avg",
+     "group_by": [
+      "Region"
+     ],
+     "filters": [
+      {
+       "column": "Region",
+       "operator": "ieq",
+       "value": "North"
+      }
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "metric": "Rainfall_mm",
+    "filters": 1,
+    "prompt_contains": [
+     "Rainfall_mm",
+     "North"
+    ]
+   }
+  },
+  {
+   "id": "followup_pie",
+   "after": "soil_distribution",
+   "question": "show it as a pie",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "group_by": [
+      "Soil_Type"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Soil_Type"
+    ],
+    "chart": "pie",
+    "prompt_contains": [
+     "Soil_Type"
+    ]
+   }
+  },
+  {
+   "id": "followup_season",
+   "after": "avg_by_region",
+   "question": "now break it down by season instead",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Rainfall_mm",
+     "aggregation": "avg",
+     "group_by": [
+      "Season"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "metric": "Rainfall_mm",
+    "group_by": [
+     "Season"
+    ],
+    "prompt_contains": [
+     "Rainfall_mm"
+    ]
+   }
+  },
+  {
+   "id": "insight_quality",
+   "question": "Are there any data quality issues?",
+   "plan": {
+    "kind": "overview",
+    "columns": [],
+    "focus": "quality"
+   },
+   "expect": {
+    "outcome": "guide"
+   }
+  },
+  {
+   "id": "insight_average",
+   "question": "What is the average Soil_Moisture?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Soil_Moisture",
+     "aggregation": "avg"
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "metric": "Soil_Moisture",
+    "chart": "kpi",
+    "offline": true
+   }
+  },
+  {
+   "id": "insight_show_group",
+   "question": "Show all records where Crop_Type equals Cotton",
+   "plan": {
+    "kind": "rows",
+    "plan": {
+     "columns": [],
+     "filters": [
+      {
+       "column": "Crop_Type",
+       "operator": "eq",
+       "value": "Cotton"
+      }
+     ],
+     "limit": 1000
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "rows",
+    "filters": 1,
+    "chart": "table",
+    "offline": true
+   }
+  },
+  {
+   "id": "insight_compare",
+   "question": "Compare average Rainfall_mm by Region",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Rainfall_mm",
+     "aggregation": "avg",
+     "group_by": [
+      "Region"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "group_by": [
+     "Region"
+    ],
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "offered_average_of",
+   "question": "What is the average of Rainfall_mm?",
+   "plan": null,
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "metric": "Rainfall_mm",
+    "chart": "kpi",
+    "offline": true
+   }
+  },
+  {
+   "id": "offered_grouped",
+   "question": "Show the average of Rainfall_mm by Region",
+   "plan": null,
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "group_by": [
+     "Region"
+    ],
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "offered_first_records",
+   "question": "Show the first 10 records",
+   "plan": null,
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "rows",
+    "rows": 10,
+    "chart": "table",
+    "offline": true
+   }
+  },
+  {
+   "id": "offered_most_records",
+   "question": "Which Region has the most records?",
+   "plan": null,
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Region"
+    ],
+    "rows": 5,
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "offered_count_by",
+   "question": "How many records are there by Soil_Type?",
+   "plan": null,
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Soil_Type"
+    ],
+    "chart": "bar",
+    "offline": true
+   }
+  },
+  {
+   "id": "offered_relate",
+   "question": "Does Rainfall_mm relate to Soil_Moisture?",
+   "plan": null,
+   "expect": {
+    "outcome": "patterns",
+    "offline": true
+   }
+  },
+  {
+   "id": "share_words",
+   "question": "what share of fields use mulching",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "group_by": [
+      "Mulching_Used"
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Mulching_Used"
+    ],
+    "chart": "pie",
+    "shares": true,
+    "offline": true
+   }
+  },
+  {
+   "id": "unusual_rows",
+   "question": "any unusual rows?",
+   "plan": null,
+   "expect": {
+    "outcome": "guide",
+    "offline": true
+   }
+  },
+  {
+   "id": "filtered_needs_model",
+   "question": "average rainfall in the north",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "Rainfall_mm",
+     "aggregation": "avg",
+     "filters": [
+      {
+       "column": "Region",
+       "operator": "ieq",
+       "value": "North"
+      }
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "avg",
+    "filters": 1,
+    "chart": "kpi",
+    "offline": true,
+    "offline_expect": {
+     "outcome": "ambiguous",
+     "choices_vary": true
+    }
+   }
+  },
+  {
+   "id": "common_irrigation_type",
+   "question": "which irrigation type is most common?",
+   "plan": {
+    "kind": "numerical",
+    "plan": {
+     "metric": "*",
+     "aggregation": "count",
+     "group_by": [
+      "Irrigation_Type"
+     ],
+     "order": "desc"
+    }
+   },
+   "expect": {
+    "outcome": "answer",
+    "aggregation": "count",
+    "group_by": [
+     "Irrigation_Type"
+    ],
+    "rows": 4,
+    "chart": "bar",
+    "offline": true
+   }
+  }
+ ]
+}

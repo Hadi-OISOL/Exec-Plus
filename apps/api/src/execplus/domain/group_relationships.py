@@ -49,7 +49,7 @@ def group_relationship_request(
     if len(selected) != 2 or len(set((*selected, group_by))) != 3:
         invalid("Choose two different measures and a separate category to compare groups.")
     governed = pattern_request(context, table, (*selected, group_by))
-    if governed["metrics"] != list(selected) or governed["categories"] != [group_by]:
+    if set(governed["metrics"]) != set(selected) or governed["categories"] != [group_by]:
         invalid("Choose two numerical measures and one category with confirmed roles and units.")
     return dict(
         version=REQUEST_VERSION,

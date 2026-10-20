@@ -35,6 +35,7 @@ from execplus.domain.advanced_forecasting import (
 from execplus.domain.analysis_readiness import forecast_options
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt, result_evidence, scalar_record
+from execplus.domain.forecast_defaults import quick_start
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.forecast_series import series_plan, series_request, series_values
 from execplus.domain.forecasting import (
@@ -154,7 +155,12 @@ class ForecastService:
 
     async def options(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> dict[str, Any]:
         context = await read_complete(lambda: self.analytics.describe(actor, wid, did, uid))
-        return {**forecast_options(context), "advanced_methods": list(METHOD_CATALOG)}
+        options = forecast_options(context)
+        return {
+            **options,
+            "advanced_methods": list(METHOD_CATALOG),
+            "quick_start": quick_start(context, options),
+        }
 
     def _current(self, actor: User, wid: UUID, did: UUID, uid: UUID, raw: dict[str, Any]) -> None:
         with self.uow() as repo:

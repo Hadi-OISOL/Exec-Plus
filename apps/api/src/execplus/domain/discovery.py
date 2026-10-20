@@ -67,39 +67,51 @@ def _candidate(context: DescriptionContext, column: dict[str, Any]) -> bool:
     }
 
 
+def measure_candidates(context: DescriptionContext) -> list[str]:
+    return [
+        column["name"]
+        for column in sorted(
+            (column for column in context.profile["columns"] if _candidate(context, column)),
+            key=lambda column: exploration_rank(context, column["name"]),
+        )
+    ]
+
+
+def _category(context: DescriptionContext, column: dict[str, Any]) -> bool:
+    semantic = context.view.column(column["name"])
+    return (
+        column["name"] in context.view.dimensions
+        and column["type"] in {"text", "boolean", "integer"}
+        and 2 <= column["distinct_count"] <= 30
+        and not name_words(column["name"]) & {"id", "code", "sku", "zip", "postal"}
+        and not (semantic and "identifier" in semantic.tags)
+        and not column["type_conflicts"]
+    )
+
+
+def category_candidates(context: DescriptionContext) -> list[str]:
+    return [
+        column["name"]
+        for column in sorted(
+            (column for column in context.profile["columns"] if _category(context, column)),
+            key=lambda column: exploration_rank(context, column["name"]),
+        )
+    ]
+
+
 def discovery_steps(context: DescriptionContext) -> tuple[DiscoveryStep, ...]:
-    columns = context.profile["columns"]
-    candidates = sorted(
-        (column for column in columns if _candidate(context, column)),
-        key=lambda column: exploration_rank(context, column["name"]),
-    )[:2]
     metrics = {entry["column"]: entry for entry in (context.definition or {}).get("metrics", [])}
     steps: list[DiscoveryStep] = []
-    for column in candidates:
-        name = column["name"]
+    for name in measure_candidates(context)[:2]:
         aggregates: tuple[AggregationKind, ...]
         if name in metrics and context.state == "confirmed":
             aggregates = (AggregationKind(metrics[name]["aggregation"]),)
         else:
             aggregates = (AggregationKind.MIN, AggregationKind.MAX, AggregationKind.AVG)
         steps.extend(DiscoveryStep(name, aggregate) for aggregate in aggregates)
-    dimensions = sorted(
-        (
-            column
-            for column in columns
-            if column["name"] in context.view.dimensions
-            and column["type"] in {"text", "boolean", "integer"}
-            and 2 <= column["distinct_count"] <= 30
-            and not name_words(column["name"]) & {"id", "code", "sku", "zip", "postal"}
-            and not (
-                (semantic := context.view.column(column["name"])) and "identifier" in semantic.tags
-            )
-            and not column["type_conflicts"]
-        ),
-        key=lambda column: exploration_rank(context, column["name"]),
-    )
-    if dimensions:
-        steps.append(DiscoveryStep(dimensions[0]["name"], AggregationKind.COUNT, True))
+    categories = category_candidates(context)
+    if categories:
+        steps.append(DiscoveryStep(categories[0], AggregationKind.COUNT, True))
     return tuple(steps)
 
 

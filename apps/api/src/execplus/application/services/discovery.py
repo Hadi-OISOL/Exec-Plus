@@ -80,6 +80,29 @@ async def _distribution(
     return result, lineage
 
 
+def scenario_candidates(context: DescriptionContext) -> list[dict[str, str]]:
+    if context.state != "confirmed":
+        return []
+    profile = context.profile
+    observed = {item["name"]: item for item in profile["columns"]}
+    rules = {item["column"]: item for item in (context.definition or {}).get("metrics", [])}
+    eligible = []
+    for column in (context.definition or {}).get("columns", []):
+        metric = column["name"]
+        aggregation = rules.get(metric, {}).get("aggregation", "avg")
+        if (
+            metric in context.view.metrics
+            and (column.get("unit") or column.get("currency"))
+            and not column.get("unit_column")
+            and not observed[metric]["missing"]
+            and not observed[metric]["type_conflicts"]
+            and profile["row_count"] > 0
+            and aggregation in {"avg", "sum"}
+        ):
+            eligible.append({"metric": metric, "aggregation": aggregation})
+    return sorted(eligible, key=lambda item: exploration_rank(context, item["metric"]))
+
+
 def _metadata(context: DescriptionContext) -> dict[str, Any]:
     profile = context.profile
     steps = discovery_steps(context)
@@ -98,8 +121,12 @@ def _metadata(context: DescriptionContext) -> dict[str, Any]:
         introduction.append(f"The {categories[0]} field lets you compare groups of records.")
     if identifiers:
         introduction.append(
-            f"{', '.join(identifiers[:3])} look like identifiers: "
-            "use them to find records rather than add their codes."
+            f"{', '.join(identifiers[:3])} "
+            + (
+                "looks like an identifier: use it to find records rather than add its codes."
+                if len(identifiers) == 1
+                else "look like identifiers: use them to find records rather than add their codes."
+            )
         )
     if not introduction:
         introduction.append("Start with the column meanings and individual records.")
@@ -125,23 +152,6 @@ def _metadata(context: DescriptionContext) -> dict[str, Any]:
         diagram_notice = (
             "This file has more than 80 visible fields. Ask for a map of selected fields."
         )
-    scenario_metrics = []
-    if context.state == "confirmed":
-        observed = {item["name"]: item for item in profile["columns"]}
-        rules = {item["column"]: item for item in (context.definition or {}).get("metrics", [])}
-        for column in (context.definition or {}).get("columns", []):
-            metric = column["name"]
-            aggregation = rules.get(metric, {}).get("aggregation", "avg")
-            if (
-                metric in context.view.metrics
-                and (column.get("unit") or column.get("currency"))
-                and not column.get("unit_column")
-                and not observed[metric]["missing"]
-                and not observed[metric]["type_conflicts"]
-                and profile["row_count"] > 0
-                and aggregation in {"avg", "sum"}
-            ):
-                scenario_metrics.append({"metric": metric, "aggregation": aggregation})
     return {
         "version": VERSION,
         "dataset_name": context.name,
@@ -163,9 +173,7 @@ def _metadata(context: DescriptionContext) -> dict[str, Any]:
         "patterns_evidence": None,
         "diagram": diagram,
         "diagram_notice": diagram_notice,
-        "scenario_metrics": sorted(
-            scenario_metrics, key=lambda item: exploration_rank(context, item["metric"])
-        )[:3],
+        "scenario_metrics": scenario_candidates(context)[:3],
         "limitations": limitations,
     }
 

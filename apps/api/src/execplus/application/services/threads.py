@@ -12,7 +12,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
-from execplus.application.conversation_context import ResultContext
+from execplus.application.conversation_context import ResultContext, capture_follow_ups
 from execplus.application.export_ports import PdfDescriptorProvider
 from execplus.application.memory_context import capture_memory
 from execplus.application.ports import WorkspaceRepository
@@ -316,6 +316,21 @@ class ThreadService:
                 return guide
             return DatasetGuide(turn.message or "", turn.model_route or "historical")
         return None
+
+    async def presentation_context(
+        self, actor: User, wid: UUID, tid: UUID, turn_id: UUID
+    ) -> tuple[str, tuple[str, ...]]:
+        _, turns = await self.get_thread(actor, wid, tid)
+        turn = next((item for item in turns if item.id == turn_id), None)
+        if turn is None:
+            raise IngestionError("not_found", "The conversation turn is unavailable.", 404)
+        saved = turn.evidence.get("follow_ups")
+        follow_ups = (
+            tuple(item for item in saved if isinstance(item, str) and 0 < len(item) <= 300)[:3]
+            if isinstance(saved, list)
+            else ()
+        )
+        return turn.question, follow_ups
 
     async def validated_narrative(
         self,
@@ -766,7 +781,7 @@ class ThreadService:
                         answers = ()
                     if answers:
                         prior_result = ResultContext(actor.id, wid, result_turn.id, answers)
-            with capture_memory() as memory_use:
+            with capture_memory() as memory_use, capture_follow_ups() as follow_ups:
                 answer = await asyncio.wait_for(
                     self._prepare_report(actor, wid, thread, prior_turns, turn.question)
                     if wants_pdf_export(turn.question)
@@ -900,6 +915,8 @@ class ThreadService:
                 )
                 if isinstance(data, VerifiedMetricAnswer):
                     evidence["label"] = data.label
+                if follow_ups.questions:
+                    evidence["follow_ups"] = follow_ups.questions
             if self.response_synthesis is not None:
                 remaining = max(0.001, 100 - (asyncio.get_running_loop().time() - started))
                 try:

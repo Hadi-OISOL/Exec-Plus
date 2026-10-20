@@ -76,7 +76,8 @@ def test_known_linear_coefficient_preserves_exact_large_observations(direction):
     finding = next(item for item in result["findings"] if item["type"] == "numeric_relationship")
     assert Decimal(finding["statistics"]["pearson"]) == direction
     assert Decimal(finding["statistics"]["spearman"]) == direction
-    assert finding["chart"]["points"][1]["x"] == str(base + 1)
+    axis = "x" if finding["chart"]["x"] == "reading" else "y"
+    assert finding["chart"]["points"][1][axis] == str(base + 1)
     assert finding["support"] == 20
 
 
@@ -171,7 +172,7 @@ def test_partial_field_units_still_allow_confirmed_farm_comparisons():
         },
     )
     request, result = analyze(context, table)
-    assert request["metrics"] == ["Temperature_C", "Rainfall_mm", "Sunlight_Hours"]
+    assert request["metrics"] == ["Rainfall_mm", "Sunlight_Hours", "Temperature_C"]
     assert result["findings"]
     assert any(item["column"] == "Soil_Moisture" for item in result["exclusions"])
     assert all("Soil_Moisture" not in item["columns"] for item in result["findings"])

@@ -30,6 +30,7 @@ from execplus.domain.understanding import (
     apply_definition,
     infer_definition,
     questions,
+    unit_suggestions,
     validate_definition,
 )
 
@@ -195,6 +196,7 @@ class UnderstandingService:
                     if dataset_id in {path.left_dataset_id, path.right_dataset_id}
                 ],
                 questions=questions(definition, revision.profile),
+                unit_suggestions=unit_suggestions(definition),
                 can_edit=not access.restricted
                 and (member.role in {"owner", "admin"} or dataset.created_by == actor.id),
                 preference=asdict(preference)

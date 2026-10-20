@@ -39,7 +39,10 @@ async def resolved_answer_body(
 ) -> dict[str, object] | None:
     if answer is None:
         return None
-    body = numerical_answer_body(answer)
+    question, follow_ups = await service.presentation_context(
+        actor, workspace_id, thread_id, turn_id
+    )
+    body = numerical_answer_body(answer, question, follow_ups)
     narrative = await service.validated_narrative(
         actor,
         workspace_id,

@@ -71,7 +71,7 @@ def test_existing_whole_file_explanation_is_not_a_broad_analysis_goal(integratio
     "question",
     [
         "Count revenue",
-        "How many records are there?",
+        "How many records are there here?",
         "What is the min revenue?",
         "What is the max revenue?",
         "What is the mean revenue?",

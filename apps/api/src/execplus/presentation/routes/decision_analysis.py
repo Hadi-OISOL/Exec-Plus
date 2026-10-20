@@ -302,6 +302,13 @@ async def options(
     return await analyses.options(actor, workspace_id, dataset_id, upload_id)
 
 
+@router.post(SOURCE + "/unusual-values")
+async def unusual_values(
+    workspace_id: UUID, dataset_id: UUID, upload_id: UUID, actor: Actor, analyses: Service
+) -> object:
+    return await analyses.unusual_values(actor, workspace_id, dataset_id, upload_id)
+
+
 @router.post(SOURCE + "/anomalies", status_code=201)
 async def anomalies(
     workspace_id: UUID,

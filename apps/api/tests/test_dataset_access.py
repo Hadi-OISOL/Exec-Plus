@@ -396,7 +396,7 @@ def test_durable_rows_enforces_scope_and_distinguishes_disabled_planning(
     submitted = env.client.post(
         thread_path + "/jobs",
         headers=headers,
-        json={"question": "Show the first 10 records", "request_id": str(uuid4())},
+        json={"question": "List some of the records", "request_id": str(uuid4())},
     )
     assert submitted.status_code == 202, submitted.text
     assert asyncio.run(env.runtime.jobs.process()) == {"processed": 1}
@@ -407,8 +407,9 @@ def test_durable_rows_enforces_scope_and_distinguishes_disabled_planning(
     result = response.json()
     events = env.client.get(path + "/events", headers=headers).json()["events"]
     if not model_available:
-        assert status["status"] == "failed" and status["failure_code"] == "execution_failed"
-        assert result["answer"] is None and result["turn"]["status"] == "failed"
+        assert status["status"] == "succeeded", status
+        assert result["answer"] is None and result["turn"]["kind"] == "ambiguous"
+        assert "language model, which is turned off" in result["turn"]["message"]
         assert not any(event["stage"] == "executing_query" for event in events)
         with env.engine.connect() as connection:
             assert connection.execute(select(s.query_executions.c.id)).all() == []

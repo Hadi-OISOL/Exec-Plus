@@ -20,6 +20,7 @@ class QuestionKind(str, Enum):
     OVERVIEW = "overview"
     DIAGRAM = "diagram"
     COHORT_COMPARISON = "cohort_comparison"
+    PATTERNS = "patterns"
     TEXTUAL = "textual"
     MIXED = "mixed"
     AMBIGUOUS = "ambiguous"

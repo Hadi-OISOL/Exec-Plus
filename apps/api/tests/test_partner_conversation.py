@@ -153,7 +153,7 @@ def test_gratitude_keeps_executed_context_for_later_breakdown(integration):
     owner, wid, root = prepare(env, model)
     tid = env.client.post(root + "/threads", headers=owner).json()["id"]
     path = f"/workspaces/{wid}/threads/{tid}"
-    first = ask(env, owner, path, "What is the total revenue?")
+    first = ask(env, owner, path, "What's the total revenue?")
     assert first["answer"]["value"] == "8.050000000000"
     thanks = ask(env, owner, path, "thank you")
     assert thanks["answer"]["message"].startswith("You're welcome")
@@ -167,7 +167,7 @@ def test_help_suggests_queries_that_need_no_manual_definition_confirmation(integ
     env = integration
     owner, _, _, path, model = setup(env)
     answer = ask(env, owner, path, "what should i ask")
-    assert "What is the total of attock_erp?" in answer["answer"]["guidance"]["suggestions"]
+    assert "What is the average of attock_erp_value?" in answer["answer"]["guidance"]["suggestions"]
     assert not model.requests
 
 

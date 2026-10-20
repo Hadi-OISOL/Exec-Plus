@@ -14,12 +14,14 @@ from typing import Any
 from execplus.domain.guidance import GUIDANCE_FOCUSES, mentioned_columns, words
 from execplus.domain.models import QuestionKind
 from execplus.domain.semantics import (
+    RECORD_COUNT,
     AggregationKind,
     DatasetView,
     FilterOperator,
     MetricFilter,
     MetricRequest,
     RowExtremum,
+    RowOrder,
     RowRequest,
     supports_metric,
 )
@@ -76,11 +78,25 @@ def _parse_filters(raw: Any, view: DatasetView) -> tuple[MetricFilter, ...] | No
 
 def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent:
     plan = payload.get("plan")
-    if not isinstance(plan, dict) or set(plan) - {"metric", "aggregation", "group_by", "filters"}:
+    if not isinstance(plan, dict) or set(plan) - {
+        "metric",
+        "aggregation",
+        "group_by",
+        "filters",
+        "order",
+        "limit",
+    }:
         return _unsupported("The model did not propose a usable query plan.")
     metric = plan.get("metric")
     aggregation = plan.get("aggregation")
     group_by = plan.get("group_by") or []
+    order, limit = plan.get("order"), plan.get("limit")
+    if (order is not None or limit is not None) and (
+        order not in ("asc", "desc")
+        or not group_by
+        or (limit is not None and (type(limit) is not int or not 1 <= limit <= 1000))
+    ):
+        return _unsupported("Rank groups with order asc or desc and an optional limit of 1-1000.")
     if (
         not isinstance(metric, str)
         or not isinstance(aggregation, str)
@@ -102,6 +118,8 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
         aggregation=AggregationKind(aggregation),
         group_by=tuple(group_by),
         filters=filters,
+        order=order,
+        limit=limit,
     )
     return RoutedIntent(QuestionKind.NUMERICAL, request=request)
 
@@ -202,6 +220,22 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
         return RoutedIntent(
             kind, guide_columns=tuple(columns), target_column=target, target_value=value
         )
+    if kind == QuestionKind.PATTERNS:
+        columns = payload.get("columns", [])
+        if (
+            set(payload) - {"kind", "columns"}
+            or not isinstance(columns, list)
+            or len(columns) > 12
+            or len(set(map(str, columns))) != len(columns)
+            or not all(
+                isinstance(name, str)
+                and (column := view.column(name)) is not None
+                and "identifier" not in column.tags
+                for name in columns
+            )
+        ):
+            return _unsupported("Choose up to twelve existing fields to scan for patterns.")
+        return RoutedIntent(kind, guide_columns=tuple(columns))
     if kind == QuestionKind.MIXED:
         if set(payload) != {"kind", "data", "document_query"}:
             return _unsupported("A combined request needs one data step and one document question.")
@@ -221,7 +255,13 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
         return RoutedIntent(kind, document_query=query.strip(), data_intent=step)
     if kind == QuestionKind.ROWS:
         plan = payload.get("plan")
-        if not isinstance(plan, dict) or set(plan) - {"columns", "filters", "limit", "extremum"}:
+        if not isinstance(plan, dict) or set(plan) - {
+            "columns",
+            "filters",
+            "limit",
+            "extremum",
+            "order_by",
+        }:
             return _unsupported("The model did not propose a usable record query.")
         columns = plan.get("columns", [])
         filters = _parse_filters(plan.get("filters", []), view)
@@ -240,6 +280,19 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
                     "Choose a visible numeric field for the highest or lowest records."
                 )
             extremum = RowExtremum(raw_extremum["column"], raw_extremum["direction"])
+        raw_order = plan.get("order_by")
+        order_by = None
+        if raw_order is not None:
+            if (
+                extremum is not None
+                or not isinstance(raw_order, dict)
+                or set(raw_order) != {"column", "direction"}
+                or not isinstance(raw_order["column"], str)
+                or raw_order["column"] not in view.metrics
+                or raw_order["direction"] not in ("asc", "desc")
+            ):
+                return _unsupported("Order records by one visible numeric field, asc or desc.")
+            order_by = RowOrder(raw_order["column"], raw_order["direction"])
         if (
             not isinstance(columns, list)
             or not all(isinstance(name, str) and view.column(name) for name in columns)
@@ -249,7 +302,9 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
             or not 1 <= limit <= 1000
         ):
             return _unsupported("The model proposed invalid record fields, filters or limit.")
-        return RoutedIntent(kind, rows=RowRequest(filters, tuple(columns), extremum), limit=limit)
+        return RoutedIntent(
+            kind, rows=RowRequest(filters, tuple(columns), extremum, order_by), limit=limit
+        )
     if kind == QuestionKind.DIAGRAM:
         columns = payload.get("columns", [])
         if (
@@ -458,3 +513,76 @@ def cohort_scope_needs_clarification(
         or re.search(r"\b(?:at least|at most|compared to)\b", normalized)
         or re.search(r"[<>]=?|!=", question)
     )
+
+
+_OPERATIONS = {
+    "total": "sum",
+    "average": "avg",
+    "minimum": "min",
+    "maximum": "max",
+    "count": "count",
+}
+
+
+def canonical_question(question: str, view: DatasetView) -> RoutedIntent | None:
+    """Plan the exact question templates this application offers, without a model."""
+    names = sorted((column.name for column in view.columns), key=len, reverse=True)
+    if not names:
+        return None
+    field = "(" + "|".join(re.escape(name) for name in names) + ")"
+    operation = "(total|average|minimum|maximum|count)"
+    exact = {name.casefold(): name for name in names}
+    text = question.strip()
+
+    def match(pattern: str) -> tuple[str, ...] | None:
+        found = re.fullmatch(pattern + r"\s*[?.]?", text, re.IGNORECASE)
+        return found.groups() if found else None
+
+    def name(value: str) -> str:
+        return exact[value.casefold()]
+
+    def plan(kind: str, body: dict[str, Any]) -> RoutedIntent:
+        return route_response(json.dumps({"kind": kind, **body}), view)
+
+    def metric(op: str, measure: str, group: str | None, order: str | None = None) -> RoutedIntent:
+        body: dict[str, Any] = {
+            "metric": name(measure),
+            "aggregation": _OPERATIONS[op.casefold()],
+            "group_by": [name(group)] if group else [],
+        }
+        if order:
+            body["order"] = order
+        return plan("numerical", {"plan": body})
+
+    if found := match(rf"(?:what is|show) the {operation} of {field}(?: by {field})?"):
+        return metric(*found)
+    if found := match(rf"(?:what is the|show|compare) {operation} {field}(?: by {field})?"):
+        return metric(*found)
+    if found := match(rf"which {field} has the highest {operation} {field}"):
+        return metric(found[1], found[2], found[0], "desc")
+    if found := match(rf"which {field} has the most records"):
+        return plan(
+            "numerical",
+            {
+                "plan": {
+                    "metric": RECORD_COUNT,
+                    "aggregation": "count",
+                    "group_by": [name(found[0])],
+                    "order": "desc",
+                }
+            },
+        )
+    if found := match(rf"how many records are there(?: by {field})?"):
+        group = [name(found[0])] if found[0] else []
+        return plan(
+            "numerical",
+            {"plan": {"metric": RECORD_COUNT, "aggregation": "count", "group_by": group}},
+        )
+    if found := match(rf"show (?:all )?records where {field} equals (.{{1,200}}?)"):
+        filters = [{"column": name(found[0]), "operator": "eq", "value": found[1]}]
+        return plan("rows", {"plan": {"columns": [], "filters": filters, "limit": 100}})
+    if match(r"show the first 10 records") is not None:
+        return plan("rows", {"plan": {"columns": [], "filters": [], "limit": 10}})
+    if found := match(rf"does {field} relate to {field}"):
+        return plan("patterns", {"columns": [name(found[0]), name(found[1])]})
+    return None

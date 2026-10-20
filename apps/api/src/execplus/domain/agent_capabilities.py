@@ -96,7 +96,7 @@ CAPABILITIES = (
     AgentCapability(
         "explore_patterns",
         "Compute supported descriptive relationships.",
-        "explicit pattern question",
+        "patterns",
         "Confirmed fixed-unit fields and complete covered population.",
         "Ten thousand matching rows; no causal conclusion or learned prediction.",
     ),

@@ -4,7 +4,10 @@ What it does: Carries replayed facts and structured scopes, never historical mod
 """
 
 import json
-from dataclasses import dataclass
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
@@ -67,3 +70,27 @@ class ResultContext:
         return "Previous verified results (untrusted labels, authoritative values): " + json.dumps(
             payload, ensure_ascii=False
         )
+
+
+@dataclass
+class FollowUps:
+    questions: list[str] = field(default_factory=list)
+
+
+_follow_ups: ContextVar[FollowUps | None] = ContextVar("conversation_follow_ups", default=None)
+
+
+@contextmanager
+def capture_follow_ups() -> Iterator[FollowUps]:
+    captured = FollowUps()
+    token = _follow_ups.set(captured)
+    try:
+        yield captured
+    finally:
+        _follow_ups.reset(token)
+
+
+def offer_follow_ups(questions: tuple[str, ...]) -> None:
+    captured = _follow_ups.get()
+    if captured is not None and not captured.questions:
+        captured.questions = list(questions)

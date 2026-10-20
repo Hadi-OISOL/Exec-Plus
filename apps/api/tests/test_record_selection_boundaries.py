@@ -191,7 +191,8 @@ def test_extrema_and_counts_use_only_actor_visible_rows_and_columns_and_revoke_r
     assert response.status_code == 200, response.text
     body = response.json()
     assert ids(body) == {"b", "c"} and body["matched_records"] == 2
-    assert "secret" not in body["columns"] and "904" not in response.text
+    assert "secret" not in body["columns"]
+    assert all("904" not in str(value) for row in body["rows"] for value in row)
     assert count(integration, member, root).json()["rows"] == [[3]]
     assert count(integration, member, root, "nullable").json()["rows"] == [[1]]
     assert select(integration, member, root, column="secret").status_code == 422

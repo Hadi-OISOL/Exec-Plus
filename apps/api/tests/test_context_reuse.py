@@ -201,6 +201,6 @@ def test_named_measure_without_unit_does_not_fall_back_to_another_measure(integr
     definition["columns"][-1]["unit"] = ""
     assert confirm(env, owner, root, current, definition).status_code == 201
     result = ask(env, owner, path, "Find anomalies in attock_erp_value")["answer"]
-    assert "fixed unit for attock_erp_value" in result["message"]
-    assert result["guidance"]["actions"][0]["tool"] == "prepare"
+    action = result["guidance"]["actions"][0]
+    assert action["tool"] == "anomalies" and action["metric"] == "attock_erp_value"
     assert not model.requests

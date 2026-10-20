@@ -5,16 +5,18 @@ results alongside their calculation lineage.
 """
 
 import asyncio
+from collections.abc import Coroutine
 from dataclasses import asdict
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal, TypeVar
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field
 
-from execplus.application.conversation import EvidenceAnswer
+from execplus.application.conversation import EvidenceAnswer, NumericalAnswer
+from execplus.application.conversation_context import capture_follow_ups
 from execplus.application.services.analytics import (
     AnalyticsService,
     DashboardBreakdown,
@@ -22,6 +24,7 @@ from execplus.application.services.analytics import (
 )
 from execplus.application.services.data_diagrams import DiagramAnswer
 from execplus.application.services.discovery import discover
+from execplus.application.services.insights import build_insights
 from execplus.application.services.intent_router import (
     ConversationAnswer,
     DatasetGuide,
@@ -30,6 +33,7 @@ from execplus.application.services.intent_router import (
 )
 from execplus.application.services.summaries import SummaryService
 from execplus.application.usage_context import usage_scope
+from execplus.domain.answer_presentation import recommended_chart, share_of_total
 from execplus.domain.kpi_library import KpiMatch
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
 from execplus.domain.pdf_exports import ReportAnswer
@@ -46,6 +50,7 @@ from execplus.presentation.routes.workspaces import Actor
 
 _MAX_DRILL_DOWN_ROWS = 1000
 _DISCONNECT_POLL_SECONDS = 0.1
+T = TypeVar("T")
 
 router = APIRouter(tags=["analytics"])
 
@@ -174,8 +179,23 @@ def answer_body(answer: VerifiedMetricAnswer) -> dict[str, object]:
     }
 
 
+def _presentation(
+    question: str, answer: NumericalAnswer, follow_ups: tuple[str, ...]
+) -> dict[str, object]:
+    if isinstance(answer, VerifiedMetricAnswer):
+        return {"chart": {"type": "kpi"}, "share_of_total": [], "follow_ups": list(follow_ups)}
+    result, lineage = answer
+    return {
+        "chart": recommended_chart(question, lineage, result.columns, result.rows),
+        "share_of_total": share_of_total(lineage, result.rows),
+        "follow_ups": list(follow_ups),
+    }
+
+
 def numerical_answer_body(
     answer: ConversationAnswer,
+    question: str = "",
+    follow_ups: tuple[str, ...] = (),
 ) -> dict[str, object]:
     if isinstance(answer, ReportAnswer):
         return {
@@ -212,8 +232,12 @@ def numerical_answer_body(
     if isinstance(answer, EvidenceAnswer):
         return {
             "kind": answer.kind,
-            "data": numerical_answer_body(answer.data) if answer.data else None,
-            "additional_data": [numerical_answer_body(item) for item in answer.additional_data],
+            "data": numerical_answer_body(answer.data, question, follow_ups)
+            if answer.data
+            else None,
+            "additional_data": [
+                numerical_answer_body(item, question) for item in answer.additional_data
+            ],
             "citations": answer.citations,
             "coverage": answer.coverage,
             "limitations": answer.limitations,
@@ -239,10 +263,8 @@ def numerical_answer_body(
             },
             "sources": answer.sources,
         }
-    if isinstance(answer, VerifiedMetricAnswer):
-        return answer_body(answer)
-    result, lineage = answer
-    return query_body(result, lineage)
+    body = answer_body(answer) if isinstance(answer, VerifiedMetricAnswer) else query_body(*answer)
+    return {**body, "presentation": _presentation(question, answer, follow_ups)}
 
 
 @router.post("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/query")
@@ -267,6 +289,26 @@ async def _wait_for_disconnect(request: Request, finished: asyncio.Event) -> Non
         await asyncio.sleep(_DISCONNECT_POLL_SECONDS)
 
 
+async def _unless_disconnected(request: Request, work: Coroutine[Any, Any, T]) -> T | Response:
+    finished = asyncio.Event()
+    computation = asyncio.create_task(work)
+    disconnected = asyncio.create_task(_wait_for_disconnect(request, finished))
+    try:
+        completed, _ = await asyncio.wait(
+            (computation, disconnected), return_when=asyncio.FIRST_COMPLETED
+        )
+        if computation in completed:
+            return await computation
+        await disconnected
+        return Response(status_code=499)
+    finally:
+        finished.set()
+        for task in (computation, disconnected):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(computation, disconnected, return_exceptions=True)
+
+
 @router.get("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/discovery")
 async def discovery(
     workspace_id: UUID,
@@ -278,8 +320,8 @@ async def discovery(
 ) -> object:
     if await request.is_disconnected():
         return Response(status_code=499)
-    finished = asyncio.Event()
-    computation = asyncio.create_task(
+    brief = await _unless_disconnected(
+        request,
         discover(
             service,
             actor,
@@ -287,24 +329,10 @@ async def discovery(
             dataset_id,
             upload_id,
             patterns=request.app.state.runtime.intent_router.patterns,
-        )
+        ),
     )
-    disconnected = asyncio.create_task(_wait_for_disconnect(request, finished))
-    try:
-        completed, _ = await asyncio.wait(
-            (computation, disconnected), return_when=asyncio.FIRST_COMPLETED
-        )
-        if computation in completed:
-            brief = await computation
-        else:
-            await disconnected
-            return Response(status_code=499)
-    finally:
-        finished.set()
-        for task in (computation, disconnected):
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(computation, disconnected, return_exceptions=True)
+    if isinstance(brief, Response):
+        return brief
     return {
         **brief.metadata,
         "findings": [
@@ -321,6 +349,32 @@ async def discovery(
             for finding in brief.findings
         ],
     }
+
+
+@router.get("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/analyst-overview")
+async def analyst_overview(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    actor: Actor,
+    service: Service,
+    request: Request,
+) -> object:
+    if await request.is_disconnected():
+        return Response(status_code=499)
+    router_service = request.app.state.runtime.intent_router
+    return await _unless_disconnected(
+        request,
+        build_insights(
+            service,
+            actor,
+            workspace_id,
+            dataset_id,
+            upload_id,
+            statistics=router_service.patterns.statistics,
+            model=router_service.model,
+        ),
+    )
 
 
 @router.post("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/dashboard")
@@ -433,8 +487,9 @@ async def ask(
     actor: Actor,
     intent_router: IntentRouter,
 ) -> object:
-    answer = await intent_router.ask(actor, workspace_id, dataset_id, upload_id, body.question)
-    return numerical_answer_body(answer)
+    with capture_follow_ups() as follow_ups:
+        answer = await intent_router.ask(actor, workspace_id, dataset_id, upload_id, body.question)
+    return numerical_answer_body(answer, body.question, tuple(follow_ups.questions))
 
 
 @router.post(

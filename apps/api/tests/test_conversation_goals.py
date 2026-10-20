@@ -25,7 +25,7 @@ def test_broad_goals_require_a_specific_next_step(question):
     assert not needs_goal_clarification("What is the total attock_erp?")
     assert not needs_goal_clarification("??", ("attock_erp",))
     choices = goal_choices(description())
-    assert "What is the total of attock_erp?" in choices
+    assert "What is the average of attock_erp_value?" in choices
     assert "Show the first 10 records" in choices
     assert not any("item_code" in choice and "total" in choice for choice in choices)
 
@@ -41,7 +41,7 @@ def test_goal_reply_preserves_original_context(
     first = ask(env, owner, path, "analyze my data")
     assert first["turn"]["kind"] == "ambiguous" and first["answer"] is None
     choices = first["turn"]["clarification"]["choices"]
-    assert "What is the total of attock_erp?" in choices
+    assert "What is the average of attock_erp_value?" in choices
     assert "What would you like to find" in first["turn"]["message"]
     assert not model.requests
     with env.engine.connect() as connection:
@@ -51,7 +51,7 @@ def test_goal_reply_preserves_original_context(
         repeat["turn"]["kind"] == "ambiguous"
         and repeat["turn"]["clarification"] == first["turn"]["clarification"]
     )
-    answer = ask(env, owner, path, "What is the total of attock_erp?")
+    answer = ask(env, owner, path, "What's the total of attock_erp?")
     assert answer["answer"]["value"] == 5
     planner = model.requests[-1].messages[-1].content
     assert '"original_question": "analyze my data"' in planner
@@ -65,7 +65,7 @@ def test_goal_reply_preserves_original_context(
 def test_misrouted_calculation_clarifies_without_querying(integration, columns):
     model = ScriptedModel({"kind": "overview", "columns": columns})
     owner, _, _, path, _ = setup(integration, model)
-    result = ask(integration, owner, path, "What is the total attock_erp?")
+    result = ask(integration, owner, path, "What's the total attock_erp?")
     assert result["turn"]["kind"] == "ambiguous" and result["answer"] is None
     assert result["turn"]["clarification"]["choices"] == ["attock_erp"]
     assert "including any filters" in result["turn"]["message"]

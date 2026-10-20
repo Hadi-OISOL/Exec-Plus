@@ -4,9 +4,9 @@ What it does: Allows deterministic development paths to run without an LLM depen
 """
 
 from execplus.application.contracts import ModelRequest, ModelResponse
-from execplus.domain.errors import ProviderUnavailableError
+from execplus.domain.errors import ModelDisabledError
 
 
 class DisabledLanguageModel:
     async def complete(self, request: ModelRequest) -> ModelResponse:
-        raise ProviderUnavailableError("Language-model features are disabled")
+        raise ModelDisabledError("Language-model features are disabled")

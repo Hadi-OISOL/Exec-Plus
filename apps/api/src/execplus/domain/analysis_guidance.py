@@ -72,12 +72,19 @@ def analysis_guidance(
             "Choose the measure, daily or monthly periods and horizon, then confirm which periods "
             "are complete. The forecast tool will check the history and calculate the estimate."
         )
-    elif re.search(r"\b(anomalies|anomaly|outliers?)\b|unusual values", text):
-        tool, label = "anomalies", "Inspect unusual values"
-        message = (
-            "Use your saved measure meanings to inspect unusual values, optionally "
-            "within groups. Choose a measure and review the threshold; findings are "
-            "not proof of an error."
+    elif re.search(
+        r"\b(anomalies|anomaly|anomalous|outliers?)\b"
+        r"|\b(unusual|weird|odd|strange|abnormal|suspicious) (values?|rows?|entries)\b",
+        text,
+    ):
+        scan = dict(tool="anomalies", label="Scan for unusual values")
+        if len(named) == 1:
+            scan["metric"] = named[0]
+        return (
+            "I can scan every eligible measure for unusual values automatically, without any "
+            "settings. Open the scan to see flagged rows and the values closest to unusual. "
+            "A flagged value is a candidate to check, not proof of an error.",
+            (scan,),
         )
     elif re.search(r"\b(scenarios?|what if)\b", text) or (
         daily and re.search(r"\b(happen|happens|change|changes|after|over)\b", text)

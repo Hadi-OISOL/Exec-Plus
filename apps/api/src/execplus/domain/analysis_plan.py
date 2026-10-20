@@ -197,6 +197,29 @@ class AnalysisPlan:
                 if kind == "numerical"
                 else {"columns", "filters", "limit"}
             )
+            if kind == "numerical":
+                keys = keys | ({"order", "limit"} & set(plan))
+                if "order" in plan and (
+                    plan["order"] not in ("asc", "desc")
+                    or (
+                        "limit" in plan
+                        and (type(plan["limit"]) is not int or not 1 <= plan["limit"] <= 1000)
+                    )
+                ):
+                    self._invalid()
+                if "limit" in plan and "order" not in plan:
+                    self._invalid()
+            if kind == "rows" and "order_by" in plan:
+                keys = keys | {"order_by"}
+                order_by = plan["order_by"]
+                if (
+                    not isinstance(order_by, dict)
+                    or set(order_by) != {"column", "direction"}
+                    or not isinstance(order_by["column"], str)
+                    or not 1 <= len(order_by["column"]) <= 200
+                    or order_by["direction"] not in ("asc", "desc")
+                ):
+                    self._invalid()
             if kind == "rows" and "extremum" in plan:
                 keys = keys | {"extremum"}
                 extremum = plan["extremum"]
@@ -292,10 +315,16 @@ def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...])
             parameters = asdict(data.request)
         elif data.kind == QuestionKind.ROWS and data.rows is not None:
             parameters = {**asdict(data.rows), "limit": data.limit}
-            if data.rows.extremum is None:
-                parameters.pop("extremum")
         else:
             raise IngestionError("invalid_analysis_plan", "The data step is invalid.", 422)
+        optional = (
+            ("extremum", "order_by") if data.kind == QuestionKind.ROWS else ("order", "limit")
+        )
+        parameters = {
+            key: value
+            for key, value in parameters.items()
+            if key not in optional or value is not None
+        }
         steps.append(
             AnalysisStep(
                 "data",
