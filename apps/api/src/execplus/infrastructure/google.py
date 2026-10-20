@@ -5,6 +5,7 @@ What it does: Builds consent URLs, exchanges tokens and reads a chosen sheet wit
 
 import base64
 import json
+from decimal import Decimal
 from typing import Any
 from urllib.parse import quote, urlencode
 
@@ -16,6 +17,8 @@ from execplus.application.google_ports import (
     SpreadsheetInfo,
     TokenSet,
 )
+from execplus.domain.ingestion import IngestionError
+from execplus.infrastructure.bounded_http import limited_request
 
 
 def _error_code(response: httpx.Response) -> str:
@@ -78,7 +81,9 @@ class HttpGoogleGateway:
 
     def _token_request(self, data: dict[str, str]) -> TokenSet:
         try:
-            response = self.client.post(
+            response = limited_request(
+                self.client,
+                "POST",
                 self.token_url,
                 data={**data, "client_id": self.client_id, "client_secret": self.client_secret},
             )
@@ -113,8 +118,8 @@ class HttpGoogleGateway:
 
     def revoke(self, token: str) -> None:
         try:
-            self.client.post(self.revoke_url, data={"token": token})
-        except httpx.HTTPError:
+            limited_request(self.client, "POST", self.revoke_url, data={"token": token})
+        except (httpx.HTTPError, IngestionError):
             return
 
     def id_token_claims(self, id_token: str) -> dict[str, Any]:
@@ -132,8 +137,12 @@ class HttpGoogleGateway:
 
     def _get(self, url: str, access_token: str, params: dict[str, str]) -> httpx.Response:
         try:
-            return self.client.get(
-                url, params=params, headers={"Authorization": f"Bearer {access_token}"}
+            return limited_request(
+                self.client,
+                "GET",
+                url,
+                params=params,
+                headers={"Authorization": f"Bearer {access_token}"},
             )
         except httpx.HTTPError:
             raise GoogleApiError(503) from None
@@ -175,25 +184,26 @@ class HttpGoogleGateway:
             f"/values/{quote(quoted, safe='')}"
         )
         try:
-            with self.client.stream(
+            response = limited_request(
+                self.client,
                 "GET",
                 url,
+                max_bytes=max_bytes,
                 params={
                     "majorDimension": "ROWS",
                     "valueRenderOption": "UNFORMATTED_VALUE",
                     "dateTimeRenderOption": "FORMATTED_STRING",
                 },
                 headers={"Authorization": f"Bearer {access_token}"},
-            ) as response:
-                if response.status_code != 200:
-                    response.read()
-                    raise GoogleApiError(response.status_code, _error_code(response))
-                body = bytearray()
-                for chunk in response.iter_bytes():
-                    body.extend(chunk)
-                    if len(body) > max_bytes:
-                        raise GoogleApiError(413, "too_large")
+            )
+        except IngestionError as error:
+            raise GoogleApiError(error.status, error.code) from None
         except httpx.HTTPError:
             raise GoogleApiError(503) from None
-        values = json.loads(bytes(body)).get("values", [])
+        if response.status_code != 200:
+            raise GoogleApiError(response.status_code, _error_code(response))
+        try:
+            values = response.json(parse_float=Decimal).get("values", [])
+        except (ValueError, RecursionError):
+            raise GoogleApiError(502) from None
         return values if isinstance(values, list) else []

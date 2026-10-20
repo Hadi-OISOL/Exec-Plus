@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 from uuid import UUID
 
+from execplus.domain.agent_capabilities import CAPABILITY_POLICIES
 from execplus.domain.dataset_access import ACCESS_KEYS
 from execplus.domain.guidance import GUIDANCE_FOCUSES
 from execplus.domain.ingestion import IngestionError
@@ -36,14 +37,8 @@ class AnalysisPlan:
 
     def __post_init__(self) -> None:
         policies = {
-            "export_report": ("report_link", "authorized_saved_answer"),
-            "map_dataset_structure": ("diagram", "source_checksum"),
-            "explore_patterns": ("patterns", "analysis_receipt"),
-            "compare_group_relationship": ("patterns", "analysis_receipt"),
-            "inspect_profile": ("profile", "source_checksum"),
-            "query": ("query_result", "execution_receipt"),
-            "retrieve_documents": ("citations", "authorized_citation_checksum"),
-            "assemble_evidence": ("answer", "authorized_evidence"),
+            operation: (policy.output_kind, policy.verification)
+            for operation, policy in CAPABILITY_POLICIES.items()
         }
         seen: set[str] = set()
         required = {"dataset_id", "upload_id", "revision_id", "source_checksum", "output_checksum"}
@@ -102,6 +97,7 @@ class AnalysisPlan:
                 "map_dataset_structure": {"columns"},
                 "explore_patterns": {"columns"},
                 "compare_group_relationship": {"columns", "group_by"},
+                "compare_cohort": {"columns", "target_column", "target_value"},
                 "inspect_profile": {"columns", "focus"},
                 "query": {"kind", "plan"},
                 "retrieve_documents": {"query"},
@@ -113,7 +109,8 @@ class AnalysisPlan:
             seen.add(step.id)
         if (
             sum(
-                s.operation in {"query", "explore_patterns", "compare_group_relationship"}
+                s.operation
+                in {"query", "explore_patterns", "compare_group_relationship", "compare_cohort"}
                 for s in self.steps
             )
             > self.budget.max_queries
@@ -146,7 +143,7 @@ class AnalysisPlan:
                 or len(set(columns)) != len(columns)
             ):
                 self._invalid()
-        elif step.operation in {"explore_patterns", "compare_group_relationship"}:
+        elif step.operation in {"explore_patterns", "compare_group_relationship", "compare_cohort"}:
             columns = values["columns"]
             if (
                 not isinstance(columns, list)
@@ -160,6 +157,15 @@ class AnalysisPlan:
                 or not isinstance(values["group_by"], str)
                 or not 0 < len(values["group_by"]) <= 200
                 or values["group_by"] in columns
+            ):
+                self._invalid()
+            if step.operation == "compare_cohort" and (
+                not isinstance(values["target_column"], str)
+                or not 0 < len(values["target_column"]) <= 200
+                or not isinstance(values["target_value"], str)
+                or not 0 < len(values["target_value"]) <= 200
+                or "\x00" in values["target_value"]
+                or values["target_column"] in columns
             ):
                 self._invalid()
         elif step.operation == "inspect_profile":
@@ -191,6 +197,17 @@ class AnalysisPlan:
                 if kind == "numerical"
                 else {"columns", "filters", "limit"}
             )
+            if kind == "rows" and "extremum" in plan:
+                keys = keys | {"extremum"}
+                extremum = plan["extremum"]
+                if (
+                    not isinstance(extremum, dict)
+                    or set(extremum) != {"column", "direction"}
+                    or not isinstance(extremum["column"], str)
+                    or not 1 <= len(extremum["column"]) <= 200
+                    or extremum["direction"] not in ("min", "max")
+                ):
+                    self._invalid()
             if set(plan) != keys:
                 self._invalid()
             filters = plan["filters"]
@@ -240,6 +257,34 @@ class AnalysisPlan:
 def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...]) -> AnalysisPlan:
     if intent.kind == QuestionKind.DIAGRAM:
         return diagram_conversation_plan(intent.guide_columns, sources)
+    if intent.data_steps:
+        compound_steps = tuple(
+            AnalysisStep(
+                f"data_{index}",
+                "query",
+                (),
+                conversation_plan(step, sources).steps[0].parameters,
+                "query_result",
+                "execution_receipt",
+            )
+            for index, step in enumerate(intent.data_steps, 1)
+        )
+        return AnalysisPlan(
+            "conversation-plan-v1",
+            sources,
+            (
+                *compound_steps,
+                AnalysisStep(
+                    "answer",
+                    "assemble_evidence",
+                    tuple(step.id for step in compound_steps),
+                    {},
+                    "answer",
+                    "authorized_evidence",
+                ),
+            ),
+            ResourceBudget(max_queries=2),
+        )
     steps: list[AnalysisStep] = []
     data = intent.data_intent if intent.kind == QuestionKind.MIXED else intent
     if data and data.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}:
@@ -247,6 +292,8 @@ def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...])
             parameters = asdict(data.request)
         elif data.kind == QuestionKind.ROWS and data.rows is not None:
             parameters = {**asdict(data.rows), "limit": data.limit}
+            if data.rows.extremum is None:
+                parameters.pop("extremum")
         else:
             raise IngestionError("invalid_analysis_plan", "The data step is invalid.", 422)
         steps.append(
@@ -361,6 +408,36 @@ def pattern_conversation_plan(
             ),
             AnalysisStep(
                 "answer", "assemble_evidence", ("patterns",), {}, "answer", "authorized_evidence"
+            ),
+        ),
+        ResourceBudget(),
+    )
+
+
+def cohort_conversation_plan(
+    target_column: str,
+    target_value: str,
+    columns: tuple[str, ...],
+    sources: tuple[dict[str, str], ...],
+) -> AnalysisPlan:
+    return AnalysisPlan(
+        "conversation-plan-v1",
+        sources,
+        (
+            AnalysisStep(
+                "comparison",
+                "compare_cohort",
+                (),
+                {
+                    "target_column": target_column,
+                    "target_value": target_value,
+                    "columns": list(columns),
+                },
+                "patterns",
+                "analysis_receipt",
+            ),
+            AnalysisStep(
+                "answer", "assemble_evidence", ("comparison",), {}, "answer", "authorized_evidence"
             ),
         ),
         ResourceBudget(),

@@ -10,6 +10,7 @@ from execplus.domain.errors import UnsafeQueryError
 
 _ALLOWED = {
     exp.Select,
+    exp.Subquery,
     exp.Column,
     exp.Identifier,
     exp.Table,
@@ -18,11 +19,13 @@ _ALLOWED = {
     exp.Sum,
     exp.Avg,
     exp.Count,
+    exp.Star,
     exp.Min,
     exp.Max,
     exp.Where,
     exp.And,
     exp.EQ,
+    exp.In,
     exp.Lower,
     exp.NEQ,
     exp.LT,
@@ -40,6 +43,44 @@ _ALLOWED = {
 }
 
 
+def _validate_extremum(query: exp.Select) -> None:
+    subqueries = list(query.find_all(exp.Subquery))
+    if not subqueries:
+        return
+    if len(subqueries) != 1 or query.args.get("joins") or query.args.get("group"):
+        raise UnsafeQueryError("Only one same-snapshot record extremum is supported")
+    nested = subqueries[0]
+    condition, inner = nested.parent, nested.this
+    source = query.args.get("from")
+    where = query.args.get("where")
+    if (
+        not isinstance(condition, exp.EQ)
+        or condition.expression is not nested
+        or not isinstance(condition.this, exp.Column)
+        or condition.this.table
+        or not isinstance(inner, exp.Select)
+        or len(inner.expressions) != 1
+        or not isinstance(inner.expressions[0], (exp.Min, exp.Max))
+        or not isinstance(source, exp.From)
+        or not isinstance(source.this, exp.Table)
+        or not isinstance(where, exp.Where)
+    ):
+        raise UnsafeQueryError("The extremum must select matching records from the same snapshot")
+    expression = where.this
+    filters = None
+    if expression is not condition:
+        if not isinstance(expression, exp.And) or expression.expression is not condition:
+            raise UnsafeQueryError("Keep the same filters inside and outside the extremum")
+        filters = expression.this.copy()
+    expected = exp.select(type(inner.expressions[0])(this=condition.this.copy())).from_(
+        source.this.copy()
+    )
+    if filters is not None:
+        expected = expected.where(filters)
+    if inner != expected:
+        raise UnsafeQueryError("The extremum must use the same field, table and filters")
+
+
 def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
     try:
         statements = parse(sql, read="duckdb")
@@ -50,6 +91,22 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
     query = statements[0]
     if any(type(node) not in _ALLOWED for node in query.walk()):
         raise UnsafeQueryError("The query contains an unsupported operation")
+    _validate_extremum(query)
+    if any(
+        not isinstance(node.parent, exp.Count)
+        or node.parent.this is not node
+        or any(value is not None for value in node.args.values())
+        for node in query.find_all(exp.Star)
+    ):
+        raise UnsafeQueryError("A wildcard is permitted only as the direct COUNT(*) argument")
+    if any(
+        not isinstance(node.this, exp.Column)
+        or len(node.expressions) != 2
+        or any(not isinstance(value, exp.Placeholder) for value in node.expressions)
+        or node.args.get("query") is not None
+        for node in query.find_all(exp.In)
+    ):
+        raise UnsafeQueryError("Cohort selection requires exactly two bound values on one field")
     if any(
         not isinstance(node.this, exp.Column)
         or not isinstance(node.args.get("unit"), exp.Placeholder)

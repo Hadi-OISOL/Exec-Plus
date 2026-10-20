@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- Use case: Demonstrates a private dashboard on a separate local host.
+What it does: Collects only a short-lived one-use embed secret and checks the frame handshake. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; frame-src http://localhost:* http://127.0.0.1:* http://[::1]:* https://localhost:* https://127.0.0.1:* https://[::1]:*; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <title>ExecPlus · Local private dashboard</title>
+  <link rel="stylesheet" href="host.css">
+  <script src="host.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><p class="eyebrow">EXECPLUS · LOCAL EXAMPLE</p><h1>Your private dashboard, here</h1><p>Open one saved dashboard on this local page. Its owner chooses the allowed host and can revoke access.</p></header>
+    <form id="open-view">
+      <label for="frame-url">ExecPlus frame address</label>
+      <input id="frame-url" type="url" required autocomplete="off" spellcheck="false" placeholder="http://localhost:3000/embed/…" aria-describedby="frame-help">
+      <p class="help" id="frame-help">Use a local /embed/ address with no query or fragment.</p>
+      <label for="bootstrap">One-use embed secret</label>
+      <input id="bootstrap" type="password" required autocomplete="off" spellcheck="false" minlength="47" maxlength="47" aria-describedby="secret-help">
+      <p class="help" id="secret-help">Use the epb_ secret created for this host. It expires after five minutes. Your account token and API keys do not belong here.</p>
+      <div class="actions"><button type="submit">Open private dashboard</button><button type="button" id="close-view" class="secondary">Clear view</button></div>
+    </form>
+    <p id="status" role="status" aria-live="polite">Nothing is saved in browser storage. The secret is cleared after the approved frame receives it.</p>
+    <section id="view" aria-label="Embedded dashboard" hidden></section>
+  </main>
+</body>
+</html>

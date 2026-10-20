@@ -37,6 +37,7 @@ def claims(**changes):
         nonce="n-1",
         email="Person@Example.test",
         email_verified=True,
+        sub="stable-subject",
         name="Person",
     )
     value.update(changes)
@@ -52,7 +53,10 @@ def test_pkce_challenge_is_the_sha256_of_the_verifier():
 
 def test_valid_identity_is_accepted_for_one_or_many_audiences():
     assert verified_identity(claims(), CLIENT, "n-1", NOW) == ("Person@Example.test", "Person")
-    assert verified_identity(claims(aud=["other", CLIENT]), CLIENT, "n-1", NOW)[1] == "Person"
+    assert (
+        verified_identity(claims(aud=["other", CLIENT], azp=CLIENT), CLIENT, "n-1", NOW)[1]
+        == "Person"
+    )
     assert verified_identity(claims(email_verified="true"), CLIENT, "n-1", NOW)
 
 
@@ -259,3 +263,13 @@ def test_oversized_sheet_responses_are_cut_off():
     with pytest.raises(GoogleApiError) as error:
         google.sheet_values("tok", "id1", "Data", 1_000)
     assert error.value.status == 413
+
+
+def test_sheet_json_amounts_keep_the_provider_decimal_digits():
+    google = gateway(
+        lambda request: httpx.Response(
+            200, content=b'{"values":[["amount"],[9007199254740993.123456789012]]}'
+        )
+    )
+    values = google.sheet_values("tok", "id1", "Data", 1_000)
+    assert sheet_to_csv(values) == b"amount\n9007199254740993.123456789012\n"

@@ -3,8 +3,10 @@
 What it does: Runs each platform's connect step, keeps secrets sealed and copies a chosen source.
 """
 
+import hashlib
 import json
 import logging
+import secrets
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import datetime, timezone
@@ -23,11 +25,13 @@ from execplus.application.connector_ports import (
     OAuthConnector,
 )
 from execplus.application.google_ports import TokenVault
+from execplus.application.oauth_ports import OAuthState
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.domain.connectors import connector_filename, records_to_csv, valid_provider
 from execplus.domain.google_oauth import new_pkce
 from execplus.domain.ingestion import AuditEvent, IngestionError, Upload, User
+from execplus.domain.profiling import Revision
 
 logger = logging.getLogger("execplus.connectors")
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
@@ -45,10 +49,12 @@ class ConnectorService:
         uploads: WorkspaceService,
         unit_of_work: UnitOfWork,
         *,
+        oauth: OAuthState,
         public_api_url: str,
         web_origin: str,
         max_rows: int,
     ) -> None:
+        self.oauth = oauth
         self.connectors = connectors
         self.vault = vault
         self.connections = connections
@@ -102,74 +108,99 @@ class ConnectorService:
     def redirect_uri(self, provider: str) -> str:
         return f"{self.api_url}/connectors/{provider}/callback"
 
-    def start_connect(self, actor: User, provider: str) -> str:
+    def start_connect(
+        self, actor: User, provider: str, browser: str, session_token: str, peer: str = ""
+    ) -> str:
         connector = self._oauth(provider)
         verifier, challenge = new_pkce(PKCE_SIZE) if connector.uses_pkce else ("", "")
-        state = self.vault.seal(
-            json.dumps(dict(p=connector.id, u=str(actor.id), v=verifier), separators=(",", ":"))
+        state = self.oauth.begin(
+            connector.id,
+            "connect",
+            browser,
+            self.vault.seal(json.dumps(dict(verifier=verifier))),
+            user_id=actor.id,
+            session_token=session_token,
+            peer=peer,
         )
         return connector.authorization_url(
             redirect_uri=self.redirect_uri(connector.id), state=state, challenge=challenge
         )
 
     def finish_connect(
-        self, provider: str, code: str, state: str, callback: dict[str, str]
-    ) -> None:
+        self,
+        provider: str,
+        code: str,
+        state: str,
+        callback: dict[str, str],
+        browser: str,
+        error: bool = False,
+    ) -> str:
         connector = self._oauth(provider)
-        expired = IngestionError(
-            "connector_state_invalid", "The connection expired. Please try again.", 400
-        )
+        attempt = self.oauth.claim(state, browser, connector.id, "connect")
         try:
-            payload = json.loads(self.vault.unseal(state, STATE_SECONDS))
-        except ValueError:
-            raise expired from None
-        if not isinstance(payload, dict) or payload.get("p") != connector.id:
-            raise expired
-        user_id = UUID(str(payload.get("u")))
-        try:
+            if error or not code:
+                raise IngestionError("connector_denied", "The connection was not completed.", 400)
+            payload = json.loads(self.vault.unseal(attempt.sealed_payload, STATE_SECONDS))
             tokens = connector.exchange_code(
-                code, self.redirect_uri(connector.id), str(payload.get("v", "")), callback
+                code, self.redirect_uri(connector.id), str(payload.get("verifier", "")), callback
             )
-        except ConnectorApiError as error:
-            raise self._failure(error) from None
-        if not tokens.refresh_token:
-            raise IngestionError(
-                "connector_no_refresh", "The platform did not return a lasting connection.", 409
-            )
-        display = connector.account_name(tokens.context)
-        self.connections.save(
-            ConnectorConnection(
-                user_id,
+            if not tokens.refresh_token:
+                raise IngestionError(
+                    "connector_no_refresh", "The platform did not return a lasting connection.", 409
+                )
+            assert attempt.user_id is not None
+            record = ConnectorConnection(
+                attempt.user_id,
                 connector.id,
-                display,
+                connector.account_name(tokens.context),
                 self.vault.seal(
                     json.dumps(dict(refresh_token=tokens.refresh_token, context=tokens.context))
                 ),
             )
-        )
-        logger.info("connector_connect provider=%s outcome=success user_id=%s", provider, user_id)
+            return self.oauth.complete_connection(attempt, record)
+        except ConnectorApiError as error:
+            return self.oauth.fail(attempt, self._failure(error).code)
+        except ValueError:
+            return self.oauth.fail(attempt, "oauth_state_invalid")
+        except IngestionError as failure:
+            return self.oauth.fail(attempt, failure.code)
 
-    def save_credentials(self, actor: User, provider: str, values: dict[str, str]) -> str:
+    def save_credentials(
+        self, actor: User, provider: str, values: dict[str, str], session_token: str, peer: str = ""
+    ) -> str:
         connector = self._credential(provider)
         known = {item.name for item in connector.fields}
+        secret_fields = {item.name for item in connector.fields if item.secret}
         credentials = {
-            key: value.strip()
+            key: value if key in secret_fields else value.strip()
             for key, value in values.items()
             if key in known and isinstance(value, str)
         }
         if any(not credentials.get(name) for name in known if name != "port"):
             raise IngestionError("connector_missing_field", "Fill in every field.", 422)
+        browser = secrets.token_urlsafe(32)
+        state = self.oauth.begin(
+            connector.id,
+            "connect",
+            browser,
+            "",
+            user_id=actor.id,
+            session_token=session_token,
+            peer=peer,
+        )
+        attempt = self.oauth.claim(state, browser, connector.id, "connect")
         try:
             display = connector.validate(credentials)
         except ConnectorApiError as error:
             raise self._failure(error) from None
-        self.connections.save(
+        self.oauth.complete_connection(
+            attempt,
             ConnectorConnection(
                 actor.id,
                 connector.id,
                 display,
                 self.vault.seal(json.dumps(dict(context=credentials))),
-            )
+            ),
         )
         logger.info("connector_connect provider=%s outcome=success user_id=%s", provider, actor.id)
         return display
@@ -177,15 +208,13 @@ class ConnectorService:
     def disconnect(self, actor: User, provider: str) -> None:
         connector = self._connector(provider)
         connection = self.connections.get(actor.id, connector.id)
-        if connection is None:
-            return
-        if connector.kind == "oauth":
+        self.connections.delete(actor.id, connector.id)
+        if connection is not None and connector.kind == "oauth":
             try:
                 stored = json.loads(self.vault.unseal(connection.sealed_credentials))
                 self._oauth(provider).revoke(str(stored.get("refresh_token", "")))
-            except ValueError:
+            except (ValueError, ConnectorApiError, IngestionError):
                 pass
-        self.connections.delete(actor.id, connector.id)
         logger.info("connector_disconnect provider=%s user_id=%s", provider, actor.id)
 
     @staticmethod
@@ -232,7 +261,9 @@ class ConnectorService:
             ),
         )
 
-    def _session(self, actor: User, provider: str) -> tuple[Connector, ConnectorSession, str]:
+    def _session(
+        self, actor: User, provider: str
+    ) -> tuple[Connector, ConnectorSession, ConnectorConnection]:
         connector = self._connector(provider)
         connection = self.connections.get(actor.id, connector.id)
         if connection is None:
@@ -242,31 +273,33 @@ class ConnectorService:
         try:
             stored = json.loads(self.vault.unseal(connection.sealed_credentials))
         except ValueError:
-            self.connections.delete(actor.id, connector.id)
+            self.connections.delete(actor.id, connector.id, expected_version=connection.version)
             raise self._reconnect(connector) from None
         context = {str(key): str(value) for key, value in stored.get("context", {}).items()}
         if connector.kind == "credentials":
-            return connector, ConnectorSession("", context), connection.display_name
+            return connector, ConnectorSession("", context), connection
         refresh_token = str(stored.get("refresh_token", ""))
         try:
             tokens = self._oauth(provider).refresh(refresh_token, context)
         except ConnectorApiError as error:
             if error.status in {400, 401}:
-                self.connections.delete(actor.id, connector.id)
+                self.connections.delete(actor.id, connector.id, expected_version=connection.version)
                 raise self._reconnect(connector) from None
             raise self._failure(error) from None
+        if not self.connections.current(connection):
+            raise self._reconnect(connector)
         if tokens.refresh_token and tokens.refresh_token != refresh_token:
-            self.connections.save(
-                ConnectorConnection(
-                    actor.id,
-                    connector.id,
-                    connection.display_name,
-                    self.vault.seal(
-                        json.dumps(dict(refresh_token=tokens.refresh_token, context=context))
-                    ),
-                )
+            updated = ConnectorConnection(
+                actor.id,
+                connector.id,
+                connection.display_name,
+                self.vault.seal(
+                    json.dumps(dict(refresh_token=tokens.refresh_token, context=context))
+                ),
             )
-        return connector, ConnectorSession(tokens.access_token, context), connection.display_name
+            self.connections.save(updated, expected_version=connection.version)
+            connection = updated
+        return connector, ConnectorSession(tokens.access_token, context), connection
 
     @staticmethod
     def _reconnect(connector: Connector) -> IngestionError:
@@ -289,9 +322,12 @@ class ConnectorService:
             connected=connection is not None, account=connection.display_name if connection else ""
         )
 
-    def browse(self, actor: User, provider: str, parent: str | None) -> list[dict[str, Any]]:
-        connector, session, _ = self._session(actor, provider)
+    def browse(
+        self, actor: User, provider: str, parent: str | None, session_token: str
+    ) -> list[dict[str, Any]]:
+        connector, session, connection = self._session(actor, provider)
         items = self._call(lambda: connector.sources(session, parent))
+        self.oauth.assert_connection(actor.id, session_token, connector.id, connection.version)
         return [dict(id=item.id, label=item.label, container=item.container) for item in items]
 
     def _label(self, connector: Connector, session: ConnectorSession, source_id: str) -> str:
@@ -301,23 +337,40 @@ class ConnectorService:
         return known.get(source_id, source_id)
 
     def import_source(
-        self, actor: User, workspace_id: UUID, dataset_id: UUID, provider: str, source_id: str
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        provider: str,
+        source_id: str,
+        session_token: str,
     ) -> Upload:
         self.uploads.get_dataset(actor, workspace_id, dataset_id)
-        connector, session, account = self._session(actor, provider)
-        records = self._call(lambda: connector.fetch(session, source_id, self.max_rows))
+        connector, session, connection = self._session(actor, provider)
+        records = self._call(lambda: connector.fetch(session, source_id, self.max_rows + 1))
+        if len(records) > self.max_rows:
+            raise IngestionError(
+                "source_too_large",
+                "That source exceeds the import row limit. Choose a smaller source.",
+                413,
+            )
         content = records_to_csv(records)
         filename = connector_filename(
-            connector.label, account, self._label(connector, session, source_id)
+            connector.label, connection.display_name, self._label(connector, session, source_id)
         )
-        upload = self.uploads.upload(
-            actor, workspace_id, dataset_id, filename, "text/csv", BytesIO(content)
-        )
-        with self.uow() as repo:
+        self.oauth.assert_connection(actor.id, session_token, connector.id, connection.version)
+
+        def publish(repo: WorkspaceRepository, upload: Upload, _revision: Revision) -> None:
+            repo.require_provider_connection(
+                actor.id,
+                hashlib.sha256(session_token.encode()).hexdigest(),
+                connector.id,
+                connection.version,
+            )
             repo.add(
                 AuditEvent(
                     uuid4(),
-                    workspace_id,
+                    upload.workspace_id,
                     actor.id,
                     "connector.imported",
                     "upload",
@@ -325,6 +378,16 @@ class ConnectorService:
                     datetime.now(timezone.utc),
                 )
             )
+
+        upload = self.uploads.upload(
+            actor,
+            workspace_id,
+            dataset_id,
+            filename,
+            "text/csv",
+            BytesIO(content),
+            _publication_guard=publish,
+        )
         logger.info(
             "connector_import provider=%s outcome=success upload_id=%s", provider, upload.id
         )

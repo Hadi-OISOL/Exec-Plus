@@ -1,15 +1,22 @@
-"""Use case: Persists each user's sealed connection to an external data platform.
+"""Use case: Persists versioned sealed user connections to external data platforms.
 
-What it does: Reads, upserts and deletes one row per user and provider, never plaintext secrets.
+What it does: Serializes connection writes and fences revoked or superseded attempts.
 """
 
-from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Engine, and_, delete, select, update
+from sqlalchemy import Engine, delete, select
 
 from execplus.application.connector_ports import ConnectorConnection
-from execplus.infrastructure.persistence.schema import connector_connections
+from execplus.domain.ingestion import IngestionError
+from execplus.infrastructure.persistence import schema as s
+from execplus.infrastructure.persistence.oauth_state import (
+    active_user,
+    connection_match,
+    revoke_attempts,
+    save_connection,
+)
 
 
 class SqlConnectorConnections:
@@ -17,70 +24,68 @@ class SqlConnectorConnections:
         self.engine = engine
 
     @staticmethod
-    def _record(row: dict) -> ConnectorConnection:  # type: ignore[type-arg]
+    def _record(row: Any) -> ConnectorConnection:
         return ConnectorConnection(
-            row["user_id"], row["provider"], row["display_name"], row["sealed_credentials"]
+            row["user_id"],
+            row["provider"],
+            row["display_name"],
+            row["sealed_credentials"],
+            row["version"],
         )
 
     def get(self, user_id: UUID, provider: str) -> ConnectorConnection | None:
-        with self.engine.connect() as connection:
+        with self.engine.begin() as connection:
+            active_user(connection, user_id)
             row = (
                 connection.execute(
-                    select(connector_connections).where(
-                        and_(
-                            connector_connections.c.user_id == user_id,
-                            connector_connections.c.provider == provider,
-                        )
+                    select(s.connector_connections).where(
+                        connection_match(s.connector_connections, user_id, provider)
                     )
                 )
                 .mappings()
                 .first()
             )
-        return self._record(dict(row)) if row else None
+        return self._record(row) if row else None
 
     def list(self, user_id: UUID) -> list[ConnectorConnection]:
-        with self.engine.connect() as connection:
+        with self.engine.begin() as connection:
+            active_user(connection, user_id)
             rows = (
                 connection.execute(
-                    select(connector_connections).where(connector_connections.c.user_id == user_id)
+                    select(s.connector_connections).where(
+                        s.connector_connections.c.user_id == user_id
+                    )
                 )
                 .mappings()
                 .all()
             )
-        return [self._record(dict(row)) for row in rows]
+        return [self._record(row) for row in rows]
 
-    def save(self, record: ConnectorConnection) -> None:
-        now = datetime.now(timezone.utc)
-        values = dict(
-            display_name=record.display_name,
-            sealed_credentials=record.sealed_credentials,
-            updated_at=now,
-        )
-        match = and_(
-            connector_connections.c.user_id == record.user_id,
-            connector_connections.c.provider == record.provider,
-        )
+    def save(self, record: ConnectorConnection, *, expected_version: UUID | None = None) -> None:
         with self.engine.begin() as connection:
-            changed = connection.execute(
-                update(connector_connections).where(match).values(**values)
-            ).rowcount
-            if not changed:
-                connection.execute(
-                    connector_connections.insert().values(
-                        user_id=record.user_id,
-                        provider=record.provider,
-                        created_at=now,
-                        **values,
+            active_user(connection, record.user_id)
+            if expected_version is not None:
+                actual = connection.execute(
+                    select(s.connector_connections.c.version).where(
+                        connection_match(s.connector_connections, record.user_id, record.provider)
                     )
-                )
+                ).scalar_one_or_none()
+                if actual != expected_version:
+                    raise IngestionError(
+                        "connector_reconnect", "Your connection changed. Try again.", 409
+                    )
+            save_connection(connection, record)
 
-    def delete(self, user_id: UUID, provider: str) -> None:
+    def current(self, record: ConnectorConnection) -> bool:
+        current = self.get(record.user_id, record.provider)
+        return current is not None and current.version == record.version
+
+    def delete(self, user_id: UUID, provider: str, *, expected_version: UUID | None = None) -> None:
         with self.engine.begin() as connection:
-            connection.execute(
-                delete(connector_connections).where(
-                    and_(
-                        connector_connections.c.user_id == user_id,
-                        connector_connections.c.provider == provider,
-                    )
-                )
-            )
+            active_user(connection, user_id)
+            match = connection_match(s.connector_connections, user_id, provider)
+            if expected_version is not None:
+                match &= s.connector_connections.c.version == expected_version
+            else:
+                revoke_attempts(connection, user_id, provider)
+            connection.execute(delete(s.connector_connections).where(match))

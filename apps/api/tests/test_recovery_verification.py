@@ -11,6 +11,7 @@ import io
 import os
 import subprocess
 import tarfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -125,15 +126,79 @@ def test_snapshot_replay_works_with_real_read_only_postgres(integration):
         connect_args={"options": f"-csearch_path={schema} -cdefault_transaction_read_only=on"},
     )
     original = env.runtime.analytics.uow
+    original_service = env.runtime.service.uow
+    original_executor = env.runtime.analytics.executor.uow
     before = recovery.fingerprints(env.engine)
     try:
         with readonly.connect() as connection:
             assert connection.execute(text("SHOW transaction_read_only")).scalar_one() == "on"
         env.runtime.analytics.uow = recovery.snapshot_reads(SQLUnitOfWork(readonly))
+        env.runtime.service.uow = recovery.snapshot_reads(SQLUnitOfWork(readonly))
+        env.runtime.analytics.executor.uow = recovery.snapshot_reads(SQLUnitOfWork(readonly))
         assert asyncio.run(recovery.verify_receipts(env.runtime, 20))["replayed"] == 1
         assert recovery.fingerprints(env.engine) == before
     finally:
         env.runtime.analytics.uow = original
+        env.runtime.service.uow = original_service
+        env.runtime.analytics.executor.uow = original_executor
+        readonly.dispose()
+
+
+def test_readonly_snapshot_keeps_native_account_disable_checks(integration):
+    from uuid import UUID
+
+    from test_local_accounts_integration import native
+    from test_understanding import confirm, context
+    from test_workspace_integration import dataset, upload
+
+    env = integration
+    owner, actor, wid, _ = native(env)
+    did = dataset(env, owner, wid)
+    stored = upload(env, owner, wid, did, b"label,revenue\nA,12.50\n")
+    assert stored.status_code == 201
+    root = f"/workspaces/{wid}/datasets/{did}/uploads/{stored.json()['id']}"
+    current = context(env, owner, root)
+    current["definition"]["columns"][1]["unit"] = "USD"
+    assert confirm(env, owner, root, current).status_code == 201
+    assert (
+        env.client.post(
+            root + "/query", headers=owner, json={"metric": "revenue", "aggregation": "sum"}
+        ).status_code
+        == 200
+    )
+    with env.engine.connect() as connection:
+        schema = connection.execute(text("SELECT current_schema()")).scalar_one()
+    readonly = create_engine(
+        env.engine.url,
+        connect_args={"options": f"-csearch_path={schema} -cdefault_transaction_read_only=on"},
+    )
+    snapshot = recovery.snapshot_reads(SQLUnitOfWork(readonly))
+    originals = (
+        env.runtime.service.uow,
+        env.runtime.analytics.uow,
+        env.runtime.analytics.executor.uow,
+    )
+    try:
+        with snapshot() as repo:
+            assert repo.membership(UUID(wid), actor.id).role == "owner"
+        with env.engine.begin() as connection:
+            connection.execute(
+                update(s.local_accounts).values(disabled_at=datetime.now(timezone.utc))
+            )
+        before = recovery.fingerprints(env.engine)
+        with pytest.raises(IngestionError) as failure, snapshot() as repo:
+            repo.membership(UUID(wid), actor.id)
+        assert failure.value.code == "account_unavailable"
+        env.runtime.service.uow = env.runtime.analytics.uow = env.runtime.analytics.executor.uow = (
+            snapshot
+        )
+        result = asyncio.run(recovery.verify_receipts(env.runtime, 20))
+        assert result["permission_denials_verified"] == 1 and result["replayed"] == 0
+        assert recovery.fingerprints(env.engine) == before
+    finally:
+        env.runtime.service.uow, env.runtime.analytics.uow, env.runtime.analytics.executor.uow = (
+            originals
+        )
         readonly.dispose()
 
 

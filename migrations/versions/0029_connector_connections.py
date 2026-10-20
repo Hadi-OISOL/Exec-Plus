@@ -6,8 +6,8 @@ What it does: Adds one sealed-credentials row per user and provider and keeps ev
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0026"
-down_revision = "0025"
+revision = "0029"
+down_revision = "0028"
 branch_labels = None
 depends_on = None
 
@@ -19,6 +19,7 @@ def upgrade() -> None:
         sa.Column("provider", sa.String(40), primary_key=True),
         sa.Column("display_name", sa.String(200), nullable=False),
         sa.Column("sealed_credentials", sa.Text(), nullable=False),
+        sa.Column("version", sa.Uuid(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
     )

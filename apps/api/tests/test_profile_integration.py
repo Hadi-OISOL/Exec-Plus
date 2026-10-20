@@ -211,12 +211,14 @@ def test_cleaning_audit_failure_rolls_back_revision_head_and_usage(integration, 
         raise RuntimeError("simulated failure")
 
     monkeypatch.setattr(env.runtime.service, "_audit", fail)
-    with pytest.raises(RuntimeError, match="simulated failure"):
-        env.client.post(
-            root + "/cleaning/apply",
-            headers=headers,
-            json={"expected_revision_id": revision["id"], "trim": True},
-        )
+    response = env.client.post(
+        root + "/cleaning/apply",
+        headers=headers,
+        json={"expected_revision_id": revision["id"], "trim": True},
+    )
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "internal_error"
+    assert "simulated failure" not in response.text
     assert env.client.get(root + "/profile", headers=headers).json() == revision
     assert len(env.client.get(root + "/revisions", headers=headers).json()) == 1
     assert env.client.get(f"/workspaces/{wid}/usage", headers=headers).json() == before
@@ -225,8 +227,13 @@ def test_cleaning_audit_failure_rolls_back_revision_head_and_usage(integration, 
 @pytest.mark.parametrize(
     "sample_id",
     [
-        "finance-v1", "sales-v1", "inventory-v1", "cities-v1", "forecast-v1",
-        "retail-v1", "actions-v1",
+        "finance-v1",
+        "sales-v1",
+        "inventory-v1",
+        "cities-v1",
+        "forecast-v1",
+        "retail-v1",
+        "actions-v1",
     ],
 )
 def test_sample_import_has_version_private_original_and_profile(integration, sample_id):
@@ -256,8 +263,10 @@ def test_sample_storage_failure_is_atomic(integration, monkeypatch):
         raise RuntimeError("storage interrupted")
 
     monkeypatch.setattr(env.runtime.service.storage, "put", fail_after_write)
-    with pytest.raises(RuntimeError, match="storage interrupted"):
-        env.client.post(f"/workspaces/{wid}/samples/sales-v1", headers=headers)
+    response = env.client.post(f"/workspaces/{wid}/samples/sales-v1", headers=headers)
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "internal_error"
+    assert "storage interrupted" not in response.text
     assert env.client.get(f"/workspaces/{wid}/datasets", headers=headers).json() == []
     assert env.runtime.service.storage.client.list_objects_v2(Bucket=env.bucket)["KeyCount"] == 0
     assert env.client.get(f"/workspaces/{wid}/usage", headers=headers).json()["uploads"] == 0

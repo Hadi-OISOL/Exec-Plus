@@ -3,6 +3,13 @@
 
 # Customer integration and private embedding
 
+October 17 continuation: the local Phase 2 extension adds saved studies,
+forecasts, analyses and job-status scopes, every-source key checks, a local host
+example, embed-read audits and cleared integration state after a failed reload.
+See [the current API contract](customer-results-api.md) and
+[its evidence](verification-governed-distribution.md). The following counts and
+migration notes describe the earlier foundation and are retained as history.
+
 Status: implementation is in the working tree on additive migration **0022**, after
 metering **0021**. It is not deployed. The focused backend/architecture run passes
 **62 tests** in 42.688 seconds, followed by focused cancellation and operator-origin
@@ -18,7 +25,7 @@ lock repair. No external receiver, public exposure or new model provider is enab
 The owner creates a distinct, opaque API key bound only to their own issuing
 account, one to twenty explicit datasets and named read-only operations. Issuing
 a key for another member is refused, even when that member has broader access.
-The UI creates a key for the owner and one selected dataset. The database stores only
+The UI creates a key for the owner and explicitly selected datasets. The database stores only
 the SHA-256 hash. Each key records the issuer's membership creation epoch, expiry
 (up to ninety days), revocation and last-use time. Atomic rate windows allow sixty
 requests per minute per key. These operations do not invoke a language model.
@@ -29,6 +36,10 @@ The dedicated API supports:
 - `POST /integration/v1/workspaces/{wid}/datasets/{did}/uploads/{uid}/rows`
 - `POST /integration/v1/workspaces/{wid}/datasets/{did}/uploads/{uid}/query`
 - `GET /integration/v1/workspaces/{wid}/boards/{board_id}`
+- `GET /integration/v1/workspaces/{wid}/studies/{version_id}`
+- `GET /integration/v1/workspaces/{wid}/datasets/{did}/forecasts/{forecast_id}`
+- `GET /integration/v1/workspaces/{wid}/datasets/{did}/analyses/{analysis_id}`
+- `GET /integration/v1/workspaces/{wid}/jobs/{job_id}`
 
 Send the key in `Authorization: Bearer <key>`. Use the ordinary typed rows/query
 request shapes. These routes call the existing governed services, preserve exact
@@ -48,7 +59,8 @@ Owner management endpoints are `/workspaces/{wid}/integrations/keys` (GET/POST) 
 `.../keys/{key_id}` (DELETE). POST accepts `name`, `dataset_ids`, `operations`,
 `expires_seconds`, and optional `user_id`, which must equal the signed-in issuer
 when supplied. Operations are `profile:read`, `rows:read`,
-`query:read`, and `boards:read`. No operation is inferred from a key's name.
+`query:read`, `boards:read`, `studies:read`, `forecasts:read`, `analyses:read`
+and `jobs:read`. No operation is inferred from a key's name.
 
 ## Signed metadata events
 

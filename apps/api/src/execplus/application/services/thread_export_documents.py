@@ -5,14 +5,17 @@ without planning new queries or changing result populations.
 """
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from execplus.application.conversation import EvidenceAnswer, answer_lineage
 from execplus.application.services.data_diagrams import DiagramAnswer
 from execplus.application.services.intent_router import PatternAnswer
+from execplus.application.services.narrative_context import receipt_sources
 from execplus.domain.exports import ExportChart, ExportSeries, ExportTable, exact_text
+from execplus.domain.ingestion import IngestionError
 from execplus.domain.models import CalculationLineage, QueryResult, Scalar, VerifiedMetricAnswer
 from execplus.domain.pdf_exports import PdfSection, PdfTable
 from execplus.domain.public_evidence import public_evidence
@@ -54,6 +57,12 @@ def result_chart(table: ExportTable, title: str) -> tuple[ExportChart, ...]:
 
 
 def thread_tables(answer: object) -> tuple[ExportTable, ...]:
+    if isinstance(answer, EvidenceAnswer) and answer.coverage == "data" and answer.data is not None:
+        return tuple(
+            replace(table, name=f"Result {index}: {table.name}")
+            for index, item in enumerate((answer.data, *answer.additional_data), 1)
+            for table in thread_tables(item)
+        )
     if isinstance(answer, VerifiedMetricAnswer):
         return (ExportTable(answer.label, (answer.label,), ((answer.value,),)),)
     if (
@@ -86,6 +95,70 @@ def thread_tables(answer: object) -> tuple[ExportTable, ...]:
         )
     if isinstance(answer, PatternAnswer):
         result = answer.evidence["result"]
+        if result.get("version") == "cohort-comparison-v1":
+            return (
+                ExportTable(
+                    "Group comparison",
+                    (
+                        "Measure",
+                        "Unit",
+                        "Target count",
+                        "Other count",
+                        "Target mean",
+                        "Other mean",
+                        "Difference",
+                        "Target median",
+                        "Other median",
+                        "Status",
+                    ),
+                    tuple(
+                        tuple(
+                            item[key]
+                            for key in (
+                                "column",
+                                "unit",
+                                "target_count",
+                                "other_count",
+                                "target_mean",
+                                "other_mean",
+                                "difference",
+                                "target_median",
+                                "other_median",
+                                "status",
+                            )
+                        )
+                        for item in result["numeric"]
+                    ),
+                ),
+                ExportTable(
+                    "Category mix",
+                    (
+                        "Category",
+                        "Value",
+                        "Target count",
+                        "Other count",
+                        "Target share",
+                        "Other share",
+                    ),
+                    tuple(
+                        (
+                            item["column"],
+                            level["value"],
+                            level["target_count"],
+                            level["other_count"],
+                            level["target_share"],
+                            level["other_share"],
+                        )
+                        for item in result["categories"]
+                        for level in item["levels"]
+                    ),
+                ),
+                ExportTable(
+                    "Comparison method and evidence",
+                    ("Path", "Exact recorded value"),
+                    tuple(flatten_record(result)),
+                ),
+            )
         return (
             ExportTable(
                 "Recorded pattern output",
@@ -111,6 +184,12 @@ def flatten_record(value: Any, path: str = "result") -> list[tuple[str, Scalar]]
 
 
 def thread_charts(answer: object) -> tuple[ExportChart, ...]:
+    if isinstance(answer, EvidenceAnswer) and answer.coverage == "data" and answer.data is not None:
+        return tuple(
+            replace(chart, title=f"Result {index}: {chart.title}")
+            for index, item in enumerate((answer.data, *answer.additional_data), 1)
+            for chart in thread_charts(item)
+        )
     if isinstance(answer, DiagramAnswer):
         diagram = answer.diagram
         return (
@@ -181,6 +260,51 @@ def thread_charts(answer: object) -> tuple[ExportChart, ...]:
     if isinstance(answer, tuple) and tables:
         return result_chart(tables[0], "Exact returned comparison")
     return ()
+
+
+def compound_sections(answer: EvidenceAnswer) -> tuple[PdfSection, ...]:
+    if answer.data is None or len(answer.additional_data) != 1 or answer.coverage != "data":
+        raise IngestionError("pdf_export_unsupported", "Choose a supported completed answer.", 422)
+    sections = []
+    for index, data in enumerate((answer.data, *answer.additional_data), 1):
+        lineage = answer_lineage(data)
+        receipt = lineage.receipt
+        sources = receipt_sources(data)
+        if (
+            receipt.get("version") != "execution-v1"
+            or receipt.get("outcome") != "executed"
+            or not sources
+            or any(source not in answer.sources for source in sources)
+        ):
+            raise IngestionError("pdf_export_unavailable", "Incomplete execution evidence.", 409)
+        for table in thread_tables(data):
+            sections.append(
+                PdfSection(
+                    f"Result {index}: {table.name}",
+                    (
+                        f"Measure: {lineage.metric}; operation: {lineage.aggregation}.",
+                        "Groups: " + (", ".join(lineage.grouping) or "None"),
+                        "Filters: " + ("; ".join(lineage.filters) or "None"),
+                        f"Records analyzed: {lineage.records_analyzed}.",
+                        "Every returned value is included; this is not necessarily "
+                        "every source row.",
+                    ),
+                    PdfTable(
+                        table.columns,
+                        tuple(tuple(exact_text(cell) for cell in row) for row in table.rows),
+                    ),
+                )
+            )
+        sections.extend(
+            (
+                PdfSection(f"Result {index}: executed query", (lineage.sql,)),
+                PdfSection(
+                    f"Result {index}: execution evidence",
+                    (json.dumps(public_evidence(receipt), ensure_ascii=False, sort_keys=True),),
+                ),
+            )
+        )
+    return tuple(sections)
 
 
 def extended_sections(answer: DiagramAnswer | PatternAnswer) -> tuple[PdfSection, ...]:

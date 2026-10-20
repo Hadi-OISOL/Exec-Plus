@@ -219,7 +219,29 @@ def test_saved_worksheet_private_even_for_members_of_every_company(integration):
     wid = request["companies"][1]["workspace_id"]
     invitation = invite(env, owner, wid, user.email, "admin").json()["id"]
     assert accept(env, member, wid, invitation).status_code == 200
-    assert env.client.get(path, headers=member).json() == []
+    assert env.client.get(path, headers=member).status_code == 404
+    assert env.client.get(path + "/options", headers=member).status_code == 404
+    company = request["companies"][0]
+    source = {key: company[key] for key in ("workspace_id", "dataset_id", "upload_id")}
+    assert env.client.post(path + "/source-options", headers=member, json=source).status_code == 404
+    fields = {
+        key: company[key]
+        for key in (
+            "workspace_id",
+            "dataset_id",
+            "upload_id",
+            "revision_id",
+            "understanding_id",
+            "account_column",
+            "amount_column",
+            "counterparty_column",
+            "currency",
+        )
+    }
+    assert (
+        env.client.post(path + "/preview-company", headers=member, json=fields).status_code == 404
+    )
+    assert env.client.post(path, headers=member, json=request).status_code == 404
     assert env.client.get(path + "/" + value["run"]["id"], headers=member).status_code == 404
     for format in ("pdf", "xlsx", "csv", "png"):
         assert (
@@ -413,6 +435,54 @@ def test_export_policy_revocation_discards_rendered_bytes_without_workspace_lock
     response = env.client.get(path + "/" + value["run"]["id"] + "/export.pdf", headers=owner)
     assert response.status_code == 404 and response.headers["content-type"] == "application/json"
     assert env.client.get(path, headers=owner).json() == []
+
+
+@pytest.mark.parametrize("stage", ["projection", "export"])
+def test_lost_organization_ownership_refuses_new_or_rendered_results(
+    integration, monkeypatch, stage
+):
+    env = integration
+    owner, _, oid, path, request, _, _ = fixture(env)
+    replacement, user = identity(env, f"new-organization-owner-{uuid4().hex}@example.test")
+
+    def transfer():
+        with env.engine.begin() as connection:
+            connection.execute(
+                s.organizations.update()
+                .where(s.organizations.c.id == UUID(oid))
+                .values(owner_id=user.id)
+            )
+
+    if stage == "projection":
+        original = env.runtime.analytics.executor.execute
+
+        async def execute(*args, **kwargs):
+            result = await original(*args, **kwargs)
+            transfer()
+            return result
+
+        monkeypatch.setattr(env.runtime.analytics.executor, "execute", execute)
+        response = env.client.post(path, headers=owner, json=request)
+        with env.engine.connect() as connection:
+            assert connection.execute(select(s.consolidation_runs)).first() is None
+    else:
+        saved = create(env, owner, path, request)
+        original = env.runtime.result_exports.renderer.render
+
+        def render(*args, **kwargs):
+            result = original(*args, **kwargs)
+            transfer()
+            return result
+
+        monkeypatch.setattr(env.runtime.result_exports.renderer, "render", render)
+        response = env.client.get(path + "/" + saved["run"]["id"] + "/export.pdf", headers=owner)
+        assert (
+            env.client.get(path + "/" + saved["run"]["id"], headers=replacement).status_code == 404
+        )
+    assert response.status_code == 404
+    assert response.headers["content-type"] == "application/json"
+    assert env.client.get(path + "/options", headers=owner).status_code == 404
+    assert env.client.get(path, headers=owner).status_code == 404
 
 
 def test_unmapped_uuid_looking_counterparty_stays_external_and_requires_explicit_alias(integration):

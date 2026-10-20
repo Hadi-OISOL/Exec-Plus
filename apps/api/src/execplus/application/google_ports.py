@@ -3,9 +3,9 @@
 What it does: Keeps Google, encryption and database details behind protocols the services depend on.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 @dataclass(frozen=True)
@@ -78,14 +78,19 @@ class GoogleConnection:
     google_email: str
     scope: str
     refresh_token_sealed: str
+    version: UUID = field(default_factory=uuid4)
 
 
 class GoogleConnections(Protocol):
     def get(self, user_id: UUID) -> GoogleConnection | None: ...
 
-    def save(self, connection: GoogleConnection) -> None: ...
+    def save(
+        self, connection: GoogleConnection, *, expected_version: UUID | None = None
+    ) -> None: ...
 
-    def delete(self, user_id: UUID) -> None: ...
+    def current(self, connection: GoogleConnection) -> bool: ...
+
+    def delete(self, user_id: UUID, *, expected_version: UUID | None = None) -> None: ...
 
 
 class SessionIssuer(Protocol):

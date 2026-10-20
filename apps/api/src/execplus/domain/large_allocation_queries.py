@@ -6,7 +6,9 @@ What it does: Enforces one identical population, fixed units and a 51-row overfl
 from typing import Any
 from uuid import UUID, uuid4
 
+from execplus.domain.allocation_sensitivity import sensitivity
 from execplus.domain.decision_analysis import fail
+from execplus.domain.large_allocation import SENSITIVITY_METHOD
 from execplus.domain.models import QueryPlan, WorkspaceScope
 from execplus.domain.profiling import TableData
 from execplus.domain.semantics import (
@@ -23,6 +25,10 @@ from execplus.domain.understanding import governed_request, preferred_aggregatio
 def large_allocation_plan(
     scope: WorkspaceScope, did: UUID, view: DatasetView, table: TableData, raw: dict[str, Any]
 ) -> tuple[QueryPlan, dict[str, str]]:
+    if raw.get("model") == SENSITIVITY_METHOD:
+        sensitivity(raw)
+    elif raw.get("capacity_sensitivity"):
+        fail("allocation_sensitivity", "Use the capacity-comparison method for alternative limits.")
     names = [
         raw["cost_column"],
         raw["benefit_column"],
@@ -63,6 +69,10 @@ def large_allocation_plan(
         if not unit or definition["unit_column"]:
             fail("fixed_unit_required", "Confirm a fixed unit for every action measure.")
         units[name] = unit
+    if raw.get("model") == SENSITIVITY_METHOD:
+        declared = sensitivity(raw)
+        if declared["unit"] != units[declared["column"]]:
+            fail("allocation_sensitivity_unit", "Use the confirmed unit of the selected resource.")
     where, parameters = build_where(view, filters or ())
     sql = f'SELECT {", ".join(quote_identifier(name) for name in [entity, *names])} FROM "dataset"'
     if where:

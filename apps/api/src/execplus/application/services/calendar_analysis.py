@@ -23,13 +23,12 @@ from execplus.domain.evidence import receipt
 from execplus.domain.forecast_series import series_plan, series_request
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult
+from execplus.domain.rolling_anomalies import METHOD as ROLLING_METHOD
 
 if TYPE_CHECKING:
     from execplus.application.services.decision_analysis import DecisionAnalysisService
 
-COVERAGE_DECLARATION = (
-    "The user explicitly confirmed complete coverage for each chosen window."
-)
+COVERAGE_DECLARATION = "The user explicitly confirmed complete coverage for each chosen window."
 
 
 class CalendarAnalysis:
@@ -111,6 +110,8 @@ class CalendarAnalysis:
                 window_ids.append(str(plan.query_id))
             results.append(window_results)
             query_ids.append(window_ids)
+        if raw["model"] == ROLLING_METHOD:
+            self.service._admit_model(actor, wid, did, uid, raw, view.sources)
         calculated = await read_complete(lambda: calculate_calendar(raw, results))
         await read_complete(
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)

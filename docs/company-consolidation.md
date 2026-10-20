@@ -9,8 +9,10 @@ not deployed by this document. The [plan](company-consolidation-plan.md) records
 approved accounting boundary.
 
 A person can combine complete prepared ledgers from two to eight company
-workspaces grouped in one organization. Organization ownership gives no data
-rights. The person must have current full access to each chosen source. Restricted
+workspaces grouped in one organization **they own**. That explicit consolidation
+authority gives no data rights. The owner must also have current full access to
+each chosen source. Organization members cannot create, list, preview or reopen
+consolidations merely because they belong to all company workspaces. Restricted
 row or column views cannot stand in for a complete company ledger.
 
 The three-step Team interface asks for company files, account mappings and declared
@@ -67,7 +69,7 @@ number, rather than a rounded browser float, is preserved.
 File listing collects metadata outside workspace locks and rechecks all included
 company links, memberships and dataset policy epochs before returning it. Creation
 performs source reads and computation outside workspace locks. Final
-checks lock company workspaces in stable UUID order and recheck every membership,
+checks lock company workspaces in stable UUID order and recheck organization ownership, every membership,
 full-access policy, organization link, retained source, confirmed definition and
 accepted refresh source. Reopening reconstructs the original projections and
 compares every receipt and the complete calculated result. A newer source or

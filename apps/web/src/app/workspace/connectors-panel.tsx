@@ -28,12 +28,10 @@ export type ConnectorChoice = {
 export function ConnectorsPanel({
   request,
   disabled,
-  onConnecting,
   onImport,
 }: {
   request: ApiRequest;
   disabled: boolean;
-  onConnecting: () => void;
   onImport: (choice: ConnectorChoice) => Promise<void>;
 }) {
   const [platforms, setPlatforms] = useState<Platform[] | null>(null);
@@ -43,7 +41,14 @@ export function ConnectorsPanel({
   const [error, setError] = useState("");
 
   const reload = useCallback(async () => {
-    setPlatforms(await request<Platform[]>("/connectors"));
+    try {
+      setPlatforms(await request<Platform[]>("/connectors"));
+    } catch (cause) {
+      setPlatforms(null);
+      setBrowsing(null);
+      setForm(null);
+      throw cause;
+    }
   }, [request]);
 
   useEffect(() => {
@@ -53,7 +58,11 @@ export function ConnectorsPanel({
         if (active) setPlatforms(value);
       })
       .catch(() => {
-        if (active) setPlatforms([]);
+        if (active) {
+          setPlatforms([]);
+          setBrowsing(null);
+          setForm(null);
+        }
       });
     return () => {
       active = false;
@@ -66,6 +75,11 @@ export function ConnectorsPanel({
     try {
       await action();
     } catch (cause) {
+      if ([401, 403, 404, 409].includes((cause as { status?: number })?.status ?? 0)) {
+        setPlatforms(null);
+        setBrowsing(null);
+        setForm(null);
+      }
       setError(cause instanceof Error ? cause.message : "The platform could not be reached.");
     } finally {
       setBusy(false);
@@ -80,8 +94,8 @@ export function ConnectorsPanel({
     return attempt(async () => {
       const { url } = await request<{ url: string }>(`/connectors/${platform.id}/connect`, {
         method: "POST",
+        credentials: "include",
       });
-      onConnecting();
       window.location.assign(url);
     });
   }
@@ -108,10 +122,17 @@ export function ConnectorsPanel({
   }
 
   async function list(platform: Platform, trail: Crumb[]) {
+    setBrowsing(null);
     const parent = trail[trail.length - 1]?.id ?? null;
     const query = parent ? `?parent=${encodeURIComponent(parent)}` : "";
-    const items = await request<Item[]>(`/connectors/${platform.id}/sources${query}`);
-    setBrowsing({ platform, trail, items });
+    try {
+      const items = await request<Item[]>(`/connectors/${platform.id}/sources${query}`);
+      setBrowsing({ platform, trail, items });
+    } catch (cause) {
+      setPlatforms(null);
+      setForm(null);
+      throw cause;
+    }
   }
 
   function choose(item: Item) {
@@ -124,11 +145,11 @@ export function ConnectorsPanel({
         sourceId: item.id,
         platform: browsing.platform.label,
         title: `${browsing.platform.label} - ${item.label}`,
-      }),
+      }).then(() => setBrowsing(null)),
     );
   }
 
-  if (!platforms?.length) return null;
+  if (!platforms?.length && !error) return null;
 
   return (
     <section className={styles.connectors} aria-label="Connect your data">
@@ -138,7 +159,7 @@ export function ConnectorsPanel({
         a snapshot and you can disconnect at any time.
       </p>
       <ul className={styles.list}>
-        {platforms.map(platform => (
+        {(platforms ?? []).map(platform => (
           <li key={platform.id} className={styles.card}>
             <div>
               <strong>{platform.label}</strong>

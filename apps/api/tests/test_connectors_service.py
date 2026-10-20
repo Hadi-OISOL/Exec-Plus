@@ -21,6 +21,7 @@ from execplus.domain.connectors import Source
 from execplus.infrastructure.persistence.connector_connections import SqlConnectorConnections
 from execplus.infrastructure.persistence.repository import SQLUnitOfWork
 from execplus.infrastructure.token_vault import FernetTokenVault
+from test_google_access import exchange
 from test_workspace_integration import dataset, identity, workspace
 
 WEB = "http://web.test"
@@ -117,10 +118,12 @@ def enable(env, **extra):
         SqlConnectorConnections(env.engine),
         env.runtime.service,
         SQLUnitOfWork(env.engine),
+        oauth=env.runtime.oauth_state,
         public_api_url="http://api.test",
         web_origin=WEB,
         max_rows=extra.get("max_rows", 1000),
     )
+    env.client.headers["Origin"] = env.client.app.state.web_origin
     return oauth, credentials, vault
 
 
@@ -186,7 +189,7 @@ def test_oauth_connect_redirects_stores_sealed_secrets_and_never_in_plaintext(in
     assert query["redirect_uri"] == ["http://api.test/connectors/quickbooks/callback"]
     assert query["c"][0]
     callback = connect_oauth(integration, owner, realmId="4620816365")
-    assert callback.headers["location"] == f"{WEB}/workspace?connector_connected=quickbooks"
+    assert callback.headers["location"] == f"{WEB}/workspace?oauth=complete"
     sealed = stored(integration, user.id, "quickbooks")
     assert "refresh-1" not in sealed and "4620816365" not in sealed
     assert json.loads(vault.unseal(sealed)) == dict(
@@ -207,23 +210,19 @@ def test_callbacks_need_a_valid_unexpired_state_for_the_same_platform(integratio
         params=dict(code="c", state="forged"),
         follow_redirects=False,
     )
-    assert forged.headers["location"].endswith(
-        "connector_error=connector_state_invalid&connector=quickbooks"
-    )
+    assert forged.headers["location"].endswith("oauth_error=oauth_state_invalid")
     started = integration.client.post("/connectors/quickbooks/connect", headers=owner).json()["url"]
     state = parse_qs(urlparse(started).query)["state"][0]
-    other_vault = integration.runtime.connectors.vault
-    assert other_vault.unseal(state)
+    assert len(state) == 43 and "refresh" not in state
     denied = integration.client.get(
         "/connectors/quickbooks/callback",
         params=dict(error="access_denied", state=state),
         follow_redirects=False,
     )
-    assert denied.headers["location"].endswith(
-        "connector_error=connector_denied&connector=quickbooks"
-    )
+    assert denied.headers["location"].endswith("oauth=complete")
+    assert exchange(integration, owner)["error"] == "connector_denied"
     missing = integration.client.get("/connectors/quickbooks/callback", follow_redirects=False)
-    assert "connector_denied" in missing.headers["location"]
+    assert "oauth_error=oauth_state_invalid" in missing.headers["location"]
 
 
 def test_a_platform_that_returns_no_lasting_token_or_rejects_the_code_stores_nothing(integration):
@@ -236,16 +235,18 @@ def test_a_platform_that_returns_no_lasting_token_or_rejects_the_code_stores_not
         params=dict(code="no-refresh", state=state),
         follow_redirects=False,
     )
-    assert no_refresh.headers["location"].endswith(
-        "connector_error=connector_no_refresh&connector=quickbooks"
-    )
+    assert no_refresh.headers["location"].endswith("oauth=complete")
+    assert exchange(integration, owner)["error"] == "connector_no_refresh"
+    started = integration.client.post("/connectors/quickbooks/connect", headers=owner).json()["url"]
+    state = parse_qs(urlparse(started).query)["state"][0]
     oauth.exchange_error = ConnectorApiError(400, "invalid_grant")
     rejected = integration.client.get(
         "/connectors/quickbooks/callback",
         params=dict(code="c", state=state),
         follow_redirects=False,
     )
-    assert "connector_credentials_rejected" in rejected.headers["location"]
+    assert rejected.headers["location"].endswith("oauth=complete")
+    assert exchange(integration, owner)["error"] == "connector_credentials_rejected"
     assert stored(integration, user.id, "quickbooks") is None
 
 
@@ -307,21 +308,23 @@ def test_credentials_are_validated_then_sealed_and_unknown_fields_are_dropped(in
     saved = integration.client.post(
         "/connectors/odoo/credentials",
         headers=owner,
-        json={"values": {"url": " https://odoo.example ", "api_key": "secret-key", "extra": "x"}},
+        json={
+            "values": {"url": " https://odoo.example ", "api_key": "  secret-key \t", "extra": "x"}
+        },
     )
     assert saved.status_code == 200 and saved.json() == dict(
         connected=True, account="odoo.example / prod"
     )
-    assert credentials.validated == [{"url": "https://odoo.example", "api_key": "secret-key"}]
+    assert credentials.validated == [{"url": "https://odoo.example", "api_key": "  secret-key \t"}]
     sealed = stored(integration, user.id, "odoo")
     assert (
-        "secret-key" not in sealed
-        and json.loads(vault.unseal(sealed))["context"]["api_key"] == "secret-key"
+        "  secret-key \t" not in sealed
+        and json.loads(vault.unseal(sealed))["context"]["api_key"] == "  secret-key \t"
     )
     listing = integration.client.get("/connectors/odoo/sources", headers=owner).json()
     assert listing == [dict(id="invoices", label="Customer invoices", container=False)]
     assert credentials.sessions[-1] == ConnectorSession(
-        "", {"url": "https://odoo.example", "api_key": "secret-key"}
+        "", {"url": "https://odoo.example", "api_key": "  secret-key \t"}
     )
 
 
@@ -389,7 +392,7 @@ def test_import_turns_a_source_into_a_normal_profiled_upload_and_is_audited(inte
     ]
     profile = integration.client.get(f"{base}/uploads/{body['id']}/profile", headers=owner)
     assert profile.status_code == 200 and profile.json()["profile"]["row_count"] == 2
-    assert oauth.fetched == [("access-2", "Invoice", 1000)]
+    assert oauth.fetched == [("access-2", "Invoice", 1001)]
     with integration.engine.connect() as connection:
         count = connection.execute(
             text("SELECT count(*) FROM audit_events WHERE action='connector.imported'")
@@ -411,18 +414,30 @@ def test_credential_platforms_import_the_same_way(integration):
     assert response.json()["filename"] == "Odoo - odoo.example prod - Customer invoices.csv"
 
 
-def test_the_configured_row_cap_is_passed_to_the_platform(integration):
+def test_import_probes_one_extra_row_and_refuses_partial_sources(integration):
     oauth, _, vault = enable(integration, max_rows=7)
     owner, _ = identity(integration, "cap@example.test")
     connect_oauth(integration, owner, realmId="1")
     wid = workspace(integration, owner)
     did = dataset(integration, owner, wid)
-    integration.client.post(
-        f"/workspaces/{wid}/datasets/{did}/connectors/quickbooks/import",
+    path = f"/workspaces/{wid}/datasets/{did}"
+    oauth.rows = [{"Id": str(index)} for index in range(8)]
+    response = integration.client.post(
+        f"{path}/connectors/quickbooks/import",
         headers=owner,
         json={"source_id": "Invoice"},
     )
-    assert oauth.fetched[-1][2] == 7 and vault
+    assert oauth.fetched[-1][2] == 8 and vault
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "source_too_large"
+    assert integration.client.get(path + "/uploads", headers=owner).json() == []
+    oauth.rows = oauth.rows[:7]
+    accepted = integration.client.post(
+        f"{path}/connectors/quickbooks/import",
+        headers=owner,
+        json={"source_id": "Invoice"},
+    )
+    assert accepted.status_code == 201
 
 
 def test_import_needs_membership_a_connection_and_a_valid_request(integration):

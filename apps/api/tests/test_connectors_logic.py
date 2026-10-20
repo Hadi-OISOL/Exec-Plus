@@ -23,7 +23,7 @@ from execplus.domain.connectors import (
     valid_provider,
 )
 from execplus.domain.ingestion import IngestionError
-from execplus.infrastructure.connectors.base import HostPolicy
+from execplus.infrastructure.connectors.base import HostPolicy, json_body
 from execplus.infrastructure.connectors.bigquery import BigQueryConnector
 from execplus.infrastructure.connectors.odoo import OdooConnector
 from execplus.infrastructure.connectors.quickbooks import QuickBooksConnector
@@ -33,6 +33,28 @@ from execplus.infrastructure.connectors.zoho import ZohoBooksConnector
 
 def client(handler):
     return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_provider_json_amounts_keep_their_decimal_digits_in_imports():
+    response = httpx.Response(200, content=b'{"amount":9007199254740993.123456789012}')
+    content = records_to_csv([json_body(response)])
+    assert content == b"amount\n9007199254740993.123456789012\n"
+
+
+@pytest.mark.parametrize(
+    "records",
+    [
+        [{"customer_name": "first", "customer": {"name": "second"}}],
+        [{"customer": {"name": "first"}, "customer_name": "second"}],
+        [{"customer_name": "first"}, {"customer": {"name": "second"}}],
+        [{"lines_count": 7, "lines": [{"value": 1}]}],
+        [{"lines": [{"value": 1}]}, {"lines_count": 7}],
+    ],
+)
+def test_ambiguous_flattened_and_generated_columns_are_refused(records):
+    with pytest.raises(IngestionError) as caught:
+        records_to_csv(records)
+    assert caught.value.code == "ambiguous_source_columns"
 
 
 def query_of(request):

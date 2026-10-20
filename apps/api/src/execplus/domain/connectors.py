@@ -6,10 +6,11 @@ What it does: Flattens nested records, converts provider dates and writes bounde
 import csv
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from io import StringIO
+from io import BytesIO, StringIO
 from typing import Any
 from uuid import UUID
 
@@ -18,7 +19,48 @@ from execplus.domain.ingestion import IngestionError
 
 XERO_DATE = re.compile(r"/Date\((-?\d+)(?:[+-]\d{4})?\)/")
 MAX_DEPTH = 3
+MAX_IMPORT_BYTES = 20 * 1024 * 1024
 PROVIDER_ID = re.compile(r"[a-z][a-z0-9_]{1,39}")
+
+
+def source_too_large() -> IngestionError:
+    return IngestionError(
+        "source_too_large", "That source exceeds the import size limits. Choose a smaller one.", 413
+    )
+
+
+class RecordBuffer(list[dict[str, Any]]):
+    def __init__(self) -> None:
+        super().__init__()
+        self.byte_count = 0
+        self.cell_count = 0
+        self.columns: set[str] = set()
+
+    def append(self, record: dict[str, Any]) -> None:
+        if len(self) >= MAX_ROWS + 1 or len(record) > MAX_COLUMNS:
+            raise source_too_large()
+        size = 0
+        try:
+            for chunk in json.JSONEncoder(default=str, ensure_ascii=False).iterencode(record):
+                size += len(chunk.encode("utf-8"))
+                if self.byte_count + size > MAX_IMPORT_BYTES:
+                    raise source_too_large()
+        except RecursionError:
+            raise source_too_large() from None
+        columns = set(flatten(record))
+        cells = len(columns)
+        if len(self.columns | columns) > MAX_COLUMNS:
+            raise source_too_large()
+        if cells > MAX_COLUMNS or self.cell_count + cells > MAX_CELLS:
+            raise source_too_large()
+        self.byte_count += size
+        self.cell_count += cells
+        self.columns.update(columns)
+        super().append(record)
+
+    def extend(self, records: Iterable[dict[str, Any]]) -> None:
+        for record in records:
+            self.append(record)
 
 
 @dataclass(frozen=True)
@@ -76,28 +118,51 @@ def flatten(
     prefix: str = "",
     depth: int = 0,
     counted: frozenset[str] = frozenset(),
+    *,
+    origins: dict[str, tuple[str, ...]] | None = None,
+    path: tuple[str, ...] = (),
 ) -> dict[str, str]:
+    origins = {} if origins is None else origins
     result: dict[str, str] = {}
+
+    def put(name: str, value: str, origin: tuple[str, ...]) -> None:
+        if name in origins and origins[name] != origin:
+            raise IngestionError(
+                "ambiguous_source_columns",
+                "This source has fields that become the same column name. Rename them first.",
+                422,
+            )
+        origins[name] = origin
+        result[name] = value
+
     for key, value in record.items():
         name = f"{prefix}{key}"
+        origin = (*path, key)
         if isinstance(value, dict):
             if depth >= MAX_DEPTH:
-                result[name] = scalar(value)
+                put(name, scalar(value), ("value", *origin))
             else:
-                result.update(flatten(value, f"{name}_", depth + 1, counted))
+                result.update(
+                    flatten(value, f"{name}_", depth + 1, counted, origins=origins, path=origin)
+                )
         elif isinstance(value, list):
             if name in counted or any(isinstance(item, dict | list) for item in value):
-                result[f"{name}_count"] = str(len(value))
+                put(f"{name}_count", str(len(value)), ("count", *origin))
             else:
-                result[name] = "; ".join(scalar(item) for item in value)
+                put(name, "; ".join(scalar(item) for item in value), ("value", *origin))
         else:
-            result[name] = scalar(value)
+            put(name, scalar(value), ("value", *origin))
     return result
 
 
 def records_to_csv(records: list[dict[str, Any]]) -> bytes:
+    if len(records) > MAX_ROWS:
+        raise source_too_large()
+    checked = RecordBuffer()
+    checked.extend(records)
     counted = frozenset(name for record in records for name in structured_lists(record))
-    rows = [flatten(record, counted=counted) for record in records]
+    origins: dict[str, tuple[str, ...]] = {}
+    rows = [flatten(record, counted=counted, origins=origins) for record in records]
     if not rows:
         raise IngestionError("empty_source", "That source has no records to import.", 422)
     columns: list[str] = []
@@ -113,12 +178,20 @@ def records_to_csv(records: list[dict[str, Any]]) -> bytes:
             "That source is larger than ExecPlus can import. Choose a smaller one.",
             413,
         )
-    output = StringIO()
-    writer = csv.writer(output, lineterminator="\n")
-    writer.writerow(columns)
+    output = BytesIO()
+
+    def write_row(values: list[str]) -> None:
+        line = StringIO()
+        csv.writer(line, lineterminator="\n").writerow(values)
+        content = line.getvalue().encode("utf-8")
+        if output.tell() + len(content) > MAX_IMPORT_BYTES:
+            raise source_too_large()
+        output.write(content)
+
+    write_row(columns)
     for row in rows:
-        writer.writerow([row.get(name, "") for name in columns])
-    return output.getvalue().encode("utf-8")
+        write_row([row.get(name, "") for name in columns])
+    return output.getvalue()
 
 
 def connector_filename(platform: str, account: str, source: str) -> str:

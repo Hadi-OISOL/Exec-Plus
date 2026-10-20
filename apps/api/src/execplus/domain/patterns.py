@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 
 from execplus.domain.decision_analysis import checksum
 from execplus.domain.errors import ClarificationRequiredError
+from execplus.domain.exploration_selection import OUTCOMES, exploration_rank, tokens
 from execplus.domain.guidance import DescriptionContext
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.models import QueryPlan, QueryResult, Scalar, WorkspaceScope
@@ -49,7 +50,11 @@ def invalid(message: str) -> None:
 
 
 def pattern_request(
-    context: DescriptionContext, table: TableData, selected: tuple[str, ...] = ()
+    context: DescriptionContext,
+    table: TableData,
+    selected: tuple[str, ...] = (),
+    *,
+    selection_version: str | None = "relevance-v1",
 ) -> dict[str, Any]:
     if context.state != "confirmed" or not context.view.sources[0].get("understanding_id"):
         raise ClarificationRequiredError(
@@ -68,6 +73,10 @@ def pattern_request(
         if selected
         else list(definitions)
     )
+    if selection_version not in {None, "relevance-v1"}:
+        invalid("The saved field-selection method is not supported.")
+    if selection_version:
+        candidates.sort(key=lambda name: exploration_rank(context, name, selected))
     metrics: list[str] = []
     categories: list[str] = []
     exclusions: list[dict[str, str]] = []
@@ -173,7 +182,7 @@ def pattern_request(
                     + "; raw-value relationship checks remain available.",
                 )
             )
-    return dict(
+    body: dict[str, Any] = dict(
         version=REQUEST_VERSION,
         selected=list(selected),
         columns=[*metrics, *categories],
@@ -195,6 +204,13 @@ def pattern_request(
             findings=MAX_FINDINGS,
         ),
     )
+
+    if selection_version:
+        body["selection_version"] = selection_version
+        body["focus"] = list(selected) or [
+            name for name in [*metrics, *categories] if tokens(name) & OUTCOMES
+        ]
+    return body
 
 
 def pattern_plan(
@@ -526,7 +542,14 @@ def pattern_result(
             finding = _categories(value.rows, names, left, right, association)
             if finding:
                 candidates.append(finding)
-    candidates.sort(key=lambda finding: (-Decimal(finding["score"]), finding["id"]))
+    focus = set(request.get("focus", []))
+    candidates.sort(
+        key=lambda finding: (
+            not bool(focus.intersection(finding["columns"])),
+            -Decimal(finding["score"]),
+            finding["id"],
+        )
+    )
     explored = [finding for finding in candidates if finding["strength"] == "weak"][:2]
     evaluated = len(candidates)
     candidates = [finding for finding in candidates if finding["strength"] == "strong"]
@@ -569,8 +592,14 @@ def pattern_result(
             "and category association >= 0.3; these are exploration rules, not confidence levels.",
             "Scores use all matching rows and are approximate to six decimal places. "
             "Source values and counts retain their original exact representation.",
-            "At most eight measures and four categories are selected in source order. "
-            "This scan does not cover every possible relationship or nonlinear pattern.",
+            (
+                "At most eight measures and four categories are selected by explicit focus, "
+                "likely outcome names and completeness. Names guide exploration, "
+                "not confirmed meaning. "
+                if request.get("selection_version") == "relevance-v1"
+                else "At most eight measures and four categories are selected in source order. "
+            )
+            + "This scan does not cover every possible relationship or nonlinear pattern.",
         ],
         exclusions=request["exclusions"],
     )

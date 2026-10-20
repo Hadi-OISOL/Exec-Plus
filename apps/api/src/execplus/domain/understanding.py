@@ -414,10 +414,22 @@ def governed_request(view: DatasetView, table: TableData, request: MetricRequest
                 raise ClarificationRequiredError(
                     "Review the missing-value policy before calculating this metric."
                 )
+    # A confirmed numeric quantity (for example units measured in items) is a
+    # measure, not a column containing labels such as USD/EUR. Unreviewed names
+    # keep the conservative legacy guard; explicit unit-column mappings still win.
+    fixed_unit_measures = {
+        entry["name"]
+        for entry in (definition or {}).get("columns", [])
+        if entry["name"].lower() in {"unit", "units"}
+        and entry["role"] == "metric"
+        and (entry["unit"] or entry["currency"])
+        and not entry["unit_column"]
+    }
     unit_columns = {
         column.name
         for column in view.columns
         if column.name.lower() in {"currency", "currency_code", "unit", "units", "uom"}
+        and column.name not in fixed_unit_measures
     }
     if definition:
         unit_columns |= {

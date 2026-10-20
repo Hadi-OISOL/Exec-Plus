@@ -9,6 +9,7 @@ from typing import Any
 
 from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.errors import ClarificationRequiredError
+from execplus.domain.exploration_selection import exploration_rank, suggested_aggregation
 from execplus.domain.semantics import DatasetView
 
 _COMMON_MEANINGS = {
@@ -57,7 +58,24 @@ def mentioned_columns(question: str, view: DatasetView) -> tuple[str, ...]:
     )
 
 
-GUIDANCE_FOCUSES = frozenset({"orientation", "quality", "structure", "next_steps"})
+GUIDANCE_FOCUSES = frozenset(
+    {"orientation", "quality", "structure", "next_steps", "conversation", "clarification"}
+)
+
+
+def is_greeting(question: str) -> bool:
+    return words(question) in {
+        "hi",
+        "hello",
+        "hey",
+        "hey there",
+        "hi there",
+        "hello there",
+        "salam",
+        "assalam o alaikum",
+        "good morning",
+        "good evening",
+    }
 
 
 def guidance_focus(question: str) -> str:
@@ -109,6 +127,12 @@ def guidance_selection(
 ) -> tuple[str, ...] | None:
     normalized = words(question)
     named = mentioned_columns(question, view)
+    if is_greeting(question) or normalized in {
+        "what can you do for me in this data",
+        "what can you do with this data",
+        "how can you help me with this data",
+    }:
+        return ()
     if normalized in {
         "",
         "what",
@@ -496,6 +520,8 @@ def suggested_exploration(context: DescriptionContext) -> tuple[str, ...]:
         and column.type != "date"
         and 1 < columns[column.name]["distinct_count"] <= 30
     ]
+    metrics.sort(key=lambda name: exploration_rank(context, name))
+    dimensions.sort(key=lambda name: exploration_rank(context, name))
     prompts = []
     if metrics:
         metric = metrics[0]
@@ -507,10 +533,9 @@ def suggested_exploration(context: DescriptionContext) -> tuple[str, ...]:
             ),
             None,
         )
-        metric_tokens = set(words(metric).split())
         aggregation = (saved or {}).get(
             "aggregation",
-            "avg" if metric_tokens & {"price", "rate", "ratio", "percentage", "score"} else "sum",
+            suggested_aggregation(metric),
         )
         label = {
             "sum": "total",
@@ -632,13 +657,8 @@ def _date_note(context: DescriptionContext, column: dict[str, Any]) -> str:
 
 
 def _next_steps(context: DescriptionContext) -> str:
-    prompts = suggested_exploration(context)
     return (
-        f"For {context.name}, start with a small question and build on its answer. "
-        "The suggested questions use columns that actually exist in this file.\n\n"
-        + "\n".join(f"• {prompt}" for prompt in prompts)
-        + "\n\nAfter a calculation, try 'break that down by' followed by a category column, "
-        "or ask for records matching a value. I keep the previous executed measure and filters "
-        "as context. Explaining a column does not change your data or approve a business "
-        "definition."
+        f"I can help you explore {context.name}: compare groups, inspect records, "
+        "and check data quality. The questions below use fields in your file. "
+        "Choose one, or tell me what you want to understand in your own words."
     )

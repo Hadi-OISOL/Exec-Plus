@@ -395,6 +395,19 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
                     "consolidation_runs",
                     "google_connections",
                     "connector_connections",
+                    "external_identities",
+                    "oauth_attempts",
+                    "local_accounts",
+                    "account_events",
+                    "account_rate_windows",
+                    "invitation_identity_approvals",
+                    "onboarding_progress",
+                    "plan_catalog",
+                    "workspace_plans",
+                    "plan_admissions",
+                    "request_metrics",
+                    "request_metric_batches",
+                    "incident_alert_policies",
                 }
             }
 

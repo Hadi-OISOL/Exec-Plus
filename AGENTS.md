@@ -40,6 +40,223 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 19 — Natural social routing and responsive activity verified live
+
+- Private release **9ce1f703b13b957f /0029**, runtime **07c7b47**, is active.
+  Read `docs/verification-conversation-experience.md`. Model-enabled casual talk uses
+  a model-selected conversational focus and generated reply, not a how-are-you lookup.
+  Mixed data questions retain governed tools. Social prose is not verified analysis;
+  heuristic claim filters have documented limits and social report exports are refused.
+- Animated activity reflects actual server stages, supports cancellation/reduced motion,
+  and keeps recorded actions inspectable. Dark borders/forecast colors and reply hierarchy
+  are improved; mobile chat flows with the page while exact tables remain scrollable.
+- Local110 broader/31 final social tests overlap;72frontend, types/lint/Ruff/mypy269,
+  fresh VPS builds and restricted image checks pass. Browser13pass/1explicit model skip;
+  live4 legacy+11 social/mixed cases and3 widths/both themes pass. Initial assertion
+  failures retained. Five owned live fictional accounts disabled/revoked; real sessions
+  unchanged. No full-repository, universal-language or all-device guarantee.
+- Activation preserves77tables/221files/config. Checked backups **20261018T193228Z** /
+  **20261018T193504Z** UTC; five services, six loopback listeners, readiness/web,
+  model/timers/images/schema/config pass. No restore, push, provider/schema change.
+  Preserve unrelated WIP and all later saved work. Older entries are historical.
+
+
+### October 19 — Reported conversation loop repaired and verified live
+
+- Private release **0d6af5f7b68d02d3 /0029**, runtime **ff1f27e**, is active.
+  Read `docs/verification-conversation-goal-repair.md`. Greetings are brief;
+  capability/next-step readings use authorized context; ideal conditions ask for
+  the desired outcome; “in order to” no longer falsely blocks a harvest comparison.
+- Local34/156/78-case runs overlap; Ruff/mypy269 pass. Exact candidate builds and
+  restricted image checks pass. Live four legacy hosted tasks and seven reported-style
+  turns pass; fresh browser checks cover three widths in both themes. All six owned
+  live synthetic accounts are disabled/revoked. Old saved replies remain immutable.
+- Activation preserves77 tables/185 files/configuration. Checked backups
+  **20261018T191344Z**/**20261018T191744Z** (UTC); readiness/web, five services,
+  six loopback listeners, models/timers and unchanged schema/images pass. No restore.
+- This focused gate does not establish universal language accuracy, short-answer
+  continuation coverage or causal crop advice. No schema/dependency/provider change,
+  push or public exposure. All64 requirement statuses/eight external gates retained.
+  Previous release entries below are historical. Preserve unrelated working files.
+
+
+### October 18 — Proactive findings, private recall and dark mode verified live
+
+- Private release **57f425ce74e83c35** is active on unchanged **0029**, runtime **66ba6b1**.
+  API/jobs **04331cd56ad4**, web **2cefaf5169d2**. Read
+  `docs/intelligence-experience-upgrade.md` and `docs/verification-intelligence-experience.md`.
+- Eligible confirmed sources receive bounded automatic pattern evidence. Overview leads
+  with findings and keeps charts open; System/Light/Dark works across charts and panels.
+  Eligible anomaly checks have a one-click default. Narrative v2 adds readable values and
+  exact grouped highlights; common-unit guards prevent mixed-currency rankings. Old v1 replays.
+- Explicit earlier-answer recall uses authorized receipts and a narrow MIT Trellis tokenizer;
+  negative/ambiguous references clarify. No autonomous private-memory writes or causal advice.
+- Focused checks: overlapping backend177/133/24/51 groups,71frontend,23distinct latest browser
+  passes, static/build/restricted checks. Four live hosted tasks pass53.279s; browser3widths
+  inboth themes passes35.406s. Initial lock/checker/preflight failures remain in the ledger.
+- Checked backups **20261018T185019Z**/**20261018T185309Z**; activation preserves77tables,
+  198files/3997759bytes andconfiguration. Five services/sixloopbacklisteners/modeltimers
+  andreadyweb pass after backup. Allfour live fictional accounts disabled/revoked.
+- Scoped Replica reconnaissance and REA public ThoughtSpot evidence are used; Agent Reach
+  is installed as an isolated public-reader assistant tool. Cognee1.6.5 is reviewed/pinned
+  only, deferred pending retrieval/permission/forget benchmarks. Read their adoption docs.
+- No schema/provider/runtime-dependency change, push, public exposure or data restore.
+  Existing sessions and unrelated WIP preserved. All64IDs/counts/eightproduction gates unchanged.
+  Private access and current release are in `data/agent-memory/private-vps-handoff.md`.
+
+### October 18 — Bounded conversational harness verified live
+
+- Private release **831c6e06a8b55bdb** is active on unchanged **0029**. Runtime source
+  **5247867**, accepted test checkpoint **577d183**. Read `docs/agent-harness.md`,
+  `docs/agent-harness-implementation.md` and `docs/verification-agent-harness.md`.
+- Two independent governed queries can answer a compound question with both receipts.
+  Bounded private follow-ups and verified factual wording selection preserve exact math,
+  historical units, access checks and exports. No arbitrary tool loops or causal advice.
+- Local latest coverage: **3,168 backend nodes**, all37 original mappings, **69 frontend**,
+  **111 browser passes /3 explicit model skips**, static/build/restricted-image checks.
+  This combines a full3153-pass/1-failure run with passing supplements; failures retained.
+- Hosted before/after: **2/4 in51.268s →4/4 in52.567s**, allfour narratives selected.
+  Three live layouts pass35.114s, with keyboard evidence, no overflow/actual network errors.
+  Expected background signal cancellations are separately evidenced; synthetic accounts revoked.
+- Checked backups: **20261018T175026Z** before/**20261018T175717Z** after. Activation
+  preserves77tables,218files/4016809bytes andconfiguration; final services, loopback listeners,
+  model/timers and schema pass. No restore, schema change, dependency addition or push.
+- New context-enabled planning bypasses local Qwen; hosted DeepSeek handles interpretation
+  and factual wording selection. Dashboard summary selection still uses local Qwen, and
+  server tools calculate numbers. Main model names remain unchanged. Allfour private flags
+  are enabled; general defaults remain off. All8production gates andfeaturecounts unchanged.
+- Preserve newer saved work. Rollback means compatible flag disable/forward repair, never
+  an old reader that drops the second calculation. Latest private access/handoff is in
+  `data/agent-memory/private-vps-handoff.md`; never print sessions or provider credentials.
+
+### October 17 — Natural record questions and selected-group comparison
+
+- Private release **c34536b8540f7c6d** is active on unchanged **0029**; source
+  checkpoint **4ec1b00**. Read `docs/harvest-language-repair.md` and
+  `docs/verification-harvest-language-repair.md`. This is the current runtime;
+  earlier phase/release entries remain historical.
+- Record counts include matching rows with missing unrelated cells. Named-field
+  counts remain nonnull counts. Highest/lowest-record requests retain ties.
+  A registered group-comparison tool reuses governed projections, source-bound
+  private context, exact receipts and protected PDF/Excel/CSV outputs. Unsupported
+  extra scopes clarify; missing units and causal effects are never invented.
+- 442 distinct affected backend/architecture cases,63 frontend tests,9 targeted browser
+  journeys, Ruff/mypy 320 and both VPS image builds/restricted checks pass. Retained
+  initial failures have passing rechecks. This is not a fresh full-repository gate.
+  Four hosted natural-language live jobs pass in 83.551s; live UI nine layouts pass in 48.220s.
+  All three fictional live accounts are disabled/revoked afterward.
+- Activation preserves 77 tables and179 stored files/configuration. Checked backups:
+  pre **20261017T170043Z**, post **20261017T170737Z**. Final readiness/web, five
+  services, six loopback listeners, model/timers and unchanged runtime identities
+  pass. A Python 3.10/JavaScript-timestamp verifier issue is fixed with retained
+  failure evidence; no app/schema/data rollback occurs.
+- Local qwen3:4b is advisory selection; hosted deepseek-v4-pro remains configured
+  for interpretation/readings/summaries. Server tools calculate the results.
+  No specialized-provider switch, new dependency, feature-count change or push.
+  Preserve current saved work and all unrelated root files. Private memory carries
+  the supplied farm-file analysis; do not turn its associations into crop advice.
+
+
+### October 17 — Both phases delivered and private0029 release verified
+
+- Both development phases are accepted within documented local bounds at
+  **00be9da**. Connector merge **142a7dd** and incoming **2188a2e** ancestry remain.
+  Private release **4fff22633f0c5f44 /0029** is active: API/jobs **ab3d84bf**,
+  web **4d348afd**. No push or live connector/provider calls occurred.
+- Local evidence: **2,937 latest passing backend cases**, all37 original mapped
+  requirements, **107 browser passes /3 named model skips**, **59 frontend tests**,
+  static/build checks,112 offline evaluation checks and isolated0029 recovery.
+  Combined coverage and initial failures remain explicit, not one clean full run.
+- Separate live fictional checks pass five Phase1 API groups (64.479s), twelve
+  Phase2 groups (140.485s) and five native UI groups/nine desktop/mobile layouts
+  (40.652s). Generated accounts are disabled and sessions revoked. The initial
+  tunnel/verifier failures and exact synthetic-account cleanup remain recorded.
+- Activation preserves **50 original table projections**, **167 stored files**
+  and configuration. Checked backups: **20261017T161322Z** before and
+  **20261017T162930Z** after. All five services, six loopback listeners, readiness,
+  website and model/timers pass. Preserve newly saved work; never restore an old
+  database over later work. Existing real sessions/secrets were not changed.
+- Read [private release evidence](docs/verification-codex-private-release.md),
+  [final report](docs/codex-two-phase-final-report.md) and
+  [local walkthrough](docs/two-phase-local-walkthrough.md). Counts remain
+  **41 Done /17 Partial /6 Not yet** across64 IDs; all8 production gates stay open.
+  Broader limits and external acceptance remain explicit. Earlier entries below
+  are historical. No automatic next task is scheduled.
+
+
+### October 17 — Both phases accepted locally; private release prepared
+
+- Both phases pass the combined local gate: **2,937 latest passing backend cases**,
+  all37 original mapped requirements, **107 browser passes /3 explicit model skips**,
+  **59 frontend tests**, types/lint/Ruff/mypy319 and production builds. The frozen
+  full run is2,932 passes in2,333.55seconds; five later security cases and two
+  service repairs have explicit supplements. Initial failures remain retained.
+- Release candidate **4fff22633f0c5f44** is built and restricted-image checked on
+  schema0029; it is not active at this checkpoint. Root alone owns the separately
+  authorized private activation, checked backup, original50table/object/config
+  preservation and fictional live verification. No push or provider calls.
+- Ledger: **41 Done /17 Partial /6 Not yet**; all64 IDs and8 blocked production
+  gates remain. See the two-phase final report, original37 regression ledger and
+  local walkthrough. Connector142a7dd preserves accepted2ee7d9c/incoming2188a2e.
+- Preserve unrelated next-env, originalPDF, independent-tools doc and UI coordination
+  file. Do not alter session secrets, customer definitions or external settings.
+
+### October 17 — Connector integrated; CSS live; Phase 2 gate running
+
+- Root phase2 contains true merge **142a7dd**, parents accepted Phase1 **2ee7d9c**
+  and incoming connector **2188a2e**. All17 existing WIP hashes were preserved.
+  Connector peer task is complete; no push or connector/provider calls occurred.
+- CSS-only web image **ui-20261017-live5c48d3c /29a4f8f** is live. API/jobs remain
+  **867c5a0**, schema **0020**. Twenty deployed synthetic layouts pass; root
+  inspected desktop/mobile captures. Read `docs/verification-oct17-styling-release.md`.
+  Checked backups **20261017T153602Z**/**20261017T153628Z** retain unchanged bytes
+  after a separately documented backup-name compatibility repair. No data restore.
+- Phase2 code exists for contribution/PVM, constrained scenarios, capacity
+  sensitivities, rolling/multivariate anomalies, owner-governed consolidation and
+  expanded scoped API/embed paths. Full frozen backend2932 and current browser110
+  gates are running; five appended sharing-race regressions are separate supplements.
+  Preserve original failures and source hashes. Final backend acceptance is pending.
+- Focused browser/core tests pass,59frontend/types/lint/Ruff/mypy319 pass;
+  offline evaluation112checks/40cases and disposable0029 recovery77tables/3replays
+  pass. These do not deploy the backend or clear production gates. Root alone
+  prepares the separately authorized exact0029 private release after final evidence.
+- Continue `docs/codex-two-phase-implementation.md`, both phase verification ledgers
+  and `docs/codex-two-phase-final-report.md`. The report explicitly remains pending
+  until full reconciliation. Operator steps are in `docs/two-phase-local-walkthrough.md`.
+  Do not overwrite unrelated files or private evidence; no push is authorized in
+  this two-phase slice. All64IDs/original37features and8blocked production gates remain.
+
+
+### October 17 — Two-phase Phase 1 accepted locally; Phase 2 continues
+
+- Phase 1 native accounts/private guide, internal price-free tiers, exact exports,
+  monitoring, recovery, evaluation and performance increments are locally accepted
+  on **0027**. Read `docs/codex-two-phase-implementation.md`,
+  `docs/verification-codex-phase1.md` and `docs/regression-original-37.md`.
+  All **2,580 backend cases** have passing latest executions across a full run
+  and focused harness repairs; nine initial failures remain recorded. All 37
+  historical requirement mappings pass. This is not one clean full-suite run.
+- Frontend 59 tests/types/lint/build and 76 distinct offline browser journeys pass,
+  with three explicit model skips. Successful guide Finish/reopen, nine new API
+  timing checks, exact exports, offline evaluation and disposable 0027 recovery
+  have separate evidence. Mixed performance results and external limits remain.
+- The live private demo remains web **5c48d3c**, API/jobs **867c5a0**, schema **0020**.
+  The user later authorized tested incremental private-VPS releases; root alone
+  owns activation, checked backups and preservation. No push, provider change,
+  public exposure or customer-data analysis is part of this work. The latest
+  credential-free local handoff is `data/agent-memory/private-vps-handoff.md`.
+- Connector work is isolated in `data/agent-tools/worktrees/connector-merge`.
+  Preserve 0025–0027; connector 0028 follows 0027 and 0029 follows 0028. R1–R8
+  security/import repairs are contributed and combined checks are running. Read
+  `data/agent-memory/connector-merge-coordination.json` before touching shared
+  files/index/branches. No root merge or connector deployment is implied.
+- Phase 2 contribution/scenario/anomaly/decision/consolidation/API/embed work and
+  the final full regression remain unfinished. Preserve unrelated next-env,
+  original PDF, independent-tools verification document and separate UI work.
+  Feature counts are **40 Done / 16 Partial / 8 Not yet** across all 64 IDs; only
+  #46 advances for tested local internal allowances, never billing. All eight
+  production gates remain blocked.
+
 ### October 16 — Open Overview and accessible controls
 
 - Web **5c48d3c** is live; API/jobs remain **867c5a0** on unchanged **0020**.

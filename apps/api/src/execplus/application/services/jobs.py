@@ -57,6 +57,7 @@ class JobService:
         lease_seconds: int = 30,
         timeout_seconds: int = 100,
         queue_limit: int = 32,
+        max_queries: int = 1,
     ) -> None:
         if (
             not 1 <= workspace_limit <= 8
@@ -69,7 +70,7 @@ class JobService:
         self.workspace_limit = workspace_limit
         self.lease_seconds = lease_seconds
         self.queue_limit = queue_limit
-        self.budget = ResourceBudget(wall_seconds=timeout_seconds)
+        self.budget = ResourceBudget(wall_seconds=timeout_seconds, max_queries=max_queries)
 
     def _authorize(self, repo: WorkspaceRepository, actor: User, wid: UUID, jid: UUID) -> Job:
         repo.membership(wid, actor.id)

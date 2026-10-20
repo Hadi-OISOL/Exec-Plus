@@ -8,7 +8,7 @@ a profile, the data reading and replayable answers like any file. Imports are sn
 do not update when the platform changes, so import again to refresh. A platform appears only
 when its settings are present. Every connector needs `EXECPLUS_TOKEN_ENCRYPTION_KEY`
 (a Fernet key, see [Google integration](google-integration.md)) and `make migrate` (migration
-0019 adds one table and keeps every existing record).
+0029 adds one table and keeps every existing record).
 
 ## Platforms
 
@@ -28,20 +28,31 @@ copies tables through the table-data API, so no query runs and no query cost is 
 
 ## Behavior
 
-- A user's connections are private to them. Disconnecting revokes OAuth tokens at the platform
-  and deletes the stored record. A revoked or expired grant asks the user to reconnect.
+- A user's connections are private to them. Disconnecting invalidates the local connection
+  and pending handoffs before attempting remote revocation. A revoked or expired grant
+  asks the user to reconnect. Version checks prevent stale refreshes from replacing a
+  newer connection; browser/session-bound one-use attempts protect OAuth callbacks.
 - OAuth platforms use the first organisation or company the user granted.
 - Records are flattened into columns (`Customer_name`), lists of objects become a count column
-  and Xero dates become ISO dates. Binary columns are skipped.
+  and Xero dates become ISO dates. Binary columns are skipped. Ambiguous flattened
+  or generated column names are refused instead of overwriting source fields.
 - Limits: 100,000 rows per import by default (`EXECPLUS_CONNECTOR_MAX_ROWS`, at most 200,000),
   500 columns, 2,000,000 cells and 20 MiB. Platform quotas also apply; Xero allows about sixty
   calls a minute, so a very large import can be slowed or refused.
+  Imports probe one extra row and refuse sources above the row limit; a partial source
+  must not silently become a complete-looking upload. HTTP responses are streamed with a
+  20 MiB cap and identity encoding; compressed responses are refused. Cumulative page
+  records and generated CSV have separate byte budgets. PostgreSQL uses a streamed
+  cursor and refuses oversized rows before returning their values to the application.
 - Imports are audited as `connector.imported`, visible only to the person who ran them.
+  The audit and upload publication share one transaction. Failed UI reload after a saved
+  import offers a read-only retry, rather than resubmitting the import.
 
 ## Safety
 
 - OAuth refresh tokens, Odoo API keys and database passwords are stored sealed with
   authenticated encryption and never logged or returned by any endpoint.
+- Secret values retain their exact whitespace; only nonsecret form fields are trimmed.
 - Database sessions are forced read-only and time-limited; writes are refused by the server.
   Table names are checked against the database's own list, never spliced into SQL.
   Use a dedicated read-only database user anyway.

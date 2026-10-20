@@ -3,8 +3,8 @@
 
 # ADR 0011: Google sign-in and snapshot import from Google Sheets
 
-Status: Accepted for the user-requested October 15 private-demo integration. It does not
-clear any production gate.
+Status: Incoming connector design revised during the October 17 branch integration.
+Local candidate only; no live activation or production gate is cleared.
 
 The only identity adapter refused to run outside local/test, and Google Sheets was the
 first planned connector (Phase 4E). Add Google as the sign-in method and as a source,
@@ -13,8 +13,10 @@ without changing how sessions, permissions, uploads, profiles, receipts or refre
 ## Decisions
 
 - **Identity.** Google OpenID Connect (authorization code with PKCE) proves the caller's
-  verified email. ExecPlus then issues its normal opaque, expiring session, so every route,
-  permission and audit rule is unchanged. A production-capable `DatabaseSessionIdentity`
+  verified provider subject and email. Self-service Google identities have explicit
+  account classification, Demo allowances, exact-account approval and active-account
+  checks. Existing password/operator accounts are never linked by email alone.
+  ExecPlus issues its normal opaque, expiring session. A production-capable `DatabaseSessionIdentity`
   now backs sessions; `LocalSessionIdentity` keeps its local/test restriction.
 - **Claims.** Issuer, audience, expiry, nonce and `email_verified` are checked. The ID token
   comes straight from Google's token endpoint over TLS, so its signature is not re-verified
@@ -26,9 +28,10 @@ without changing how sessions, permissions, uploads, profiles, receipts or refre
   (`EXECPLUS_TOKEN_ENCRYPTION_KEY`), stored one row per user and never logged. Disconnecting
   revokes the token at Google and deletes the row. A revoked grant removes the row and asks
   the user to reconnect.
-- **State.** Sign-in binds a sealed, ten-minute state to the browser with an HttpOnly cookie.
-  The connect flow carries the sealed state in OAuth `state`, which names the initiating user,
-  so no cookie is needed across origins.
+- **State.** Both sign-in and connect use a ten-minute server-side, one-use attempt
+  bound to an HttpOnly browser cookie. Connect also binds the exact initiating session
+  and connection version. A short-lived one-use cookie exchange returns the bearer to
+  memory; URL fragments and stored application sessions are refused.
 - **Import.** A chosen tab is copied into a normal CSV upload (raw numbers, formatted dates)
   and follows the existing profile, meaning, receipt and refresh paths. Answers still replay
   from retained bytes; ExecPlus never queries Google live.
@@ -40,4 +43,5 @@ without changing how sessions, permissions, uploads, profiles, receipts or refre
   cap or when broader scopes are added.
 - Sheets are snapshots. They go stale until re-imported; scheduled refresh from Google is
   future work. Limits: 20 MiB, 200,000 rows, 500 columns, 2,000,000 cells, one tab per import.
-- BigQuery, Gmail and live warehouse queries are separate decisions and remain Phase 6.
+- BigQuery snapshot import is covered by ADR 0012. Gmail and live warehouse queries
+  remain separate work. See `../connector-identity-security.md` for lifecycle guards.

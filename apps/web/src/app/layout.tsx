@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
+import "./theme.css";
 
 const manrope = localFont({
   src: "./fonts/Manrope-Variable.ttf",
@@ -24,8 +25,8 @@ type RootLayoutProps = Readonly<{
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" className={manrope.variable}>
-      <body>{children}</body>
+    <html lang="en" className={manrope.variable} suppressHydrationWarning>
+      <body><script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("execplus-appearance");document.documentElement.dataset.theme=t==="dark"||t==="light"?t:"system"}catch{}` }} />{children}</body>
     </html>
   );
 }

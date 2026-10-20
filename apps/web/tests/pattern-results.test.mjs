@@ -28,7 +28,7 @@ const finding = {
   chart: { kind: "bar", x: "group", y: "amount", points: [{ x: "A", y: "9007199254740993.000001", count: 20 }, { x: "B", y: "-0.0000000000001", count: 18 }] },
   notes: ["Check with new observations."],
 };
-const render = result => renderToStaticMarkup(createElement(PatternResults, { result, evidence: { query_id: "private-receipt", result_checksum: "checksum" } }));
+const render = (result, props = {}) => renderToStaticMarkup(createElement(PatternResults, { result, evidence: { query_id: "private-receipt", result_checksum: "checksum" }, ...props }));
 
 test("measured cards retain exact labels, missing coverage and private receipt details", () => {
   const html = render({ ...base, findings: [finding] });
@@ -134,4 +134,70 @@ test("blank plotted fields are omitted rather than displayed as a measured zero"
   assert.equal((html.match(/<circle/g) ?? []).length, 1);
   assert.match(html, /1 displayed points/);
   assert.match(html, /<td><\/td><td>7<\/td>/);
+});
+
+const cohort = {
+  version: "cohort-comparison-v1", engine_version: "fixture", status: "compared",
+  target: { column: "Crop_Growth_Stage", value: "Harvest" },
+  coverage: { source_rows: 64, filtered_rows: 61, target_rows: 20, other_rows: 40, missing_target_rows: 1 },
+  numeric: [
+    { column: "Rainfall_mm", unit: "mm", target_count: 20, other_count: 40, target_mean: "8.000000000001", other_mean: "5", target_median: "7", other_median: "4", difference: "3.000000000001", standardized_difference: "0.100000", status: "compared" },
+    { column: "Fixed_reading", unit: "mm", target_count: 20, other_count: 40, target_mean: "0", other_mean: "0", target_median: "0", other_median: "0", difference: "0", standardized_difference: null, status: "compared" },
+  ],
+  categories: [{ column: "Crop_Type", target_observed: 20, other_observed: 40, levels: [{ value: "Rice", target_count: 10, other_count: 30, target_share: "0.500000", other_share: "0.750000" }, { value: "Wheat", target_count: 10, other_count: 10, target_share: "0.500000", other_share: "0.250000" }] }],
+  limitations: ["These observations do not establish a cause."],
+  exclusions: [{ column: "Soil_Moisture", reason: "Confirm its unit before comparing." }],
+  next_steps: ["Check the crop mix before comparing conditions."],
+  suggestions: ['Show records where Crop_Growth_Stage is "Harvest"'],
+};
+
+test("targeted group comparison keeps returned precision, weak/equal gaps, denominators and missing labels", () => {
+  const html = render(cohort);
+  assert.match(html, /What is different about Harvest/);
+  assert.match(html, /Harvest rows<\/dt><dd>20/);
+  assert.match(html, /Other group rows<\/dt><dd>40/);
+  assert.match(html, /Missing group label<\/dt><dd>1/);
+  assert.match(html, /all other nonmissing values of Crop_Growth_Stage/);
+  assert.match(html, /8\.000000000001 mm/);
+  assert.match(html, /3\.000000000001 mm/);
+  assert.match(html, /Fixed_reading/);
+  assert.match(html, /<dd>0 mm<\/dd>/);
+  assert.match(html, /0\.100000/);
+  assert.match(html, /0\.500000/);
+  assert.match(html, /Source receipt: private-receipt/);
+  assert.match(html, /do not explain why a difference happened/);
+  assert.doesNotMatch(html, /significant difference|recommended irrigation|prediction accuracy:|<details[^>]+open/);
+});
+
+test("sparse cohort values stay unavailable rather than receiving zero gaps or bars", () => {
+  const html = render({ ...cohort, status: "insufficient_data", numeric: [{ ...cohort.numeric[0], target_count: 1, other_count: 0, target_mean: null, other_mean: null, target_median: null, other_median: null, difference: null, standardized_difference: null, status: "insufficient_data" }], categories: [] });
+  assert.match(html, /What we can compare for Harvest/);
+  assert.match(html, /not enough comparable values/);
+  assert.match(html, /<td>1<\/td><td>Not available<\/td><td>Not available/);
+  assert.match(html, /<td>0<\/td><td>Not available<\/td><td>Not available/);
+  assert.doesNotMatch(html, /patternBarChart|Average difference ·|<dd>0 mm/);
+});
+
+test("cohort source labels and server next steps remain escaped and actions respect busy state", () => {
+  const result = { ...cohort, target: { column: "<stage>", value: "<script>Harvest</script>" }, next_steps: ['<img src=x onerror="unsafe()">'], suggestions: ['Compare "<script>"', "x".repeat(501)] };
+  const available = render(result, { onAsk: () => {} });
+  const busy = render(result, { onAsk: () => {}, busy: true });
+  assert.match(available, /&lt;script&gt;Harvest&lt;\/script&gt;/);
+  assert.match(available, /&lt;img src=x/);
+  assert.doesNotMatch(available, /<script>|<img/);
+  assert.equal((available.match(/ disabled=""/g) ?? []).length, 1);
+  assert.equal((busy.match(/ disabled=""/g) ?? []).length, 2);
+  assert.match(available, /These are investigation steps/);
+  assert.doesNotMatch(render(result), /Ask about this comparison/);
+});
+
+test("cohort plotting never rounds its exact table values or hides an unavailable standardized gap", () => {
+  const result = { ...cohort, numeric: [{ ...cohort.numeric[0], target_mean: "9007199254740993.000001", other_mean: "-0.0000000000001", target_median: "9007199254740993.000001", standardized_difference: null }] };
+  const html = render(result);
+  assert.match(html, /9007199254740993\.000001/);
+  assert.match(html, /-0\.0000000000001/);
+  assert.match(html, /Standardized difference: <strong>Not available/);
+  assert.match(html, /bar lengths are illustrative/);
+  assert.match(html, /role="region" aria-label="Exact group values for Rainfall_mm"/);
+  assert.doesNotMatch(html, /NaN|Infinity/);
 });

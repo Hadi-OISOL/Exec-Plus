@@ -11,12 +11,15 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 from uuid import UUID, uuid4
 
+from execplus.application.plan_context import operation_id
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.dataset_access import authorize_sources
 from execplus.application.services.decision_analysis import DecisionAnalysisService
 from execplus.application.services.forecasts import ForecastService, read_complete
+from execplus.application.services.lineage import authorize_analysis_receipt
 from execplus.application.services.pdf_exports import PdfExportService, UnitOfWork
+from execplus.application.services.plans import admit
 from execplus.application.services.studies import StudyService, visible
 from execplus.application.services.thread_export_documents import thread_tables
 from execplus.domain.errors import AuthorizationError
@@ -187,7 +190,14 @@ class ResultExportService:
                 actor, wid, build_analysis_report("dashboard_queries", record, now), sources
             ), sources
 
-        return await self._deliver(actor, wid, query_ids[0], format, chart, prepare)
+        def guard(repo: WorkspaceRepository) -> object:
+            executions = tuple(repo.query_execution(wid, query_id) for query_id in query_ids)
+            return tuple(
+                (execution, authorize_analysis_receipt(repo, actor, execution))
+                for execution in executions
+            )
+
+        return await self._deliver(actor, wid, query_ids[0], format, chart, prepare, guard)
 
     def _with_sources(
         self, actor: User, wid: UUID, content: ExportContent, sources: tuple[dict[str, str], ...]
@@ -230,6 +240,16 @@ class ResultExportService:
                 repo.workspace(wid, lock=True)
                 repo.membership(wid, actor.id)
                 authority = guard(repo) if guard else None
+                inputs = asdict(content)
+                inputs["document"].pop("generated_at")
+                admit(
+                    repo,
+                    actor,
+                    wid,
+                    "exports",
+                    operation_id("exports"),
+                    {"target": target_id, "format": format, "chart": chart, "content": inputs},
+                )
             data = await read_complete(lambda: self.renderer.render(content, format, chart))
             current, current_sources = await prepare(now)
             if current != content or current_sources != sources:

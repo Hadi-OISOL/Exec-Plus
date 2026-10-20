@@ -8,10 +8,25 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from execplus.domain.usage_metering import UsageAttempt, UsagePolicy, UsagePrice, UsageTotals
+from execplus.domain.usage_metering import (
+    UsageAttempt,
+    UsageAttribution,
+    UsagePolicy,
+    UsagePrice,
+    UsageTotals,
+)
 
 
 class UsageRepository(Protocol):
+    def admit_model_attempt(
+        self,
+        attribution: UsageAttribution,
+        attempt_id: UUID,
+        provider: str,
+        model: str,
+        now: datetime,
+    ) -> None: ...
+
     def lock_workspace(self, workspace_id: UUID) -> None: ...
 
     def require_member(self, workspace_id: UUID, actor_id: UUID) -> None: ...

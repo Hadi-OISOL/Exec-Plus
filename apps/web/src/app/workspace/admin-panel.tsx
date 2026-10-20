@@ -6,6 +6,7 @@ import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { ProductUsagePanel } from "./product-usage";
 import { IncidentPanel } from "./incident-panel";
+import { PlanAssignmentPanel } from "./plan-entitlements-panel";
 import { SupportPanel } from "./support-panel";
 import type { StaffRole } from "./support-panel";
 
@@ -345,6 +346,10 @@ export function AdminPanel({
                     )}
                   </section>
                 </div>
+                <details>
+                  <summary>Local workspace allowances</summary>
+                  <PlanAssignmentPanel key={selected.id} workspaceId={selected.id} request={request} />
+                </details>
                 <button
                   type="button"
                   onClick={() => setReportOpen((value) => !value)}

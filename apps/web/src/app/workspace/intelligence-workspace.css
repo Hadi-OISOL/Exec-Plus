@@ -1,0 +1,118 @@
+/* Use case: Makes the first reading the visual center of the workspace.
+What it does: Reduces competing controls, improves chat reading and preserves all evidence. */
+.analyticsShell .studioHomeTop { grid-template-columns: minmax(0, 1fr) minmax(240px, .48fr); gap: 24px; }
+.analyticsShell .homeWelcome h2 { font-size: clamp(25px, 3vw, 38px); line-height: 1.2; margin-block: 8px 12px; text-wrap: balance; }
+.analyticsShell .homeWelcome { margin-bottom: 20px; }
+.analyticsShell .studioQuestionSpace { padding: 24px; }
+.analyticsShell .homeQuickQuestions { margin-bottom: 0; }
+.analyticsShell .homeMoreTools { margin: 12px 0 24px; }
+.analyticsShell .homeMoreTools > summary { cursor: pointer; padding: 14px 18px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: 14px; }
+.analyticsShell .studioMemoryShortcut { padding: 12px 16px; }
+.analyticsShell .overviewFindings { border: 0; background: transparent; box-shadow: none; }
+.analyticsShell .overviewFindings > .workspaceSurfaceHeader { padding-inline: 0; border: 0; }
+.analyticsShell .overviewFindings .insightCanvas { padding: 0; }
+.analyticsShell .discoveryIntro { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+.analyticsShell .discoveryFindings { gap: 20px; margin-block: 20px; }
+.analyticsShell .discoveryMetricGroup { border-top: 3px solid light-dark(#176b57, #80dbc0); border-radius: 16px; box-shadow: 0 4px 16px rgb(0 0 0 / 3%); }
+.analyticsShell .discoveryMetricRange { gap: 18px; }
+.analyticsShell .discoveryValue { font-variant-numeric: tabular-nums; font-size: clamp(24px, 2.8vw, 38px); letter-spacing: -.04em; }
+.analyticsShell .discoveryFinding { border-radius: 16px; }
+.analyticsShell .discoveryNext .suggestionChips { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.analyticsShell .discoveryNext .suggestionChips button { justify-content: space-between; min-height: 56px; text-align: left; border-radius: 12px; padding: 16px; }
+.analyticsShell .dedicatedConversation { max-width: 1100px; margin-inline: auto; }
+.analyticsShell .conversationLog { padding: 24px; }
+.analyticsShell .conversationTurn { margin-block: 28px; }
+.analyticsShell .assistantMessage { max-width: 100%; padding: 24px; border-radius: 16px; }
+.analyticsShell .assistantMessage > p, .analyticsShell .datasetGuidance > p { max-width: 74ch; font-size: 16px; line-height: 1.8; }
+.analyticsShell .userMessage { max-width: 78%; margin-inline-start: auto; padding: 16px 20px; border-radius: 18px 18px 4px 18px; background: var(--surface-selected); }
+.analyticsShell .userMessage p { font-size: 15px; line-height: 1.65; }
+.analyticsShell .chatComposer { border-radius: 16px; padding: 18px; }
+.analyticsShell .chatComposer textarea { min-height: 90px; font-size: 16px; line-height: 1.6; }
+.analyticsShell .messageAuthor { letter-spacing: .01em; font-size: 12px; }
+.analyticsShell .discoveryFinding, .analyticsShell .discoveryMetricGroup { animation: findings-enter 220ms ease-out; }
+@keyframes findings-enter { from { opacity: .7; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 900px) {
+  .analyticsShell .studioHomeTop { grid-template-columns: minmax(0,1fr); }
+  .analyticsShell .discoveryNext .suggestionChips { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 600px) {
+  .analyticsShell .studioQuestionSpace, .analyticsShell .discoveryIntro, .analyticsShell .conversationLog, .analyticsShell .assistantMessage { padding: 16px; }
+  .analyticsShell .userMessage { max-width: 94%; }
+  .themeControl { margin: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .analyticsShell .discoveryFinding, .analyticsShell .discoveryMetricGroup { animation: none; } }
+
+.analyticsShell .discoveryFindings { align-items: start; }
+.analyticsShell .overviewFindings .discoveryIntro { padding: 16px 20px; }
+.analyticsShell .discoveryMetricRange { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.analyticsShell .overviewConversation > .analysisViewControls { margin-block: 4px 12px; }
+.analyticsShell .analyticsHome { margin-top: 24px; }
+.analyticsShell .workbenchRail .themeControl { margin: 16px 18px; }
+.analyticsShell .workbenchRail .brandMark, .analyticsShell .uploadShortcut { color: light-dark(white,#11201e); }
+@media (max-width: 600px) { .analyticsShell .discoveryMetricRange { grid-template-columns: minmax(0,1fr); } }
+
+.analyticsShell .workbenchTop > .themeControl { display: flex; align-items: center; gap: 8px; margin: 0; margin-inline-start: auto; flex-shrink: 0; }
+.analyticsShell .workbenchTop > .themeControl select { width: auto; }
+.analyticsShell .discoveryMetric:last-child:nth-child(3) { grid-column: auto; }
+.analyticsShell .overviewConversation .analysisViewControls { padding-block: 8px; }
+.analyticsShell .overviewFindings { margin-top: 12px; }
+@media (max-width: 600px) { .analyticsShell .workbenchTop > .themeControl { margin-inline-start: 0; } }
+.analyticsShell .dedicatedConversation .askPanel:not(:has(.conversationTurn)) .conversationLog { height: auto; min-height: 260px; }
+.analyticsShell .dedicatedConversation .welcomeMessage { margin-block: 0; }
+
+/* Keep result text readable and let narrow layouts grow instead of clipping chat. */
+.analyticsShell :is(.conversationTurn, .assistantMessage, .userMessage, .chatHeader, .chatSource, .chatComposer, .dataExplanation) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.analyticsShell .assistantMessage {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 3%);
+}
+.analyticsShell .assistantMessage .messageAuthor { color: var(--green); }
+.analyticsShell .assistantMessage :is(.explanationPlain, .explanationCard p) { color: var(--ink); }
+.analyticsShell .dataExplanation[aria-label="Result explanation"] {
+  padding: 18px 20px;
+  border-radius: 12px;
+  border-inline-start: 3px solid var(--green);
+  background: light-dark(#f0f8f5, #203a33);
+}
+.analyticsShell .dataExplanation[aria-label="Result explanation"] > p:first-child {
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.65;
+}
+.analyticsShell .dataExplanation > details { color: var(--muted); font-size: 12px; }
+.analyticsShell .dataExplanation > details > summary { cursor: pointer; padding-block: 8px; }
+.analyticsShell .explanationCard[data-kind="fields"] { border-inline-start: 3px solid light-dark(#527b99, #9bc9ed); }
+.analyticsShell .explanationCard[data-kind="explore"] { border-inline-start: 3px solid light-dark(#8267a5, #c4adf4); }
+.analyticsShell .explanationCard[data-kind="clarify"] { border-inline-start: 3px solid var(--orange); }
+.analyticsShell .askPanel .suggestionChips button { white-space: normal; overflow-wrap: anywhere; gap: 12px; }
+.analyticsShell .studioChartHeading { flex-wrap: wrap; }
+.analyticsShell :is(.studioChartRange, .forecastLegend) { flex-wrap: wrap; }
+.analyticsShell .studioChartHeading > span { flex-shrink: 1; overflow-wrap: anywhere; }
+.analyticsShell .workbenchTop { flex-wrap: wrap; }
+.analyticsShell .workbenchTop > .themeControl { max-width: 100%; }
+.analyticsShell .workbenchTop > .themeControl select { min-width: 0; max-width: 100%; }
+@media (max-width: 600px) {
+  .analyticsShell.workbench .askPanel { max-height: none; }
+  .analyticsShell .askPanel .conversationLog,
+  .analyticsShell .dedicatedConversation .conversationLog {
+    height: auto;
+    max-height: none;
+    flex: none;
+    padding: 12px 8px;
+  }
+  .analyticsShell .assistantMessage { padding: 14px 12px; }
+  .analyticsShell .dataExplanation[aria-label="Result explanation"] { padding: 14px 12px; }
+  .analyticsShell .chatComposer { padding: 14px 12px; }
+  .analyticsShell .userMessage { margin-inline-start: 12px; max-width: calc(100% - 12px); }
+  .analyticsShell .workbenchTop .sessionBar { flex-wrap: wrap; margin-inline-start: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analyticsShell .conversationLog { scroll-behavior: auto; }
+}
+/* Exact tables scroll within their existing region; never split numeric values. */
+.analyticsShell .assistantMessage .tableScroll { max-width: 100%; overflow-x: auto; }
+.analyticsShell .assistantMessage .tableScroll table { overflow-wrap: normal; }

@@ -69,7 +69,7 @@ class MemoryStore:
         self.fail = False
         self.capacity = False
 
-    def collect(self, values, now):
+    def collect(self, values, now, observations=None):
         self.calls.append(values)
         if self.fail:
             raise RuntimeError("secret-token-private-user-data")
@@ -303,7 +303,7 @@ def test_incident_evidence_refuses_destructive_downgrade(integration):
     env = integration
     env.runtime.incidents.store.collect((occurrence(),), datetime.now(timezone.utc))
     with (
-        pytest.raises(RuntimeError, match="Preserve internal incident evidence"),
+        pytest.raises(RuntimeError, match=r"Preserve (internal incident|operational metrics)"),
         env.engine.begin() as conn,
     ):
         env.config.attributes["connection"] = conn

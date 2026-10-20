@@ -2,6 +2,8 @@
 What it does: Uses the bundled ECharts tree renderer for declared membership edges and keeps every supplied field available as accessible exact text. */
 
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useDarkTheme } from "../theme-control";
+import { chartTheme } from "./chart-theme";
 import { init, use as registerECharts } from "echarts/core";
 import type { EChartsCoreOption, EChartsType, ECElementEvent } from "echarts/core";
 import { TreeChart } from "echarts/charts";
@@ -73,6 +75,7 @@ export function DiagramResults({ diagram, sources = [] }: { diagram: DatasetDiag
   const [width, setWidth] = useState(640);
   const host = useRef<HTMLDivElement>(null);
   const engine = useRef<EChartsType | null>(null);
+  const dark = useDarkTheme();
   const inspectorId = useId();
   const reducedMotion = useSyncExternalStore(subscribeMotion, () => window.matchMedia("(prefers-reduced-motion: reduce)").matches, () => true);
   const selected = diagram.nodes.find(node => node.id === selectedId) ?? diagram.nodes[0];
@@ -108,9 +111,9 @@ export function DiagramResults({ diagram, sources = [] }: { diagram: DatasetDiag
     const chart = engine.current;
     if (!chart) return;
     chart.clear();
-    chart.setOption(option, { notMerge: true });
+    chart.setOption(chartTheme(option, dark), { notMerge: true });
     if (host.current) host.current.dataset.engineReady = "true";
-  }, [option]);
+  }, [option, dark]);
   useEffect(() => {
     const chart = engine.current;
     if (!chart) return;

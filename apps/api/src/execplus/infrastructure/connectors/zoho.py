@@ -4,7 +4,7 @@ What it does: Runs the Zoho OAuth exchange for the right data centre and pages t
 """
 
 import re
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlencode
 
 import httpx
@@ -15,7 +15,7 @@ from execplus.application.connector_ports import (
     ConnectorSession,
     ProviderTokens,
 )
-from execplus.domain.connectors import Source
+from execplus.domain.connectors import RecordBuffer, Source
 from execplus.infrastructure.connectors.base import (
     DEFAULT_TIMEOUT,
     json_body,
@@ -60,7 +60,7 @@ LISTS = (
 class ZohoBooksConnector:
     id = "zoho_books"
     label = "Zoho Books"
-    kind = "oauth"
+    kind: Literal["oauth", "credentials"] = "oauth"
     uses_pkce = False
     description = "Invoices, bills, payments, expenses, contacts, items and the chart of accounts."
     fields: tuple[ConnectorField, ...] = ()
@@ -173,7 +173,7 @@ class ZohoBooksConnector:
         base = session.context.get("api_domain", "")
         if not API_HOST.fullmatch(base):
             raise ConnectorApiError(400, "invalid_domain")
-        records: list[dict[str, Any]] = []
+        records: list[dict[str, Any]] = RecordBuffer()
         page = 1
         while len(records) < max_rows:
             body = json_body(

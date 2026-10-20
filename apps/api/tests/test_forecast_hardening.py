@@ -298,7 +298,7 @@ async def test_forecast_replay_source_reads_and_parsing_stay_off_event_loop(
     calls = []
     storage = env.runtime.analytics.storage
     parser = env.runtime.analytics.parser
-    read, read_table = storage.read, parser.read_table
+    read, parse_table = storage.read, parser.parse_table
 
     def checked_read(*args, **kwargs):
         calls.append(("read", threading.get_ident()))
@@ -306,10 +306,10 @@ async def test_forecast_replay_source_reads_and_parsing_stay_off_event_loop(
 
     def checked_table(*args, **kwargs):
         calls.append(("parse", threading.get_ident()))
-        return read_table(*args, **kwargs)
+        return parse_table(*args, **kwargs)
 
     monkeypatch.setattr(storage, "read", checked_read)
-    monkeypatch.setattr(parser, "read_table", checked_table)
+    monkeypatch.setattr(parser, "parse_table", checked_table)
     result = await env.runtime.forecasts.open(actor, UUID(wid), UUID(did), UUID(original["id"]))
     assert str(result.id) == original["id"]
     assert {kind for kind, _ in calls} == {"read", "parse"}

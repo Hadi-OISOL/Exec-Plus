@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 from execplus.application.ports import FileParser, ObjectStorage, QueryExecutor, WorkspaceRepository
 from execplus.application.services.dataset_access import authorize_sources, require_full_access
 from execplus.application.services.lineage import persist_query_execution
+from execplus.application.services.plan_executor import PlanAwareExecutor
 from execplus.application.services.understanding import current_meaning
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.evidence import receipt
@@ -40,7 +41,7 @@ class JoinService:
         self.uow = unit_of_work
         self.storage = storage
         self.parser = parser
-        self.executor = executor
+        self.executor = PlanAwareExecutor(executor, unit_of_work)
         self.row_limit = row_limit
 
     def _authorize(self, repo: WorkspaceRepository, actor: User, workspace_id: UUID) -> Membership:
@@ -90,8 +91,8 @@ class JoinService:
             now,
         )
         with self.uow() as repo:
-            self._authorize(repo, actor, workspace_id)
             repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
             require_full_access(repo, actor, workspace_id, left_dataset_id)
             require_full_access(repo, actor, workspace_id, right_dataset_id)
             repo.add(join_path)
@@ -110,8 +111,8 @@ class JoinService:
 
     async def list_join_paths(self, actor: User, workspace_id: UUID) -> tuple[JoinPath, ...]:
         with self.uow() as repo:
-            self._authorize(repo, actor, workspace_id)
             repo.workspace(workspace_id, lock=True)
+            self._authorize(repo, actor, workspace_id)
             visible = []
             for path in repo.join_paths(workspace_id):
                 try:

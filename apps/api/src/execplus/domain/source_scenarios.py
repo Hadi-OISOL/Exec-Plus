@@ -11,6 +11,8 @@ from uuid import UUID, uuid4
 from execplus.domain.decision_analysis import encoded, fail, number
 from execplus.domain.models import QueryPlan, WorkspaceScope
 from execplus.domain.profiling import TableData
+from execplus.domain.scenario_constraints import METHOD as CONSTRAINED_METHOD
+from execplus.domain.scenario_constraints import apply_constraints, constraints, validate_units
 from execplus.domain.semantics import (
     DatasetView,
     MetricFilter,
@@ -28,7 +30,7 @@ COLUMN_KEYS = ("quantity_column", "sales_column", "cost_column", "fixed_cost_col
 
 
 def is_source_scenario(raw: dict[str, Any]) -> bool:
-    return raw.get("model") == METHOD
+    return raw.get("model") in {METHOD, CONSTRAINED_METHOD}
 
 
 def source_columns(raw: dict[str, Any]) -> list[str]:
@@ -54,6 +56,10 @@ def _percent(value: object) -> Decimal:
 def validate_source_scenario(raw: dict[str, Any]) -> None:
     if not is_source_scenario(raw) or raw.get("basis") not in {"per_unit", "row_totals"}:
         fail("scenario_model", "Choose a registered sales and cost model.")
+    if raw["model"] == CONSTRAINED_METHOD:
+        constraints(raw)
+    elif raw.get("constraints"):
+        fail("scenario_constraints", "Use the constrained method when declaring scenario limits.")
     source_columns(raw)
     if raw.get("assumptions_confirmed") is not True or raw.get("row_basis_confirmed") is not True:
         fail(
@@ -147,6 +153,8 @@ def source_scenario_plan(
         units[name] = unit
     if len(money) != 1:
         fail("scenario_currency", "Sales and costs must use the same fixed currency.")
+    if raw["model"] == CONSTRAINED_METHOD:
+        validate_units(raw, units)
     if len(population or ()) > 20:
         fail("analysis_filter_limit", "Use at most twenty total governed filters.")
     where, params = build_where(view, population or ())
@@ -169,9 +177,11 @@ def compatible_source_successor(
     definition: dict[str, Any] | None,
     units: dict[str, str],
 ) -> bool:
-    if any(
-        previous.get(key) != raw.get(key) for key in ("model", "basis", "filters", *COLUMN_KEYS)
-    ):
+    if (previous.get("model"), raw.get("model")) not in {
+        (METHOD, METHOD),
+        (METHOD, CONSTRAINED_METHOD),
+        (CONSTRAINED_METHOD, CONSTRAINED_METHOD),
+    } or any(previous.get(key) != raw.get(key) for key in ("basis", "filters", *COLUMN_KEYS)):
         return False
     old, new = previous_definition or {}, definition or {}
     names = set(source_columns(raw))
@@ -271,7 +281,7 @@ def compare_source_scenarios(
                 ],
                 reference="original_baseline_other_changes_zero",
             )
-    return dict(
+    comparison = dict(
         version=METHOD,
         method_version=METHOD,
         basis=raw["basis"],
@@ -312,3 +322,4 @@ def compare_source_scenarios(
             "Original rows, definitions and previous saved scenarios remain unchanged.",
         ],
     )
+    return apply_constraints(raw, comparison) if raw["model"] == CONSTRAINED_METHOD else comparison

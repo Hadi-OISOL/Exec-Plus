@@ -4,7 +4,6 @@ What it does: Runs the browser redirects, returns non-secret configuration and d
 """
 
 from typing import Annotated
-from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -14,11 +13,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from execplus.application.services.google_access import GoogleAccessService
 from execplus.domain.ingestion import IngestionError
+from execplus.presentation.routes import oauth
+from execplus.presentation.routes.accounts import peer
 from execplus.presentation.routes.workspaces import Actor, public_upload
 
 router = APIRouter(tags=["google"])
-STATE_COOKIE = "execplus_oauth"
-STATE_SECONDS = 600
 
 
 def optional_service(request: Request) -> GoogleAccessService | None:
@@ -43,66 +42,64 @@ class ImportInput(BaseModel):
     sheet_id: int | None = Field(default=None, ge=0, le=2**31 - 1)
 
 
-def finish(service: GoogleAccessService, fragment: str) -> RedirectResponse:
-    response = RedirectResponse(f"{service.web_origin}/workspace{fragment}", status_code=302)
-    response.delete_cookie(STATE_COOKIE, path="/auth/google")
-    return response
-
-
 @router.get("/auth/google/config")
 async def config(service: OptionalService) -> object:
     return service.config() if service else dict(enabled=False, picker=None)
 
 
 @router.get("/auth/google/start")
-async def start(service: Service) -> Response:
-    url, sealed = await run_in_threadpool(service.start_sign_in)
+async def start(request: Request, service: Service) -> Response:
+    binding = oauth.browser(request)
+    url = await run_in_threadpool(service.start_sign_in, binding, peer(request))
     response = RedirectResponse(url, status_code=302)
-    response.set_cookie(
-        STATE_COOKIE,
-        sealed,
-        max_age=STATE_SECONDS,
-        httponly=True,
-        samesite="lax",
-        secure=service.api_url.startswith("https://"),
-        path="/auth/google",
-    )
+    oauth.set_browser(response, binding, service.api_url)
     return response
 
 
 @router.get("/auth/google/callback")
 async def callback(
-    request: Request,
-    service: Service,
-    code: str = "",
-    state: str = "",
-    error: str = "",
+    request: Request, service: Service, code: str = "", state: str = "", error: str = ""
 ) -> Response:
-    if error or not code or not state:
-        return finish(service, "#google_error=google_denied")
     try:
-        token = await run_in_threadpool(
-            service.finish_sign_in, code, state, request.cookies.get(STATE_COOKIE, "")
+        handle = await run_in_threadpool(
+            service.finish_sign_in,
+            code[:4096],
+            state[:129],
+            request.cookies.get(oauth.BROWSER_COOKIE, ""),
+            bool(error),
         )
-    except IngestionError as failure:
-        return finish(service, f"#google_error={quote(failure.code)}")
-    return finish(service, f"#session={quote(token)}")
+    except IngestionError:
+        handle = None
+    return oauth.finish(service.web_origin, service.api_url, handle)
 
 
 @router.post("/integrations/google/connect")
-async def connect(actor: Actor, service: Service) -> object:
-    return dict(url=await run_in_threadpool(service.start_connect, actor))
+async def connect(request: Request, actor: Actor, service: Service) -> Response:
+    oauth.origin(request)
+    binding = oauth.browser(request)
+    url = await run_in_threadpool(
+        service.start_connect, actor, binding, oauth.session_token(request), peer(request)
+    )
+    response = JSONResponse(dict(url=url))
+    oauth.set_browser(response, binding, service.api_url)
+    return response
 
 
 @router.get("/integrations/google/callback")
-async def connected(service: Service, code: str = "", state: str = "", error: str = "") -> Response:
-    if error or not code or not state:
-        return finish(service, "?google_error=google_denied")
+async def connected(
+    request: Request, service: Service, code: str = "", state: str = "", error: str = ""
+) -> Response:
     try:
-        await run_in_threadpool(service.finish_connect, code, state)
-    except IngestionError as failure:
-        return finish(service, f"?google_error={quote(failure.code)}")
-    return finish(service, "?google=connected")
+        handle = await run_in_threadpool(
+            service.finish_connect,
+            code[:4096],
+            state[:129],
+            request.cookies.get(oauth.BROWSER_COOKIE, ""),
+            bool(error),
+        )
+    except IngestionError:
+        handle = None
+    return oauth.finish(service.web_origin, service.api_url, handle)
 
 
 @router.get("/integrations/google/status")
@@ -117,23 +114,38 @@ async def disconnect(actor: Actor, service: Service) -> Response:
 
 
 @router.get("/integrations/google/picker-token")
-async def picker_token(actor: Actor, service: Service) -> object:
-    result = await run_in_threadpool(service.picker_token, actor)
+async def picker_token(request: Request, actor: Actor, service: Service) -> object:
+    result = await run_in_threadpool(service.picker_token, actor, oauth.session_token(request))
     return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/integrations/google/spreadsheets/{spreadsheet_id}")
-async def spreadsheet(spreadsheet_id: str, actor: Actor, service: Service) -> object:
-    return await run_in_threadpool(service.spreadsheet, actor, spreadsheet_id)
+async def spreadsheet(
+    spreadsheet_id: str, request: Request, actor: Actor, service: Service
+) -> object:
+    return await run_in_threadpool(
+        service.spreadsheet, actor, spreadsheet_id, oauth.session_token(request)
+    )
 
 
 @router.post(
     "/workspaces/{workspace_id}/datasets/{dataset_id}/google-sheets/import", status_code=201
 )
 async def import_sheet(
-    workspace_id: UUID, dataset_id: UUID, body: ImportInput, actor: Actor, service: Service
+    workspace_id: UUID,
+    dataset_id: UUID,
+    body: ImportInput,
+    request: Request,
+    actor: Actor,
+    service: Service,
 ) -> object:
     upload = await run_in_threadpool(
-        service.import_sheet, actor, workspace_id, dataset_id, body.spreadsheet_id, body.sheet_id
+        service.import_sheet,
+        actor,
+        workspace_id,
+        dataset_id,
+        body.spreadsheet_id,
+        body.sheet_id,
+        oauth.session_token(request),
     )
     return public_upload(upload)

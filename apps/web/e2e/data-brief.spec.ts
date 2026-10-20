@@ -213,9 +213,11 @@ test("focused reading keeps edits on Back, saves progress and retries only the f
   await expect(panel.getByRole("textbox", { name: "What does this column mean?", exact: true })).toHaveValue("Amount actually received after discount");
   await expect(panel.getByLabel("Unit of measurement (required)", { exact: true })).toHaveValue("PKR");
   for (const width of [1440, 390, 320]) {
+    const theme = width === 390 ? "dark" : "light";
+    await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-    await panel.screenshot({ path: `../../data/verification/2026-10-15/focused-workspace/reading-${width}.png` });
+    await panel.screenshot({ path: `../../data/verification/2026-10-18/intelligence-upgrade/reading-${theme}-${width}.png` });
   }
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(panel).toBeVisible();

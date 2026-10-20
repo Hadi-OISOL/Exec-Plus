@@ -3,8 +3,8 @@
 
 # ADR 0012: Snapshot connectors for accounting systems, databases and BigQuery
 
-Status: Accepted for the user-requested October 15 private-demo extension. Broader connectors were
-frozen in Phase 6; this slice was explicitly requested and does not clear any production gate.
+Status: Incoming connector design revised during the October 17 branch integration.
+Local candidate only; live provider acceptance and production gates remain open.
 
 ## Decisions
 
@@ -16,8 +16,10 @@ frozen in Phase 6; this slice was explicitly requested and does not clear any pr
   profile, meaning, receipt and refresh paths. ExecPlus never queries a platform live, which
   keeps answers replayable from retained bytes.
 - **Credentials.** All secrets are sealed with the existing token vault in one table, one row per
-  user and platform. A rotated refresh token is saved immediately. OAuth state is sealed and
-  time-limited and names the initiating user, so no cross-origin cookie is needed.
+  user and platform. Rotated tokens and cleanup use version-conditional writes so stale
+  requests cannot replace a newer connection. One-use server OAuth attempts bind the
+  initiating session, browser cookie and connection version; a protected cookie exchange
+  returns an application session into memory. Secrets retain exact whitespace.
 - **Databases.** Only PostgreSQL is supported because its driver is already a dependency. Sessions
   are read-only and time-limited at the server, and tables are chosen from the database's own catalog.
 - **BigQuery.** Tables are copied through the table-data API with read-only consent, avoiding SQL
@@ -27,6 +29,9 @@ frozen in Phase 6; this slice was explicitly requested and does not clear any pr
 ## Consequences
 
 - Adding a platform means one adapter and one registration; no service, route or table changes.
-- Snapshots go stale until re-imported, and large sources are capped.
+- Snapshots go stale until re-imported. Oversized sources and ambiguous flattened
+  column names are refused. Transport, cumulative records, cells and CSV bytes are bounded.
+- Upload publication rechecks the session and connection generation and commits the
+  provider audit atomically. UI reload failure after a saved import cannot repeat the write.
 - Only the PostgreSQL adapter is verified against a real server; the rest await real credentials.
 - Live warehouse queries, more databases and scheduled refresh remain separate decisions.

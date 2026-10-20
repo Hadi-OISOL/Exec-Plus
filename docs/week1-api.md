@@ -5,6 +5,10 @@ The Phase 1 completion adds profiles, reversible cleaning/mapping, samples and
 usage. See [the preparation guide](phase1-data-preparation.md) for those contracts.
 Run `make migrate` before starting the updated API.
 
+Local password registration and a private resumable setup guide are now available.
+See [local accounts and guided setup](local-accounts-onboarding.md) for signup,
+password changes, authorized recovery and native-account invitation checks.
+
 # Local activation
 
 Run `make install`, `make dev-infra`, `make migrate`, and `make init-storage`.
@@ -30,6 +34,8 @@ invitation links from the team panel; the matching user signs in and accepts the
 link. Tokens expire after eight hours; sign-out revokes the current token. Reloading
 the page clears the browser's in-memory session. Do not share or commit tokens.
 This provider is supported only in `local` and `test` environments.
+Operator provisioning refuses an existing password account; use its password
+login or the documented authorized recovery command instead.
 
 # Access through a network address
 
@@ -59,7 +65,8 @@ form without working event handlers; an API origin mismatch prevents authenticat
 
 # HTTP contract
 
-Except health endpoints, requests require `Authorization: Bearer <session-token>`.
+Except health and local account options/registration/login endpoints, requests
+require `Authorization: Bearer <session-token>`.
 UUID path parameters are validated. Unauthorized tenant resources return a generic
 404; missing/invalid sessions return 401. Insufficient workspace roles return 403.
 

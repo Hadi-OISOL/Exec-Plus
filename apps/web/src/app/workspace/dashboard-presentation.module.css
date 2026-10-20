@@ -16,7 +16,7 @@ What it does: Adds readable filters and result chrome while retaining source-bac
 }
 .eyebrow {
   display: block;
-  color: #536961;
+  color: light-dark(#536961, var(--theme-muted));
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .09em;
@@ -24,7 +24,7 @@ What it does: Adds readable filters and result chrome while retaining source-bac
 }
 .overviewHeader h2 {
   margin: 0;
-  color: #1d3430;
+  color: light-dark(#1d3430, var(--theme-ink));
   font-size: clamp(24px, 3vw, 34px);
   letter-spacing: -.045em;
   line-height: 1.18;
@@ -32,7 +32,7 @@ What it does: Adds readable filters and result chrome while retaining source-bac
 .overviewHeader p {
   max-width: 62ch;
   margin: 12px 0 0;
-  color: #54645f;
+  color: light-dark(#54645f, var(--theme-muted));
   font-size: 14px;
   line-height: 1.65;
 }
@@ -41,9 +41,9 @@ What it does: Adds readable filters and result chrome while retaining source-bac
   align-items: center;
   gap: 6px;
   padding: 8px 11px;
-  background: #eaf3ef;
+  background: light-dark(#eaf3ef, var(--theme-subtle));
   border-radius: 8px;
-  color: #245a4d;
+  color: light-dark(#245a4d, var(--theme-accent));
   flex-shrink: 0;
   font-size: 12px;
 }
@@ -57,15 +57,15 @@ What it does: Adds readable filters and result chrome while retaining source-bac
   min-width: 0;
   container-type: inline-size;
   padding: 24px;
-  border: 1px solid #dfe7e2;
+  border: 1px solid light-dark(#dfe7e2, var(--theme-border));
   border-radius: 16px;
-  background: #fff;
+  background: light-dark(#fff, var(--theme-surface));
   box-shadow: none;
   overflow: visible;
 }
 :global(.analyticsShell) .dashboard .metrics > .metricCard:first-child {
-  background: #edf4ef;
-  border-color: #d4e3d9;
+  background: light-dark(#edf4ef, var(--theme-subtle));
+  border-color: light-dark(#d4e3d9, var(--theme-border));
 }
 .metricHeading {
   display: flex;
@@ -75,22 +75,22 @@ What it does: Adds readable filters and result chrome while retaining source-bac
   gap: 8px;
 }
 .metricHeading > span:first-child {
-  color: #304c43;
+  color: light-dark(#304c43, var(--theme-ink));
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
 }
 .metricMethod {
-  color: #536961;
+  color: light-dark(#536961, var(--theme-muted));
   font-size: 11px;
   padding: 3px 7px;
-  border: 1px solid #dce5e0;
+  border: 1px solid light-dark(#dce5e0, var(--theme-border));
   border-radius: 5px;
 }
 :global(.analyticsShell) .dashboard .metricCard > strong {
   display: block;
   margin: 24px 0 6px;
-  color: #193a31;
+  color: light-dark(#193a31, var(--theme-accent));
   font-size: clamp(22px, 10cqi, 36px);
   line-height: 1.15;
   letter-spacing: -.04em;
@@ -100,7 +100,7 @@ What it does: Adds readable filters and result chrome while retaining source-bac
 :global(.analyticsShell) .dashboard .metricCard > strong[data-long-value="true"] { font-size: clamp(18px, 8cqi, 24px); }
 .metricUnit {
   display: block;
-  color: #536961;
+  color: light-dark(#536961, var(--theme-muted));
   font-size: 12px;
   margin: 0 0 12px;
 }
@@ -116,28 +116,28 @@ What it does: Adds readable filters and result chrome while retaining source-bac
   margin: 30px 0 18px;
 }
 .figureHeading h3 {
-  color: #243e35;
+  color: light-dark(#243e35, var(--theme-ink));
   font-size: 20px;
   letter-spacing: -.025em;
   margin: 0;
 }
-.figureHeading p { color: #536961; font-size: 12px; margin: 0; }
+.figureHeading p { color: light-dark(#536961, var(--theme-muted)); font-size: 12px; margin: 0; }
 .figures { gap: 20px; align-items: start; }
 .loading {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 28px;
-  border: 1px solid #dfe7e2;
+  border: 1px solid light-dark(#dfe7e2, var(--theme-border));
   border-radius: 16px;
-  background: #f6f9f7;
+  background: light-dark(#f6f9f7, var(--theme-surface));
 }
-.loading p { margin: 6px 0 0; color: #536961; font-size: 13px; }
+.loading p { margin: 6px 0 0; color: light-dark(#536961, var(--theme-muted)); font-size: 13px; }
 .loadingMark {
   flex: 0 0 28px;
   height: 28px;
-  border: 3px solid #d7e7df;
-  border-top-color: #26715a;
+  border: 3px solid light-dark(#d7e7df, var(--theme-border));
+  border-top-color: light-dark(#26715a, var(--theme-accent));
   border-radius: 50%;
   animation: loadingTurn .9s linear 3;
 }
@@ -151,32 +151,32 @@ What it does: Adds readable filters and result chrome while retaining source-bac
   min-height: 52px;
   margin: 12px 0 20px;
   padding: 10px 14px;
-  border: 1px solid #dfe7e2;
+  border: 1px solid light-dark(#dfe7e2, var(--theme-border));
   border-radius: 10px;
-  background: #fff;
+  background: light-dark(#fff, var(--theme-surface));
   font-size: 13px;
 }
 .filterCaption {
-  color: #657184;
+  color: light-dark(#657184, var(--theme-muted));
   margin-right: 4px;
 }
 .allRows {
-  color: #56637a;
+  color: light-dark(#56637a, var(--theme-muted));
 }
 .filterChip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #edf5ef;
-  color: #245a4d;
+  background: light-dark(#edf5ef, var(--theme-subtle));
+  color: light-dark(#245a4d, var(--theme-accent));
   padding: 5px 8px 5px 12px;
-  border: 1px solid #d6e5db;
+  border: 1px solid light-dark(#d6e5db, var(--theme-border));
   border-radius: 6px;
   overflow-wrap: anywhere;
   max-width: 100%;
 }
 .filterChip button {
-  color: #245a4d;
+  color: light-dark(#245a4d, var(--theme-accent));
   background: transparent;
   border: 0;
   padding: 2px 4px;
@@ -189,7 +189,7 @@ What it does: Adds readable filters and result chrome while retaining source-bac
 .drillHint {
   margin: 8px 4px;
   font-size: 12px;
-  color: #657184;
+  color: light-dark(#657184, var(--theme-muted));
 }
 .drillHeading {
   display: flex;
@@ -203,9 +203,9 @@ What it does: Adds readable filters and result chrome while retaining source-bac
 }
 .drillHeading button {
   font-size: 12px;
-  background: #edf5ef;
-  color: #245a4d;
-  border: 1px solid #d6e5db;
+  background: light-dark(#edf5ef, var(--theme-subtle));
+  color: light-dark(#245a4d, var(--theme-accent));
+  border: 1px solid light-dark(#d6e5db, var(--theme-border));
   padding: 5px 9px;
   border-radius: 6px;
 }
@@ -213,8 +213,8 @@ What it does: Adds readable filters and result chrome while retaining source-bac
   min-width: 0;
   padding: 0;
   border-radius: 12px;
-  border: 1px solid #e4e8ef;
-  background: #fff;
+  border: 1px solid light-dark(#e4e8ef, var(--theme-border));
+  background: light-dark(#fff, var(--theme-surface));
   overflow: hidden;
   box-shadow: 0 2px 5px #15223c03;
 }

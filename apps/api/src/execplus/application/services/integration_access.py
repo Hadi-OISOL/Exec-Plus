@@ -54,6 +54,25 @@ def public_grant(value: EmbedGrant) -> dict[str, Any]:
     return body
 
 
+def scoped_sources(
+    repo: IntegrationRepository,
+    actor: User,
+    wid: UUID,
+    datasets: tuple[UUID, ...],
+    primary: UUID,
+    sources: Any,
+) -> None:
+    if not isinstance(sources, (list, tuple)) or not sources:
+        raise unavailable()
+    try:
+        identifiers = {UUID(source["dataset_id"]) for source in sources}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise unavailable() from None
+    if primary not in identifiers or not identifiers <= set(datasets):
+        raise unavailable()
+    authorize_sources(repo, actor, wid, sources, primary)
+
+
 class IntegrationAccessService:
     def __init__(
         self, store: IntegrationStore, studies: StudyService, *, allow_local_origins: bool = False
@@ -180,6 +199,8 @@ class IntegrationAccessService:
         did: UUID | None,
         operation: str,
         action: Callable[[User, IntegrationKey], Awaitable[T]],
+        *,
+        final_check: Callable[[IntegrationRepository, User, IntegrationKey, T], None] | None = None,
     ) -> T:
         digest = secret_hash(token, "epk")
         with self.store.transaction() as repo:
@@ -195,6 +216,8 @@ class IntegrationAccessService:
             )
             if current.id != key.id or current_references != references:
                 raise unavailable()
+            if final_check is not None:
+                final_check(repo, actor, current, value)
             audit(repo, actor, wid, "integration.read", key.id)
         return value
 
@@ -214,11 +237,75 @@ class IntegrationAccessService:
             )
         for pin in board.pins:
             study = visible_pin(repo, actor, wid, UUID(pin))
-            if not study.shared or (
-                allowed_datasets is not None and study.dataset_id not in allowed_datasets
-            ):
+            if not study.shared:
                 raise unavailable()
+            if allowed_datasets is not None:
+                version = repo.study_version(wid, UUID(pin))
+                scoped_sources(
+                    repo,
+                    actor,
+                    wid,
+                    allowed_datasets,
+                    study.dataset_id,
+                    version.evidence.get("sources"),
+                )
         return board
+
+    async def study_for_key(self, token: str, wid: UUID, version_id: UUID) -> Any:
+        def check(
+            repo: IntegrationRepository, actor: User, key: IntegrationKey, value: Any
+        ) -> None:
+            study = visible_pin(repo, actor, wid, version_id)
+            version = repo.study_version(wid, version_id)
+            scoped_sources(
+                repo,
+                actor,
+                wid,
+                key.dataset_ids,
+                study.dataset_id,
+                version.evidence.get("sources"),
+            )
+
+        async def action(actor: User, key: IntegrationKey) -> Any:
+            with self.store.transaction() as repo:
+                check(repo, actor, key, None)
+            return await self.studies.open(actor, wid, version_id)
+
+        return await self.perform(token, wid, None, "studies:read", action, final_check=check)
+
+    def authorize_result_for_key(
+        self,
+        actor: User,
+        key: IntegrationKey,
+        wid: UUID,
+        did: UUID,
+        result_id: UUID,
+        *,
+        forecast: bool,
+    ) -> None:
+        with self.store.transaction() as repo:
+            value = (
+                repo.forecast_run(wid, result_id, actor.id)
+                if forecast
+                else repo.analysis_run(wid, result_id, actor.id)
+            )
+            if value.dataset_id != did:
+                raise unavailable()
+            scoped_sources(repo, actor, wid, key.dataset_ids, did, value.evidence.get("sources"))
+
+    def authorize_job_for_key(
+        self,
+        actor: User,
+        key: IntegrationKey,
+        wid: UUID,
+        job_id: UUID,
+    ) -> None:
+        with self.store.transaction() as repo:
+            job = repo.job(wid, job_id)
+            if job.owner_id != actor.id:
+                raise unavailable()
+            thread = repo.thread(wid, job.thread_id)
+            scoped_sources(repo, actor, wid, key.dataset_ids, thread.dataset_id, job.sources)
 
     async def board_for_key(
         self, token: str, wid: UUID, board_id: UUID
@@ -227,13 +314,20 @@ class IntegrationAccessService:
             with self.store.transaction() as repo:
                 before = self._shared_board(repo, actor, wid, board_id, key.dataset_ids)
             value = await self.studies.open_board(actor, wid, board_id)
-            with self.store.transaction() as repo:
-                repo.workspace(wid, lock=True)
-                if self._shared_board(repo, actor, wid, board_id, key.dataset_ids) != before:
-                    raise unavailable()
+            if value[0] != before:
+                raise unavailable()
             return value
 
-        return await self.perform(token, wid, None, "boards:read", action)
+        def check(
+            repo: IntegrationRepository,
+            actor: User,
+            key: IntegrationKey,
+            value: tuple[StudyBoard, list[Any]],
+        ) -> None:
+            if self._shared_board(repo, actor, wid, board_id, key.dataset_ids) != value[0]:
+                raise unavailable()
+
+        return await self.perform(token, wid, None, "boards:read", action, final_check=check)
 
     def create_embed(
         self,
@@ -338,6 +432,7 @@ class IntegrationAccessService:
                 raise unavailable()
             for _, version, _ in result[1]:
                 authorize_sources(repo, actor, grant.workspace_id, version.evidence.get("sources"))
+            audit(repo, actor, grant.workspace_id, "integration.embed_read", grant.id)
         return result
 
     def revoke_embed(self, actor: User, wid: UUID, grant_id: UUID) -> None:

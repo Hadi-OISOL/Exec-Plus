@@ -4,7 +4,7 @@ What it does: Reuses the workspace colour tokens so the controls match the rest 
 .google {
   margin-top: 22px;
   padding-top: 18px;
-  border-top: 1px solid var(--line, #e4e7ef);
+  border-top: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
 }
 .google h3 {
   margin: 0 0 6px;
@@ -12,7 +12,7 @@ What it does: Reuses the workspace colour tokens so the controls match the rest 
 }
 .google p {
   margin: 0 0 12px;
-  color: var(--muted, #667085);
+  color: var(--muted, light-dark(#667085, var(--theme-muted)));
   font-size: 13px;
 }
 .row,
@@ -28,17 +28,17 @@ What it does: Reuses the workspace colour tokens so the controls match the rest 
 .tabs label {
   display: grid;
   gap: 6px;
-  color: var(--ink, #222b3d);
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
   font-size: 12px;
   font-weight: 600;
 }
 .google button.secondary {
-  background: #fff;
-  color: var(--ink, #222b3d);
-  border: 1px solid var(--line, #e4e7ef);
+  background: light-dark(#fff, var(--theme-surface));
+  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
+  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
 }
 .error {
   margin: 12px 0 0;
-  color: #b42318;
+  color: light-dark(#b42318, var(--theme-warning));
   font-size: 13px;
 }

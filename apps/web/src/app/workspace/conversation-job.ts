@@ -55,6 +55,25 @@ export function jobHeadline(job: ConversationJob): string {
   return stageLabel(job.current_stage);
 }
 
+/** Plain-language detail for the current server stage; no estimated completion or invented steps. */
+export function jobDetail(job: ConversationJob): string {
+  if (isTerminalJob(job)) return "Open the recorded actions for this request's history.";
+  if (job.cancel_requested || job.status === "cancelling") return "Waiting for confirmation that the work has stopped.";
+  if (job.status === "queued") return "Your request is saved and waiting to start.";
+  const details: Record<string, string> = {
+    authorizing: "Confirming which information you can access.",
+    checking_source: "Checking the selected file and its saved definitions.",
+    planning: "Working out what you mean and which supported action fits.",
+    validating_plan: "Checking the proposed action before running it.",
+    executing_query: "Calculating from the permitted records in your file.",
+    retrieving_documents: "Looking for relevant passages in your permitted documents.",
+    verifying_evidence: "Checking the answer against its sources.",
+    finished: "Finishing the request and preparing its result.",
+  };
+  return job.current_stage && Object.hasOwn(details, job.current_stage)
+    ? details[job.current_stage] : "Waiting for the next recorded activity update.";
+}
+
 export function mergeJobEvents(
   previous: JobEvent[],
   incoming: JobEvent[],

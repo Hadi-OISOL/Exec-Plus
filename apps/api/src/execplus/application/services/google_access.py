@@ -3,6 +3,7 @@
 What it does: Runs OAuth exchanges, keeps refresh tokens sealed and turns a sheet into an upload.
 """
 
+import hashlib
 import json
 import logging
 import secrets
@@ -23,6 +24,7 @@ from execplus.application.google_ports import (
     TokenSet,
     TokenVault,
 )
+from execplus.application.oauth_ports import OAuthState
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.workspaces import WorkspaceService, normalized_email
 from execplus.domain.google_oauth import (
@@ -35,6 +37,7 @@ from execplus.domain.google_oauth import (
     verified_identity,
 )
 from execplus.domain.ingestion import AuditEvent, IngestionError, Upload, User
+from execplus.domain.profiling import Revision
 
 logger = logging.getLogger("execplus.google")
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
@@ -56,6 +59,7 @@ class GoogleAccessService:
         uploads: WorkspaceService,
         unit_of_work: UnitOfWork,
         *,
+        oauth: OAuthState,
         client_id: str,
         public_api_url: str,
         web_origin: str,
@@ -63,6 +67,7 @@ class GoogleAccessService:
         app_id: str = "",
         max_import_bytes: int = 20 * 1024 * 1024,
     ) -> None:
+        self.oauth = oauth
         self.gateway = gateway
         self.vault = vault
         self.connections = connections
@@ -84,38 +89,23 @@ class GoogleAccessService:
         )
         return dict(enabled=True, picker=picker)
 
-    def _begin(self, purpose: str, extra: dict[str, str]) -> tuple[str, str, str, str]:
+    def start_sign_in(self, browser: str, peer: str = "") -> str:
         verifier, challenge = new_pkce()
-        state, nonce = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
-        sealed = self.vault.seal(
-            json.dumps(dict(purpose=purpose, state=state, verifier=verifier, nonce=nonce, **extra))
+        nonce = secrets.token_urlsafe(24)
+        state = self.oauth.begin(
+            "google",
+            "signin",
+            browser,
+            self.vault.seal(json.dumps(dict(verifier=verifier, nonce=nonce))),
+            peer=peer,
         )
-        return state, challenge, nonce, sealed
-
-    def _open(self, sealed: str, purpose: str, state: str | None = None) -> dict[str, str]:
-        expired = IngestionError(
-            "google_state_invalid", "The Google sign-in expired. Please try again.", 400
-        )
-        try:
-            payload = json.loads(self.vault.unseal(sealed, STATE_SECONDS))
-        except ValueError:
-            raise expired from None
-        if not isinstance(payload, dict) or payload.get("purpose") != purpose:
-            raise expired
-        if state is not None and not secrets.compare_digest(str(payload.get("state", "")), state):
-            raise expired
-        return {key: str(value) for key, value in payload.items()}
-
-    def start_sign_in(self) -> tuple[str, str]:
-        state, challenge, nonce, sealed = self._begin("signin", {})
-        url = self.gateway.authorization_url(
+        return self.gateway.authorization_url(
             scopes=SIGN_IN_SCOPES,
             redirect_uri=self.api_url + SIGN_IN_PATH,
             state=state,
             challenge=challenge,
             nonce=nonce,
         )
-        return url, sealed
 
     def _exchange(self, code: str, verifier: str, path: str) -> TokenSet:
         try:
@@ -125,7 +115,7 @@ class GoogleAccessService:
                 "google_exchange_failed", "Google could not complete the request.", 502
             ) from None
 
-    def _identity(self, tokens: TokenSet, nonce: str) -> tuple[str, str]:
+    def _identity(self, tokens: TokenSet, nonce: str) -> tuple[str, str, str]:
         if not tokens.id_token:
             raise IngestionError(
                 "google_identity_invalid", "Google could not confirm your identity.", 401
@@ -137,58 +127,83 @@ class GoogleAccessService:
                 "google_identity_invalid", "Google could not confirm your identity.", 401
             ) from None
         email, name = verified_identity(claims, self.client_id, nonce, datetime.now(timezone.utc))
-        return normalized_email(email), name
+        return str(claims["sub"]), normalized_email(email), name
 
-    def finish_sign_in(self, code: str, state: str, sealed: str) -> str:
-        payload = self._open(sealed, "signin", state)
-        tokens = self._exchange(code, payload["verifier"], SIGN_IN_PATH)
-        email, name = self._identity(tokens, payload["nonce"])
-        logger.info("google_signin outcome=success")
-        return self.issuer.provision(email, name)
+    def finish_sign_in(self, code: str, state: str, browser: str, error: bool = False) -> str:
+        attempt = self.oauth.claim(state, browser, "google", "signin")
+        try:
+            if error or not code:
+                raise IngestionError("google_denied", "Google sign-in was not completed.", 400)
+            payload = json.loads(self.vault.unseal(attempt.sealed_payload, STATE_SECONDS))
+            tokens = self._exchange(code, payload["verifier"], SIGN_IN_PATH)
+            subject, email, name = self._identity(tokens, payload["nonce"])
+            return self.oauth.complete_signin(attempt, subject, email, name)
+        except ValueError:
+            return self.oauth.fail(attempt, "oauth_state_invalid")
+        except IngestionError as failure:
+            return self.oauth.fail(attempt, failure.code)
 
-    def start_connect(self, actor: User) -> str:
-        _, challenge, nonce, sealed = self._begin(
-            "sheets", dict(user_id=str(actor.id), email=actor.email)
+    def start_connect(self, actor: User, browser: str, session_token: str, peer: str = "") -> str:
+        verifier, challenge = new_pkce()
+        nonce = secrets.token_urlsafe(24)
+        state = self.oauth.begin(
+            "google",
+            "connect",
+            browser,
+            self.vault.seal(json.dumps(dict(verifier=verifier, nonce=nonce, email=actor.email))),
+            user_id=actor.id,
+            session_token=session_token,
+            peer=peer,
         )
         return self.gateway.authorization_url(
             scopes=SHEETS_SCOPES,
             redirect_uri=self.api_url + CONNECT_PATH,
-            state=sealed,
+            state=state,
             challenge=challenge,
             nonce=nonce,
             login_hint=actor.email,
             offline=True,
         )
 
-    def finish_connect(self, code: str, state: str) -> None:
-        payload = self._open(state, "sheets")
-        tokens = self._exchange(code, payload["verifier"], CONNECT_PATH)
-        email, _ = self._identity(tokens, payload["nonce"])
-        if email != normalized_email(payload["email"]):
-            raise IngestionError(
-                "google_wrong_account",
-                "Choose the Google account that matches your ExecPlus email.",
-                409,
+    def finish_connect(self, code: str, state: str, browser: str, error: bool = False) -> str:
+        attempt = self.oauth.claim(state, browser, "google", "connect")
+        try:
+            if error or not code:
+                raise IngestionError("google_denied", "Google connection was not completed.", 400)
+            payload = json.loads(self.vault.unseal(attempt.sealed_payload, STATE_SECONDS))
+            tokens = self._exchange(code, payload["verifier"], CONNECT_PATH)
+            _, email, _ = self._identity(tokens, payload["nonce"])
+            if email != normalized_email(payload["email"]):
+                raise IngestionError(
+                    "google_wrong_account",
+                    "Choose the Google account that matches your ExecPlus email.",
+                    409,
+                )
+            if DRIVE_FILE not in tokens.scope.split():
+                raise IngestionError(
+                    "google_scope_missing", "Allow ExecPlus to open the sheets you choose.", 409
+                )
+            assert attempt.user_id is not None
+            existing = self.connections.get(attempt.user_id)
+            refresh = tokens.refresh_token or (
+                self.vault.unseal(existing.refresh_token_sealed)
+                if existing and existing.version == attempt.connection_version
+                else None
             )
-        if DRIVE_FILE not in tokens.scope.split():
-            raise IngestionError(
-                "google_scope_missing", "Allow ExecPlus to open the sheets you choose.", 409
+            if not refresh:
+                raise IngestionError(
+                    "google_scope_missing",
+                    "Google did not return a lasting connection. Try again.",
+                    409,
+                )
+            return self.oauth.complete_connection(
+                attempt,
+                GoogleConnection(attempt.user_id, email, tokens.scope, self.vault.seal(refresh)),
             )
-        user_id = UUID(payload["user_id"])
-        existing = self.connections.get(user_id)
-        refresh = tokens.refresh_token or (
-            self.vault.unseal(existing.refresh_token_sealed) if existing else None
-        )
-        if not refresh:
-            raise IngestionError(
-                "google_scope_missing",
-                "Google did not return a lasting connection. Try again.",
-                409,
-            )
-        self.connections.save(
-            GoogleConnection(user_id, email, tokens.scope, self.vault.seal(refresh))
-        )
-        logger.info("google_connect outcome=success user_id=%s", user_id)
+        except ValueError:
+            return self.oauth.fail(attempt, "oauth_state_invalid")
+        except IngestionError as failure:
+            return self.oauth.fail(attempt, failure.code)
 
     def status(self, actor: User) -> dict[str, Any]:
         connection = self.connections.get(actor.id)
@@ -198,11 +213,11 @@ class GoogleAccessService:
 
     def disconnect(self, actor: User) -> None:
         connection = self.connections.get(actor.id)
-        if connection is None:
-            return
-        with suppress(ValueError):
-            self.gateway.revoke(self.vault.unseal(connection.refresh_token_sealed))
+        # Fence unfinished callbacks before optional remote I/O, including no existing row.
         self.connections.delete(actor.id)
+        if connection is not None:
+            with suppress(ValueError, GoogleApiError, IngestionError):
+                self.gateway.revoke(self.vault.unseal(connection.refresh_token_sealed))
         logger.info("google_disconnect outcome=success user_id=%s", actor.id)
 
     def _reconnect(self) -> IngestionError:
@@ -210,33 +225,44 @@ class GoogleAccessService:
             "google_reconnect", "Your Google connection expired. Connect it again.", 409
         )
 
-    def _access_token(self, actor: User) -> TokenSet:
+    def _access_token(self, actor: User) -> tuple[TokenSet, GoogleConnection]:
         connection = self.connections.get(actor.id)
         if connection is None:
             raise IngestionError("google_not_connected", "Connect your Google account first.", 409)
         try:
-            return self.gateway.refresh(self.vault.unseal(connection.refresh_token_sealed))
+            tokens = self.gateway.refresh(self.vault.unseal(connection.refresh_token_sealed))
+            if not self.connections.current(connection):
+                raise self._reconnect()
+            return tokens, connection
         except ValueError:
-            self.connections.delete(actor.id)
+            self.connections.delete(actor.id, expected_version=connection.version)
             raise self._reconnect() from None
         except GoogleApiError as error:
             if error.code == "invalid_grant" or error.status in {400, 401}:
-                self.connections.delete(actor.id)
+                self.connections.delete(actor.id, expected_version=connection.version)
                 raise self._reconnect() from None
             raise IngestionError(
                 "google_unavailable", "Google is unavailable. Try again shortly.", 503
             ) from None
 
-    def picker_token(self, actor: User) -> dict[str, Any]:
-        tokens = self._access_token(actor)
+    def picker_token(self, actor: User, session_token: str) -> dict[str, Any]:
+        tokens, connection = self._access_token(actor)
+        if not self.connections.current(connection):
+            raise self._reconnect()
+        self.oauth.assert_connection(actor.id, session_token, "google", connection.version)
         return dict(access_token=tokens.access_token, expires_in=tokens.expires_in)
 
-    def _call(self, action: Callable[[], Result], actor: User) -> Result:
+    def _call(
+        self, action: Callable[[], Result], actor: User, connection: GoogleConnection
+    ) -> Result:
         try:
-            return action()
+            result = action()
+            if not self.connections.current(connection):
+                raise self._reconnect()
+            return result
         except GoogleApiError as error:
             if error.status == 401:
-                self.connections.delete(actor.id)
+                self.connections.delete(actor.id, expected_version=connection.version)
                 raise self._reconnect() from None
             if error.status in {403, 404}:
                 raise IngestionError(
@@ -256,12 +282,14 @@ class GoogleAccessService:
                 "google_unavailable", "Google is unavailable. Try again shortly.", 503
             ) from None
 
-    def spreadsheet(self, actor: User, spreadsheet_id: str) -> dict[str, Any]:
+    def spreadsheet(self, actor: User, spreadsheet_id: str, session_token: str) -> dict[str, Any]:
         identifier = valid_spreadsheet_id(spreadsheet_id)
-        token = self._access_token(actor).access_token
+        tokens, connection = self._access_token(actor)
+        token = tokens.access_token
         info: SpreadsheetInfo = self._call(
-            lambda: self.gateway.spreadsheet(token, identifier), actor
+            lambda: self.gateway.spreadsheet(token, identifier), actor, connection
         )
+        self.oauth.assert_connection(actor.id, session_token, "google", connection.version)
         return dict(
             title=info.title,
             tabs=[
@@ -277,12 +305,14 @@ class GoogleAccessService:
         dataset_id: UUID,
         spreadsheet_id: str,
         sheet_id: int | None,
+        session_token: str,
     ) -> Upload:
         identifier = valid_spreadsheet_id(spreadsheet_id)
         self.uploads.get_dataset(actor, workspace_id, dataset_id)
-        token = self._access_token(actor).access_token
+        tokens, connection = self._access_token(actor)
+        token = tokens.access_token
         info: SpreadsheetInfo = self._call(
-            lambda: self.gateway.spreadsheet(token, identifier), actor
+            lambda: self.gateway.spreadsheet(token, identifier), actor, connection
         )
         tab = next((item for item in info.tabs if sheet_id in {None, item.id}), None)
         if tab is None:
@@ -290,17 +320,23 @@ class GoogleAccessService:
         values = self._call(
             lambda: self.gateway.sheet_values(token, identifier, tab.title, self.max_import_bytes),
             actor,
+            connection,
         )
+        self.oauth.assert_connection(actor.id, session_token, "google", connection.version)
         content = sheet_to_csv(values)
         filename = import_filename(info.title, tab.title if len(info.tabs) > 1 else "")
-        upload = self.uploads.upload(
-            actor, workspace_id, dataset_id, filename, "text/csv", BytesIO(content)
-        )
-        with self.uow() as repo:
+
+        def publish(repo: WorkspaceRepository, upload: Upload, _revision: Revision) -> None:
+            repo.require_provider_connection(
+                actor.id,
+                hashlib.sha256(session_token.encode()).hexdigest(),
+                "google",
+                connection.version,
+            )
             repo.add(
                 AuditEvent(
                     uuid4(),
-                    workspace_id,
+                    upload.workspace_id,
                     actor.id,
                     "google_sheets.imported",
                     "upload",
@@ -308,5 +344,15 @@ class GoogleAccessService:
                     datetime.now(timezone.utc),
                 )
             )
+
+        upload = self.uploads.upload(
+            actor,
+            workspace_id,
+            dataset_id,
+            filename,
+            "text/csv",
+            BytesIO(content),
+            _publication_guard=publish,
+        )
         logger.info("google_sheets_import outcome=success upload_id=%s", upload.id)
         return upload

@@ -5,6 +5,7 @@ What it does: Maps failures to stable errors, parses JSON and refuses private ne
 
 import ipaddress
 import socket
+from decimal import Decimal
 from typing import Any
 from urllib.parse import urlparse
 
@@ -12,6 +13,7 @@ import httpx
 
 from execplus.application.connector_ports import ConnectorApiError, ProviderTokens
 from execplus.domain.ingestion import IngestionError
+from execplus.infrastructure.bounded_http import limited_request
 
 DEFAULT_TIMEOUT = 30.0
 
@@ -37,7 +39,7 @@ class HostPolicy:
         if self.allow_private:
             return
         try:
-            addresses = {item[4][0] for item in socket.getaddrinfo(host, None)}
+            addresses = {str(item[4][0]) for item in socket.getaddrinfo(host, None)}
         except OSError:
             raise IngestionError(
                 "connector_host_invalid", "That host could not be found.", 422
@@ -63,7 +65,7 @@ class HostPolicy:
 
 def send(client: httpx.Client, method: str, url: str, **kwargs: Any) -> httpx.Response:
     try:
-        response = client.request(method, url, **kwargs)
+        response = limited_request(client, method, url, **kwargs)
     except httpx.HTTPError:
         raise ConnectorApiError(503) from None
     if response.status_code >= 400:
@@ -80,8 +82,8 @@ def send(client: httpx.Client, method: str, url: str, **kwargs: Any) -> httpx.Re
 
 def json_body(response: httpx.Response) -> dict[str, Any]:
     try:
-        body = response.json()
-    except ValueError:
+        body = response.json(parse_float=Decimal)
+    except (ValueError, RecursionError):
         raise ConnectorApiError(502) from None
     if not isinstance(body, dict):
         raise ConnectorApiError(502)

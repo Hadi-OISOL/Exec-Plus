@@ -46,6 +46,7 @@ google_connections = Table(
     Column("google_email", String(254), nullable=False),
     Column("scope", Text, nullable=False),
     Column("refresh_token_encrypted", Text, nullable=False),
+    Column("version", Uuid, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
 )
@@ -56,8 +57,43 @@ connector_connections = Table(
     Column("provider", String(40), primary_key=True),
     Column("display_name", String(200), nullable=False),
     Column("sealed_credentials", Text, nullable=False),
+    Column("version", Uuid, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+# Provider subjects are independent self-service principals, never email aliases of operators.
+external_identities = Table(
+    "external_identities",
+    metadata,
+    Column("provider", String(40), primary_key=True),
+    Column("subject", String(255), primary_key=True),
+    Column("user_id", Uuid, ForeignKey("users.id"), nullable=False, unique=True),
+    Column("disabled_at", DateTime(timezone=True)),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+oauth_attempts = Table(
+    "oauth_attempts",
+    metadata,
+    Column("state_hash", String(64), primary_key=True),
+    Column("browser_hash", String(64), nullable=False),
+    Column("provider", String(40), nullable=False),
+    Column("purpose", String(12), nullable=False),
+    Column("user_id", Uuid, ForeignKey("users.id")),
+    Column("session_hash", String(64)),
+    Column("connection_version", Uuid),
+    Column("sealed_payload", Text, nullable=False),
+    Column("status", String(12), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("handoff_hash", String(64), unique=True),
+    Column("handoff_expires_at", DateTime(timezone=True)),
+    Column("error_code", String(80)),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("purpose IN ('signin', 'connect')", name="oauth_attempt_purpose"),
+    CheckConstraint(
+        "status IN ('pending', 'claimed', 'complete', 'consumed', 'revoked')",
+        name="oauth_attempt_status",
+    ),
+    Index("oauth_attempt_actor", "user_id", "provider"),
 )
 workspaces = Table(
     "workspaces",
@@ -113,6 +149,65 @@ invitations = Table(
         "status IN ('pending', 'accepted', 'revoked', 'expired')", name="invitation_status"
     ),
     Index("invitations_workspace", "workspace_id", "status"),
+)
+local_accounts = Table(
+    "local_accounts",
+    metadata,
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("password_hash", String(256), nullable=False),
+    Column("password_changed_at", DateTime(timezone=True), nullable=False),
+    Column("disabled_at", DateTime(timezone=True)),
+)
+account_events = Table(
+    "account_events",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("user_id", Uuid, ForeignKey("users.id")),
+    Column("action", String(40), nullable=False),
+    Column("reason", String(80), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Index("account_events_private", "user_id", "created_at"),
+)
+account_rate_windows = Table(
+    "account_rate_windows",
+    metadata,
+    Column("key_hash", String(64), primary_key=True),
+    Column("window_start", DateTime(timezone=True), primary_key=True),
+    Column("used", Integer, nullable=False),
+    CheckConstraint("used BETWEEN 1 AND 60", name="account_auth_rate_bounds"),
+)
+invitation_identity_approvals = Table(
+    "invitation_identity_approvals",
+    metadata,
+    Column(
+        "invitation_id", Uuid, ForeignKey("invitations.id", ondelete="CASCADE"), primary_key=True
+    ),
+    Column("user_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("approved_by", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("approved_at", DateTime(timezone=True), nullable=False),
+)
+onboarding_progress = Table(
+    "onboarding_progress",
+    metadata,
+    Column("workspace_id", Uuid, primary_key=True),
+    Column("user_id", Uuid, primary_key=True),
+    Column("version", Integer, nullable=False),
+    Column("active_step", String(20), nullable=False),
+    Column("skipped_steps", JSON, nullable=False),
+    Column("paused", Boolean, nullable=False),
+    Column("finished", Boolean, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "user_id"],
+        ["memberships.workspace_id", "memberships.user_id"],
+        ondelete="CASCADE",
+    ),
+    CheckConstraint("version > 0", name="onboarding_progress_version"),
+    CheckConstraint(
+        "active_step IN ('setup', 'data', 'quality', 'meaning', 'analysis', "
+        "'dashboard', 'recommendations', 'team')",
+        name="onboarding_progress_step",
+    ),
 )
 datasets = Table(
     "datasets",
@@ -1022,6 +1117,57 @@ analysis_reviews = Table(
     ),
 )
 
+request_metric_batches = Table(
+    "request_metric_batches",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Index("request_metric_batch_retention", "created_at"),
+)
+request_metrics = Table(
+    "request_metrics",
+    metadata,
+    Column("minute", DateTime(timezone=True), primary_key=True),
+    Column("category", String(16), primary_key=True),
+    Column("requests", BigInteger, nullable=False),
+    Column("rejected", BigInteger, nullable=False),
+    Column("failed", BigInteger, nullable=False),
+    Column("response_start_ms", BigInteger, nullable=False),
+    Column("maximum_response_start_ms", BigInteger, nullable=False),
+    CheckConstraint(
+        "category IN ('ingestion','exports','analysis','queue','other')",
+        name="request_metric_category",
+    ),
+    CheckConstraint(
+        "requests > 0 AND rejected >= 0 AND failed >= 0 AND rejected + failed <= requests "
+        "AND response_start_ms >= maximum_response_start_ms AND maximum_response_start_ms >= 0",
+        name="request_metric_counts",
+    ),
+)
+incident_alert_policies = Table(
+    "incident_alert_policies",
+    metadata,
+    Column("category", String(16), primary_key=True),
+    Column("version", BigInteger, nullable=False),
+    Column("enabled", Boolean, nullable=False),
+    Column("window_minutes", Integer, nullable=False),
+    Column("minimum_requests", Integer, nullable=False),
+    Column("minimum_failures", Integer, nullable=False),
+    Column("failure_basis_points", Integer, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("updated_by", Uuid, ForeignKey("users.id"), nullable=False),
+    CheckConstraint(
+        "category IN ('ingestion','exports','analysis','queue','other')",
+        name="incident_alert_category",
+    ),
+    CheckConstraint(
+        "version > 0 AND window_minutes BETWEEN 1 AND 60 "
+        "AND minimum_requests BETWEEN 1 AND 1000000 AND minimum_failures BETWEEN 1 AND 1000000 "
+        "AND failure_basis_points BETWEEN 0 AND 10000",
+        name="incident_alert_bounds",
+    ),
+)
+
 incidents = Table(
     "incidents",
     metadata,
@@ -1044,7 +1190,8 @@ incidents = Table(
     ),
     CheckConstraint(
         "code IN ('http_failed','job_failed','job_timeout','job_interrupted','job_expired',"
-        "'refresh_failed','report_failed','queue_overflow','collector_recovered','retention_capacity')",
+        "'refresh_failed','report_failed','queue_overflow','collector_recovered','retention_capacity',"
+        "'ingestion_failed','export_failed','queue_failed')",
         name="incident_code",
     ),
 )
@@ -1054,10 +1201,12 @@ incident_occurrences = Table(
     Column("source_kind", String(16), primary_key=True),
     Column("source_id", Uuid, primary_key=True),
     Column("occurred_at", DateTime(timezone=True), primary_key=True),
+    Column("code", String(40), nullable=True),
     CheckConstraint(
         "source_kind IN ('http','job','refresh','report','collector')", name="incident_source_kind"
     ),
     Index("incident_occurrence_retention", "occurred_at"),
+    Index("incident_occurrence_code", "code", "occurred_at"),
 )
 Index(
     "incident_failed_jobs",
@@ -1335,4 +1484,55 @@ consolidation_runs = Table(
     Column("result", JSON, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Index("consolidation_private_history", "organization_id", "owner_id", "created_at"),
+)
+
+plan_catalog = Table(
+    "plan_catalog",
+    metadata,
+    Column("key", String(40), primary_key=True),
+    Column("version", Integer, primary_key=True),
+    Column("name", String(100), nullable=False),
+    Column("limits", JSON, nullable=False),
+    Column("created_by", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("version > 0", name="plan_catalog_version"),
+)
+workspace_plans = Table(
+    "workspace_plans",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("plan_key", String(40), nullable=False),
+    Column("plan_version", Integer, nullable=False),
+    Column("limits", JSON, nullable=False),
+    Column("starts_at", DateTime(timezone=True), nullable=False),
+    Column("ends_at", DateTime(timezone=True), nullable=False),
+    Column("assigned_by", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("basis", String(24), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("workspace_id", "version", name="workspace_plan_version"),
+    UniqueConstraint("workspace_id", "id", name="workspace_plan_scope"),
+    CheckConstraint("version > 0 AND ends_at > starts_at", name="workspace_plan_period"),
+    CheckConstraint("basis IN ('native_default','administrator')", name="workspace_plan_basis"),
+)
+plan_admissions = Table(
+    "plan_admissions",
+    metadata,
+    Column("workspace_id", Uuid, ForeignKey("workspaces.id"), primary_key=True),
+    Column("actor_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("kind", String(24), primary_key=True),
+    Column("request_id", Uuid, primary_key=True),
+    Column("input_hash", String(64), nullable=False),
+    Column("assignment_id", Uuid),
+    Column("quantity", BigInteger, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "assignment_id"], ["workspace_plans.workspace_id", "workspace_plans.id"]
+    ),
+    CheckConstraint("quantity > 0", name="plan_admission_quantity"),
+    CheckConstraint(
+        "kind IN ('processing','exports','forecasts','model_attempts')", name="plan_admission_kind"
+    ),
+    Index("plan_admission_window", "workspace_id", "kind", "created_at"),
 )

@@ -86,6 +86,32 @@ class StructuredFileParser:
         *,
         stored_format: str | None = None,
     ) -> FileStructure:
+        return self._parse(content, filename, content_type, stored_format=stored_format)
+
+    def parse_table(
+        self,
+        content: BinaryIO,
+        filename: str,
+        content_type: str,
+        *,
+        stored_format: str | None = None,
+    ) -> tuple[FileStructure, TableData]:
+        """Validate and collect this request's rows in one traversal, without caching."""
+        captured: list[tuple[str, ...]] = []
+        structure = self._parse(
+            content, filename, content_type, stored_format=stored_format, captured=captured
+        )
+        return structure, TableData(captured[0], tuple(captured[1:]))
+
+    def _parse(
+        self,
+        content: BinaryIO,
+        filename: str,
+        content_type: str,
+        *,
+        stored_format: str | None = None,
+        captured: list[tuple[str, ...]] | None = None,
+    ) -> FileStructure:
         filename = validate_filename(filename)
         extension = PurePosixPath(filename).suffix.lower()
         if (
@@ -121,12 +147,12 @@ class StructuredFileParser:
             content.seek(0)
             if stored_format is not None and stored_format not in CSV_DELIMITERS:
                 raise IngestionError("unsupported_format", "Stored CSV format is unavailable.", 409)
-            return self._csv(content, stored_format or self._csv_format(content))
+            return self._csv(content, stored_format or self._csv_format(content), captured)
         if not prefix.startswith(b"PK\x03\x04"):
             raise IngestionError(
                 "malformed_excel", "The file is not a readable XLSX workbook.", 422
             )
-        return self._xlsx(content)
+        return self._xlsx(content, captured)
 
     def read_table(self, content: BinaryIO, format: str) -> TableData:
         content.seek(0)
@@ -145,27 +171,28 @@ class StructuredFileParser:
             iterator = sheet.iter_rows(values_only=True)
             headers = tuple(str(value) for value in next(iterator))
 
-            def text(value: object) -> str:
-                if value is None:
-                    return ""
-                if isinstance(value, datetime):
-                    return (
-                        value.date().isoformat()
-                        if value.time().isoformat() == "00:00:00"
-                        else value.isoformat()
-                    )
-                if isinstance(value, date):
-                    return value.isoformat()
-                return str(value)
-
             rows = tuple(
-                tuple(text(row[i]) if i < len(row) else "" for i in range(len(headers)))
+                tuple(self._cell_text(row[i]) if i < len(row) else "" for i in range(len(headers)))
                 for row in iterator
             )
             return TableData(headers, rows)
         finally:
             workbook.close()
             content.seek(0)
+
+    @staticmethod
+    def _cell_text(value: object) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, datetime):
+            return (
+                value.date().isoformat()
+                if value.time().isoformat() == "00:00:00"
+                else value.isoformat()
+            )
+        if isinstance(value, date):
+            return value.isoformat()
+        return str(value)
 
     def _csv_format(self, content: BinaryIO) -> str:
         for format, delimiter in CSV_DELIMITERS.items():
@@ -181,7 +208,12 @@ class StructuredFileParser:
                 content.seek(0)
         return "csv"
 
-    def _csv(self, content: BinaryIO, format: str) -> FileStructure:
+    def _csv(
+        self,
+        content: BinaryIO,
+        format: str,
+        captured: list[tuple[str, ...]] | None = None,
+    ) -> FileStructure:
         wrapper = TextIOWrapper(content, encoding="utf-8-sig", newline="")
         try:
             reader = csv.reader(wrapper, delimiter=CSV_DELIMITERS[format], strict=True)
@@ -191,6 +223,8 @@ class StructuredFileParser:
             validate_dimensions(1, columns)
             for cell in header:
                 validate_cell(cell)
+            if captured is not None:
+                captured.append(tuple(header))
             rows = 0
             for row in reader:
                 if len(row) != columns or not any(cell.strip() for cell in row):
@@ -203,6 +237,8 @@ class StructuredFileParser:
                 validate_dimensions(rows + 1, columns)
                 for cell in row:
                     validate_cell(cell)
+                if captured is not None:
+                    captured.append(tuple(row))
             if rows == 0:
                 raise IngestionError(
                     "empty_table", "Include at least one data row below the header.", 422
@@ -282,7 +318,9 @@ class StructuredFileParser:
                                 )
                         element.clear()
 
-    def _xlsx(self, content: BinaryIO) -> FileStructure:
+    def _xlsx(
+        self, content: BinaryIO, captured: list[tuple[str, ...]] | None = None
+    ) -> FileStructure:
         try:
             with ZipFile(content) as archive:
                 self._inspect_archive(archive)
@@ -303,6 +341,8 @@ class StructuredFileParser:
                 columns = len(header)
                 for cell in header:
                     validate_cell(cell)
+                if captured is not None:
+                    captured.append(tuple(str(value) for value in header))
                 count = 0
                 for row in rows:
                     if len(row) > columns:
@@ -321,6 +361,13 @@ class StructuredFileParser:
                     validate_dimensions(count + 1, columns)
                     for cell in row:
                         validate_cell(cell)
+                    if captured is not None:
+                        captured.append(
+                            tuple(
+                                self._cell_text(row[index]) if index < len(row) else ""
+                                for index in range(columns)
+                            )
+                        )
                 if count == 0:
                     raise IngestionError(
                         "empty_table", "Include at least one data row below the header.", 422

@@ -16,6 +16,7 @@ from execplus import __version__
 from execplus.application.connector_ports import Connector
 from execplus.application.ports import IdentityProvider, LanguageModel
 from execplus.application.services.access_policies import AccessPolicyService
+from execplus.application.services.accounts import AccountService
 from execplus.application.services.activation import ActivationService
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.answers import AnswerAssembler
@@ -41,9 +42,11 @@ from execplus.application.services.monitoring import MonitoringService
 from execplus.application.services.operations import OperationsService
 from execplus.application.services.patterns import PatternService
 from execplus.application.services.pdf_exports import PdfExportService
+from execplus.application.services.plans import PlanService
 from execplus.application.services.product_usage import ProductUsageService
 from execplus.application.services.refresh import RefreshService
 from execplus.application.services.reports import ReportService
+from execplus.application.services.response_synthesis import ResponseSynthesisService
 from execplus.application.services.result_exports import ResultExportService
 from execplus.application.services.saved_items import SavedItemService
 from execplus.application.services.source_imports import SourceImportService
@@ -75,11 +78,14 @@ from execplus.infrastructure.knowledge import ReferenceHybridRanker
 from execplus.infrastructure.models.disabled import DisabledLanguageModel
 from execplus.infrastructure.models.openai_compatible import OpenAICompatibleLanguageModel
 from execplus.infrastructure.object_storage import S3ObjectStorage
+from execplus.infrastructure.passwords import ScryptPasswords
+from execplus.infrastructure.persistence.accounts import SQLAccountStore
 from execplus.infrastructure.persistence.connector_connections import SqlConnectorConnections
 from execplus.infrastructure.persistence.consolidations import SQLConsolidationStore
 from execplus.infrastructure.persistence.google_connections import SqlGoogleConnections
 from execplus.infrastructure.persistence.incidents import SQLIncidentStore
 from execplus.infrastructure.persistence.integrations import SQLIntegrationStore
+from execplus.infrastructure.persistence.oauth_state import SqlOAuthState
 from execplus.infrastructure.persistence.repository import SQLUnitOfWork
 from execplus.infrastructure.persistence.usage_metering import SQLUsageUnitOfWork
 from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
@@ -216,18 +222,32 @@ def build_runtime(settings: Settings) -> "Runtime":
     usage_metering = UsageMeteringService(SQLUsageUnitOfWork(engine))
     model = build_language_model(settings, metering=usage_metering)
     selector = build_selection_model(settings, metering=usage_metering)
-    knowledge = KnowledgeService(SQLUnitOfWork(engine), storage, ReferenceHybridRanker())
+    knowledge = KnowledgeService(
+        SQLUnitOfWork(engine),
+        storage,
+        ReferenceHybridRanker(expand_terms=settings.agent_retrieval_expansion_enabled),
+    )
     intent_router = IntentRouterService(
         model,
         analytics,
         selector,
         DocumentAnswerService(knowledge, model),
         interpretation_enabled=settings.llm_mode != "disabled",
+        context_enabled=settings.agent_context_enabled,
+        orchestration_enabled=settings.agent_orchestration_enabled,
         patterns=PatternService(SQLUnitOfWork(engine), analytics, ScipyPatternStatistics()),
     )
     uploads = WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes)
     refresh = RefreshService(SQLUnitOfWork(engine), uploads, analytics)
-    threads = ThreadService(SQLUnitOfWork(engine), intent_router)
+    threads = ThreadService(
+        SQLUnitOfWork(engine),
+        intent_router,
+        response_synthesis=(
+            ResponseSynthesisService(model if settings.llm_mode != "disabled" else None)
+            if settings.agent_synthesis_enabled
+            else None
+        ),
+    )
     pdf_exports = PdfExportService(SQLUnitOfWork(engine), threads, ReportLabPdfRenderer())
     threads.pdf_exports = pdf_exports
     intent_router.report_exports_enabled = True
@@ -245,6 +265,7 @@ def build_runtime(settings: Settings) -> "Runtime":
             SqlConnectorConnections(engine),
             uploads,
             SQLUnitOfWork(engine),
+            oauth=SqlOAuthState(engine),
             public_api_url=settings.public_api_url,
             web_origin=settings.web_origin,
             max_rows=settings.connector_max_rows,
@@ -268,6 +289,7 @@ def build_runtime(settings: Settings) -> "Runtime":
             uploads,
             SQLUnitOfWork(engine),
             client_id=settings.google_client_id,
+            oauth=SqlOAuthState(engine),
             public_api_url=settings.public_api_url,
             web_origin=settings.web_origin,
             picker_api_key=settings.google_picker_api_key,
@@ -318,6 +340,7 @@ def build_runtime(settings: Settings) -> "Runtime":
             lease_seconds=settings.jobs_lease_seconds,
             timeout_seconds=settings.jobs_timeout_seconds,
             queue_limit=settings.jobs_queue_limit,
+            max_queries=2 if settings.agent_orchestration_enabled else 1,
         ),
         ForecastService(SQLUnitOfWork(engine), analytics),
         operations,
@@ -342,6 +365,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         source_allow_test_loopback=settings.source_allow_test_loopback,
         google_access=google_access,
         connectors=connectors,
+        local_registration_enabled=settings.local_registration_enabled,
     )
 
 
@@ -381,6 +405,25 @@ class Runtime:
 
     source_secret_directory: str = field(default="/run/execplus/source-secrets", repr=False)
     source_allow_test_loopback: bool = False
+    google_access: GoogleAccessService | None = None
+    connectors: ConnectorService | None = None
+    local_registration_enabled: bool = True
+
+    @cached_property
+    def oauth_state(self) -> SqlOAuthState:
+        return SqlOAuthState(self.engine)
+
+    @cached_property
+    def plans(self) -> PlanService:
+        return PlanService(SQLUnitOfWork(self.engine))
+
+    @cached_property
+    def accounts(self) -> AccountService:
+        return AccountService(
+            SQLAccountStore(self.engine),
+            ScryptPasswords(),
+            registration_enabled=self.local_registration_enabled,
+        )
 
     @cached_property
     def source_imports(self) -> SourceImportService:
@@ -445,6 +488,3 @@ class Runtime:
     @cached_property
     def consolidation_exports(self) -> ConsolidationExportService:
         return ConsolidationExportService(self.consolidations, self.result_exports)
-
-    google_access: GoogleAccessService | None = None
-    connectors: ConnectorService | None = None

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from execplus.domain.errors import AuthorizationError, UnsafeQueryError, UnsupportedQuestionError
@@ -18,6 +18,7 @@ from execplus.domain.models import QueryPlan, Scalar, WorkspaceScope
 
 VIEW_NAME = "dataset"
 VALUE_ALIAS = "__value"
+RECORD_COUNT = "*"
 
 _NUMERIC_TYPES = {"integer", "decimal"}
 
@@ -94,9 +95,16 @@ class MetricRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class RowExtremum:
+    column: str
+    direction: Literal["min", "max"]
+
+
+@dataclass(frozen=True, slots=True)
 class RowRequest:
     filters: tuple[MetricFilter, ...] = ()
     columns: tuple[str, ...] = ()
+    extremum: RowExtremum | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +146,19 @@ def dataset_view(profile: dict[str, Any]) -> DatasetView:
 
 def recommend_metrics(view: DatasetView, limit: int = 6) -> tuple[str, ...]:
     return tuple(sorted(view.metrics))[:limit]
+
+
+def supports_metric(view: DatasetView, metric: str, aggregation: AggregationKind) -> bool:
+    if metric == RECORD_COUNT:
+        return aggregation == AggregationKind.COUNT
+    if aggregation == AggregationKind.COUNT:
+        column = view.column(metric)
+        return (
+            column is not None
+            and column.role != "ignored"
+            and (column.role != "metric" or metric in view.metrics)
+        )
+    return metric in view.metrics
 
 
 def recommend_trend_dimension(view: DatasetView) -> str | None:
@@ -227,9 +248,9 @@ def plan_query(
 ) -> QueryPlan:
     if not scope.permits_dataset(dataset_id):
         raise AuthorizationError("The dataset is not authorized for this workspace scope")
-    # Every "metric" role column is already numeric-typed by domain/profiling.py's
-    # inference, so no separate aggregation/type compatibility check is needed here.
-    if request.metric not in view.metrics:
+    # Record counts do not depend on nullable measures. Field counts retain SQL's
+    # non-null semantics, including visible categories and identifiers.
+    if not supports_metric(view, request.metric, request.aggregation):
         raise UnsupportedQuestionError(f"{request.metric!r} is not a supported metric")
     for name in request.group_by:
         if name not in view.dimensions:
@@ -240,9 +261,9 @@ def plan_query(
     where_clauses, params = build_where(view, request.filters)
 
     select = [quote_identifier(name) for name in request.group_by]
+    argument = RECORD_COUNT if request.metric == RECORD_COUNT else quote_identifier(request.metric)
     select.append(
-        f"{request.aggregation.value.upper()}({quote_identifier(request.metric)})"
-        f" AS {quote_identifier(VALUE_ALIAS)}"
+        f"{request.aggregation.value.upper()}({argument}) AS {quote_identifier(VALUE_ALIAS)}"
     )
     sql = f"SELECT {', '.join(select)} FROM {quote_identifier(VIEW_NAME)}"
     if where_clauses:
@@ -256,7 +277,11 @@ def plan_query(
     sql += f" LIMIT {row_limit}"
 
     validate_read_only(sql)
-    question = f"{request.aggregation.value} of {request.metric}"
+    question = (
+        "count of records"
+        if request.metric == RECORD_COUNT
+        else f"{request.aggregation.value} of {request.metric}"
+    )
     if request.group_by:
         question += f" grouped by {', '.join(request.group_by)}"
     return QueryPlan(
@@ -286,6 +311,18 @@ def plan_rows(
             raise UnsupportedQuestionError(f"{name!r} is not a column in this dataset")
 
     where_clauses, params = build_where(view, request.filters)
+    if request.extremum is not None:
+        extreme = request.extremum
+        if extreme.column not in view.metrics or extreme.direction not in {"min", "max"}:
+            raise UnsupportedQuestionError(
+                "Choose a visible numeric measure and minimum or maximum"
+            )
+        name = quote_identifier(extreme.column)
+        inner = f"SELECT {extreme.direction.upper()}({name}) FROM {quote_identifier(VIEW_NAME)}"
+        if where_clauses:
+            inner += " WHERE " + " AND ".join(where_clauses)
+        where_clauses.append(f"{name} = ({inner})")
+        params = [*params, *params]
     select_sql = ", ".join(quote_identifier(name) for name in selected)
     sql = f"SELECT {select_sql} FROM {quote_identifier(VIEW_NAME)}"
     if where_clauses:
@@ -301,7 +338,12 @@ def plan_rows(
         query_id=uuid4(),
         workspace_id=scope.workspace_id,
         dataset_id=dataset_id,
-        question="row-level drill-down",
+        question=(
+            f"records with {request.extremum.direction} of {request.extremum.column} "
+            "(including ties)"
+            if request.extremum
+            else "row-level drill-down"
+        ),
         sql=sql,
         params=tuple(params),
     )

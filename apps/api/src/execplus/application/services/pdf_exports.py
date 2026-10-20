@@ -8,11 +8,14 @@ import asyncio
 import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from dataclasses import asdict
 from datetime import date, datetime, timezone
 from typing import cast
 from uuid import UUID, uuid4
 
+from execplus.application.conversation import EvidenceAnswer
 from execplus.application.export_ports import PdfRenderer, SavedAnswerResolver
+from execplus.application.plan_context import operation_id
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.data_diagrams import DiagramAnswer
 from execplus.application.services.dataset_access import (
@@ -22,7 +25,12 @@ from execplus.application.services.dataset_access import (
 )
 from execplus.application.services.forecasts import read_complete
 from execplus.application.services.intent_router import DatasetGuide, PatternAnswer
-from execplus.application.services.thread_export_documents import extended_sections, thread_charts
+from execplus.application.services.plans import admit
+from execplus.application.services.thread_export_documents import (
+    compound_sections,
+    extended_sections,
+    thread_charts,
+)
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, Scalar, VerifiedMetricAnswer
 from execplus.domain.pdf_exports import (
@@ -73,6 +81,17 @@ class PdfExportService:
         async with self._render_slots:
             generated_at = datetime.now(timezone.utc)
             document, sources = await self._prepare(actor, wid, tid, turn_id, generated_at)
+            with self.uow() as repo:
+                inputs = asdict(document)
+                inputs.pop("generated_at")
+                admit(
+                    repo,
+                    actor,
+                    wid,
+                    "exports",
+                    operation_id("exports"),
+                    {"target": turn_id, "format": "pdf", "document": inputs},
+                )
             content = await read_complete(lambda: self.renderer.render(document))
             checked, checked_sources = await self._prepare(actor, wid, tid, turn_id, generated_at)
             if checked != document or checked_sources != sources:
@@ -121,6 +140,12 @@ class PdfExportService:
                 "pdf_export_unavailable", "Choose a completed saved answer to make a PDF.", 409
             )
         answer = await self.resolver.resolve(actor, wid, tid, turn_id)
+        if isinstance(answer, DatasetGuide) and answer.focus == "conversation":
+            raise IngestionError(
+                "pdf_export_unsupported",
+                "This is a conversational reply, not an analysis report. Choose a data answer.",
+                422,
+            )
         sections = [
             PdfSection(
                 "Saved answer",
@@ -180,6 +205,9 @@ class PdfExportService:
             )
             if answer.suggestions:
                 sections.append(PdfSection("Suggested questions, not results", answer.suggestions))
+            sources = answer.sources
+        elif isinstance(answer, EvidenceAnswer) and answer.coverage == "data":
+            sections.extend(compound_sections(answer))
             sources = answer.sources
         elif isinstance(answer, DiagramAnswer | PatternAnswer):
             sections.extend(extended_sections(answer))

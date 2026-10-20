@@ -60,7 +60,8 @@ class CompanyConsolidationService:
         department = repo.department(wid)
         if not department or department.organization_id != oid:
             raise unavailable()
-        repo.organization(oid)
+        if repo.organization(oid).owner_id != actor.id:
+            raise unavailable()
         require_full_access(repo, actor, wid, did)
         repo.upload(wid, did, uid)
         return {
@@ -140,9 +141,9 @@ class CompanyConsolidationService:
 
     def options(self, actor: User, oid: UUID) -> dict[str, Any]:
         with self.store.transaction() as repo:
-            if oid not in {item.id for item in repo.organizations(actor.id)}:
-                raise unavailable()
             organization = repo.organization(oid)
+            if organization.owner_id != actor.id:
+                raise unavailable()
             companies = []
             snapshots = []
             for department in repo.departments(oid, actor.id):
@@ -427,7 +428,7 @@ class CompanyConsolidationService:
 
     def list(self, actor: User, oid: UUID) -> list[dict[str, Any]]:
         with self.store.transaction() as repo:
-            if oid not in {item.id for item in repo.organizations(actor.id)}:
+            if repo.organization(oid).owner_id != actor.id:
                 raise unavailable()
             runs = repo.consolidation_runs(oid, actor.id)
         values = []

@@ -1,6 +1,10 @@
 /* Use case: Provides a conversation with grounded answers about the selected upload.
 What it does: Keeps paired turns, renders exact results and record tables, and exposes execution evidence. */
 
+import { CompoundResults } from "./compound-results";
+import type { AdditionalNumericalAnswer } from "./compound-results";
+import { VerifiedNarrative } from "./verified-narrative";
+import type { VerifiedNarrativeValue } from "./verified-narrative";
 import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
@@ -13,6 +17,7 @@ import type { ApiRequest } from "./profile-panel";
 import { ConversationEvidence } from "./conversation-evidence";
 import type { Citation } from "./conversation-evidence";
 import { ConversationActivity } from "./conversation-activity";
+import { RequestProgress } from "./request-progress";
 import { DataExplanation } from "./data-explanation";
 import { PatternResults } from "./pattern-results";
 import { DiagramResults } from "./diagram-results";
@@ -39,6 +44,8 @@ type Lineage = {
   receipt?: { sources: { revision_id: string; understanding_id?: string }[] };
 };
 type Answer = {
+  narrative?: VerifiedNarrativeValue;
+  additional_data?: AdditionalNumericalAnswer[];
   kind?: string;
   message?: string;
   label?: string;
@@ -57,6 +64,7 @@ type Answer = {
   diagram?: DatasetDiagram;
   report?: { thread_id: string; turn_id: string; label: string; format: "pdf"; download_url: string };
   guidance?: {
+    focus?: string;
     columns: string[];
     suggestions: string[];
     definition_state: string;
@@ -682,12 +690,15 @@ export function AskPanel({
                   </span>
                 )}
               </span>
+              {turn.answer?.narrative && <VerifiedNarrative narrative={turn.answer.narrative} />}
               {turn.answer?.diagram ? (
                 <DiagramResults diagram={turn.answer.diagram} sources={turn.answer.sources} />
               ) : turn.answer?.report ? (
                 <section aria-label="Requested PDF report"><h3>Your answer, ready to download</h3><p>{turn.answer.report.label}</p><p>The PDF uses the saved answer and its original source evidence.</p>{downloadPdf && <AnswerPdfDownload path={turn.answer.report.download_url} download={downloadPdf} />}</section>
               ) : turn.answer?.patterns ? (
-                <PatternResults result={turn.answer.patterns} evidence={turn.answer.pattern_evidence} sources={turn.answer.sources} />
+                <PatternResults result={turn.answer.patterns} evidence={turn.answer.pattern_evidence} sources={turn.answer.sources} onAsk={question => void ask(question)} busy={busy} />
+              ) : turn.answer?.guidance?.focus === "conversation" ? (
+                <p>{turn.answer.message}</p>
               ) : turn.answer?.guidance ? (
                 <div className="datasetGuidance" aria-label="Data explanation">
                   <DataExplanation message={turn.answer.message ?? ""} />
@@ -762,7 +773,7 @@ export function AskPanel({
                   Partial answer — review the limitations below.
                 </p>
               )}
-              {turn.answer?.citations && (
+              {turn.answer?.citations && turn.answer.coverage !== "data" && (
                 <ConversationEvidence
                   citations={turn.answer.citations}
                   limitations={turn.answer.limitations ?? []}
@@ -823,7 +834,7 @@ export function AskPanel({
                       title={turn.answer.label ?? turn.question}
                       columns={turn.answer.columns.map((column, index) =>
                         column === "__value" && index === turn.answer!.columns!.length - 1
-                          ? "Calculated value" : column,
+                          ? turn.answer!.lineage!.metric === "*" && turn.answer!.lineage!.aggregation === "count" ? "Records" : "Calculated value" : column,
                       )}
                       rows={turn.answer.rows}
                       recordsAnalyzed={turn.answer.records_analyzed ?? turn.answer.lineage.records_analyzed}
@@ -841,6 +852,7 @@ export function AskPanel({
                   )}
                 </>
               )}
+              {turn.answer?.additional_data && <CompoundResults results={turn.answer.additional_data} />}
               {turn.answer?.lineage && (
                 <>
                   <span className="kpiFootnote">
@@ -890,7 +902,7 @@ export function AskPanel({
                   />
                 </details>
               )}
-              {threadId && turn.serverId && turn.answer && !turn.answer.report && (turn.answer.lineage || turn.answer.guidance || turn.answer.diagram || turn.answer.patterns) && <ResultExportActions path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export`} charts={turn.answer.diagram ? ["Data map"] : turn.answer.patterns ? ("pooled" in turn.answer.patterns ? (turn.answer.patterns.pooled ? ["Pooled relationship"] : []) : [...turn.answer.patterns.findings, ...(turn.answer.patterns.exploratory ?? [])].filter(value => value.chart.points.length > 0).map(value => value.title)) : turn.answer.rows && turn.answer.columns?.length === 2 ? ["Recorded comparison"] : []} />}
+              {threadId && turn.serverId && turn.answer && !turn.answer.report && turn.answer.guidance?.focus !== "conversation" && (turn.answer.lineage || turn.answer.guidance || turn.answer.diagram || turn.answer.patterns) && <ResultExportActions path={`${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/export`} charts={turn.answer.diagram ? ["Data map"] : turn.answer.patterns ? ("target" in turn.answer.patterns ? [] : "pooled" in turn.answer.patterns ? (turn.answer.patterns.pooled ? ["Pooled relationship"] : []) : [...turn.answer.patterns.findings, ...(turn.answer.patterns.exploratory ?? [])].filter(value => value.chart.points.length > 0).map(value => value.title)) : turn.answer.rows && turn.answer.columns?.length === 2 ? ["Recorded comparison"] : []} />}
               <details className="saveQuestion">
                 <summary>Save question</summary>
                 <SaveControl
@@ -911,11 +923,10 @@ export function AskPanel({
               <p>{pending}</p>
             </div>
             {!activeJob && (
-              <p className="requestPending" role="status">
-                {pending === "Summarize the verified insights"
-                  ? "Requesting a summary of verified insights…"
-                  : "Submitting your request…"}
-              </p>
+              <RequestProgress
+                title={pending === "Summarize the verified insights" ? "Requesting your summary" : "Sending your message"}
+                detail="Waiting for the server to confirm your request."
+              />
             )}
           </>
         )}

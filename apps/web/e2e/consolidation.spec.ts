@@ -4,6 +4,7 @@ What it does: Checks source and mapping drafts, exact balanced adjustments, save
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { expect, test } from "@playwright/test";
 
 const api = "http://127.0.0.1:8001";
@@ -111,7 +112,7 @@ test("company worksheet keeps explicit mappings, exact layers and private source
     const bytes = readFileSync((await download.path())!);
     expect(bytes.subarray(format === "png" ? 1 : 0, format === "png" ? 4 : signature.length).toString()).toBe(signature);
   }
-  const output = "../../data/verification/2026-10-16/remaining-work/consolidation-browser"; mkdirSync(output, { recursive: true });
+  const output = process.env.PLAYWRIGHT_JSON_OUTPUT_NAME ? join(dirname(process.env.PLAYWRIGHT_JSON_OUTPUT_NAME), "captures", "consolidation") : "../../data/verification/2026-10-17/two-phase/consolidation-browser"; mkdirSync(output, { recursive: true });
   await page.emulateMedia({ reducedMotion: "reduce" });
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });

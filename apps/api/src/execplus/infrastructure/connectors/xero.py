@@ -3,7 +3,7 @@
 What it does: Runs the Xero OAuth exchange, finds the organisation and pages through a chosen list.
 """
 
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlencode
 
 import httpx
@@ -14,7 +14,7 @@ from execplus.application.connector_ports import (
     ConnectorSession,
     ProviderTokens,
 )
-from execplus.domain.connectors import Source
+from execplus.domain.connectors import RecordBuffer, Source
 from execplus.infrastructure.connectors.base import (
     DEFAULT_TIMEOUT,
     json_body,
@@ -42,7 +42,7 @@ LISTS = (
 class XeroConnector:
     id = "xero"
     label = "Xero"
-    kind = "oauth"
+    kind: Literal["oauth", "credentials"] = "oauth"
     uses_pkce = True
     description = (
         "Invoices and bills, contacts, payments, bank transactions and the chart of accounts."
@@ -157,7 +157,7 @@ class XeroConnector:
             "xero-tenant-id": session.context.get("tenant_id", ""),
             "Accept": "application/json",
         }
-        records: list[dict[str, Any]] = []
+        records: list[dict[str, Any]] = RecordBuffer()
         page = 1
         while len(records) < max_rows:
             params = {"page": str(page)} if listing[2] else {}

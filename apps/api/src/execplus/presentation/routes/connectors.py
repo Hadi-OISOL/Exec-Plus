@@ -4,16 +4,17 @@ What it does: Runs the browser redirects and delegates browsing, credentials and
 """
 
 from typing import Annotated
-from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from execplus.application.services.connectors import ConnectorService
 from execplus.domain.ingestion import IngestionError
+from execplus.presentation.routes import oauth
+from execplus.presentation.routes.accounts import peer
 from execplus.presentation.routes.workspaces import Actor, public_upload
 
 router = APIRouter(tags=["connectors"])
@@ -52,38 +53,58 @@ class ImportInput(BaseModel):
     source_id: str = Field(min_length=1, max_length=600)
 
 
-def finish(service: ConnectorService, query: str) -> RedirectResponse:
-    return RedirectResponse(f"{service.web_origin}/workspace?{query}", status_code=302)
-
-
 @router.get("/connectors")
 async def catalog(actor: Actor, service: OptionalService) -> object:
     return await run_in_threadpool(service.catalog, actor) if service else []
 
 
 @router.post("/connectors/{provider}/connect")
-async def connect(provider: str, actor: Actor, service: Service) -> object:
-    return dict(url=await run_in_threadpool(service.start_connect, actor, provider))
+async def connect(provider: str, request: Request, actor: Actor, service: Service) -> Response:
+    oauth.origin(request)
+    binding = oauth.browser(request)
+    url = await run_in_threadpool(
+        service.start_connect, actor, provider, binding, oauth.session_token(request), peer(request)
+    )
+    response = JSONResponse(dict(url=url))
+    oauth.set_browser(response, binding, service.api_url)
+    return response
 
 
 @router.get("/connectors/{provider}/callback")
 async def callback(provider: str, request: Request, service: Service) -> Response:
-    query = dict(request.query_params)
+    query = {
+        key: value[:4096]
+        for key, value in request.query_params.items()
+        if key in {"code", "state", "error", "realmId"}
+    }
     code, state = query.pop("code", ""), query.pop("state", "")
-    if query.get("error") or not code or not state:
-        return finish(service, f"connector_error=connector_denied&connector={quote(provider)}")
     try:
-        await run_in_threadpool(service.finish_connect, provider, code, state, query)
-    except IngestionError as failure:
-        return finish(service, f"connector_error={quote(failure.code)}&connector={quote(provider)}")
-    return finish(service, f"connector_connected={quote(provider)}")
+        handle = await run_in_threadpool(
+            service.finish_connect,
+            provider,
+            code,
+            state[:129],
+            query,
+            request.cookies.get(oauth.BROWSER_COOKIE, ""),
+            bool(query.get("error")),
+        )
+    except IngestionError:
+        handle = None
+    return oauth.finish(service.web_origin, service.api_url, handle)
 
 
 @router.post("/connectors/{provider}/credentials")
 async def credentials(
-    provider: str, body: CredentialsInput, actor: Actor, service: Service
+    provider: str, body: CredentialsInput, request: Request, actor: Actor, service: Service
 ) -> object:
-    account = await run_in_threadpool(service.save_credentials, actor, provider, body.values)
+    account = await run_in_threadpool(
+        service.save_credentials,
+        actor,
+        provider,
+        body.values,
+        oauth.session_token(request),
+        peer(request),
+    )
     return dict(connected=True, account=account)
 
 
@@ -103,9 +124,12 @@ async def sources(
     provider: str,
     actor: Actor,
     service: Service,
+    request: Request,
     parent: Annotated[str | None, Query(max_length=600)] = None,
 ) -> object:
-    return await run_in_threadpool(service.browse, actor, provider, parent)
+    return await run_in_threadpool(
+        service.browse, actor, provider, parent, oauth.session_token(request)
+    )
 
 
 @router.post(
@@ -117,10 +141,17 @@ async def import_source(
     dataset_id: UUID,
     provider: str,
     body: ImportInput,
+    request: Request,
     actor: Actor,
     service: Service,
 ) -> object:
     upload = await run_in_threadpool(
-        service.import_source, actor, workspace_id, dataset_id, provider, body.source_id
+        service.import_source,
+        actor,
+        workspace_id,
+        dataset_id,
+        provider,
+        body.source_id,
+        oauth.session_token(request),
     )
     return public_upload(upload)

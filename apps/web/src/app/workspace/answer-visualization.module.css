@@ -3,12 +3,12 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 
 .visualization {
   min-width: 0;
-  --chart-ink: #213a32;
-  --chart-muted: #586b61;
-  --chart-line: #dfe7e1;
-  --chart-paper: #fbfcfa;
+  --chart-ink: light-dark(#213a32, var(--theme-ink));
+  --chart-muted: light-dark(#586b61, var(--theme-muted));
+  --chart-line: light-dark(#dfe7e1, var(--theme-subtle));
+  --chart-paper: light-dark(#fbfcfa, var(--theme-surface));
   color: var(--chart-ink);
-  background: #fff;
+  background: light-dark(#fff, var(--theme-surface));
   border: 1px solid var(--chart-line);
   border-radius: 15px;
   overflow: hidden;
@@ -25,7 +25,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 }
 .header h3 {
   margin: 0;
-  color: var(--ink, #203f30);
+  color: var(--ink, light-dark(#203f30, var(--theme-ink)));
   font-size: 21px;
   font-weight: 650;
   line-height: 1.3;
@@ -52,7 +52,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   border: 1px solid transparent;
   border-radius: 7px;
   background: transparent;
-  color: #5c6e52;
+  color: light-dark(#5c6e52, var(--theme-muted));
   font-size: 13px;
   padding: 7px 10px;
   font-weight: 550;
@@ -62,12 +62,12 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 .actions button:hover,
 .chartChoice button:hover,
 .pagination button:hover {
-  background: #edf4e9;
-  color: var(--green, #176b57);
+  background: light-dark(#edf4e9, var(--theme-subtle));
+  color: var(--green, light-dark(#176b57, var(--theme-accent)));
 }
 .segmented {
   display: flex;
-  background: #f1f5ee;
+  background: light-dark(#f1f5ee, var(--theme-subtle));
   border-radius: 7px;
   padding: 2px;
 }
@@ -75,8 +75,8 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   padding: 5px 10px;
 }
 .segmented button[aria-pressed="true"] {
-  background: #fff;
-  color: var(--green, #176b57);
+  background: light-dark(#fff, var(--theme-surface));
+  color: var(--green, light-dark(#176b57, var(--theme-accent)));
   box-shadow: 0 1px 4px #172f5814;
 }
 .actions .expandButton {
@@ -92,8 +92,8 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   padding: 0 26px 15px;
 }
 .chartChoice button[aria-pressed="true"] {
-  color: var(--green, #176b57);
-  background: #edf4e9;
+  color: var(--green, light-dark(#176b57, var(--theme-accent)));
+  background: light-dark(#edf4e9, var(--theme-subtle));
 }
 .plot {
   padding: 20px 26px 22px;
@@ -126,7 +126,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   padding: 17px 18px;
   border: 1px solid var(--chart-line);
   border-radius: 10px;
-  background: white;
+  background: light-dark(white, var(--theme-surface));
   color: var(--chart-muted);
   font-size: 13px;
   overflow-wrap: anywhere;
@@ -145,12 +145,12 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 .note,
 .plotNote {
   font-size: 13px;
-  color: #64725b;
+  color: light-dark(#64725b, var(--theme-muted));
   line-height: 1.6;
   margin: 15px 0 0;
 }
 .plotNote {
-  color: #5c6e52;
+  color: light-dark(#5c6e52, var(--theme-muted));
   font-size: 12px;
 }
 .tableView {
@@ -176,11 +176,11 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 .tableScroll th,
 .tableScroll td {
   padding: 12px 20px;
-  border-top: 1px solid #e6ece1;
+  border-top: 1px solid light-dark(#e6ece1, var(--theme-border));
   white-space: nowrap;
 }
 .tableScroll tbody tr:hover {
-  background: #f7f9fe;
+  background: light-dark(#f7f9fe, var(--theme-surface));
 }
 .pagination {
   display: flex;
@@ -190,32 +190,32 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   gap: 8px;
   padding: 12px 20px;
   font-size: 12px;
-  color: #5c6e52;
+  color: light-dark(#5c6e52, var(--theme-muted));
 }
 .pagination button:disabled {
   opacity: 0.4;
   cursor: default;
 }
 .sourceCount {
-  border-top: 1px solid #e6ece1;
+  border-top: 1px solid light-dark(#e6ece1, var(--theme-border));
   padding: 12px 22px;
   font-size: 12px;
-  color: #5c6e52;
+  color: light-dark(#5c6e52, var(--theme-muted));
   line-height: 1.6;
 }
 .empty {
   padding: 16px 22px;
-  color: #5c6e52;
+  color: light-dark(#5c6e52, var(--theme-muted));
   font-size: 13px;
 }
 .dialog {
   width: min(1120px, calc(100vw - 40px));
   max-height: calc(100dvh - 40px);
   padding: 0;
-  border: 1px solid #d9e0eb;
+  border: 1px solid light-dark(#d9e0eb, var(--theme-border));
   border-radius: 14px;
-  background: #fff;
-  color: var(--ink, #203f30);
+  background: light-dark(#fff, var(--theme-surface));
+  color: var(--ink, light-dark(#203f30, var(--theme-ink)));
   overflow: auto;
   box-shadow: 0 30px 100px #07152b38;
 }
@@ -227,8 +227,8 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #fff;
-  border-bottom: 1px solid #e6ece1;
+  background: light-dark(#fff, var(--theme-surface));
+  border-bottom: 1px solid light-dark(#e6ece1, var(--theme-border));
   padding: 20px 28px;
 }
 .dialog .plot {
@@ -236,7 +236,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 }
 .visualization button:focus-visible,
 .visualization [tabindex="0"]:focus-visible {
-  outline: 2px solid var(--green, #176b57);
+  outline: 2px solid var(--green, light-dark(#176b57, var(--theme-accent)));
   outline-offset: 3px;
 }
 .compact .header {

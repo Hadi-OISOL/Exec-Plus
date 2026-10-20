@@ -3,7 +3,7 @@
 What it does: Authenticates over JSON-RPC, keeps only existing fields and pages through results.
 """
 
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 import httpx
@@ -13,7 +13,7 @@ from execplus.application.connector_ports import (
     ConnectorField,
     ConnectorSession,
 )
-from execplus.domain.connectors import Source
+from execplus.domain.connectors import RecordBuffer, Source
 from execplus.infrastructure.connectors.base import DEFAULT_TIMEOUT, HostPolicy, json_body, send
 
 PAGE = 500
@@ -159,7 +159,7 @@ LISTS: dict[str, tuple[str, str, list[Any], tuple[str, ...]]] = {
 class OdooConnector:
     id = "odoo"
     label = "Odoo"
-    kind = "credentials"
+    kind: Literal["oauth", "credentials"] = "credentials"
     description = (
         "Customer invoices, vendor bills, lines, payments, contacts, products and accounts."
     )
@@ -246,7 +246,7 @@ class OdooConnector:
             base, credentials, uid, model, "fields_get", [], {"attributes": ["type"]}
         )
         fields = [name for name in wanted if name in available]
-        records: list[dict[str, Any]] = []
+        records: list[dict[str, Any]] = RecordBuffer()
         while len(records) < max_rows:
             batch = self._execute(
                 base,

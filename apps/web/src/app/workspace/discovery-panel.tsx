@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { Icon } from "./explore-components";
 import { WorkspaceLoading } from "./workspace-loading";
+import { PatternResults, type PatternResult, type PatternEvidence } from "./pattern-results";
 import { AnswerVisualization } from "./answer-visualization";
 import { compareExactNumeric, displayMetric } from "./visualization-values";
 import styles from "./dashboard-presentation.module.css";
@@ -38,6 +39,8 @@ type Discovery = {
   findings: Finding[];
   suggestions: string[];
   limitations: string[];
+  patterns_evidence?: (PatternEvidence & { result: PatternResult; sources: { revision_id: string; understanding_id?: string }[] }) | null;
+  analysis_suggestions?: { tool: "patterns" | "anomalies"; label: string; metric?: string; reason: string }[];
 };
 
 
@@ -207,6 +210,7 @@ export function DiscoveryPanel({
   onPrepare,
   onReview,
   onChat,
+  onAnalysis,
   enabled,
   expert = false,
 }: {
@@ -217,6 +221,7 @@ export function DiscoveryPanel({
   onPrepare: () => void;
   onReview: () => void;
   onChat: () => void;
+  onAnalysis?: (tool: "patterns" | "anomalies", metric?: string) => void;
   enabled: boolean;
   expert?: boolean;
 }) {
@@ -380,6 +385,9 @@ export function DiscoveryPanel({
             ))}
         </div>
       )}
+      {discovery.patterns_evidence && <div className="automaticPatterns" aria-label="Automatically checked relationships">
+        <PatternResults result={discovery.patterns_evidence.result} evidence={discovery.patterns_evidence} sources={discovery.patterns_evidence.sources} onAsk={onQuestion} />
+      </div>}
       {discovery.quality.length > 0 && (
         <div className="discoveryChecks">
           <h3>
@@ -431,6 +439,11 @@ export function DiscoveryPanel({
           </ul>
         </div>
       )}
+      {onAnalysis && Boolean(discovery.analysis_suggestions?.length) && <div className="discoveryNext">
+        <h3>Take a closer look</h3>
+        <div className="suggestionChips">{discovery.analysis_suggestions?.map(item => <button key={item.tool} type="button" title={item.reason} onClick={() => onAnalysis(item.tool, item.metric)}>{item.label}<Icon name="arrow" size={14} /></button>)}</div>
+        <p>These are suggested checks, not findings. Review each result and its assumptions.</p>
+      </div>}
       <div className="discoveryNext">
         <h3>Where would you like to go next?</h3>
         <div className="suggestionChips">

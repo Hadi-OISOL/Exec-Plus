@@ -13,6 +13,17 @@ from execplus.application.progress import activity
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.forecasts import read_complete
+from execplus.domain.cohort_comparison import (
+    EVIDENCE_VERSION as COHORT_EVIDENCE_VERSION,
+)
+from execplus.domain.cohort_comparison import (
+    VERSION as COHORT_VERSION,
+)
+from execplus.domain.cohort_comparison import (
+    cohort_plan,
+    cohort_request,
+    cohort_result,
+)
 from execplus.domain.decision_analysis import checksum
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.evidence import receipt
@@ -51,6 +62,8 @@ class PatternService:
     def _result(
         self, value: QueryResult, request: dict[str, Any], *, grouped: bool
     ) -> dict[str, Any]:
+        if request.get("version") == "cohort-comparison-request-v1":
+            return cohort_result(value, request, self.statistics.engine_version)
         if grouped:
             return group_relationship_result(
                 value, request, self.statistics.engine_version, self.statistics.correlations
@@ -72,6 +85,7 @@ class PatternService:
         columns: tuple[str, ...] = (),
         *,
         group_by: str | None = None,
+        target: tuple[str, str] | None = None,
     ) -> dict[str, Any]:
         self._current(actor, wid, did, uid)
         context, table, scope = await read_complete(
@@ -79,12 +93,20 @@ class PatternService:
         )
         grouped = group_by is not None
         request = (
-            group_relationship_request(context, table, columns, group_by)
+            cohort_request(context, table, target[0], target[1], columns)
+            if target is not None
+            else group_relationship_request(context, table, columns, group_by)
             if group_by is not None
             else pattern_request(context, table, columns)
         )
         view = context.view
-        plan = (group_relationship_plan if grouped else pattern_plan)(scope, did, view, request)
+        plan = (
+            cohort_plan
+            if target is not None
+            else group_relationship_plan
+            if grouped
+            else pattern_plan
+        )(scope, did, view, request)
         lineage = CalculationLineage(
             plan.query_id,
             wid,
@@ -96,7 +118,8 @@ class PatternService:
             (),
             (),
             plan.sql,
-            "deterministic:" + (GROUP_VERSION if grouped else VERSION),
+            "deterministic:"
+            + (COHORT_VERSION if target is not None else GROUP_VERSION if grouped else VERSION),
         )
         await read_complete(
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
@@ -122,7 +145,11 @@ class PatternService:
             repo.workspace(wid, lock=True)
             authorize_sources(repo, actor, wid, view.sources, did)
         return dict(
-            version=GROUP_EVIDENCE_VERSION if grouped else EVIDENCE_VERSION,
+            version=COHORT_EVIDENCE_VERSION
+            if target is not None
+            else GROUP_EVIDENCE_VERSION
+            if grouped
+            else EVIDENCE_VERSION,
             query_id=str(plan.query_id),
             sources=list(view.sources),
             request=request,
@@ -130,6 +157,20 @@ class PatternService:
             result=result,
             request_checksum=checksum(request),
             result_checksum=checksum(result),
+        )
+
+    async def compare_cohort(
+        self,
+        actor: User,
+        wid: UUID,
+        did: UUID,
+        uid: UUID,
+        target_column: str,
+        target_value: str,
+        columns: tuple[str, ...] = (),
+    ) -> dict[str, Any]:
+        return await self.discover(
+            actor, wid, did, uid, columns, target=(target_column, target_value)
         )
 
     async def reopen(self, actor: User, wid: UUID, evidence: dict[str, Any]) -> dict[str, Any]:
@@ -140,9 +181,11 @@ class PatternService:
             if evidence["version"] not in {
                 EVIDENCE_VERSION,
                 GROUP_EVIDENCE_VERSION,
+                COHORT_EVIDENCE_VERSION,
             } or evidence["request_checksum"] != checksum(evidence["request"]):
                 raise invalid
             grouped = evidence["version"] == GROUP_EVIDENCE_VERSION
+            cohort = evidence["version"] == COHORT_EVIDENCE_VERSION
             if evidence["engine_version"] != self.statistics.engine_version:
                 raise IngestionError(
                     "pattern_engine_changed",
@@ -163,20 +206,35 @@ class PatternService:
                 lambda: self.analytics.context_at(actor, wid, source)
             )
             request = (
-                group_relationship_request(
+                cohort_request(
+                    context,
+                    table,
+                    evidence["request"]["target_column"],
+                    evidence["request"]["target_value"],
+                    tuple(evidence["request"]["selected"]),
+                )
+                if cohort
+                else group_relationship_request(
                     context,
                     table,
                     tuple(evidence["request"]["selected"]),
                     evidence["request"]["group_by"],
                 )
                 if grouped
-                else pattern_request(context, table, tuple(evidence["request"]["selected"]))
+                else pattern_request(
+                    context,
+                    table,
+                    tuple(evidence["request"]["selected"]),
+                    selection_version=evidence["request"].get("selection_version"),
+                )
             )
             if request != evidence["request"]:
                 raise invalid
             qid = UUID(evidence["query_id"])
             plan = replace(
-                (group_relationship_plan if grouped else pattern_plan)(scope, did, view, request),
+                (cohort_plan if cohort else group_relationship_plan if grouped else pattern_plan)(
+                    scope, did, view, request
+                ),
                 query_id=qid,
             )
             with self.uow() as repo:

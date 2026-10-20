@@ -5,6 +5,7 @@ private audit evidence, historical definitions and render-time races.
 """
 
 import asyncio
+from contextlib import nullcontext
 from io import BytesIO
 from threading import Event
 from uuid import UUID, uuid4
@@ -211,7 +212,12 @@ def test_cancelled_render_holds_slot_until_worker_finishes(monkeypatch):
                 assert release.wait(5)
                 return b"never delivered"
 
-        service = PdfExportService(None, None, Renderer())
+        admissions = []
+        monkeypatch.setattr(
+            "execplus.application.services.pdf_exports.admit",
+            lambda *args: admissions.append(args),
+        )
+        service = PdfExportService(lambda: nullcontext(object()), None, Renderer())
         source = PdfDocument("Fictional", None, (PdfSection("Source"),))
 
         async def prepare(*args):
@@ -234,5 +240,6 @@ def test_cancelled_render_holds_slot_until_worker_finishes(monkeypatch):
                 await task
             service._render_slots.release()
         assert not service._render_slots.locked()
+        assert len(admissions) == 1
 
     asyncio.run(scenario())

@@ -10,8 +10,10 @@ export type AnalysisOptions = {
         unit: string;
     }[];
     entities: string[];
+    anomaly_default?: { metric: string; unit: string; threshold: string; materiality: string; minimum_segment_size: number; reason: string } | null;
     large_allocations?: { model: string; available: boolean; maximum_actions: number; maximum_resources: number };
     calendar_anomalies?: ForecastOptions & { methods: string[] };
+    multivariate_anomalies?: { model: string; identifiers: string[]; groups: string[]; maximum_records: number; minimum_reference: number; maximum_reference: number };
     source_scenarios?: { model: string; grain: string | null; columns: { name: string; unit: string; currency: string }[] };
 };
 export type AnalysisSummary = {

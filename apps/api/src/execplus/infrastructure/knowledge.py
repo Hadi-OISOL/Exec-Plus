@@ -11,6 +11,21 @@ from uuid import UUID
 
 from execplus.application.contracts import KnowledgeChunk, RetrievalHit
 
+# Retrieval candidates only: these terms never rename fields or establish meaning.
+_DISCOVERY_GROUPS = (
+    frozenset({"employee", "employees", "staff", "personnel"}),
+    frozenset({"refund", "refunds", "reimbursement", "reimbursements"}),
+    frozenset({"purchase", "purchases", "procurement"}),
+    frozenset({"vendor", "vendors", "supplier", "suppliers"}),
+    frozenset({"vacation", "holiday", "holidays", "leave"}),
+    frozenset({"delivery", "deliveries", "shipment", "shipments", "shipping"}),
+)
+
+
+def discovery_terms(terms: set[str]) -> set[str]:
+    """Return bounded English recall hints, not equivalence assertions."""
+    return set().union(*(group for group in _DISCOVERY_GROUPS if group & terms)) - terms
+
 
 def tokens(text: str) -> list[str]:
     return re.findall(r"\w+", text.casefold())
@@ -26,16 +41,23 @@ def vector(text: str) -> tuple[float, ...]:
 
 
 class ReferenceHybridRanker:
+    def __init__(self, *, expand_terms: bool = False) -> None:
+        self.expand_terms = expand_terms
+
     def rank(
         self, query: str, chunks: tuple[KnowledgeChunk, ...], limit: int
     ) -> tuple[RetrievalHit, ...]:
         terms = set(tokens(query))
+        expanded = discovery_terms(terms) if self.expand_terms else set()
         query_vector = vector(query)
         lexical = {}
         semantic = {}
         for chunk in chunks:
             counts = Counter(tokens(chunk.text))
             lexical[chunk.chunk_id] = sum(counts[term] / (1 + counts[term]) for term in terms)
+            lexical[chunk.chunk_id] += 0.25 * sum(
+                counts[term] / (1 + counts[term]) for term in expanded
+            )
             semantic[chunk.chunk_id] = sum(
                 a * b for a, b in zip(query_vector, vector(chunk.text), strict=True)
             )

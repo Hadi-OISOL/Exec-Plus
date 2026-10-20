@@ -21,6 +21,7 @@ class EvidenceAnswer:
     limitations: tuple[str, ...]
     model_route: str
     sources: tuple[dict[str, str], ...]
+    additional_data: tuple[NumericalAnswer, ...] = ()
 
 
 def answer_lineage(answer: NumericalAnswer) -> CalculationLineage:

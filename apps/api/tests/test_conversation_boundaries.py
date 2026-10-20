@@ -4,6 +4,8 @@ What it does: Exercises persisted context boundaries, follow-ups and saved choic
 against the real thread service while keeping the model response deterministic.
 """
 
+from inspect import signature
+
 import pytest
 
 from execplus.presentation.routes.threads import get_thread_service
@@ -74,7 +76,7 @@ def test_saved_clarification_choices_survive_into_the_next_router_call(integrati
     received = []
 
     async def capture(*args, **kwargs):
-        received.append(args[-1])
+        received.append(signature(original).bind(*args, **kwargs).arguments["prior_clarification"])
         return await original(*args, **kwargs)
 
     service.intent_router.ask = capture

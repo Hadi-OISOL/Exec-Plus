@@ -58,12 +58,10 @@ function loadPicker(): Promise<PickerApi> {
 export function GoogleSheetsImport({
   request,
   disabled,
-  onConnecting,
   onImport,
 }: {
   request: ApiRequest;
   disabled: boolean;
-  onConnecting: () => void;
   onImport: (choice: SheetChoice) => Promise<void>;
 }) {
   const [config, setConfig] = useState<Config | null>(null);
@@ -85,9 +83,14 @@ export function GoogleSheetsImport({
         if (!active) return;
         setConfig(loaded);
         setStatus(state);
+        if (!state.connected) setPending(null);
       })
       .catch(() => {
-        if (active) setConfig({ enabled: false, picker: null });
+        if (active) {
+          setConfig({ enabled: false, picker: null });
+          setStatus(null);
+          setPending(null);
+        }
       });
     return () => {
       active = false;
@@ -100,6 +103,10 @@ export function GoogleSheetsImport({
     try {
       await action();
     } catch (cause) {
+      if ([401, 403, 404, 409].includes((cause as { status?: number })?.status ?? 0)) {
+        setStatus(null);
+        setPending(null);
+      }
       setError(cause instanceof Error ? cause.message : "Google could not be reached.");
     } finally {
       setBusy(false);
@@ -110,8 +117,8 @@ export function GoogleSheetsImport({
     await attempt(async () => {
       const { url } = await request<{ url: string }>("/integrations/google/connect", {
         method: "POST",
+        credentials: "include",
       });
-      onConnecting();
       window.location.assign(url);
     });
   }
@@ -125,28 +132,38 @@ export function GoogleSheetsImport({
   }
 
   async function choose(id: string) {
-    const sheet = await request<{ title: string; tabs: Tab[] }>(
-      `/integrations/google/spreadsheets/${encodeURIComponent(id)}`,
-    );
-    if (sheet.tabs.length > 1) {
-      setPending({ id, title: sheet.title, tabs: sheet.tabs, tabId: sheet.tabs[0].id });
-      return;
+    setPending(null);
+    let sheet: { title: string; tabs: Tab[] };
+    try {
+      sheet = await request<{ title: string; tabs: Tab[] }>(
+        `/integrations/google/spreadsheets/${encodeURIComponent(id)}`,
+      );
+    } catch (cause) {
+      setStatus(null);
+      throw cause;
     }
+    setPending({ id, title: sheet.title, tabs: sheet.tabs, tabId: sheet.tabs[0]?.id ?? null });
+    if (sheet.tabs.length > 1) return;
     await onImport({
       spreadsheetId: id,
       sheetId: sheet.tabs[0]?.id ?? null,
       title: sheet.title,
     });
+    setPending(null);
   }
 
   async function pick() {
+    setPending(null);
     await attempt(async () => {
       if (!config?.picker) throw new Error("Google's picker is not configured.");
       const key = config.picker;
       const [{ access_token: token }, picker] = await Promise.all([
         request<{ access_token: string }>("/integrations/google/picker-token"),
         loadPicker(),
-      ]);
+      ]).catch(cause => {
+        setStatus(null);
+        throw cause;
+      });
       const builder = new picker.PickerBuilder();
       builder.addView(new picker.DocsView(picker.ViewId.SPREADSHEETS));
       builder.setOAuthToken(token);

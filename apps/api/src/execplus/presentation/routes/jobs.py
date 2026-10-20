@@ -3,6 +3,8 @@
 What it does: Authorizes polling, cancellation and evidence independently of HTTP lifetime.
 """
 
+import json
+import logging
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -10,8 +12,7 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from execplus.application.services.jobs import JobService
 from execplus.domain.jobs import Job
-from execplus.presentation.routes.analytics import numerical_answer_body
-from execplus.presentation.routes.threads import AskInThreadInput, _turn_body
+from execplus.presentation.routes.threads import AskInThreadInput, _turn_body, resolved_answer_body
 from execplus.presentation.routes.workspaces import Actor
 
 router = APIRouter(tags=["jobs"])
@@ -43,10 +44,26 @@ def body(job: Job) -> dict[str, object]:
 
 @router.post("/workspaces/{workspace_id}/threads/{thread_id}/jobs", status_code=202)
 def submit(
-    workspace_id: UUID, thread_id: UUID, request: AskInThreadInput, actor: Actor, jobs: Service
+    workspace_id: UUID,
+    thread_id: UUID,
+    request: AskInThreadInput,
+    actor: Actor,
+    jobs: Service,
+    http_request: Request,
 ) -> object:
     request_id = request.request_id or uuid4()
-    return body(jobs.submit(actor, workspace_id, thread_id, request.question, request_id))
+    job = jobs.submit(actor, workspace_id, thread_id, request.question, request_id)
+    logging.getLogger("execplus.requests").info(
+        json.dumps(
+            {
+                "event": "job_accepted",
+                "request_id": str(http_request.state.request_id),
+                "job_id": str(job.id),
+            },
+            separators=(",", ":"),
+        )
+    )
+    return body(job)
 
 
 @router.get("/workspaces/{workspace_id}/jobs/{job_id}")
@@ -87,5 +104,12 @@ async def result(workspace_id: UUID, job_id: UUID, actor: Actor, jobs: Service) 
     answer, turn = await jobs.result(actor, workspace_id, job_id)
     return {
         "turn": _turn_body(turn),
-        "answer": numerical_answer_body(answer) if answer is not None else None,
+        "answer": await resolved_answer_body(
+            jobs.threads,
+            actor,
+            workspace_id,
+            turn.thread_id,
+            turn.id,
+            answer,
+        ),
     }

@@ -4,10 +4,23 @@ What it does: Connects with the user's credentials, lists tables and copies a bo
 """
 
 import socket
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote, unquote
 
-from sqlalchemy import LargeBinary, MetaData, Table, create_engine, inspect, select, text
+from sqlalchemy import (
+    LargeBinary,
+    MetaData,
+    Table,
+    Text,
+    case,
+    cast,
+    create_engine,
+    func,
+    inspect,
+    literal,
+    select,
+    text,
+)
 from sqlalchemy.engine import URL, Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool
@@ -17,7 +30,8 @@ from execplus.application.connector_ports import (
     ConnectorField,
     ConnectorSession,
 )
-from execplus.domain.connectors import Source
+from execplus.domain.connectors import MAX_IMPORT_BYTES, RecordBuffer, Source, source_too_large
+from execplus.domain.google_oauth import MAX_COLUMNS
 from execplus.infrastructure.connectors.base import HostPolicy
 
 SESSION_OPTIONS = (
@@ -30,7 +44,7 @@ MAX_LISTED = 500
 class PostgresConnector:
     id = "postgresql"
     label = "PostgreSQL database"
-    kind = "credentials"
+    kind: Literal["oauth", "credentials"] = "credentials"
     description = "Any table or view in a PostgreSQL database, read through a read-only session."
     fields: tuple[ConnectorField, ...] = (
         ConnectorField("host", "Host", placeholder="db.example.com"),
@@ -152,10 +166,27 @@ class PostgresConnector:
             ]
             if not columns:
                 raise ConnectorApiError(422, "no_readable_columns")
-            with engine.connect() as connection:
-                rows = connection.execute(select(*columns).limit(max_rows)).mappings().all()
+            if len(columns) > MAX_COLUMNS:
+                raise source_too_large()
+            row_bytes = sum(
+                (func.coalesce(func.octet_length(cast(column, Text)), 0) for column in columns),
+                start=literal(0),
+            )
+            fits = row_bytes <= MAX_IMPORT_BYTES
+            projection = [case((fits, column), else_=None).label(column.name) for column in columns]
+            records = RecordBuffer()
+            with engine.connect().execution_options(
+                stream_results=True, max_row_buffer=1
+            ) as connection:
+                rows = connection.execute(select(fits, *projection).limit(max_rows))
+                for row in rows:
+                    if not row[0]:
+                        raise source_too_large()
+                    records.append(
+                        dict(zip((column.name for column in columns), row[1:], strict=True))
+                    )
         except SQLAlchemyError:
             raise ConnectorApiError(502, "database_error") from None
         finally:
             engine.dispose()
-        return [dict(row) for row in rows]
+        return records

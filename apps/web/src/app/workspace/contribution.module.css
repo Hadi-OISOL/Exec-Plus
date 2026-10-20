@@ -1,0 +1,25 @@
+/* Use case: Keeps change investigations legible within the existing study library.
+What it does: Separates source choices, recorded totals and supporting detail with responsive spacing. */
+.builder { border: 1px solid var(--border, light-dark(#dbe5e0, var(--theme-border))); border-radius: 16px; padding: 20px; background: var(--surface, light-dark(#fff, var(--theme-surface))); margin: 24px 0; }
+.builder > summary { font-weight: 650; font-size: 1.05rem; cursor: pointer; }
+.builder form { display: grid; gap: 18px; margin-top: 20px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.fields { display: grid; align-content: start; gap: 16px; min-width: 0; padding: 18px; border: 1px solid var(--border, light-dark(#dbe5e0, var(--theme-border))); border-radius: 12px; }
+.fields legend { padding: 0 6px; font-weight: 600; }
+.fields .fields { border: 0; padding: 0; }
+.dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.dates label { display: grid; gap: 6px; min-width: 0; }
+.dates input { width: 100%; min-width: 0; }
+.check { display: flex !important; align-items: flex-start; gap: 10px; line-height: 1.6; }
+.check input { width: 18px !important; height: 18px; flex: 0 0 18px; margin-top: 4px; }
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 24px 0; }
+.summary > div { display: grid; gap: 6px; padding: 20px; border-radius: 14px; background: var(--surface-muted, light-dark(#f3f7f5, var(--theme-subtle))); border: 1px solid var(--border, light-dark(#dbe5e0, var(--theme-border))); min-width: 0; }
+.summary strong { font-size: clamp(1.5rem, 2.4vw, 2.2rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; color: var(--text, light-dark(#183b30, var(--theme-accent))); }
+.summary small, .summary span { color: var(--text-muted, light-dark(#51675f, var(--theme-muted))); }
+.summary > p { grid-column: 1 / -1; margin: 0; }
+.detail { display: grid; gap: 14px; margin: 20px 0; }
+.detail > details { border-top: 1px solid var(--border, light-dark(#dbe5e0, var(--theme-border))); padding-top: 14px; min-width: 0; }
+.detail summary { cursor: pointer; font-weight: 600; margin-bottom: 14px; }
+.detail p, .builder p { line-height: 1.65; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .grid, .summary { grid-template-columns: 1fr; } .builder, .fields { padding: 14px; } }
+@media (max-width: 380px) { .dates { grid-template-columns: 1fr; } }

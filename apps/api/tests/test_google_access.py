@@ -64,6 +64,7 @@ class StandInGoogle(HttpGoogleGateway):
             nonce=self.last["nonce"],
             email=email,
             email_verified=True,
+            sub="subject-" + email.lower(),
             name="Person",
         )
         claims.update(changes)
@@ -106,11 +107,13 @@ def enable(env, picker=True):
         env.runtime.service,
         SQLUnitOfWork(env.engine),
         client_id=CLIENT,
+        oauth=env.runtime.oauth_state,
         public_api_url="http://api.test",
         web_origin=WEB,
         picker_api_key="picker-key" if picker else "",
         app_id="12345" if picker else "",
     )
+    env.client.headers["Origin"] = env.client.app.state.web_origin
     return google, vault
 
 
@@ -126,9 +129,18 @@ def sign_in(env, google, email="person@example.test", **changes):
     )
 
 
-def session_from(response):
-    fragment = urlparse(response.headers["location"]).fragment
-    return parse_qs(fragment)["session"][0]
+def exchange(env, headers=None):
+    response = env.client.post("/auth/oauth/exchange", json={})
+    assert response.status_code == 200, response.text
+    result = response.json()
+    if headers is not None and "token" in result:
+        headers["Authorization"] = "Bearer " + result["token"]
+    return result
+
+
+def session_from(env, response):
+    assert response.headers["location"] == f"{WEB}/workspace?oauth=complete"
+    return exchange(env)["token"]
 
 
 def connect(env, google, headers, email="person@example.test", scope=None, **grant):
@@ -169,7 +181,7 @@ def test_sign_in_redirects_to_google_with_pkce_and_a_bound_cookie(integration):
     assert query["redirect_uri"] == ["http://api.test/auth/google/callback"]
     assert query["scope"] == ["openid email profile"]
     cookie = started.headers["set-cookie"]
-    assert "execplus_oauth=" in cookie and "HttpOnly" in cookie and "SameSite=lax" in cookie
+    assert "execplus_oauth_browser=" in cookie and "HttpOnly" in cookie and "SameSite=lax" in cookie
     assert google.last["scopes"] == ("openid", "email", "profile")
 
 
@@ -177,9 +189,9 @@ def test_sign_in_creates_a_session_for_the_verified_email(integration):
     google, _ = enable(integration)
     _, callback = sign_in(integration, google, "New.Person@Example.test")
     assert callback.status_code == 302
-    assert callback.headers["location"].startswith(f"{WEB}/workspace#session=")
+    assert callback.headers["location"].startswith(f"{WEB}/workspace?oauth=complete")
     me = integration.client.get(
-        "/auth/me", headers={"Authorization": f"Bearer {session_from(callback)}"}
+        "/auth/me", headers={"Authorization": f"Bearer {session_from(integration, callback)}"}
     )
     assert me.status_code == 200 and me.json()["email"] == "new.person@example.test"
     assert google.last["redirect_uri"] == "http://api.test/auth/google/callback"
@@ -188,17 +200,20 @@ def test_sign_in_creates_a_session_for_the_verified_email(integration):
         params=dict(code="sign-in-code", state="whatever"),
         follow_redirects=False,
     )
-    assert "google_error" in again.headers["location"]
+    assert "oauth_error=oauth_state_invalid" in again.headers["location"]
 
 
-def test_sign_in_with_an_existing_email_reuses_the_same_user(integration):
+def test_sign_in_never_links_an_existing_operator_by_email(integration):
     google, _ = enable(integration)
     _, user = identity(integration, "same@example.test")
     _, callback = sign_in(integration, google, "same@example.test")
-    me = integration.client.get(
-        "/auth/me", headers={"Authorization": f"Bearer {session_from(callback)}"}
-    )
-    assert me.json()["id"] == str(user.id)
+    assert callback.headers["location"] == f"{WEB}/workspace?oauth=complete"
+    assert exchange(integration) == {"error": "google_identity_conflict"}
+    with integration.engine.connect() as connection:
+        assert (
+            connection.execute(text("SELECT count(*) FROM external_identities")).scalar_one() == 0
+        )
+    assert user.id
 
 
 @pytest.mark.parametrize(
@@ -214,7 +229,8 @@ def test_sign_in_with_an_existing_email_reuses_the_same_user(integration):
 def test_sign_in_refuses_untrustworthy_identity_tokens(integration, changes, code):
     google, _ = enable(integration)
     _, callback = sign_in(integration, google, **changes)
-    assert callback.headers["location"] == f"{WEB}/workspace#google_error={code}"
+    assert callback.headers["location"] == f"{WEB}/workspace?oauth=complete"
+    assert exchange(integration) == {"error": code}
     assert "session" not in callback.headers["location"]
 
 
@@ -228,18 +244,18 @@ def test_sign_in_needs_the_cookie_the_matching_state_and_no_error(integration):
         params=dict(code="code-a", state="x" + state),
         follow_redirects=False,
     )
-    assert wrong.headers["location"].endswith("google_error=google_state_invalid")
+    assert wrong.headers["location"].endswith("oauth_error=oauth_state_invalid")
     integration.client.cookies.clear()
     missing = integration.client.get(
         "/auth/google/callback", params=dict(code="code-a", state=state), follow_redirects=False
     )
-    assert missing.headers["location"].endswith("google_error=google_state_invalid")
+    assert missing.headers["location"].endswith("oauth_error=oauth_state_invalid")
     denied = integration.client.get(
         "/auth/google/callback",
         params=dict(error="access_denied", state=state),
         follow_redirects=False,
     )
-    assert denied.headers["location"].endswith("google_error=google_denied")
+    assert denied.headers["location"].endswith("oauth_error=oauth_state_invalid")
 
 
 def test_connect_seals_the_refresh_token_and_status_reflects_it(integration):
@@ -249,7 +265,7 @@ def test_connect_seals_the_refresh_token_and_status_reflects_it(integration):
         connected=False, email=""
     )
     callback = connect(integration, google, owner)
-    assert callback.headers["location"] == f"{WEB}/workspace?google=connected"
+    assert callback.headers["location"] == f"{WEB}/workspace?oauth=complete"
     assert google.last["redirect_uri"] == "http://api.test/integrations/google/callback"
     assert google.last["scopes"] == ("openid", "email", DRIVE)
     status = integration.client.get("/integrations/google/status", headers=owner).json()
@@ -266,13 +282,16 @@ def test_connect_refuses_the_wrong_google_account_and_missing_permission(integra
     google, _ = enable(integration)
     owner, _ = identity(integration, "person@example.test")
     other = connect(integration, google, owner, email="someone.else@example.test")
-    assert other.headers["location"].endswith("google_error=google_wrong_account")
+    assert other.headers["location"].endswith("oauth=complete")
+    assert exchange(integration, owner)["error"] == "google_wrong_account"
     google.used.clear()
     narrow = connect(integration, google, owner, scope="openid email")
-    assert narrow.headers["location"].endswith("google_error=google_scope_missing")
+    assert narrow.headers["location"].endswith("oauth=complete")
+    assert exchange(integration, owner)["error"] == "google_scope_missing"
     google.used.clear()
     no_refresh = connect(integration, google, owner, refresh=None)
-    assert no_refresh.headers["location"].endswith("google_error=google_scope_missing")
+    assert no_refresh.headers["location"].endswith("oauth=complete")
+    assert exchange(integration, owner)["error"] == "google_scope_missing"
     assert (
         integration.client.get("/integrations/google/status", headers=owner).json()["connected"]
         is False
@@ -287,7 +306,7 @@ def test_connect_requires_a_signed_in_user_and_a_valid_state(integration):
         params=dict(code="c", state="forged"),
         follow_redirects=False,
     )
-    assert forged.headers["location"].endswith("google_error=google_state_invalid")
+    assert forged.headers["location"].endswith("oauth_error=oauth_state_invalid")
 
 
 def test_disconnect_revokes_at_google_and_deletes_the_stored_token(integration):

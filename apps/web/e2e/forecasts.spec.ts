@@ -2,7 +2,7 @@
 What it does: Covers review, coverage declarations, exact estimates, saved evidence, later actuals and narrow-screen access without mocked results. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, selectAnalysisFocus } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -21,7 +21,7 @@ test("advanced smoothing keeps rolling evidence, exact saved estimates and porta
   test.setTimeout(150_000);
   await signIn(page, session());
   await upload(page, 50);
-  await page.getByLabel("Analysis focus").selectOption("predictive");
+  await selectAnalysisFocus(page, "predictive");
   await review(page);
   await page.getByRole("combobox", { name: "Period", exact: true }).selectOption("daily");
   await page.getByRole("combobox", { name: "Forecast approach", exact: true }).selectOption("advanced-v2");
@@ -52,6 +52,8 @@ test("advanced smoothing keeps rolling evidence, exact saved estimates and porta
   await expect(result).toContainText(run.evidence.query_ids[0]);
   await result.getByText("Method, backtest and source evidence", { exact: true }).click();
   for (const width of [1440, 390, 320]) {
+    const theme = width === 390 ? "dark" : "light";
+    await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
@@ -59,7 +61,7 @@ test("advanced smoothing keeps rolling evidence, exact saved estimates and porta
     const choice = await page.getByLabel("Advanced method family").boundingBox();
     expect(choice?.height).toBeGreaterThanOrEqual(44);
     expect(choice?.height).toBeLessThanOrEqual(64);
-    await result.screenshot({ path: `../../data/verification/2026-10-16/remaining-work/advanced-forecast-${width}.png` });
+    await result.screenshot({ path: `../../data/verification/2026-10-18/intelligence-upgrade/advanced-forecast-${theme}-${width}.png` });
   }
   await result.getByText("Download saved forecast", { exact: true }).click();
   await result.getByRole("combobox", { name: "File type", exact: true }).selectOption("xlsx");
@@ -148,7 +150,9 @@ async function review(page: Page) {
     .click();
   await expect(meanings.getByText("confirmed", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back to overview", exact: true }).click();
-  await page.getByLabel("Analysis focus").selectOption("predictive");
+  await selectAnalysisFocus(page, "predictive");
+  await page.getByRole("navigation", { name: "Workspace navigation" })
+    .getByRole("button", { name: "Forecasts", exact: true }).click();
 }
 
 test("basic forecasts retain exact evidence, compare later actuals and expose authorized audit history", async ({
@@ -158,10 +162,10 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
   const token = session();
   await signIn(page, token);
   await upload(page, 40);
-  await expect(
-    page.getByLabel("Analysis focus").locator('option[value="prescriptive"]'),
-  ).toHaveJSProperty("disabled", false);
-  await page.getByLabel("Analysis focus").selectOption("predictive");
+  await page.getByRole("combobox", { name: "Analysis focus", exact: true }).click();
+  await expect(page.getByRole("option", { name: /^Prescriptive ·/ })).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await selectAnalysisFocus(page, "predictive");
   await expect(
     page.getByRole("heading", { name: "Review meanings before forecasting" }),
   ).toBeVisible();
@@ -250,7 +254,7 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
   }
   await page.setViewportSize({ width: 1280, height: 900 });
   await upload(page, 42, true);
-  await page.getByLabel("Analysis focus").selectOption("predictive");
+  await selectAnalysisFocus(page, "predictive");
   await review(page);
   await page
     .getByRole("combobox", { name: "Saved forecast", exact: true })
@@ -361,7 +365,7 @@ test("analysis focus stays optional and insufficient history gives a useful refu
     )
       forecasts += 1;
   });
-  await page.getByLabel("Analysis focus").selectOption("all");
+  await selectAnalysisFocus(page, "all");
   await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: "Explore basic forecasts", exact: true })
@@ -386,6 +390,6 @@ test("analysis focus stays optional and insufficient history gives a useful refu
     page.getByRole("article", { name: /Forecast result:/ }),
   ).toHaveCount(0);
   expect(forecasts).toBe(1);
-  await page.getByLabel("Analysis focus").selectOption("descriptive");
+  await selectAnalysisFocus(page, "descriptive");
   await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
 });

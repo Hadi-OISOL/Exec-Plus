@@ -5,14 +5,18 @@ What it does: Composes configured services for explicit maintenance and durable 
 
 import argparse
 import asyncio
+import getpass
 import json
 import signal
 import sys
+import warnings
+from uuid import UUID
 
 from execplus.application.job_worker import work
 from execplus.application.services.jobs import JobService
 from execplus.bootstrap import build_runtime
 from execplus.config import Settings
+from execplus.domain.ingestion import IngestionError
 from execplus.infrastructure.identity import LocalSessionIdentity
 from execplus.infrastructure.object_storage import S3ObjectStorage
 
@@ -59,16 +63,71 @@ def _staff_command(args: argparse.Namespace) -> None:
         runtime = build_runtime(Settings())
         try:
             result = runtime.operations.change_staff(
-                args.email, args.role if args.action == "grant-staff" else None
+                args.email,
+                args.role if args.action == "grant-staff" else None,
+                confirmed_user_id=args.account_id,
+                identity_checked=args.identity_checked,
             )
         finally:
             runtime.engine.dispose()
+    except IngestionError as error:
+        if error.code == "native_identity_check_required":
+            print(
+                "Native account email is unverified. Check the exact account ID with its holder, "
+                "then use --account-id and --identity-checked.",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "operator action=staff-access outcome=failed code=staff_access_failure",
+                file=sys.stderr,
+            )
+        raise SystemExit(1) from None
     except Exception:
         print(
             "operator action=staff-access outcome=failed code=staff_access_failure", file=sys.stderr
         )
         raise SystemExit(1) from None
     print(json.dumps(result))
+
+
+def _recover_account(args: argparse.Namespace) -> None:
+    if not args.identity_checked or args.account_id is None or not sys.stdin.isatty():
+        print(
+            "Recovery requires an interactive operator, an exact --account-id "
+            "and --identity-checked after separately checking account control.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", getpass.GetPassWarning)
+            password = getpass.getpass("New local password: ")
+            repeated = getpass.getpass("Repeat new local password: ")
+        if password != repeated:
+            raise ValueError("password mismatch")
+        runtime = build_runtime(Settings())
+        try:
+            runtime.accounts.recover(
+                args.account_id, password, identity_checked=True, reenable=args.reenable
+            )
+        finally:
+            runtime.engine.dispose()
+    except (Exception, KeyboardInterrupt):
+        print(
+            "operator action=account-recovery outcome=failed code=account_recovery_failure",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from None
+    print(
+        json.dumps(
+            {
+                "action": "account-recovered",
+                "account_id": str(args.account_id),
+                "reenabled": args.reenable,
+            }
+        )
+    )
 
 
 def main() -> None:
@@ -83,14 +142,21 @@ def main() -> None:
             "process-jobs",
             "grant-staff",
             "revoke-staff",
+            "recover-local-account",
         ],
     )
     parser.add_argument("--email")
     parser.add_argument("--role", choices=["admin", "support"])
+    parser.add_argument("--account-id", type=UUID)
+    parser.add_argument("--identity-checked", action="store_true")
+    parser.add_argument("--reenable", action="store_true")
     parser.add_argument("--watch", action="store_true")
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--poll-seconds", type=float, default=0.5)
     args = parser.parse_args()
+    if args.action == "recover-local-account":
+        _recover_account(args)
+        return
     if args.action in {"grant-staff", "revoke-staff"}:
         if not args.email or (args.action == "grant-staff" and not args.role):
             parser.error("--email and a grant --role are required")

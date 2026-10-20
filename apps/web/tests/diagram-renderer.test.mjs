@@ -14,9 +14,16 @@ import ts from "typescript";
 
 echarts.use([TreeChart, SVGRenderer]);
 const require = createRequire(import.meta.url);
+const modules = {};
+for (const [path, filename] of [["../theme-control", "../theme-control.tsx"], ["./chart-theme", "chart-theme.ts"]]) {
+  const dependency = await readFile(new URL(`../src/app/workspace/${filename}`, import.meta.url), "utf8");
+  const loaded = { exports: {} };
+  new Function("require", "module", "exports", ts.transpileModule(dependency, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText)(require, loaded, loaded.exports);
+  modules[path] = loaded.exports;
+}
 const source = await readFile(new URL("../src/app/workspace/diagram-results.tsx", import.meta.url), "utf8");
 const compiled = { exports: {} };
-new Function("require", "module", "exports", ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText)(path => path.endsWith(".module.css") ? { default: {} } : require(path), compiled, compiled.exports);
+new Function("require", "module", "exports", ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText)(path => path.endsWith(".module.css") ? { default: {} } : modules[path] ?? require(path), compiled, compiled.exports);
 const { DiagramResults, makeDiagramOption } = compiled.exports;
 const node = (id, kind, label) => ({ id, kind, label, data_type: "", role: "", meaning: "", unit: "", currency: "" });
 const diagram = {

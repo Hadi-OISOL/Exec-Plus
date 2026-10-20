@@ -55,10 +55,10 @@ def audit(repo: WorkspaceRepository, actor: User, wid: UUID, action: str, resour
 def visible(repo: WorkspaceRepository, actor: User, wid: UUID, study_id: UUID) -> Study:
     repo.membership(wid, actor.id)
     study = repo.study(wid, study_id)
-    access = dataset_access(repo, actor, wid, study.dataset_id)
+    dataset_access(repo, actor, wid, study.dataset_id)
     if not study.shared and study.owner_id != actor.id:
         raise AuthorizationError("This study is private")
-    if access.policy is not None and not visible_versions(repo, actor, wid, study):
+    if not visible_versions(repo, actor, wid, study):
         raise denied()
     return study
 
@@ -129,6 +129,7 @@ class StudyService:
             understanding_id=str(meaning.id),
             dismissed=dismissed,
             columns=(view.definition or {})["columns"],
+            date_columns=[column.name for column in view.columns if column.type == "date"],
             recommendations=[item for item in choices if item["id"] not in dismissed],
             limitations=[
                 "Only descriptive views are supported. Confirm units for metric suggestions."
@@ -167,13 +168,13 @@ class StudyService:
     def list_studies(self, actor: User, wid: UUID, did: UUID) -> list[dict[str, Any]]:
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
-            access = dataset_access(repo, actor, wid, did)
+            dataset_access(repo, actor, wid, did)
             result = []
             for item in repo.studies(wid, did):
                 if not item.shared and item.owner_id != actor.id:
                     continue
                 versions = visible_versions(repo, actor, wid, item)
-                if access.policy is not None and not versions:
+                if not versions:
                     continue
                 result.append(
                     {
@@ -212,7 +213,10 @@ class StudyService:
                 "invalid_study", "Provide a question of up to 500 characters.", 422
             )
         with self.uow() as repo:
+            repo.workspace(wid, lock=True)
             dataset_access(repo, actor, wid, did)
+            if study_id is None:
+                repo.check_plan_stock(wid, "saved_studies", 1, datetime.now(timezone.utc))
             if study_id:
                 study = visible(repo, actor, wid, study_id)
                 owns(study.owner_id, actor)
@@ -229,6 +233,23 @@ class StudyService:
                 method, question, name = previous.method, previous.question, study.name
             elif parent_id:
                 raise IngestionError("invalid_study", "A parent needs an existing study.", 422)
+        if method.get("kind") == "contribution":
+            from execplus.application.services.contribution_studies import run_contribution
+
+            return await run_contribution(
+                self,
+                actor,
+                wid,
+                did,
+                uid,
+                name,
+                question,
+                method,
+                revision_id,
+                understanding_id,
+                study_id,
+                parent_id,
+            )
         dataset_name, scope, table, view = self.analytics._context(actor, wid, did, uid)
         source = view.sources[0]
         if source.get("revision_id") != str(revision_id) or source.get("understanding_id") != str(
@@ -339,6 +360,7 @@ class StudyService:
                     )
                 number = versions[-1].number + 1
             else:
+                repo.check_plan_stock(wid, "saved_studies", 1, now)
                 study = Study(uuid4(), wid, did, actor.id, name, False, now)
                 repo.add(study)
                 number = 1
@@ -402,6 +424,10 @@ class StudyService:
         with self.uow() as repo:
             repo.workspace(wid, lock=True)
             study = visible_pin(repo, actor, wid, version_id)
+            if version.method.get("kind") == "contribution":
+                from execplus.application.services.contribution_studies import verify_contribution
+
+                verify_contribution(version, results)
             audit(repo, actor, wid, "study.opened", version.id)
         return study, version, results
 
@@ -575,6 +601,7 @@ class OrganizationService:
     def create(self, actor: User, name: str) -> Organization:
         record = Organization(uuid4(), actor.id, checked_name(name), datetime.now(timezone.utc))
         with self.uow() as repo:
+            repo.require_active_actor(actor.id)
             repo.user(actor.id)
             repo.add(record)
         return record

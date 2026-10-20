@@ -24,7 +24,7 @@ export default defineConfig({
       : [
           {
             command:
-              "python3 -m uvicorn execplus.main:app --host 127.0.0.1 --port 8001 --no-access-log",
+              "python3 -m uvicorn execplus.main:app --host 127.0.0.1 --port 8001 --no-access-log --no-proxy-headers",
             cwd: "../..",
             url: "http://127.0.0.1:8001/health/ready",
             reuseExistingServer: false,

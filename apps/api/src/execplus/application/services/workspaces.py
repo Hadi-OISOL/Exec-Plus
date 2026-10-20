@@ -15,6 +15,7 @@ from io import BytesIO
 from typing import BinaryIO
 from uuid import UUID, uuid4
 
+from execplus.application.plan_context import operation_id
 from execplus.application.ports import FileParser, ObjectStorage, WorkspaceRepository
 from execplus.application.services.dataset_access import (
     dataset_access,
@@ -22,6 +23,7 @@ from execplus.application.services.dataset_access import (
     require_workspace_access,
     scope_snapshot,
 )
+from execplus.application.services.plans import admit
 from execplus.domain.audit import MANAGER_ACTIONS, SHARED_ACTIONS, audit_cursor, parse_audit_cursor
 from execplus.domain.dataset_access import DatasetAccess, ScopedUploadMetadata, denied
 from execplus.domain.ingestion import (
@@ -154,8 +156,10 @@ class WorkspaceService:
         now = datetime.now(timezone.utc)
         workspace = Workspace(uuid4(), checked_name(name), seat_limit, now, now)
         with self.uow() as repo:
+            repo.require_active_actor(actor.id)
             repo.add(workspace)
             repo.add(Membership(workspace.id, actor.id, "owner", now))
+            repo.initialize_native_workspace_plan(workspace.id, actor.id, now)
             self._audit(repo, actor, workspace.id, "workspace.created", "workspace", workspace.id)
             self._audit(repo, actor, workspace.id, "membership.created", "user", actor.id)
             self._usage(repo, actor, workspace.id, "seat_limit", seat_limit, workspace.id)
@@ -189,6 +193,12 @@ class WorkspaceService:
                 raise IngestionError(
                     "seat_limit_reached", "Remove a member or revoke an invitation first.", 409
                 )
+            repo.check_plan_stock(
+                workspace_id,
+                "seats",
+                max(0, seat_limit - self._occupied(repo, workspace_id)),
+                datetime.now(timezone.utc),
+            )
             repo.set_seat_limit(workspace_id, seat_limit)
             self._usage(repo, actor, workspace_id, "seat_limit", seat_limit, workspace_id)
             self._audit(
@@ -235,6 +245,7 @@ class WorkspaceService:
                 raise IngestionError(
                     "seat_limit_reached", "All seats are occupied or reserved by invitations.", 409
                 )
+            repo.check_plan_stock(workspace_id, "seats", 1, now)
             invitation = Invitation(
                 uuid4(),
                 workspace_id,
@@ -254,9 +265,19 @@ class WorkspaceService:
     def accept_invitation(self, actor: User, workspace_id: UUID, invitation_id: UUID) -> Membership:
         with self.uow() as repo:
             workspace = repo.workspace(workspace_id, lock=True)
+            repo.require_active_actor(actor.id)
             invitation = repo.invitation(workspace_id, invitation_id)
             if invitation.email != actor.email:
                 raise IngestionError("not_found", "The invitation is unavailable.", 404)
+            if not repo.invitation_identity_allowed(invitation_id, actor.id):
+                raise IngestionError(
+                    "identity_approval_required",
+                    (
+                        "Ask the workspace manager to check your account ID "
+                        "and approve this invitation."
+                    ),
+                    403,
+                )
             now = datetime.now(timezone.utc)
             if invitation.status != "pending" or invitation.expires_at <= now:
                 raise IngestionError(
@@ -271,6 +292,7 @@ class WorkspaceService:
                 raise IngestionError(
                     "seat_limit_reached", "The workspace has no available seats.", 409
                 )
+            repo.check_plan_stock(workspace_id, "seats", 0, now)
             member = Membership(workspace_id, actor.id, invitation.role, now)
             repo.add(member)
             repo.set_invitation_status(workspace_id, invitation_id, "accepted")
@@ -322,6 +344,7 @@ class WorkspaceService:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
+            repo.check_plan_stock(workspace_id, "datasets", 1, now)
             repo.add(dataset)
             self._audit(repo, actor, workspace_id, "dataset.created", "dataset", dataset.id)
         return dataset
@@ -491,14 +514,37 @@ class WorkspaceService:
         size = content.tell()
         if size > self.max_upload_bytes:
             raise IngestionError("file_too_large", "Files must be at most 20 MiB.", 413)
-        content.seek(0)
-        structure = self.parser.parse(content, filename, content_type)
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            reauthorize(repo)
+            repo.check_plan_stock(workspace_id, "file_bytes", size, datetime.now(timezone.utc))
+            repo.check_plan_stock(workspace_id, "storage_bytes", size, datetime.now(timezone.utc))
+            if _sample_dataset is not None:
+                repo.check_plan_stock(workspace_id, "datasets", 1, datetime.now(timezone.utc))
         content.seek(0)
         digest = hashlib.sha256()
         while chunk := content.read(65536):
             digest.update(chunk)
         content.seek(0)
         upload_id = uuid4()
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            reauthorize(repo)
+            admit(
+                repo,
+                actor,
+                workspace_id,
+                "processing",
+                operation_id("processing", upload_id, derived=f"upload:{dataset_id}"),
+                {
+                    "dataset": dataset_id,
+                    "sha256": digest.hexdigest(),
+                    "filename": filename,
+                    "content_type": content_type,
+                },
+            )
+        structure = self.parser.parse(content, filename, content_type)
+        content.seek(0)
         key = f"workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/original"
         upload = Upload(
             upload_id,
@@ -537,7 +583,12 @@ class WorkspaceService:
             with self.uow() as repo:
                 repo.workspace(workspace_id, lock=True)
                 reauthorize(repo)
+                repo.check_plan_stock(workspace_id, "file_bytes", size, datetime.now(timezone.utc))
+                repo.check_plan_stock(
+                    workspace_id, "storage_bytes", size, datetime.now(timezone.utc)
+                )
                 if _sample_dataset is not None:
+                    repo.check_plan_stock(workspace_id, "datasets", 1, datetime.now(timezone.utc))
                     repo.add(_sample_dataset)
                     self._audit(repo, actor, workspace_id, "dataset.created", "dataset", dataset_id)
                 repo.dataset(workspace_id, dataset_id)

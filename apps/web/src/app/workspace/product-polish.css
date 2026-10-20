@@ -6,90 +6,90 @@ What it does: Applies shared type, palette, density and accessible finite motion
 .analyticsShell button { transition: background-color 140ms, color 140ms, border-color 140ms; }
 .analyticsShell .workbenchContent { padding: 28px 32px 0; }
 .analyticsShell .workspaceHeader h1 { font-size: 27px; font-weight: 750; }
-.analyticsShell .railCaption { text-transform: none; letter-spacing: 0; font-size: 11px; color: #abbacb; }
+.analyticsShell .railCaption { text-transform: none; letter-spacing: 0; font-size: 11px; color: light-dark(#abbacb, var(--theme-muted)); }
 .analyticsShell .workbenchRail nav button { min-height: 40px; font-size: 12px; border-radius: 8px; }
 .analyticsShell .workbenchRail nav button[aria-current] { box-shadow: inset 3px 0 #63c7bd; }
-.analyticsShell .workbenchRail .brandMark { background: #9bddd5; }
+.analyticsShell .workbenchRail .brandMark { background: light-dark(#9bddd5, var(--theme-selected)); }
 .analyticsShell .homeWelcome { background: none; }
-.analyticsShell .homeWelcome h2 { color: #16283f; font-weight: 750; }
-.analyticsShell .homeComposer { border-color: #93bdbd; box-shadow: 0 4px 18px #16283f08; }
-.analyticsShell .homeAssistantMark { background: #e1f3f1; color: #087f8c; }
-.analyticsShell .homeSourcePill { background: #eef3f6; color: #486276; }
-.analyticsShell .homeComposerFooter .homeSourceChange { color: #087f8c; }
+.analyticsShell .homeWelcome h2 { color: light-dark(#16283f, var(--theme-accent)); font-weight: 750; }
+.analyticsShell .homeComposer { border-color: light-dark(#93bdbd, var(--theme-border)); box-shadow: 0 4px 18px #16283f08; }
+.analyticsShell .homeAssistantMark { background: light-dark(#e1f3f1, var(--theme-subtle)); color: light-dark(#087f8c, var(--theme-accent)); }
+.analyticsShell .homeSourcePill { background: light-dark(#eef3f6, var(--theme-subtle)); color: light-dark(#486276, var(--theme-muted)); }
+.analyticsShell .homeComposerFooter .homeSourceChange { color: light-dark(#087f8c, var(--theme-accent)); }
 .analyticsShell .datasetToolbar { padding: 14px 18px; border-radius: 10px; }
 .analyticsShell .datasetToolbar label { font-size: 11px; }
 .analyticsShell .sourceStats { font-size: 11px; }
-.analyticsShell .sourceStats strong { font-size: 18px; color: #16283f; }
+.analyticsShell .sourceStats strong { font-size: 18px; color: light-dark(#16283f, var(--theme-accent)); }
 .analyticsShell .panel, .analyticsShell .workspaceDisclosure { border-radius: 12px; }
-.analyticsShell .discoveryIntro { padding: 22px; background: white; border: 1px solid var(--line); border-radius: 12px; }
-.analyticsShell .discoveryTitle h2 { font-size: 21px; color: #16283f; margin: 0; }
-.analyticsShell .readingMark { color: #087f8c; background: #e1f3f1; }
+.analyticsShell .discoveryIntro { padding: 22px; background: light-dark(white, var(--theme-surface)); border: 1px solid var(--line); border-radius: 12px; }
+.analyticsShell .discoveryTitle h2 { font-size: 21px; color: light-dark(#16283f, var(--theme-accent)); margin: 0; }
+.analyticsShell .readingMark { color: light-dark(#087f8c, var(--theme-accent)); background: light-dark(#e1f3f1, var(--theme-subtle)); }
 .analyticsShell .discoveryShape { margin: 16px 0; gap: 12px 28px; }
-.analyticsShell .discoveryShape strong { color: #16283f; font-size: 23px; }
-.analyticsShell .discoveryShape span { font-size: 12px; color: #62748a; }
+.analyticsShell .discoveryShape strong { color: light-dark(#16283f, var(--theme-accent)); font-size: 23px; }
+.analyticsShell .discoveryShape span { font-size: 12px; color: light-dark(#62748a, var(--theme-muted)); }
 .analyticsShell .discoveryProvenance { margin-top: 14px; }
 .analyticsShell .discoveryProvenance summary { font-size: 12px; }
 .analyticsShell .discoveryMetricGroup { padding: 22px; border-radius: 12px; }
-.analyticsShell .discoveryMetricGroup h3 { color: #16283f; font-size: 18px; font-weight: 700; }
-.analyticsShell .findingEyebrow { color: #08736f; font-size: 11px; }
+.analyticsShell .discoveryMetricGroup h3 { color: light-dark(#16283f, var(--theme-accent)); font-size: 18px; font-weight: 700; }
+.analyticsShell .findingEyebrow { color: light-dark(#08736f, var(--theme-accent)); font-size: 11px; }
 .analyticsShell .discoveryMetricRange { gap: 20px; }
-.analyticsShell .discoveryMetric > span { font-size: 12px; color: #62748a; }
-.analyticsShell .discoveryValue, .analyticsShell .kpiValue { color: #16283f; font-weight: 750; font-size: clamp(22px, 2.4vw, 32px); line-height: 1.25; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
-.analyticsShell .discoveryMetric { border-top: 1px solid #e8edf3; padding-top: 13px; }
-.analyticsShell .findingQuestion { color: #087f8c; font-size: 12px; }
+.analyticsShell .discoveryMetric > span { font-size: 12px; color: light-dark(#62748a, var(--theme-muted)); }
+.analyticsShell .discoveryValue, .analyticsShell .kpiValue { color: light-dark(#16283f, var(--theme-accent)); font-weight: 750; font-size: clamp(22px, 2.4vw, 32px); line-height: 1.25; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+.analyticsShell .discoveryMetric { border-top: 1px solid light-dark(#e8edf3, var(--theme-border)); padding-top: 13px; }
+.analyticsShell .findingQuestion { color: light-dark(#087f8c, var(--theme-accent)); font-size: 12px; }
 .analyticsShell .findingEvidence { font-size: 11px; }
 .analyticsShell .discoveryChatJump { background: #087f8c; }
 .analyticsShell .chatHeader { padding: 18px 22px; }
-.analyticsShell .assistantAvatar { color: #087f8c; background: #e1f3f1; }
+.analyticsShell .assistantAvatar { color: light-dark(#087f8c, var(--theme-accent)); background: light-dark(#e1f3f1, var(--theme-subtle)); }
 .analyticsShell .conversationLog { scrollbar-width: thin; scroll-behavior: smooth; }
 .analyticsShell .assistantMessage p { font-size: 14px; line-height: 1.65; max-width: 76ch; }
-.analyticsShell .userMessage { background: #edf3f6; }
+.analyticsShell .userMessage { background: light-dark(#edf3f6, var(--theme-subtle)); }
 .analyticsShell .conversationTurn { padding-bottom: 22px; }
-.analyticsShell .messageAuthor { color: #344b62; font-size: 12px; }
-.analyticsShell .chatComposer form { border-color: #93bdbd; box-shadow: none; }
-.analyticsShell .chatComposer form:focus-within { border-color: #087f8c; outline: 2px solid #b7ddd9; }
-.analyticsShell .chatComposer .summaryAction { color: #087f8c; }
-.analyticsShell .askPanel .suggestionChips button { color: #35576b; background: #f5f8fa; font-size: 12px; }
-.analyticsShell .answerEvidence, .analyticsShell .saveQuestion { font-size: 12px; color: #62748a; }
-.analyticsShell .conversationActivity { background: #f4f9fa; border-color: #d6e9e9; padding: 14px 20px; font-size: 12px; }
-.analyticsShell .activityEyebrow { color: #62748a; font-size: 11px; }
-.analyticsShell .activityHeading p { font-size: 13px; font-weight: 650; color: #16283f; }
+.analyticsShell .messageAuthor { color: light-dark(#344b62, var(--theme-ink)); font-size: 12px; }
+.analyticsShell .chatComposer form { border-color: light-dark(#93bdbd, var(--theme-border)); box-shadow: none; }
+.analyticsShell .chatComposer form:focus-within { border-color: light-dark(#087f8c, var(--theme-accent)); outline: 2px solid light-dark(#b7ddd9, var(--theme-border)); }
+.analyticsShell .chatComposer .summaryAction { color: light-dark(#087f8c, var(--theme-accent)); }
+.analyticsShell .askPanel .suggestionChips button { color: light-dark(#35576b, var(--theme-ink)); background: light-dark(#f5f8fa, var(--theme-surface)); font-size: 12px; }
+.analyticsShell .answerEvidence, .analyticsShell .saveQuestion { font-size: 12px; color: light-dark(#62748a, var(--theme-muted)); }
+.analyticsShell .conversationActivity { background: light-dark(#f4f9fa, var(--theme-subtle)); border-color: light-dark(#d6e9e9, var(--theme-border)); padding: 14px 20px; font-size: 12px; }
+.analyticsShell .activityEyebrow { color: light-dark(#62748a, var(--theme-muted)); font-size: 11px; }
+.analyticsShell .activityHeading p { font-size: 13px; font-weight: 650; color: light-dark(#16283f, var(--theme-accent)); }
 .analyticsShell .activityIndicator { background: #087f8c; animation: activityPulse 1.5s ease-in-out 3; }
 @keyframes activityPulse { 50% { opacity: .35; transform: scale(.75); } }
 .activityStages { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 7px; }
-.activityStages li { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 8px; font-size: 12px; color: #486276; }
-.activityStageMark { display: grid; place-items: center; border-radius: 50%; background: #e1f3f1; color: #08736f; width: 20px; height: 20px; }
-.activityStages li[data-status="failed"] .activityStageMark { color: #924813; background: #fff0dc; }
-.activityStages .activityEventStatus { font-size: 11px; color: #62748a; }
+.activityStages li { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 8px; font-size: 12px; color: light-dark(#486276, var(--theme-muted)); }
+.activityStageMark { display: grid; place-items: center; border-radius: 50%; background: light-dark(#e1f3f1, var(--theme-subtle)); color: light-dark(#08736f, var(--theme-accent)); width: 20px; height: 20px; }
+.activityStages li[data-status="failed"] .activityStageMark { color: light-dark(#924813, var(--theme-warning)); background: light-dark(#fff0dc, var(--theme-subtle)); }
+.activityStages .activityEventStatus { font-size: 11px; color: light-dark(#62748a, var(--theme-muted)); }
 .analyticsShell .recordedActions summary { font-size: 11px; }
 .analyticsShell .homeWelcome { padding: 12px 10px; }
 .analyticsShell .homeQuickQuestions { margin-bottom: 18px; }
 .analyticsShell .homeLibraryEmpty { padding: 18px; }
-.analyticsShell .homeLibraryCard > header button { color: #087f8c; }
-.analyticsShell .homeItemIcon { color: #087f8c; background: #eaf3f3; }
-.analyticsShell .homeQuickQuestions button { font-size: 12px; color: #486276; }
-.analyticsShell .homeDataContext { max-width: 1000px; margin: 0 auto 18px; padding: 22px; border: 1px solid #cde1e0; border-radius: 12px; background: linear-gradient(120deg, #f2faf9, #fff 65%); min-width: 0; }
+.analyticsShell .homeLibraryCard > header button { color: light-dark(#087f8c, var(--theme-accent)); }
+.analyticsShell .homeItemIcon { color: light-dark(#087f8c, var(--theme-accent)); background: light-dark(#eaf3f3, var(--theme-subtle)); }
+.analyticsShell .homeQuickQuestions button { font-size: 12px; color: light-dark(#486276, var(--theme-muted)); }
+.analyticsShell .homeDataContext { max-width: 1000px; margin: 0 auto 18px; padding: 22px; border: 1px solid light-dark(#cde1e0, var(--theme-border)); border-radius: 12px; background: linear-gradient(120deg, light-dark(#f2faf9, var(--theme-subtle)), light-dark(#fff, var(--theme-surface)) 65%); min-width: 0; }
 .analyticsShell .homeDataContext header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.analyticsShell .homeContextEyebrow { font-size: 11px; font-weight: 650; color: #08736f; }
-.analyticsShell .homeDataContext h3 { font-size: 18px; margin: 5px 0 0; color: #16283f; overflow-wrap: anywhere; }
-.analyticsShell .homeContextStatus { flex-shrink: 0; font-size: 11px; color: #486276; padding: 5px 8px; background: #eaf3f3; border-radius: 6px; }
-.analyticsShell .homeContextDescription { font-size: 14px; line-height: 1.7; color: #344b62; margin: 15px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.analyticsShell .homeContextNotice { color: #62748a; font-size: 12px; line-height: 1.6; }
-.analyticsShell .homeContextGoal { border-left: 2px solid #92c5c0; padding: 3px 0 3px 13px; margin: 16px 0; }
-.analyticsShell .homeContextGoal > span { color: #486276; font-size: 11px; font-weight: 650; }
-.analyticsShell .homeContextGoal p { color: #344b62; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0 0; }
+.analyticsShell .homeContextEyebrow { font-size: 11px; font-weight: 650; color: light-dark(#08736f, var(--theme-accent)); }
+.analyticsShell .homeDataContext h3 { font-size: 18px; margin: 5px 0 0; color: light-dark(#16283f, var(--theme-accent)); overflow-wrap: anywhere; }
+.analyticsShell .homeContextStatus { flex-shrink: 0; font-size: 11px; color: light-dark(#486276, var(--theme-muted)); padding: 5px 8px; background: light-dark(#eaf3f3, var(--theme-subtle)); border-radius: 6px; }
+.analyticsShell .homeContextDescription { font-size: 14px; line-height: 1.7; color: light-dark(#344b62, var(--theme-ink)); margin: 15px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.analyticsShell .homeContextNotice { color: light-dark(#62748a, var(--theme-muted)); font-size: 12px; line-height: 1.6; }
+.analyticsShell .homeContextGoal { border-left: 2px solid light-dark(#92c5c0, var(--theme-border)); padding: 3px 0 3px 13px; margin: 16px 0; }
+.analyticsShell .homeContextGoal > span { color: light-dark(#486276, var(--theme-muted)); font-size: 11px; font-weight: 650; }
+.analyticsShell .homeContextGoal p { color: light-dark(#344b62, var(--theme-ink)); font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0 0; }
 .analyticsShell .homeContextActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-.analyticsShell .homeContextActions button { background: #fff; border: 1px solid #cde1e0; color: #08736f; font-size: 12px; padding: 9px 12px; }
-.analyticsShell .homeContextActions button:first-child { background: #087f8c; color: #fff; border-color: #087f8c; }
+.analyticsShell .homeContextActions button { background: light-dark(#fff, var(--theme-surface)); border: 1px solid light-dark(#cde1e0, var(--theme-border)); color: light-dark(#08736f, var(--theme-accent)); font-size: 12px; padding: 9px 12px; }
+.analyticsShell .homeContextActions button:first-child { background: #087f8c; color: #fff; border-color: light-dark(#087f8c, var(--theme-accent)); }
 .analyticsShell .dataExplanation { display: grid; gap: 12px; margin: 12px 0 16px; min-width: 0; }
-.analyticsShell .explanationCard { padding: 15px 18px; border: 1px solid #e1e9ee; border-radius: 10px; background: #fff; min-width: 0; }
-.analyticsShell .explanationCard[data-kind="meaning"] { background: #f1f9f8; border-color: #cde1e0; }
-.analyticsShell .explanationCard[data-kind="clarify"] { background: #fffbf3; border-color: #ead8b8; }
-.analyticsShell .explanationCard h3 { font-size: 13px; font-weight: 750; color: #344b62; margin: 0 0 7px; }
-.analyticsShell .explanationCard[data-kind="meaning"] h3 { color: #08736f; }
-.analyticsShell .explanationCard[data-kind="clarify"] h3 { color: #825318; }
+.analyticsShell .explanationCard { padding: 15px 18px; border: 1px solid light-dark(#e1e9ee, var(--theme-border)); border-radius: 10px; background: light-dark(#fff, var(--theme-surface)); min-width: 0; }
+.analyticsShell .explanationCard[data-kind="meaning"] { background: light-dark(#f1f9f8, var(--theme-subtle)); border-color: light-dark(#cde1e0, var(--theme-border)); }
+.analyticsShell .explanationCard[data-kind="clarify"] { background: light-dark(#fffbf3, var(--theme-surface)); border-color: light-dark(#ead8b8, var(--theme-border)); }
+.analyticsShell .explanationCard h3 { font-size: 13px; font-weight: 750; color: light-dark(#344b62, var(--theme-ink)); margin: 0 0 7px; }
+.analyticsShell .explanationCard[data-kind="meaning"] h3 { color: light-dark(#08736f, var(--theme-accent)); }
+.analyticsShell .explanationCard[data-kind="clarify"] h3 { color: light-dark(#825318, var(--theme-warning)); }
 .analyticsShell .explanationCard p, .analyticsShell .explanationPlain, .analyticsShell .explanationContext p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
-.analyticsShell .explanationContext { color: #62748a; font-size: 12px; padding: 3px 0; }
+.analyticsShell .explanationContext { color: light-dark(#62748a, var(--theme-muted)); font-size: 12px; padding: 3px 0; }
 .analyticsShell .explanationContext summary { cursor: pointer; }
 .analyticsShell .explanationContext p { font-size: 12px; margin-top: 10px; }
 .analyticsShell .askPanel:not(:has(.conversationTurn)) .conversationLog { height: auto; min-height: 190px; max-height: 380px; }
@@ -110,8 +110,8 @@ What it does: Applies shared type, palette, density and accessible finite motion
  .analyticsShell *, .analyticsShell *::before, .analyticsShell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
-.analyticsShell .meaningState { display: inline-block; color: #62748a; font-size: 11px; margin-top: 8px; }
-.analyticsShell .discoveryMetricNote { color: #62748a; font-size: 11px; line-height: 1.6; margin: 14px 0 0; }
+.analyticsShell .meaningState { display: inline-block; color: light-dark(#62748a, var(--theme-muted)); font-size: 11px; margin-top: 8px; }
+.analyticsShell .discoveryMetricNote { color: light-dark(#62748a, var(--theme-muted)); font-size: 11px; line-height: 1.6; margin: 14px 0 0; }
 .analyticsShell .discoveryMetricNote summary { cursor: pointer; }
 
 .analyticsShell .discoveryMetric[data-long-value="true"] { grid-column: 1 / -1; }

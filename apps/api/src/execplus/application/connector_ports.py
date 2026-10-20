@@ -4,8 +4,8 @@ What it does: Keeps platform APIs, drivers and credentials behind protocols the 
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol
-from uuid import UUID
+from typing import Any, Literal, Protocol
+from uuid import UUID, uuid4
 
 from execplus.domain.connectors import Source
 
@@ -42,7 +42,7 @@ class ConnectorApiError(Exception):
 class Connector(Protocol):
     id: str
     label: str
-    kind: str
+    kind: Literal["oauth", "credentials"]
     description: str
     fields: tuple[ConnectorField, ...]
 
@@ -79,6 +79,7 @@ class ConnectorConnection:
     provider: str
     display_name: str
     sealed_credentials: str
+    version: UUID = field(default_factory=uuid4)
 
 
 class ConnectorConnections(Protocol):
@@ -86,6 +87,12 @@ class ConnectorConnections(Protocol):
 
     def list(self, user_id: UUID) -> list[ConnectorConnection]: ...
 
-    def save(self, connection: ConnectorConnection) -> None: ...
+    def save(
+        self, connection: ConnectorConnection, *, expected_version: UUID | None = None
+    ) -> None: ...
 
-    def delete(self, user_id: UUID, provider: str) -> None: ...
+    def current(self, connection: ConnectorConnection) -> bool: ...
+
+    def delete(
+        self, user_id: UUID, provider: str, *, expected_version: UUID | None = None
+    ) -> None: ...

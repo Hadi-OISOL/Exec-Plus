@@ -5,6 +5,10 @@ What it does: Connects uploads, verified insights, conversations, preparation an
 
 import { allowedExportPath } from "./export-path";
 import { WorkspaceSelect } from "./workspace-select";
+import { AccountAccess } from "./account-access";
+import { AccountSecurity, InvitationIdentityApproval } from "./account-security";
+import { OnboardingGuide } from "./onboarding-guide";
+import type { ApiRequest } from "./profile-panel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -27,7 +31,9 @@ import "./analytics-shell.css";
 import "./product-polish.css";
 import "./focused-workspace.css";
 import "./studio-workspace.css";
+import { ThemeControl } from "../theme-control";
 import "./open-workspace.css";
+import "./intelligence-workspace.css";
 
 const loadingView = () => <WorkspaceLoading />;
 const SourcesPanel = dynamic(
@@ -129,6 +135,8 @@ const UsagePanel = dynamic(
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const googleFailures: Record<string, string> = {
+  oauth_state_invalid: "This sign-in expired or was already used. Please try again.",
+  native_account_requires_password: "Use password sign-in for this existing account.",
   google_denied: "Google sign-in was cancelled.",
   google_state_invalid: "The Google sign-in expired. Please try again.",
   google_identity_invalid: "Google could not confirm your identity.",
@@ -143,6 +151,11 @@ const googleFailures: Record<string, string> = {
   connector_invalid_request: "The platform could not complete the request.",
   connector_unavailable: "The platform is unavailable. Try again shortly.",
 };
+function oauthFailure(code: string): string {
+  return Object.hasOwn(googleFailures, code)
+    ? googleFailures[code]
+    : "Sign-in could not be completed. Please try again.";
+}
 type Workspace = { id: string; name: string; seat_limit: number };
 type Dataset = { id: string; name: string };
 type Member = { user_id: string; role: string; email: string };
@@ -167,6 +180,7 @@ type User = { id: string; email: string };
 
 export default function WorkspacePage() {
   const [section, setSection] = useState("overview");
+  const [nativeAccount, setNativeAccount] = useState(false);
   const [savedSelection, setSavedSelection] = useState<{ root: string; id: string } | null>(null);
   const chat = useRef<ChatHandle>(null);
   const reviewDisclosure = useRef<HTMLDetailsElement>(null);
@@ -175,9 +189,8 @@ export default function WorkspacePage() {
   const [briefFor, setBriefFor] = useState("");
   const [briefManual, setBriefManual] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
-  const [pendingSession, setPendingSession] = useState("");
-  const openSessionRef = useRef<() => Promise<void>>(async () => undefined);
-  const connectedReturn = useRef(false);
+  const oauthHandled = useRef(false);
+  const oauthSessionRef = useRef<(sessionToken: string) => Promise<void>>(async () => undefined);
   const skippedBriefs = useRef(new Set<string>());
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
@@ -190,6 +203,7 @@ export default function WorkspacePage() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [invitationError, setInvitationError] = useState("");
   const [uploads, setUploads] = useState<Upload[]>([]);
+  const [importReload, setImportReload] = useState<{ actor: string; workspace: string; dataset: string } | null>(null);
   const [profileUpload, setProfileUpload] = useState("");
   const [usage, setUsage] = useState<{
     active_seats: number;
@@ -233,10 +247,11 @@ export default function WorkspacePage() {
     async function authorizedResponse(
       path: string,
       options: RequestInit = {},
+      sessionToken: string = token,
     ): Promise<Response> {
       const response = await fetch(`${api}${path}`, {
         ...options,
-        headers: { Authorization: `Bearer ${token}`, ...options.headers },
+        headers: { Authorization: `Bearer ${sessionToken}`, ...options.headers },
         cache: "no-store",
       });
       if (!response.ok) {
@@ -292,7 +307,7 @@ export default function WorkspacePage() {
     };
   }
 
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>, propagate = false) {
     setNow(Date.now());
     setBusy(true);
     setError("");
@@ -305,6 +320,7 @@ export default function WorkspacePage() {
           ? cause.message
           : "Could not connect. Try again.",
       );
+      if (propagate) throw cause;
     } finally {
       setBusy(false);
     }
@@ -366,61 +382,64 @@ export default function WorkspacePage() {
   }, []);
 
   useEffect(() => {
-    const fragment = new URLSearchParams(window.location.hash.slice(1));
-    const query = new URLSearchParams(window.location.search);
-    let resumed = "";
-    try {
-      resumed = window.sessionStorage.getItem("execplus.resume") ?? "";
-      window.sessionStorage.removeItem("execplus.resume");
-    } catch {
-      resumed = "";
-    }
-    const session = fragment.get("session") ?? resumed;
-    const failure =
-      fragment.get("google_error") ??
-      query.get("google_error") ??
-      query.get("connector_error");
-    const connected =
-      query.get("google") === "connected" || Boolean(query.get("connector_connected"));
-    if (!session && !failure && !connected) return;
-    connectedReturn.current = connected;
-    query.delete("google");
-    query.delete("google_error");
-    query.delete("connector_connected");
-    query.delete("connector_error");
-    query.delete("connector");
-    const rest = query.toString();
-    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
-    Promise.resolve().then(() => {
-      if (failure) setError(googleFailures[failure] ?? "Google sign-in could not be completed.");
-      if (session) {
-        setToken(session);
-        setPendingSession(session);
+    let active = true;
+    const controller = new AbortController();
+    // Delay URL consumption so React's development effect replay cannot lose a return.
+    Promise.resolve().then(async () => {
+      if (!active || oauthHandled.current) return;
+      oauthHandled.current = true;
+      const fragment = new URLSearchParams(window.location.hash.slice(1));
+      const query = new URLSearchParams(window.location.search);
+      const exchange = query.get("oauth") === "complete";
+      const failure = fragment.get("google_error") ?? query.get("oauth_error") ?? query.get("google_error") ?? query.get("connector_error");
+      // Old bearer fragments and stored resume credentials are discarded, never adopted.
+      try { window.sessionStorage.removeItem("execplus.resume"); } catch { /* Storage can be disabled. */ }
+      const returnKeys = ["oauth", "oauth_error", "google", "google_error", "connector_connected", "connector_error", "connector"];
+      if (!fragment.has("session") && !failure && !returnKeys.some(key => query.has(key))) return;
+      for (const key of returnKeys) query.delete(key);
+      const rest = query.toString();
+      window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+      if (!exchange) {
+        if (failure) setError(oauthFailure(failure));
+        return;
+      }
+      setBusy(true);
+      setError("");
+      setMessage("");
+      try {
+        const response = await fetch(`${api}/auth/oauth/exchange`, {
+          method: "POST", credentials: "include", cache: "no-store",
+          headers: { "Content-Type": "application/json" }, body: "{}", signal: controller.signal,
+        });
+        if (!response.ok) {
+          if (active) setError("This sign-in expired or was already used. Please try again.");
+          return;
+        }
+        const result: { token?: string; error?: string; provider?: string } = await response.json();
+        if (!active) return;
+        if (typeof result.token === "string" && result.token) {
+          await oauthSessionRef.current(result.token);
+          if (!active) return;
+          if (result.provider && !result.error) {
+            setSection("data");
+            setMessage("Connected. Choose what to import.");
+          }
+        } else if (!result.error) {
+          throw new Error("Sign-in could not be completed. Please try again.");
+        }
+        if (result.error) setError(oauthFailure(result.error));
+      } catch {
+        if (active) setError("Sign-in could not be completed. Please try again.");
+      } finally {
+        if (active) setBusy(false);
       }
     });
+    return () => { active = false; controller.abort(); };
   }, []);
 
   useEffect(() => {
-    openSessionRef.current = openSession;
+    oauthSessionRef.current = loadTokenSession;
   });
-
-  useEffect(() => {
-    if (!pendingSession || token !== pendingSession) return;
-    let active = true;
-    Promise.resolve().then(async () => {
-      if (!active) return;
-      setPendingSession("");
-      await run(openSessionRef.current);
-      if (connectedReturn.current) {
-        connectedReturn.current = false;
-        setSection("data");
-        setMessage("Connected. Choose what to import.");
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [pendingSession, token]);
 
   useEffect(() => {
     if (!workspace || !manager || section !== "team") return;
@@ -445,7 +464,7 @@ export default function WorkspacePage() {
     return () => controller.abort();
   }, [workspace, manager, section, request]);
 
-  async function selectWorkspace(selected: Workspace) {
+  async function selectWorkspace(selected: Workspace, sessionRequest: ApiRequest = request) {
     setGuidedFor("");
     setBriefFor("");
     setBriefManual(false);
@@ -465,17 +484,17 @@ export default function WorkspacePage() {
     setFile(null);
     const prefix = `/workspaces/${selected.id}`;
     const [nextDatasets, nextMembers] = await Promise.all([
-      request<Dataset[]>(`${prefix}/datasets`),
-      request<Member[]>(`${prefix}/members`),
+      sessionRequest<Dataset[]>(`${prefix}/datasets`),
+      sessionRequest<Member[]>(`${prefix}/members`),
     ]);
     setDatasets(nextDatasets);
     setMembers(nextMembers);
     if (nextDatasets.length) {
-      await selectDataset(selected.id, nextDatasets[0].id);
+      await selectDataset(selected.id, nextDatasets[0].id, sessionRequest);
     } else setSection("data");
   }
 
-  async function selectDataset(workspaceId: string, datasetId: string) {
+  async function selectDataset(workspaceId: string, datasetId: string, sessionRequest: ApiRequest = request) {
     setGuidedFor("");
     setBriefFor("");
     setBriefManual(false);
@@ -487,7 +506,7 @@ export default function WorkspacePage() {
     setDataset(datasetId);
     setProfileUpload("");
     setUploads([]);
-    const available = await request<Upload[]>(
+    const available = await sessionRequest<Upload[]>(
       `/workspaces/${workspaceId}/datasets/${datasetId}/uploads`,
     );
     setUploads(available);
@@ -495,33 +514,30 @@ export default function WorkspacePage() {
     setSection(available.length ? "overview" : "data");
   }
 
-  async function signIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await run(openSession);
-  }
-
-  async function openSession() {
-      const current = await request<User>("/auth/me");
-      setUser(current);
-      const [available, access] = await Promise.all([
-        request<Workspace[]>("/workspaces"),
-        request<{ role: StaffRole }>("/admin/access"),
+  async function loadSession(sessionRequest: ApiRequest) {
+      const current = await sessionRequest<User>("/auth/me");
+      const [available, access, account] = await Promise.all([
+        sessionRequest<Workspace[]>("/workspaces"),
+        sessionRequest<{ role: StaffRole }>("/admin/access"),
+        sessionRequest<{ kind: string }>("/auth/account"),
       ]);
+      setUser(current);
       setStaffRole(access.role);
+      setNativeAccount(account.kind === "local_password");
       setWorkspaces(available);
       const params = new URLSearchParams(window.location.search);
       const selected =
         available.find((item) => item.id === params.get("workspace")) ??
         available[0];
       if (selected) {
-        await selectWorkspace(selected);
+        await selectWorkspace(selected, sessionRequest);
         if (params.get("saved")) {
-          const item = await request<{ dataset_id: string; upload_id: string }>(
+          const item = await sessionRequest<{ dataset_id: string; upload_id: string }>(
             `/workspaces/${selected.id}/saved-items/${encodeURIComponent(params.get("saved")!)}`,
           );
           setDataset(item.dataset_id);
           setUploads(
-            await request<Upload[]>(
+            await sessionRequest<Upload[]>(
               `/workspaces/${selected.id}/datasets/${item.dataset_id}/uploads`,
             ),
           );
@@ -537,6 +553,41 @@ export default function WorkspacePage() {
           ? ""
           : "Start with a file. We’ll organize it and find a starting point for you.",
       );
+  }
+
+  async function finishImport(stored: Upload, workspaceId: string, datasetId: string, platform: string) {
+    setImportReload(null);
+    setUploads([]);
+    setProfileUpload("");
+    setGuidedFor("");
+    setBriefFor("");
+    setReviewOpen(false);
+    setStarterQuestions([]);
+    setUploadTarget("new");
+    setAnalysisIntent("descriptive");
+    try {
+      const available = await request<Upload[]>(`/workspaces/${workspaceId}/datasets/${datasetId}/uploads`);
+      setUploads(available);
+    } catch {
+      setSection("data");
+      setMessage("Import saved, but the updated data could not be loaded. Reload saved data to continue.");
+      setImportReload({ actor: user!.id, workspace: workspaceId, dataset: datasetId });
+      return;
+    }
+    setProfileUpload(stored.id);
+    setGuidedFor(stored.id);
+    setBriefFor(stored.id);
+    setSection("overview");
+    setMessage(`${stored.filename} imported from ${platform}. Your first findings are being prepared below.`);
+  }
+
+  async function reloadImportedData() {
+    if (!importReload || user?.id !== importReload.actor || workspace?.id !== importReload.workspace || dataset !== importReload.dataset) return;
+    await run(async () => {
+      await selectDataset(importReload.workspace, importReload.dataset);
+      setImportReload(null);
+      setMessage("Saved import loaded.");
+    });
   }
 
   async function importGoogleSheet(choice: SheetChoice) {
@@ -576,19 +627,8 @@ export default function WorkspacePage() {
           sheet_id: choice.sheetId,
         }),
       );
-      setUploads(await request<Upload[]>(`${prefix}/uploads`));
-      setProfileUpload(stored.id);
-      setGuidedFor(stored.id);
-      setBriefFor(stored.id);
-      setReviewOpen(false);
-      setStarterQuestions([]);
-      setUploadTarget("new");
-      setAnalysisIntent("descriptive");
-      setSection("overview");
-      setMessage(
-        `${stored.filename} imported from Google Sheets. Your first findings are being prepared below.`,
-      );
-    });
+      await finishImport(stored, targetWorkspace.id, targetDataset, "Google Sheets");
+    }, true);
   }
 
   async function importConnector(choice: ConnectorChoice) {
@@ -625,27 +665,33 @@ export default function WorkspacePage() {
         `${prefix}/connectors/${choice.provider}/import`,
         json("POST", { source_id: choice.sourceId }),
       );
-      setUploads(await request<Upload[]>(`${prefix}/uploads`));
-      setProfileUpload(stored.id);
-      setGuidedFor(stored.id);
-      setBriefFor(stored.id);
-      setReviewOpen(false);
-      setStarterQuestions([]);
-      setUploadTarget("new");
-      setAnalysisIntent("descriptive");
-      setSection("overview");
-      setMessage(
-        `${stored.filename} imported from ${choice.platform}. Your first findings are being prepared below.`,
-      );
-    });
+      await finishImport(stored, targetWorkspace.id, targetDataset, choice.platform);
+    }, true);
   }
 
-  function rememberSession() {
-    try {
-      window.sessionStorage.setItem("execplus.resume", token);
-    } catch {
-      return;
-    }
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await run(() => loadSession(request));
+  }
+
+  async function loadTokenSession(sessionToken: string) {
+    setToken(sessionToken);
+    const sessionRequest: ApiRequest = async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
+      const response = await authorizedResponse(path, options, sessionToken);
+      return response.status === 204 ? (undefined as T) : response.json();
+    };
+    try { await loadSession(sessionRequest); }
+    catch (cause) { clearSession(); throw cause; }
+  }
+
+  async function signInWithPassword(sessionToken: string) {
+    await run(() => loadTokenSession(sessionToken));
+  }
+
+  function clearSession() {
+    setToken(""); setUser(null); setWorkspace(null); setWorkspaces([]); setDatasets([]); setDataset("");
+    setMembers([]); setStaffRole(null); setSavedSelection(null); setInvitations([]); setUploads([]);
+    setFile(null); setMessage(""); setError(""); setNativeAccount(false); setSection("data");
   }
 
   async function createWorkspace(event: FormEvent<HTMLFormElement>) {
@@ -957,6 +1003,7 @@ export default function WorkspacePage() {
               <span className="liveDot" /> Private workspace
             </span>
           </div>
+          <ThemeControl />
           {user && (
             <div className="sessionBar">
               <span className="userIdentity">
@@ -971,20 +1018,7 @@ export default function WorkspacePage() {
                 onClick={() =>
                   void run(async () => {
                     await request("/auth/logout", { method: "POST" });
-                    setToken("");
-                    setUser(null);
-                    setWorkspace(null);
-                    setWorkspaces([]);
-                    setDatasets([]);
-                    setDataset("");
-                    setMembers([]);
-                    setStaffRole(null);
-                    setSavedSelection(null);
-                    setInvitations([]);
-                    setUploads([]);
-                    setFile(null);
-                    setMessage("");
-                    setError("");
+                    clearSession();
                   })
                 }
               >
@@ -1038,6 +1072,9 @@ export default function WorkspacePage() {
           >
             {busy ? "Working…" : message}
           </div>
+          {importReload && user?.id === importReload.actor && workspace?.id === importReload.workspace && dataset === importReload.dataset && (
+            <button type="button" disabled={busy} onClick={() => void reloadImportedData()}>Reload saved data</button>
+          )}
           {error && (
             <p role="alert" aria-label="Request error" className="errorNotice">
               {error}
@@ -1053,6 +1090,8 @@ export default function WorkspacePage() {
                   </button>
                 </form>
               )}
+              <AccountAccess api={api} onSession={signInWithPassword} />
+              <h3>Operator session</h3>
               <p>
                 Use the development session token provided by your local
                 operator. Sessions expire after eight hours.
@@ -1073,6 +1112,7 @@ export default function WorkspacePage() {
             </section>
           ) : (
             <>
+              {workspace && ["overview", "data", "team"].includes(section) && <OnboardingGuide key={`setup-${workspace.id}-${user.id}`} workspaceId={workspace.id} request={request} defaultOpen={nativeAccount} onNavigate={navigate} />}
               {workspace && !["admin", "memory"].includes(section) && (
                 <section className="datasetToolbar" aria-label="Selected data">
                   <label>
@@ -1236,14 +1276,12 @@ export default function WorkspacePage() {
                     <GoogleSheetsImport
                       request={request}
                       disabled={busy}
-                      onConnecting={rememberSession}
                       onImport={importGoogleSheet}
                     />
                   )}
                   <ConnectorsPanel
                     request={request}
                     disabled={busy}
-                    onConnecting={rememberSession}
                     onImport={importConnector}
                   />
                   <div
@@ -1385,6 +1423,7 @@ export default function WorkspacePage() {
                 onReview={id => { setProfileUpload(id); setSection("prepare"); }}
                 onRefresh={() => setSection("refresh")}
               />}
+              {section === "team" && <AccountSecurity request={request} onSession={setToken} onDisabled={clearSession} />}
               <div hidden={section !== "team"}>
                 {" "}
                 <section className="panel">
@@ -1575,6 +1614,7 @@ export default function WorkspacePage() {
                                 {item.status === "pending" &&
                                   Date.parse(item.expires_at) > now && (
                                     <div>
+                                      <InvitationIdentityApproval request={request} workspaceId={workspace.id} invitationId={item.id} email={item.email} />
                                       <button
                                         disabled={busy}
                                         onClick={() =>
@@ -1645,7 +1685,7 @@ export default function WorkspacePage() {
                   }}
                 />
               )}
-              {workspace && section === "team" && <ConsolidationPanel key={`consolidation-${workspace.id}-${user.id}`} request={request} />}
+              {workspace && section === "team" && <ConsolidationPanel key={`consolidation-${workspace.id}-${user.id}`} request={request} actorId={user.id} />}
               {workspace && section === "audit" && (
                 <AuditPanel
                   key={workspace.id}
@@ -1698,16 +1738,6 @@ export default function WorkspacePage() {
                       }}
                     /></div>
                   )}
-                  {section === "overview" && !reviewing && <AnalyticsHome
-                    key={`home-${root}-${revisionTick}`}
-                    root={root}
-                    filename={selectedUpload?.filename ?? "Selected upload"}
-                    request={request}
-                    onAsk={askFromHome}
-                    onSaved={(id) => { setSavedSelection({ root, id }); setSection("saved"); }}
-                    onNavigate={navigate}
-                    onReview={reviewUnderstanding}
-                  />}
                   {section === "forecasts" && !reviewing && expert && analysisFocusControl}
                   <div hidden={!["overview", "ask"].includes(section) || briefActive} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
                     <div className="analysisViewControls" hidden={reviewing}>
@@ -1760,29 +1790,6 @@ export default function WorkspacePage() {
                         }}
                       />
                     )}
-                    {section === "overview" && !reviewing && !briefActive && (
-                      <section className="workspaceSurface" aria-label="Charts & dashboard controls">
-                        <header className="workspaceSurfaceHeader">
-                          <Icon name="overview" />
-                          <div>
-                            <h2>Charts & dashboard controls</h2>
-                            <p>Explore trends, filters, saved cards and next steps</p>
-                          </div>
-                        </header>
-                        <div className="expandedWorkspaceTools">
-                          <DashboardPanel
-                            key={`dashboard-${root}-${revisionTick}`}
-                            root={root}
-                            request={request}
-                          />
-                          <ActivationPanel
-                            key={`insights-${root}-${revisionTick}`}
-                            root={root}
-                            request={request}
-                          />
-                        </div>
-                      </section>
-                    )}
                     <div className="exploreLayout discoveryLayout">
                       <section className="workspaceSurface overviewFindings" aria-label="First findings from your file" hidden={section !== "overview" || reviewing}>
                         <header className="workspaceSurfaceHeader">
@@ -1800,6 +1807,10 @@ export default function WorkspacePage() {
                           request={request}
                           onQuestion={askFromHome}
                           onReady={setStarterQuestions}
+                          onAnalysis={(tool, metric) => {
+                            if (tool === "patterns") askFromHome(metric ? `Find patterns related to ${metric}` : "Find patterns in my data");
+                            else { setToolSelection({ root, tool: "anomalies", ...(metric ? { metric } : {}) }); setSection("decisions"); }
+                          }}
                           onPrepare={() => setSection("prepare")}
                           onReview={reviewUnderstanding}
                           onChat={() => { setSection("ask"); window.requestAnimationFrame(() => chat.current?.focus()); }}
@@ -1828,6 +1839,39 @@ export default function WorkspacePage() {
                       />
                       </div>
                     </div>
+                  {section === "overview" && !reviewing && <AnalyticsHome
+                    key={`home-${root}-${revisionTick}`}
+                    root={root}
+                    filename={selectedUpload?.filename ?? "Selected upload"}
+                    request={request}
+                    onAsk={askFromHome}
+                    onSaved={(id) => { setSavedSelection({ root, id }); setSection("saved"); }}
+                    onNavigate={navigate}
+                    onReview={reviewUnderstanding}
+                  />}
+                    {section === "overview" && !reviewing && !briefActive && (
+                      <section className="workspaceSurface" aria-label="Charts & dashboard controls">
+                        <header className="workspaceSurfaceHeader">
+                          <Icon name="overview" />
+                          <div>
+                            <h2>Charts & dashboard controls</h2>
+                            <p>Explore trends, filters, saved cards and next steps</p>
+                          </div>
+                        </header>
+                        <div className="expandedWorkspaceTools">
+                          <DashboardPanel
+                            key={`dashboard-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                          />
+                          <ActivationPanel
+                            key={`insights-${root}-${revisionTick}`}
+                            root={root}
+                            request={request}
+                          />
+                        </div>
+                      </section>
+                    )}
                     {expert && !reviewing && (
                       <SourceDetails
                         key={`source-${root}-${revisionTick}`}

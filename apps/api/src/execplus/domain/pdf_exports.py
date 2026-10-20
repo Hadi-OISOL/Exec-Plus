@@ -150,6 +150,7 @@ def document_text(document: PdfDocument) -> tuple[str, ...]:
 
 
 def validate_document(document: PdfDocument) -> None:
+    validate_report_time(document.generated_at)
     for section in document.sections:
         table = section.table
         if table and (
@@ -177,4 +178,11 @@ def validate_document(document: PdfDocument) -> None:
             "This answer includes control characters that the PDF cannot display safely. "
             "The exact saved answer remains available.",
             422,
+        )
+
+
+def validate_report_time(value: datetime) -> None:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise IngestionError(
+            "export_metadata", "The report timestamp must include its time zone.", 422
         )

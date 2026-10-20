@@ -23,8 +23,13 @@ from execplus.application.services.dataset_access import (
     dataset_access,
     scope_snapshot,
 )
-from execplus.application.services.lineage import persist_query_execution
+from execplus.application.services.lineage import (
+    authorize_analysis_receipt,
+    persist_query_execution,
+)
+from execplus.application.services.plan_executor import PlanAwareExecutor
 from execplus.application.services.understanding import current_meaning
+from execplus.application.validated_tables import read_validated_table
 from execplus.domain.dashboard_templates import TEMPLATES, DashboardTemplate, applicable_templates
 from execplus.domain.errors import ClarificationRequiredError, UnsupportedQuestionError
 from execplus.domain.evidence import receipt, result_evidence, scalar_from_record
@@ -41,6 +46,7 @@ from execplus.domain.models import (
 )
 from execplus.domain.profiling import Revision, TableData, reconstruct
 from execplus.domain.semantics import (
+    RECORD_COUNT,
     VALUE_ALIAS,
     DatasetView,
     MetricFilter,
@@ -95,7 +101,7 @@ class AnalyticsService:
         self.uow = unit_of_work
         self.storage = storage
         self.parser = parser
-        self.executor = executor
+        self.executor = PlanAwareExecutor(executor, unit_of_work)
         self.assembler = assembler
         self.row_limit = row_limit
 
@@ -106,10 +112,9 @@ class AnalyticsService:
         self, upload: Upload, revision: Revision
     ) -> tuple[TableData, DatasetView]:
         content = BytesIO(self.storage.read(upload))
-        self.parser.parse(
-            content, upload.filename, upload.content_type, stored_format=upload.format
+        table = read_validated_table(
+            self.parser, content, upload.filename, upload.content_type, upload.format
         )
-        table = self.parser.read_table(content, upload.format)
         table = reconstruct(table, revision)
         if revision.source_checksum != upload.checksum:
             raise IngestionError("lineage_mismatch", "The source integrity check failed.", 409)
@@ -310,10 +315,12 @@ class AnalyticsService:
                     "lineage_mismatch", "The retained source failed verification.", 409
                 )
             content = BytesIO(self.storage.read(upload))
-            self.parser.parse(
-                content, upload.filename, upload.content_type, stored_format=upload.format
+            table = reconstruct(
+                read_validated_table(
+                    self.parser, content, upload.filename, upload.content_type, upload.format
+                ),
+                revision,
             )
-            table = reconstruct(self.parser.read_table(content, upload.format), revision)
             frozen_source = {
                 key: source[key]
                 for key in (
@@ -401,6 +408,14 @@ class AnalyticsService:
         limit: int,
         model_route: str | None = None,
     ) -> tuple[QueryResult, CalculationLineage]:
+        if request.extremum is not None:
+            column = request.extremum.column
+            governed = governed_request(
+                view,
+                table,
+                MetricRequest(column, preferred_aggregation(view, column), filters=request.filters),
+            )
+            request = replace(request, filters=governed.filters)
         plan = plan_rows(scope, dataset_id, view, request, row_limit=limit)
         lineage = CalculationLineage(
             query_id=plan.query_id,
@@ -444,8 +459,7 @@ class AnalyticsService:
             authorize_sources(
                 repo, actor, workspace_id, execution.receipt.get("sources"), execution.dataset_id
             )
-            if execution.aggregation == "analysis" and execution.actor_id != actor.id:
-                raise IngestionError("not_found", "The private query is unavailable.", 404)
+            authorize_analysis_receipt(repo, actor, execution)
         return execution.lineage()
 
     async def get_view(
@@ -498,7 +512,10 @@ class AnalyticsService:
         if not result.rows or result.rows[0][0] is None:
             raise UnsupportedQuestionError("No matching numeric values were found for this request")
         return self.assembler.assemble_metric(
-            label=request.metric, column=VALUE_ALIAS, result=result, lineage=lineage
+            label="Records" if request.metric == RECORD_COUNT else request.metric,
+            column=VALUE_ALIAS,
+            result=result,
+            lineage=lineage,
         )
 
     async def list_kpis(
@@ -784,10 +801,12 @@ class AnalyticsService:
                         "lineage_mismatch", "The snapshot no longer matches its receipt.", 409
                     )
                 content = BytesIO(self.storage.read(upload))
-                self.parser.parse(
-                    content, upload.filename, upload.content_type, stored_format=upload.format
+                table = reconstruct(
+                    read_validated_table(
+                        self.parser, content, upload.filename, upload.content_type, upload.format
+                    ),
+                    revision,
                 )
-                table = reconstruct(self.parser.read_table(content, upload.format), revision)
                 view = dataset_view(revision.profile)
                 if source.get("understanding_id"):
                     meaning = repo.understanding(
@@ -804,7 +823,7 @@ class AnalyticsService:
                     table, view, revision.profile, view.definition, access
                 )
                 tables.append(table)
-                views.append(view)
+                views.append(replace(view, sources=(source,)))
         scope = WorkspaceScope(
             workspace_id,
             actor.id,
@@ -839,6 +858,10 @@ class AnalyticsService:
             repo.workspace(workspace_id, lock=True)
             self._authorize(repo, actor, workspace_id)
             authorize_sources(repo, actor, workspace_id, sources)
+            if lineage.aggregation == "analysis":
+                authorize_analysis_receipt(
+                    repo, actor, repo.query_execution(workspace_id, query_id)
+                )
         if result_evidence(result)["checksum"] != evidence["result_checksum"]:
             raise IngestionError(
                 "lineage_mismatch", "The replay did not reproduce the recorded answer.", 409

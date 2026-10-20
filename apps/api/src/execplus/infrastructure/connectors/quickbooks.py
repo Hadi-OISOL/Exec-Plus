@@ -3,7 +3,7 @@
 What it does: Runs the Intuit OAuth exchange and pages through query results for a chosen entity.
 """
 
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlencode
 
 import httpx
@@ -14,7 +14,7 @@ from execplus.application.connector_ports import (
     ConnectorSession,
     ProviderTokens,
 )
-from execplus.domain.connectors import Source
+from execplus.domain.connectors import RecordBuffer, Source
 from execplus.infrastructure.connectors.base import (
     DEFAULT_TIMEOUT,
     json_body,
@@ -44,7 +44,7 @@ ENTITIES = (
 class QuickBooksConnector:
     id = "quickbooks"
     label = "QuickBooks Online"
-    kind = "oauth"
+    kind: Literal["oauth", "credentials"] = "oauth"
     uses_pkce = False
     description = "Invoices, bills, payments, customers, vendors, items and the chart of accounts."
     fields: tuple[ConnectorField, ...] = ()
@@ -155,7 +155,7 @@ class QuickBooksConnector:
         if source_id not in dict(ENTITIES):
             raise ConnectorApiError(404, "unknown_source")
         realm = session.context.get("realm_id", "")
-        records: list[dict[str, Any]] = []
+        records: list[dict[str, Any]] = RecordBuffer()
         while len(records) < max_rows:
             size = min(PAGE, max_rows - len(records))
             body = json_body(

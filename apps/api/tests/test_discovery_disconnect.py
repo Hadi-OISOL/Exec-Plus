@@ -20,7 +20,17 @@ class IncomingMessages:
         self.messages = asyncio.Queue()
         self.receives = 0
         self.request = Request(
-            {"type": "http", "method": "GET", "path": "/discovery", "headers": []},
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/discovery",
+                "headers": [],
+                "app": SimpleNamespace(
+                    state=SimpleNamespace(
+                        runtime=SimpleNamespace(intent_router=SimpleNamespace(patterns=None))
+                    )
+                ),
+            },
             self.receive,
         )
 
@@ -40,7 +50,7 @@ async def test_already_disconnected_request_never_starts_discovery(monkeypatch):
     incoming = IncomingMessages()
     await incoming.messages.put({"type": "http.disconnect"})
 
-    async def unexpected(*args):
+    async def unexpected(*args, **kwargs):
         pytest.fail("Disconnected request must not begin snapshot work")
 
     monkeypatch.setattr(analytics, "discover", unexpected)
@@ -57,7 +67,7 @@ async def test_asgi_disconnect_cancels_inflight_work_and_prevents_later_queries(
     released = asyncio.Event()
     executed = []
 
-    async def controlled_discovery(*args):
+    async def controlled_discovery(*args, **kwargs):
         executed.append("completed_receipt")
         first_finished.set()
         try:
@@ -87,7 +97,7 @@ async def test_asgi_disconnect_cancels_inflight_work_and_prevents_later_queries(
 async def test_complete_discovery_stops_the_disconnect_watcher(monkeypatch):
     incoming = IncomingMessages()
 
-    async def finished(*args):
+    async def finished(*args, **kwargs):
         return DiscoveryBrief({"version": "discovery-v1"}, ())
 
     monkeypatch.setattr(analytics, "_DISCONNECT_POLL_SECONDS", 0.001)
@@ -103,10 +113,10 @@ async def test_complete_discovery_stops_the_disconnect_watcher(monkeypatch):
 async def test_completed_result_wins_when_disconnect_finishes_in_same_tick(monkeypatch):
     incoming = IncomingMessages()
 
-    async def finished(*args):
+    async def finished(*args, **kwargs):
         return DiscoveryBrief({"retained": "completed_evidence"}, ())
 
-    async def disconnected(*args):
+    async def disconnected(*args, **kwargs):
         return None
 
     monkeypatch.setattr(analytics, "discover", finished)
@@ -119,7 +129,7 @@ async def test_completed_result_wins_when_disconnect_finishes_in_same_tick(monke
 async def test_application_failure_is_preserved_and_watcher_is_cleaned_up(monkeypatch):
     incoming = IncomingMessages()
 
-    async def failed(*args):
+    async def failed(*args, **kwargs):
         raise ValueError("Application failure")
 
     monkeypatch.setattr(analytics, "_DISCONNECT_POLL_SECONDS", 0.001)
@@ -137,7 +147,7 @@ async def test_outer_request_cancellation_joins_computation_and_watcher(monkeypa
     started = asyncio.Event()
     cleaned = asyncio.Event()
 
-    async def running(*args):
+    async def running(*args, **kwargs):
         started.set()
         try:
             await asyncio.Event().wait()

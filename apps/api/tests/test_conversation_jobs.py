@@ -445,11 +445,16 @@ async def test_real_model_http_retry_budget_is_checked_before_each_outgoing_atte
     env.runtime.jobs.threads.intent_router.model = actual
     calls = []
 
-    async def retryable(client, url, **kwargs):
-        calls.append(url)
-        return httpx.Response(503, request=httpx.Request("POST", url))
+    async def retryable(request):
+        calls.append(str(request.url))
+        return httpx.Response(503, request=request)
 
-    monkeypatch.setattr(httpx.AsyncClient, "post", retryable)
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(retryable), **kwargs),
+    )
     job = submit(env, owner, path)
     await env.runtime.jobs.process()
     assert len(calls) == 7
@@ -481,12 +486,17 @@ async def test_model_retry_rechecks_cancellation_before_another_http_attempt(
     actor = env.runtime.identity.authenticate(owner["Authorization"].removeprefix("Bearer "))
     calls = []
 
-    async def cancelled(client, url, **kwargs):
-        calls.append(url)
+    async def cancelled(request):
+        calls.append(str(request.url))
         env.runtime.jobs.cancel(actor, UUID(job["workspace_id"]), UUID(job["id"]))
-        return httpx.Response(503, request=httpx.Request("POST", url))
+        return httpx.Response(503, request=request)
 
-    monkeypatch.setattr(httpx.AsyncClient, "post", cancelled)
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(cancelled), **kwargs),
+    )
     await env.runtime.jobs.process()
     assert len(calls) == 1
     assert env.client.get(job_path(job), headers=owner).json()["status"] == "cancelled"

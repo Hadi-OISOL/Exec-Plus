@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-const api = "http://127.0.0.1:8001";
+const api = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8001";
 const csv = "Id,Total\n1,10.5\n2,20\n";
 
 type Platform = { id: string; label: string; kind: "oauth" | "credentials"; description: string; fields: { name: string; label: string; secret: boolean; placeholder: string }[]; connected: boolean; account: string };
@@ -107,12 +107,19 @@ test("browsing a hierarchy drills into containers and the breadcrumb goes back",
 test("an OAuth platform sends the user away and brings them back signed in with a message", async ({ page }) => {
   const person = account();
   await page.route("**/connectors", route => route.fulfill({ json: [quickbooks(false)] }));
-  await page.route("**/connectors/quickbooks/connect", route => route.fulfill({ json: { url: "http://127.0.0.1:3001/workspace?connector_connected=quickbooks" } }));
+  let exchanged = 0;
+  await page.route("**/connectors/quickbooks/connect", route => route.fulfill({ json: { url: `${new URL(page.url()).origin}/workspace?oauth=complete` } }));
+  await page.route("**/auth/oauth/exchange", route => {
+    exchanged += 1;
+    return route.fulfill({ json: { token: person.token, provider: "quickbooks" } });
+  });
   await signIn(page, person.token);
   await page.getByRole("region", { name: "Connect your data", exact: true }).getByRole("button", { name: "Connect QuickBooks Online", exact: true }).click();
   await expect(page.getByText("Signed in as", { exact: false })).toBeVisible();
   await expect(page.getByText("Connected. Choose what to import.")).toBeVisible();
-  expect(page.url()).not.toContain("connector_connected");
+  expect(page.url()).not.toContain("oauth=");
+  expect(exchanged).toBe(1);
+  expect(await page.evaluate(() => sessionStorage.getItem("execplus.resume"))).toBeNull();
 });
 
 test("a refused connection is explained and credential errors are shown", async ({ page }) => {

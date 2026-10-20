@@ -13,7 +13,7 @@ from typing import Any
 
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.models import Scalar
-from execplus.domain.pdf_exports import PdfDocument
+from execplus.domain.pdf_exports import PdfDocument, validate_report_time
 
 MAX_EXPORT_CELLS = 200_000
 MAX_EXPORT_BYTES = 16 * 1024 * 1024
@@ -87,6 +87,7 @@ def cell_type(value: Scalar) -> str:
 
 
 def validate_export(content: ExportContent) -> None:
+    validate_report_time(content.document.generated_at)
     cells = 0
     characters = len(json.dumps(asdict(content.document), default=str, ensure_ascii=False))
     for table in content.tables:

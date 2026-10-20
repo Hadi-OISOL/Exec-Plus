@@ -1,40 +1,40 @@
 /* Use case: Gives saved forecasts a clear, original visual hierarchy.
 What it does: Separates observed and estimated regions with readable scales and exact-value inspection. */
 
-.chart.chart { padding: 24px; background: #fbfcfa; border: 1px solid #dce5dc; border-radius: 18px; color: #213a32; }
+.chart.chart { padding: 24px; background: light-dark(#fbfcfa, var(--theme-surface)); border: 1px solid light-dark(#dce5dc, var(--theme-border)); border-radius: 18px; color: light-dark(#213a32, var(--theme-ink)); }
 .heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
-.eyebrow { color: #527166; font-size: 11px; font-weight: 750; letter-spacing: .13em; }
+.eyebrow { color: light-dark(#527166, var(--theme-muted)); font-size: 11px; font-weight: 750; letter-spacing: .13em; }
 .heading h4 { margin: 7px 0 0; font-size: 20px; line-height: 1.4; overflow-wrap: anywhere; }
-.heading h4 span { font-size: 14px; font-weight: 500; color: #53685f; }
-.heading > span { color: #53685f; font-size: 12px; white-space: nowrap; padding-top: 5px; }
-.highlights { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 23px 0; margin: 0 0 18px; border-bottom: 1px solid #dce5dc; }
-.highlights > div { min-width: 0; display: grid; gap: 6px; padding-left: 12px; border-left: 3px solid #176b57; }
-.highlights > div[data-estimate="true"] { border-color: #7563a8; }
-.highlights span, .highlights small { color: #53685f; font-size: 12px; overflow-wrap: anywhere; }
-.highlights strong { color: #176b57; font-size: clamp(18px, 2.4vw, 28px); font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.highlights [data-estimate="true"] strong { color: #675393; }
+.heading h4 span { font-size: 14px; font-weight: 500; color: light-dark(#53685f, var(--theme-muted)); }
+.heading > span { color: light-dark(#53685f, var(--theme-muted)); font-size: 12px; white-space: nowrap; padding-top: 5px; }
+.highlights { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 23px 0; margin: 0 0 18px; border-bottom: 1px solid light-dark(#dce5dc, var(--theme-border)); }
+.highlights > div { min-width: 0; display: grid; gap: 6px; padding-left: 12px; border-left: 3px solid light-dark(#176b57, var(--theme-accent)); }
+.highlights > div[data-estimate="true"] { border-color: light-dark(#7563a8, var(--theme-accent)); }
+.highlights span, .highlights small { color: light-dark(#53685f, var(--theme-muted)); font-size: 12px; overflow-wrap: anywhere; }
+.highlights strong { color: light-dark(#176b57, var(--theme-accent)); font-size: clamp(18px, 2.4vw, 28px); font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.highlights [data-estimate="true"] strong { color: light-dark(#675393, var(--theme-muted)); }
 .legend { margin-bottom: 16px; gap: 12px 22px; }
-.legend.legend :global(.estimateKey) { border: 2px solid #7563a8; background: #fff; }
-.legend.legend :global(.rangeKey) { border-radius: 3px; border: 1px solid #c6bddd; }
+.legend.legend :global(.estimateKey) { border: 2px solid light-dark(#7563a8, var(--theme-accent)); background: light-dark(#fff, var(--theme-surface)); }
+.legend.legend :global(.rangeKey) { border-radius: 3px; border: 1px solid light-dark(#c6bddd, var(--theme-border)); }
 .plotShell { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; min-width: 0; }
-.axis { display: flex; flex-direction: column; justify-content: space-between; padding-block: 19px 43px; text-align: right; color: #53685f; font-size: 11px; font-variant-numeric: tabular-nums; }
+.axis { display: flex; flex-direction: column; justify-content: space-between; padding-block: 19px 43px; text-align: right; color: light-dark(#53685f, var(--theme-muted)); font-size: 11px; font-variant-numeric: tabular-nums; }
 .plot { min-width: 0; border-radius: 8px; }
-.plot:focus-visible { outline: 2px solid #176b57; outline-offset: 5px; }
+.plot:focus-visible { outline: 2px solid light-dark(#176b57, var(--theme-accent)); outline-offset: 5px; }
 .plot.plot svg { display: block; margin: 0; height: 264px; width: 100%; }
-.forecastZone { fill: #7563a80a; }
-.grid { stroke: #dce5dc; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.boundary { stroke: #9483b4; stroke-dasharray: 4 5; vector-effect: non-scaling-stroke; }
-.cursor { stroke: #7c9187; stroke-dasharray: 2 5; vector-effect: non-scaling-stroke; }
-.interval { stroke: #7563a8; stroke-opacity: .3; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
-.dateRange, .periodRegions { display: flex; justify-content: space-between; gap: 18px; font-size: 12px; color: #53685f; font-variant-numeric: tabular-nums; }
+.forecastZone { fill: light-dark(#7563a80a, #c4adf414); }
+.grid { stroke: light-dark(#dce5dc, var(--theme-muted)); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.boundary { stroke: light-dark(#9483b4, var(--theme-muted)); stroke-dasharray: 4 5; vector-effect: non-scaling-stroke; }
+.cursor { stroke: light-dark(#7c9187, var(--theme-muted)); stroke-dasharray: 2 5; vector-effect: non-scaling-stroke; }
+.interval { stroke: light-dark(#7563a8, #c4adf4); stroke-opacity: .5; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.dateRange, .periodRegions { display: flex; justify-content: space-between; gap: 18px; font-size: 12px; color: light-dark(#53685f, var(--theme-muted)); font-variant-numeric: tabular-nums; }
 .dateRange span:last-child, .periodRegions span:last-child { text-align: right; }
-.periodRegions { margin: 16px 0; padding: 10px 0; border-block: 1px solid #e6eae2; font-size: 12px; }
-.periodRegions span:last-child { color: #675393; }
-.inspection { border: 1px solid #dce5dc; background: #fff; border-radius: 12px; padding: 16px; }
-.inspection > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: #53685f; }
-.inspection > div strong { color: #213a32; }
+.periodRegions { margin: 16px 0; padding: 10px 0; border-block: 1px solid light-dark(#e6eae2, var(--theme-border)); font-size: 12px; }
+.periodRegions span:last-child { color: light-dark(#675393, var(--theme-muted)); }
+.inspection { border: 1px solid light-dark(#dce5dc, var(--theme-border)); background: light-dark(#fff, var(--theme-surface)); border-radius: 12px; padding: 16px; }
+.inspection > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: light-dark(#53685f, var(--theme-muted)); }
+.inspection > div strong { color: light-dark(#213a32, var(--theme-ink)); }
 .inspection dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 15px 0 0; }
-.inspection dt { font-size: 12px; color: #53685f; }
+.inspection dt { font-size: 12px; color: light-dark(#53685f, var(--theme-muted)); }
 .inspection dd { margin: 4px 0 0; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .controls { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .controls label { display: grid; gap: 6px; font-size: 12px; flex: 1 1 180px; }

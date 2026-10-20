@@ -6,7 +6,7 @@ What it does: Browses projects, datasets and tables and copies rows through the 
 import base64
 import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote, unquote, urlencode
 
 import httpx
@@ -17,7 +17,7 @@ from execplus.application.connector_ports import (
     ConnectorSession,
     ProviderTokens,
 )
-from execplus.domain.connectors import Source
+from execplus.domain.connectors import RecordBuffer, Source
 from execplus.infrastructure.connectors.base import (
     DEFAULT_TIMEOUT,
     json_body,
@@ -38,7 +38,7 @@ def _identifier(value: str) -> str:
 class BigQueryConnector:
     id = "bigquery"
     label = "Google BigQuery"
-    kind = "oauth"
+    kind: Literal["oauth", "credentials"] = "oauth"
     uses_pkce = True
     description = "Tables in your BigQuery projects, copied read-only without running queries."
     fields: tuple[ConnectorField, ...] = ()
@@ -188,7 +188,7 @@ class BigQueryConnector:
         fields = schema.get("schema", {}).get("fields", [])
         if not fields:
             raise ConnectorApiError(422, "no_schema")
-        records: list[dict[str, Any]] = []
+        records: list[dict[str, Any]] = RecordBuffer()
         token = ""
         while len(records) < max_rows:
             params = {"maxResults": str(min(PAGE, max_rows - len(records)))}

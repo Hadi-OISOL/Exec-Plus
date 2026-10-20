@@ -27,7 +27,16 @@ def _query_uuid(value: str) -> UUID | None:
 class SQLOperationsRepository:
     connection: Connection
 
-    def staff_grant(self, user_id: UUID, *, lock: bool = False) -> StaffGrant | None:
+    def staff_grant(
+        self, user_id: UUID, *, lock: bool = False, include_disabled: bool = False
+    ) -> StaffGrant | None:
+        if not include_disabled:
+            for table in (s.local_accounts, s.external_identities):
+                account = self.connection.execute(
+                    select(table.c.disabled_at).where(table.c.user_id == user_id)
+                ).first()
+                if account is not None and account.disabled_at is not None:
+                    raise IngestionError("account_unavailable", "This account is unavailable.", 403)
         statement = select(s.staff_grants).where(s.staff_grants.c.user_id == user_id)
         if lock:
             statement = statement.with_for_update(read=True)
@@ -66,7 +75,13 @@ class SQLOperationsRepository:
             for row in self.connection.execute(
                 select(s.users.c.id, s.users.c.email, s.staff_grants.c.role)
                 .join(s.staff_grants, s.users.c.id == s.staff_grants.c.user_id)
-                .where(s.staff_grants.c.revoked_at.is_(None))
+                .outerjoin(s.local_accounts, s.users.c.id == s.local_accounts.c.user_id)
+                .outerjoin(s.external_identities, s.users.c.id == s.external_identities.c.user_id)
+                .where(
+                    s.staff_grants.c.revoked_at.is_(None),
+                    s.local_accounts.c.disabled_at.is_(None),
+                    s.external_identities.c.disabled_at.is_(None),
+                )
                 .order_by(s.users.c.id)
                 .limit(100)
             ).mappings()

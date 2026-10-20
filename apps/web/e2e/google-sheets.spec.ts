@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-const api = "http://127.0.0.1:8001";
+const api = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8001";
 const sheet = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
 const csv = "order,cust,amt,st\n1004,Ali,75.25,P\n1005,Hina,640,C\n";
 
@@ -60,12 +60,74 @@ test("the Continue with Google button appears when Google is configured", async 
   await expect(page.getByLabel("Session token")).toBeVisible();
 });
 
-test("returning from Google with a session signs the user in and clears it from the address", async ({ page }) => {
+test("unsolicited bearer fragments and stored resume tokens never sign a user in", async ({ page }) => {
   const person = account();
+  let exchanges = 0;
+  let identityReads = 0;
+  await page.route("**/auth/oauth/exchange", route => { exchanges += 1; return route.fulfill({ status: 403, json: {} }); });
+  page.on("request", request => { if (new URL(request.url()).pathname === "/auth/me") identityReads += 1; });
+  await page.addInitScript(token => sessionStorage.setItem("execplus.resume", token), person.token);
   await page.goto(`/workspace#session=${person.token}`);
-  await expect(page.getByText(`Signed in as ${person.email}`, { exact: false })).toBeVisible();
-  expect(page.url()).not.toContain("session=");
+  await expect(page.getByLabel("Session token")).toHaveValue("");
+  await expect(page.getByText(`Signed in as ${person.email}`, { exact: false })).toHaveCount(0);
+  await expect.poll(() => page.url()).not.toContain("session=");
   expect(page.url()).not.toContain(person.token);
+  expect(await page.evaluate(() => sessionStorage.getItem("execplus.resume"))).toBeNull();
+  expect(exchanges).toBe(0);
+  expect(identityReads).toBe(0);
+});
+
+test("a browser-bound return exchanges once and keeps the session out of URLs and storage", async ({ page }) => {
+  const person = account();
+  let exchanges = 0;
+  await page.context().addCookies([{ name: "test_oauth_exchange", value: "browser-bound-test", url: api, httpOnly: true, sameSite: "Lax" }]);
+  await page.route("**/auth/oauth/exchange", route => {
+    exchanges += 1;
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({});
+    expect(route.request().headers()["cookie"]).toContain("test_oauth_exchange=browser-bound-test");
+    return route.fulfill({ json: { token: person.token } });
+  });
+  await page.goto("/workspace?oauth=complete");
+  await expect(page.getByText(`Signed in as ${person.email}`, { exact: false })).toBeVisible();
+  expect(exchanges).toBe(1);
+  expect(page.url()).not.toContain("oauth=");
+  expect(page.url()).not.toContain(person.token);
+  expect(await page.evaluate(() => [...Object.values(localStorage), ...Object.values(sessionStorage)])).not.toContain(person.token);
+  await page.reload();
+  await expect(page.getByLabel("Session token")).toHaveValue("");
+  expect(exchanges).toBe(1);
+});
+
+test("an expired return never signs in and unknown failure text stays private", async ({ page }) => {
+  await page.route("**/auth/oauth/exchange", route => route.fulfill({ status: 403, json: { error: { message: "private-provider-response" } } }));
+  await page.goto("/workspace?oauth=complete");
+  await expect(page.getByText("This sign-in expired or was already used. Please try again.")).toBeVisible();
+  await expect(page.getByLabel("Session token")).toHaveValue("");
+  await expect(page.getByText("private-provider-response")).toHaveCount(0);
+  await page.goto("/workspace?oauth_error=oauth_state_invalid");
+  await expect(page.getByText("This sign-in expired or was already used. Please try again.")).toBeVisible();
+  expect(page.url()).not.toContain("oauth_error");
+  await page.unroute("**/auth/oauth/exchange");
+  await page.route("**/auth/oauth/exchange", route => route.fulfill({ json: { error: "private-provider-response" } }));
+  await page.goto("/workspace?oauth=complete");
+  await expect(page.getByText("Sign-in could not be completed. Please try again.")).toBeVisible();
+  await expect(page.getByText("private-provider-response")).toHaveCount(0);
+  await page.goto("/workspace?oauth_error=__proto__");
+  await expect(page.getByText("Sign-in could not be completed. Please try again.")).toBeVisible();
+});
+
+test("a denied return does not invent a signed-in identity or successful connection", async ({ page }) => {
+  await page.route("**/auth/oauth/exchange", route => route.fulfill({ json: { error: "google_denied" } }));
+  await page.goto("/workspace?oauth=complete");
+  await expect(page.getByText("Google sign-in was cancelled.")).toBeVisible();
+  await expect(page.getByLabel("Session token")).toHaveValue("");
+  await page.unroute("**/auth/oauth/exchange");
+  await page.route("**/auth/oauth/exchange", route => route.fulfill({ json: { token: "invalid-synthetic-session", provider: "google" } }));
+  await page.goto("/workspace?oauth=complete");
+  await expect(page.getByText("Sign-in could not be completed. Please try again.")).toBeVisible();
+  await expect(page.getByText("Connected. Choose what to import.")).toHaveCount(0);
+  await expect(page.getByLabel("Session token")).toHaveValue("");
 });
 
 test("a Google failure on return is explained and nobody is signed in", async ({ page }) => {

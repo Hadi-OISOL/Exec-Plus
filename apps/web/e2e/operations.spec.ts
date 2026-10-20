@@ -490,11 +490,42 @@ test("an expired session clears workspace and staff metadata before another pers
   await expect(
     page.getByRole("combobox", { name: "Current workspace", exact: true }),
   ).toHaveValue(space.id);
-  const revoked = await page.request.post(`${api}/auth/logout`, {
-    headers: first.headers,
+  await page.waitForLoadState("networkidle");
+  const usagePath = `${api}/workspaces/${space.id}/product-usage?weeks=8`;
+  let releaseUsage: () => void = () => {};
+  let requestedUsage: () => void = () => {};
+  let completedUsage: (status: number) => void = () => {};
+  let failedUsage: (error: unknown) => void = () => {};
+  const usageHeld = new Promise<void>((resolve) => { releaseUsage = resolve; });
+  const usageRequested = new Promise<void>((resolve) => { requestedUsage = resolve; });
+  const usageStatus = new Promise<number>((resolve, reject) => {
+    completedUsage = resolve;
+    failedUsage = reject;
   });
-  expect(revoked.status()).toBe(204);
-  await navigate(page, "Usage & retention");
+  await page.route(usagePath, async (route) => {
+    requestedUsage();
+    await usageHeld;
+    try {
+      const response = await route.fetch();
+      await route.fulfill({ response });
+      completedUsage(response.status());
+    } catch (error) {
+      failedUsage(error);
+    }
+  });
+  try {
+    await navigate(page, "Usage & retention");
+    await usageRequested;
+    const revoked = await page.request.post(`${api}/auth/logout`, {
+      headers: first.headers,
+    });
+    expect(revoked.status()).toBe(204);
+    releaseUsage();
+    expect(await usageStatus).toBe(401);
+  } finally {
+    releaseUsage();
+    await page.unroute(usagePath);
+  }
   await expect(
     page.getByRole("button", { name: "Sign in", exact: true }),
   ).toBeVisible();
@@ -524,7 +555,8 @@ test("an expired session clears workspace and staff metadata before another pers
     await page.getByLabel("Session token").fill(next.token);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await responseReady;
-    await expect(page.getByText(`Signed in as ${next.email}`)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeDisabled();
+    await expect(page.getByText(`Signed in as ${next.email}`)).toHaveCount(0);
     await expect(
       page.getByRole("region", { name: "Selected data", exact: true }),
     ).toHaveCount(0);
@@ -537,6 +569,7 @@ test("an expired session clears workspace and staff metadata before another pers
     await responseFulfilled;
     await page.unroute(`${api}/workspaces`);
   }
+  await expect(page.getByText(`Signed in as ${next.email}`)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Add data", exact: true }),
   ).toBeEnabled();

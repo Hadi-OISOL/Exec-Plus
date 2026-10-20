@@ -34,15 +34,21 @@ staging and production use the production-capable adapter. Nothing changes unles
 Create the key with
 `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
 and keep it in the ignored `.env`. Changing it invalidates stored connections. Run
-`make migrate` first; migration 0018 adds one table and keeps every existing record.
+the normal reviewed migration procedure first. Migration 0028 follows 0027 and adds
+versioned Google connections, external identities and one-use OAuth attempts while
+preserving existing records. Generic connectors follow in 0029. Live activation stays
+with the release owner; these branches are local candidates until explicitly released.
 
 ## Flow
 
 1. **Continue with Google** starts `GET /auth/google/start`, which sets a short-lived
    HttpOnly cookie and redirects to Google asking only for `openid email profile`.
-2. Google returns to `GET /auth/google/callback`. The caller's verified email is matched to
-   or creates a user and a normal session; the browser receives it in the URL fragment and
-   removes it from the address bar.
+2. Google returns to `GET /auth/google/callback`. A verified Google subject identifies
+   the self-service account. Existing password/operator accounts are never linked by
+   email alone. The callback consumes a browser-bound server attempt and redirects to
+   `?oauth=complete`; an exact-origin, one-use cookie exchange returns the session into
+   application memory. No application bearer appears in the URL or browser storage.
+   New self-service workspaces receive the existing Demo allowances.
 3. In Data library, **Connect Google** asks once for `drive.file`. The user must use the
    Google account that matches their ExecPlus email.
 4. **Choose a Google Sheet** opens Google's picker, using the user's own short-lived token.
@@ -54,8 +60,10 @@ Public: `GET /auth/google/config`, `GET /auth/google/start`, `GET /auth/google/c
 `GET /integrations/google/callback`. Signed-in: `POST /integrations/google/connect`,
 `GET /integrations/google/status`, `DELETE /integrations/google`,
 `GET /integrations/google/picker-token`, `GET /integrations/google/spreadsheets/{id}`,
-`POST /workspaces/{workspace_id}/datasets/{dataset_id}/google-sheets/import`. Every route
-other than the config returns 404 when Google is not configured.
+`POST /workspaces/{workspace_id}/datasets/{dataset_id}/google-sheets/import`.
+`POST /auth/oauth/exchange` is shared with other OAuth connectors and requires its
+browser/handoff cookies and exact web origin. Google-specific routes other than
+config return 404 when Google is not configured.
 
 ## Behavior and limits
 
@@ -70,3 +78,10 @@ other than the config returns 404 when Google is not configured.
   was not picked, a sheet that is too large and Google being unavailable.
 - Refresh tokens are encrypted at rest and never appear in logs; imports are audited as
   `google_sheets.imported`, visible only to the person who ran them.
+
+The connection attempt also binds the initiating live application session and connection
+version. Disconnect/replacement and account/session revocation are rechecked after
+provider calls and at import publication. The import audit shares the upload transaction.
+See [identity and session boundaries](connector-identity-security.md) for the complete
+contract and synthetic verification limits. A saved import followed by a failed UI
+refresh is reported as saved, with a read-only reload instead of repeating the import.

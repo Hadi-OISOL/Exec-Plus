@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, select, text, update
 
 from execplus.application.services.health import HealthService
@@ -333,7 +334,7 @@ async def test_real_readiness_and_migration_roundtrip(integration):
         command.upgrade(env.config, "head")
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0026"
+            == ScriptDirectory.from_config(env.config).get_current_head()
         )
     assert (await service.readiness())[0]
 

@@ -76,7 +76,7 @@ class OperationsService:
     ) -> Iterator[WorkspaceRepository]:
         try:
             with self.uow() as repo:
-                grant = repo.staff_grant(actor.id, lock=True)
+                grant = repo.staff_grant(actor.id)
                 if not grant or grant.revoked_at is not None or (admin and grant.role != "admin"):
                     raise IngestionError(
                         "staff_required", "This action requires active staff access.", 403
@@ -94,18 +94,44 @@ class OperationsService:
                         resource_id,
                     )
                 )
+                repo.require_active_actor(actor.id)
+                current_grant = repo.staff_grant(actor.id, lock=True)
+                if (
+                    not current_grant
+                    or current_grant.revoked_at is not None
+                    or (admin and current_grant.role != "admin")
+                ):
+                    raise IngestionError(
+                        "staff_required", "This action requires active staff access.", 403
+                    )
         except (IngestionError, AuthorizationError):
             with self.uow() as repo:
                 repo.add_staff_audit(StaffAudit(uuid4(), actor.id, action, "api", "denied", now()))
             raise
 
-    def change_staff(self, email: str, role: str | None) -> dict[str, Any]:
+    def change_staff(
+        self,
+        email: str,
+        role: str | None,
+        *,
+        confirmed_user_id: UUID | None = None,
+        identity_checked: bool = False,
+    ) -> dict[str, Any]:
         if role is not None and role not in STAFF_ROLES:
             raise IngestionError("invalid_staff_role", "Choose admin or support staff access.", 422)
         timestamp = now()
         with self.uow() as repo:
             user = repo.staff_user(normalized_email(email))
-            previous = repo.staff_grant(user.id)
+            if role is not None and repo.is_self_service_account(user.id):
+                if confirmed_user_id != user.id or identity_checked is not True:
+                    raise IngestionError(
+                        "native_identity_check_required",
+                        "Granting self-service account access requires its exact account ID "
+                        "and an authorized operator's separate identity check.",
+                        403,
+                    )
+                repo.require_active_actor(user.id)
+            previous = repo.staff_grant(user.id, include_disabled=True)
             if role is None and previous is None:
                 raise IngestionError(
                     "staff_missing", "This user has no staff grant to revoke.", 404
@@ -233,6 +259,7 @@ class OperationsService:
             with self.uow() as repo:
                 if wid is None:
                     raise AuthorizationError("Workspace required")
+                repo.workspace(wid, lock=True)
                 repo.membership(wid, actor.id)
                 yield repo
 
@@ -371,6 +398,7 @@ class OperationsService:
             raise IngestionError("invalid_support", "Provide the current request version.", 422)
         with self._scope(actor, wid, tid, f"support.{kind}", staff) as repo:
             repo.workspace(wid, lock=True)
+            repo.require_active_actor(actor.id)
             value = self._ticket(repo, actor, wid, tid, staff=staff, lock=True)
             if value.version != expected:
                 raise IngestionError(
