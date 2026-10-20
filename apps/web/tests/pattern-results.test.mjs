@@ -15,7 +15,13 @@ const javascript = ts.transpileModule(source, {
 }).outputText;
 const compiled = { exports: {} };
 const require = createRequire(import.meta.url);
-new Function("require", "module", "exports", javascript)(name => name.endsWith(".module.css") ? { default: new Proxy({}, { get: (_, key) => key }) } : require(name), compiled, compiled.exports);
+const helpers = {};
+for (const [key, file] of [["../visualization-values", "visualization-values.ts"], ["./charts/chart-values", "charts/chart-values.ts"]]) {
+  const helper = { exports: {} };
+  new Function("require", "module", "exports", ts.transpileModule(await readFile(new URL(`../src/app/workspace/${file}`, import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText)(name => helpers[name] ?? require(name), helper, helper.exports);
+  helpers[key] = helper.exports;
+}
+new Function("require", "module", "exports", javascript)(name => name.endsWith(".module.css") ? { default: new Proxy({}, { get: (_, key) => key }) } : helpers[name] ?? require(name), compiled, compiled.exports);
 const { PatternResults } = compiled.exports;
 const base = {
   version: "pattern-exploration-v1", engine_version: "test-engine", status: "patterns_found",

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { ForecastResults } from "./forecast-results";
+import { UnusualValues } from "./unusual-values";
 import styles from "./forecast.module.css";
 import { advancedMinimumHistory } from "./forecast-types";
 import type {
@@ -71,6 +72,7 @@ export function ForecastPanel({
   const [actualStart, setActualStart] = useState("");
   const [actualEnd, setActualEnd] = useState("");
   const [actualConfirmed, setActualConfirmed] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const operation = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -135,25 +137,16 @@ export function ForecastPanel({
       if (!controller.signal.aborted) setPending("");
     }
   }
-  async function create(event: FormEvent) {
-    event.preventDefault();
-    if (!options || !ready || !confirmed) return;
+  const quick = options?.quick_start;
+  async function submit(body: object) {
+    if (!options) return;
     await run(
       "Checking the time series and evaluating forecast methods…",
       async (signal) => {
         const result = await request<ForecastRun>(`${root}/forecasts`, {
           ...json({
-            name: name.trim() || `${metricName} forecast`,
-            time_column: time || options.date_columns[0],
-            metric: metricName,
-            aggregation: selectedAggregation,
+            ...body,
             filters: [],
-            frequency,
-            horizon,
-            season_length: seasonal ? (frequency === "daily" ? 7 : 12) : null,
-            ...(engine === "advanced-v2" ? { engine, method_family: methodFamily } : {}),
-            coverage_start: start,
-            coverage_end: end,
             coverage_confirmed: true,
             revision_id: options.revision_id,
             understanding_id: options.understanding_id,
@@ -171,6 +164,36 @@ export function ForecastPanel({
         ]);
       },
     );
+  }
+  async function create(event: FormEvent) {
+    event.preventDefault();
+    if (!options || !ready || !confirmed) return;
+    await submit({
+      name: name.trim() || `${metricName} forecast`,
+      time_column: time || options.date_columns[0],
+      metric: metricName,
+      aggregation: selectedAggregation,
+      frequency,
+      horizon,
+      season_length: seasonal ? (frequency === "daily" ? 7 : 12) : null,
+      ...(engine === "advanced-v2" ? { engine, method_family: methodFamily } : {}),
+      coverage_start: start,
+      coverage_end: end,
+    });
+  }
+  async function quickForecast() {
+    if (!ready || quick?.kind !== "forecast") return;
+    await submit({
+      name: quick.name,
+      time_column: quick.time_column,
+      metric: quick.metric,
+      aggregation: quick.aggregation,
+      frequency: quick.frequency,
+      horizon: quick.horizon,
+      season_length: null,
+      coverage_start: quick.coverage_start,
+      coverage_end: quick.coverage_end,
+    });
   }
   async function openForecast() {
     if (!selectedId) return;
@@ -226,55 +249,77 @@ export function ForecastPanel({
         aria-label="Basic forecasting setup"
       >
         <p className="eyebrow">LOOK AHEAD, WITH CONTEXT</p>
-        <h2>Basic forecasts</h2>
+        <h2>Forecasts</h2>
         <p>
-          Estimate future values from a complete daily or monthly series. Each
-          run keeps its method, past accuracy and uncertainty visible.
+          Estimate future values from the dates in your file. Each run keeps
+          its method, past accuracy and uncertainty visible.
         </p>
         {loading && <p role="status">Checking forecast eligibility…</p>}
         {options && (
           <>
             {options.meaning_state === "confirmed" && <p role="status">Your saved data meanings are in use. You do not need to answer the same questions again.</p>}
-            {ready && options.limitations.length > 0 && (
-              <ul className="studyLimitations">
-                {options.limitations.map((text) => (
-                  <li key={text}>{text}</li>
-                ))}
-              </ul>
+            {quick?.kind === "no_timeline" && (
+              <div className="forecastPrerequisite forecastNoTimeline">
+                <h3>{quick.title}</h3>
+                <p>{quick.message}</p>
+                <div className="forecastAlternatives" aria-label="Explore without dates">
+                  {quick.alternatives.filter((item) => item.available).map((item) => {
+                    const action = item.tool === "unusual_values" ? () => setScanning(true) : item.tool === "patterns" ? onPatterns : onScenario;
+                    return action ? (
+                      <article key={item.tool} className="forecastAlternativeCard">
+                        <h4>{item.label}</h4>
+                        <p>{item.description}</p>
+                        <button type="button" onClick={action}>{item.label} <span aria-hidden="true">→</span></button>
+                      </article>
+                    ) : null;
+                  })}
+                </div>
+                {scanning && <UnusualValues root={root} request={request} onReview={onReview} autoRun />}
+                {quick.alternatives.some((item) => !item.available) && (
+                  <p>Confirm what your columns mean once to also find patterns and try what-ifs.</p>
+                )}
+                {onExplore && <button type="button" onClick={onExplore}>Explore observed data</button>}
+                {options.state === "needs_review" && <button type="button" onClick={onReview}>Review data meanings</button>}
+              </div>
             )}
-            {!ready && (
+            {!ready && quick?.kind !== "no_timeline" && (
               <div className="forecastPrerequisite">
                 <h3>
                   {options.state === "needs_review"
                     ? "Review meanings before forecasting"
-                    : options.date_columns.length === 0 ? "This file has no timeline to forecast" : "A forecast needs a measure with a confirmed unit"}
+                    : "A forecast needs a measure with a confirmed unit"}
                 </h3>
-                <ul>
-                  {(options.blockers ?? [{ code: "legacy", message: "Confirm a date column and a measure with a fixed unit before forecasting." }]).map(item => <li key={item.code}>{item.message}</li>)}
-                </ul>
-                {options.date_columns.length === 0 && <div className="forecastAlternatives" aria-label="Explore without dates">
-                  <p className="forecastAlternativeIntro">We can still learn from this file. Choose what you want to explore.</p>
-                  {onPatterns && <article className="forecastAlternativeCard">
-                    <span className="analysisEyebrow">LEARN FROM YOUR ROWS</span>
-                    <h4>What changes together?</h4>
-                    <p>Compare groups and check which measurements move together in the recorded data.</p>
-                    <button type="button" onClick={onPatterns}>Find patterns <span aria-hidden="true">→</span></button>
-                  </article>}
-                  {onScenario && <article className="forecastAlternativeCard">
-                    <span className="analysisEyebrow">TRY YOUR OWN ASSUMPTION</span>
-                    <h4>What if this continues for several days?</h4>
-                    <p>You choose the change per day and how many days. We calculate the possible result. This is a what-if, not a learned forecast.</p>
-                    <button type="button" onClick={onScenario}>Try a daily what-if <span aria-hidden="true">→</span></button>
-                  </article>}
-                </div>}
+                {options.state === "needs_review" && quick ? <p>{quick.message}</p> : (
+                  <ul>
+                    {(options.blockers ?? [{ code: "legacy", message: "Confirm a date column and a measure with a fixed unit before forecasting." }]).map(item => <li key={item.code}>{item.message}</li>)}
+                  </ul>
+                )}
                 {onExplore && <button type="button" onClick={onExplore}>Explore observed data</button>}
-                {(options.state === "needs_review" || options.blockers?.some(item => item.code === "metric")) && <button type="button" onClick={onReview}>
+                <button type="button" onClick={onReview}>
                   {options.state === "needs_review" ? "Review data meanings" : "Review missing meanings or units"}
-                </button>}
-
+                </button>
               </div>
             )}
+            {ready && quick?.kind === "forecast" && (
+              <div className="forecastQuickStart">
+                <h3>Ready to forecast</h3>
+                <p>{quick.message}</p>
+                <button type="button" disabled={!!pending} onClick={() => void quickForecast()}>
+                  Forecast {quick.metric}
+                </button>
+              </div>
+            )}
+            {ready && quick && quick.kind !== "forecast" && quick.kind !== "no_timeline" && <p role="status">{quick.message}</p>}
             {ready && (
+              <details className="forecastAdvanced" open={quick?.kind !== "forecast"}>
+                <summary className="forecastAdvancedSummary">Advanced forecast options</summary>
+                {options.limitations.length > 0 && (
+                  <ul className="studyLimitations">
+                    {options.limitations.map((text) => (
+                      <li key={text}>{text}</li>
+                    ))}
+                  </ul>
+                )}
               <form className="forecastForm" onSubmit={create}>
                 <h3>Create a forecast</h3>
                 <div className="forecastFields">
@@ -471,6 +516,7 @@ export function ForecastPanel({
                   Create forecast
                 </button>
               </form>
+              </details>
             )}
           </>
         )}

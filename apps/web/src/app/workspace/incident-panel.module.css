@@ -1,7 +1,7 @@
 /* Use case: Presents internal service incidents as readable accessible cards.
 What it does: Separates collector status, failure evidence and explicit staff actions across screen sizes. */
 
-.panel { --incident-border: var(--studio-border, light-dark(#d5e1dc, var(--theme-border))); --incident-ink: var(--studio-ink, light-dark(#243d35, var(--theme-ink))); --incident-accent: var(--studio-accent, light-dark(#176c64, var(--theme-accent))); color: var(--incident-ink); }
+.panel { --incident-border: var(--studio-border, var(--color-border)); --incident-ink: var(--studio-ink, var(--color-text)); --incident-accent: var(--studio-accent, var(--color-primary-text)); color: var(--incident-ink); }
 .panel p { line-height: 1.6; max-width: 78ch; }
 .heading, .cardHeading, .actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .heading h2 { margin: 8px 0; }
@@ -9,8 +9,8 @@ What it does: Separates collector status, failure evidence and explicit staff ac
 .filter { margin: 24px 0; max-width: 340px; }
 .filter label { display: flex; flex-direction: column; gap: 8px; }
 .filter select { font-size: 16px; width: 100%; }
-.health { padding: 18px; border: 1px solid var(--incident-border); border-radius: 12px; background: var(--studio-wash, light-dark(#f3f7f5, var(--theme-subtle))); display: grid; gap: 8px; margin-bottom: 24px; line-height: 1.5; }
-.health[role="alert"] { border-left: 4px solid var(--danger, light-dark(#963e30, var(--theme-accent))); }
+.health { padding: 18px; border: 1px solid var(--incident-border); border-radius: 12px; background: var(--studio-wash, var(--color-surface-sunken)); display: grid; gap: 8px; margin-bottom: 24px; line-height: 1.5; }
+.health[role="alert"] { border-left: 4px solid var(--danger, var(--color-danger)); }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr)); gap: 20px; }
 .card { min-width: 0; border: 1px solid var(--incident-border); border-radius: 12px; padding: 22px; }
 .cardHeading { font-size: 13px; }
@@ -22,7 +22,7 @@ What it does: Separates collector status, failure evidence and explicit staff ac
 .actions { justify-content: flex-start; margin-top: 24px; }
 .details { margin-top: 28px; border-top: 1px solid var(--incident-border); padding-top: 20px; }
 .details summary { cursor: pointer; font-weight: 600; }
-.error { color: var(--danger, light-dark(#963e30, var(--theme-warning))); }
+.error { color: var(--danger, var(--color-danger)); }
 .metrics { margin: 28px 0 36px; }
 .metrics h4 { margin: 0; font-size: 16px; }
 .threshold { display: grid; gap: 16px; margin-top: 24px; max-width: 620px; }

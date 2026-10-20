@@ -31,7 +31,7 @@ export default defineConfig({
           },
         ]),
     {
-      command: "npm run dev -- --hostname 127.0.0.1 --port 3001",
+      command: `npm run dev -- ${process.env.WATCHPACK_POLLING ? "--webpack " : ""}--hostname 127.0.0.1 --port 3001`,
       env: {
         EXECPLUS_BROWSER_BUILD: "1",
         EXECPLUS_WEB_DEV_HOSTS: "execplus.test",

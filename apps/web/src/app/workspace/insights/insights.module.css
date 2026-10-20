@@ -1,0 +1,101 @@
+/* Use case: Lays out the analyst overview as a calm, scannable Liveboard.
+What it does: Styles KPI tiles, insight cards with staggered entrance, the double-checked badge, skeletons and proposed actions using shared design tokens, down to 320px wide. */
+
+.overview { display: grid; gap: 20px; min-width: 0; margin-block: 8px 28px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; }
+.heading { display: grid; gap: 4px; }
+.overline { font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--color-primary-text); }
+.heading h3, .proposed h3 { margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; letter-spacing: -.01em; color: var(--color-text); text-wrap: balance; }
+.heading p, .proposed p { margin: 0; max-width: 72ch; font-size: 14px; line-height: 20px; color: var(--color-text-secondary); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+.card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; padding: 20px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); color: var(--color-text); overflow-wrap: anywhere; animation: rise 320ms cubic-bezier(.3, 0, 0, 1) both; animation-delay: calc(var(--i, 0) * 40ms); transition: box-shadow 120ms cubic-bezier(.2, 0, 0, 1), border-color 120ms; }
+.card:hover { box-shadow: var(--shadow-1); border-color: var(--color-border-strong); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.cardHeader { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.analyst { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--color-text-muted); }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-success-subtle); color: var(--color-success); font-size: 12px; line-height: 18px; font-weight: 600; cursor: help; }
+.cardTitle { margin: 0; font-size: 15px; line-height: 22px; font-weight: 600; letter-spacing: -.005em; }
+.summary { margin: -4px 0 0; font-size: 14px; line-height: 20px; color: var(--color-text-secondary); }
+.card :global(figure) figcaption { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); }
+.evidence { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; }
+.evidence li { display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%; padding: 3px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface-sunken); font-size: 12px; line-height: 18px; }
+.evidence span { color: var(--color-text-muted); }
+.evidence strong { font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.cardActions, .proposedList { display: flex; flex-wrap: wrap; gap: 8px; }
+.action, .primaryAction { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; max-width: 100%; padding: 6px 14px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-full); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; transition: background-color 120ms cubic-bezier(.2, 0, 0, 1), border-color 120ms, transform 120ms; }
+.action span, .primaryAction span { min-width: 0; overflow-wrap: anywhere; }
+.action svg, .primaryAction svg { flex-shrink: 0; transition: transform 120ms cubic-bezier(.2, 0, 0, 1); }
+.action:hover { background: var(--color-surface-hover); }
+.action:hover svg, .primaryAction:hover svg { transform: translateX(2px); }
+.primaryAction { border-color: transparent; background: var(--color-primary); color: var(--color-on-primary); }
+.primaryAction:hover { background: var(--color-primary-hover); }
+.action:focus-visible, .primaryAction:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.details { font-size: 13px; color: var(--color-text-secondary); }
+.details summary { min-height: 32px; padding: 6px 0; cursor: pointer; font-weight: 500; }
+.details ul { margin: 4px 0 8px; padding-left: 18px; line-height: 20px; }
+.details table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.details th, .details td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); text-align: left; overflow-wrap: anywhere; }
+.proposed { display: grid; gap: 14px; padding: 20px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-primary-subtle); }
+.proposed > div:first-child { display: grid; gap: 4px; }
+.notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.notice p { margin: 0; font-size: 14px; line-height: 20px; color: var(--color-text-secondary); }
+.skeleton { min-height: 280px; align-content: start; }
+.skeleton span { display: block; height: 12px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--color-surface-sunken) 0%, var(--color-surface-hover) 50%, var(--color-surface-sunken) 100%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+.skeleton span:nth-child(1) { width: 30%; }
+.skeleton span:nth-child(2) { width: 70%; height: 16px; }
+.skeleton span:nth-child(3) { width: 90%; }
+.skeleton span:nth-child(4) { height: 160px; border-radius: 50%; width: 160px; margin: 16px auto 0; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (max-width: 560px) { .card, .proposed { padding: 16px; } .action, .primaryAction { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; transition: none; }
+  .skeleton span { animation: none; }
+  .action svg, .primaryAction svg, .action, .primaryAction { transition: none; }
+  .action:hover svg, .primaryAction:hover svg { transform: none; }
+}
+.proposedGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+.proposedItem { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 6px; min-width: 0; min-height: 44px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font: inherit; text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; animation: rise 320ms cubic-bezier(.3, 0, 0, 1) both; animation-delay: calc(var(--i, 0) * 40ms); transition: border-color 120ms cubic-bezier(.2, 0, 0, 1), box-shadow 120ms, transform 120ms; }
+.proposedItem:hover { border-color: var(--color-primary); box-shadow: var(--shadow-1); }
+.proposedItem:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.proposedItem strong { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 20px; font-weight: 600; }
+.proposedItem strong svg { flex-shrink: 0; margin-top: 3px; color: var(--color-primary-text); transition: transform 120ms cubic-bezier(.2, 0, 0, 1); }
+.proposedItem:hover strong svg { transform: translateX(3px); }
+.proposedItem > span:not(.proposedGroup) { font-size: 13px; line-height: 18px; color: var(--color-text-secondary); }
+.proposedGroup { order: -1; align-self: flex-start; padding: 1px 8px; border-radius: var(--radius-full); background: var(--color-surface-sunken); color: var(--color-text-muted); font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.proposedLead { border-color: var(--color-primary); }
+@media (prefers-reduced-motion: reduce) { .proposedItem { animation: none; transition: none; } .proposedItem:hover strong svg { transform: none; } }
+.kind { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: var(--radius-full); font-size: 12px; line-height: 18px; font-weight: 600; background: var(--color-primary-subtle); color: var(--color-primary-text); }
+.kind[data-tone="watch"] { background: var(--color-warning-subtle); color: var(--color-warning); }
+.kind[data-tone="info"] { background: var(--color-surface-sunken); color: var(--color-text-secondary); }
+.strip { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.strip a { display: grid; gap: 8px; align-content: start; height: 100%; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); color: var(--color-text); text-decoration: none; box-shadow: var(--shadow-1); animation: rise 320ms cubic-bezier(.3, 0, 0, 1) both; animation-delay: calc(var(--i, 0) * 40ms); transition: border-color 120ms cubic-bezier(.2, 0, 0, 1); }
+.strip a:hover { border-color: var(--color-primary); }
+.strip a:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.strip .kind { justify-self: start; }
+.strip strong { font-size: 15px; line-height: 22px; font-weight: 600; }
+.section { display: grid; gap: 12px; }
+.sectionTitle { margin: 8px 0 0; font-size: 15px; line-height: 22px; font-weight: 600; color: var(--color-text); }
+.cardTitle { scroll-margin-top: 80px; }
+@media (prefers-reduced-motion: reduce) { .strip a { animation: none; transition: none; } }
+.stripSummary { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 18px; color: var(--color-text-secondary); }
+.stripLink { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--color-primary-text); }
+.strip a:hover .stripLink svg { transform: translateX(2px); }
+.stripLink svg { transition: transform 120ms cubic-bezier(.2, 0, 0, 1); }
+.card:focus { outline: none; }
+.card[data-highlight] { border-color: var(--color-primary); animation: spotlight 1600ms cubic-bezier(.2, 0, 0, 1); }
+@keyframes spotlight { 0%, 60% { box-shadow: 0 0 0 4px var(--color-primary-subtle); } 100% { box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .card[data-highlight] { animation: none; box-shadow: 0 0 0 4px var(--color-primary-subtle); } .stripLink svg { transition: none; } }
+.card { scroll-margin-top: 88px; }
+.tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--color-border); }
+.tabs::-webkit-scrollbar { display: none; }
+.overview .tabs button { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: color 120ms cubic-bezier(.2, 0, 0, 1), border-color 120ms; }
+.overview .tabs button:hover { color: var(--color-text); }
+.overview .tabs button[aria-selected="true"] { color: var(--color-primary-text); border-bottom-color: var(--color-primary); }
+.overview .tabs button:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; border-radius: var(--radius-xs); }
+.tabCount { min-width: 20px; padding: 0 6px; border-radius: var(--radius-full); background: var(--color-surface-sunken); color: var(--color-text-muted); font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums; text-align: center; }
+.tabs button[aria-selected="true"] .tabCount { background: var(--color-primary-subtle); color: var(--color-primary-text); }
+.panel { display: grid; gap: 16px; min-width: 0; }
+.tabHint { margin: 0; font-size: 13px; color: var(--color-text-muted); }
+.grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (max-width: 640px) { .overview .tabs button { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .overview .tabs button { transition: none; } }

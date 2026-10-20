@@ -1,0 +1,48 @@
+/* Use case: Styles the shared chart kit frame, donut legend and stat tiles.
+What it does: Uses the design tokens from docs/ui-design-reference.md with fallbacks, stays readable at 320px and removes motion when the reader asks for less. */
+
+.frame { margin: 0; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; container-type: inline-size; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
+.header > div { min-width: 0; }
+.title { font-size: 15px; line-height: 22px; font-weight: 600; letter-spacing: -.005em; color: var(--color-text); overflow-wrap: anywhere; }
+.subtitle { margin: 2px 0 0; font-size: 13px; line-height: 18px; color: var(--color-text-secondary); }
+.frame .toggle { flex-shrink: 0; min-height: 32px; padding: 4px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background-color 120ms cubic-bezier(.2, 0, 0, 1), color 120ms; }
+.toggle:hover { background: var(--color-surface-hover); color: var(--color-text); }
+.toggle[aria-pressed="true"] { background: var(--color-primary-subtle); color: var(--color-primary-text); border-color: transparent; }
+.canvasWrap { position: relative; min-width: 0; overflow: hidden; }
+.canvas { width: 100%; min-width: 0; border-radius: var(--radius-md); outline-offset: 2px; }
+.canvas:focus-visible { outline: 2px solid var(--color-focus-ring); }
+.donutLayout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: center; }
+@container (min-width: 440px) { .donutLayout { grid-template-columns: minmax(200px, 5fr) minmax(0, 6fr); gap: 20px; } }
+.center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; gap: 2px; padding: 0 30%; }
+.center span { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.center strong { font-size: clamp(18px, 6cqi, 26px); line-height: 1.2; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--color-text); overflow-wrap: anywhere; }
+.center small { font-size: 12px; color: var(--color-text-secondary); }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; min-width: 0; }
+.frame .legend button { width: 100%; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 52px; align-items: center; gap: 10px; min-height: 36px; padding: 6px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color 120ms cubic-bezier(.2, 0, 0, 1); }
+.frame .legend button:hover, .frame .legend li[data-active] button { background: var(--color-surface-hover); }
+.legend button:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 0; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; }
+.legendLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legendValue { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.legendShare { font-variant-numeric: tabular-nums; color: var(--color-text-muted); text-align: right; font-size: 12px; }
+.note { margin: 0; font-size: 12px; line-height: 16px; color: var(--color-text-muted); }
+.table { max-height: 360px; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.table table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.table th { position: sticky; top: 0; background: var(--color-surface-sunken); text-align: left; font-weight: 600; }
+.table th, .table td { padding: 8px 12px; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
+
+.tile { position: relative; display: grid; gap: 6px; align-content: start; min-width: 0; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); overflow: hidden; }
+.tileLabel { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: .01em; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.tileValue { position: relative; display: inline-block; max-width: 100%; font-size: 28px; line-height: 34px; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--color-text); overflow-wrap: anywhere; }
+@media (min-width: 1280px) { .tileValue { font-size: 32px; line-height: 38px; } }
+.countUp { position: relative; }
+.countUp[data-frame] { color: transparent; }
+.countUp[data-frame]::after { content: attr(data-frame); position: absolute; left: 0; top: 0; color: var(--color-text); white-space: nowrap; }
+.tileUnit { margin-left: 6px; font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--color-text-muted); }
+.tileCaption { font-size: 12px; line-height: 16px; color: var(--color-text-muted); }
+.spark { display: block; width: 100%; height: 32px; color: var(--chart-1); }
+.spark path:first-child { fill: currentColor; opacity: .16; }
+.spark path:last-child { fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+@media (prefers-reduced-motion: reduce) { .toggle, .legend button { transition: none; } }
+.hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

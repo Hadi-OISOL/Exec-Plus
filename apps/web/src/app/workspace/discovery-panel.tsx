@@ -1,7 +1,7 @@
 /* Use case: Gives every uploaded table a useful first reading without a setup form.
 What it does: Shows source-backed discoveries, data checks and relevant questions with inspectable query evidence. */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { Icon } from "./explore-components";
 import { WorkspaceLoading } from "./workspace-loading";
@@ -9,6 +9,11 @@ import { PatternResults, type PatternResult, type PatternEvidence } from "./patt
 import { DiagramResults, type DatasetDiagram } from "./diagram-results";
 import { AnswerVisualization } from "./answer-visualization";
 import { compareExactNumeric, displayMetric } from "./visualization-values";
+import { CountUpValue, StatTile } from "./charts/stat-tile";
+import { donutEligible } from "./charts/chart-values";
+import { InsightsOverview, ProposedActions, proposedFromInsights, useInsights, useInsightWords } from "./insights/insights-overview";
+import type { ProposedItem } from "./insights/insights-overview";
+import type { ActionIntent } from "./insights/insights-model";
 import styles from "./dashboard-presentation.module.css";
 import overview from "./discovery-panel.module.css";
 
@@ -49,15 +54,20 @@ type Discovery = {
 };
 
 
+type Words = (text: string) => string;
+const same: Words = text => text;
+
 function FindingEvidence({
   finding,
+  words = same,
 }: {
   finding: Finding;
+  words?: Words;
 }) {
   return (
     <details className="findingEvidence">
       <summary>How this was calculated</summary>
-      <p>{finding.text}</p>
+      <p>{words(finding.text)}</p>
       <p>
         {finding.aggregation} · {finding.metric} ·{" "}
         {finding.query.records_analyzed.toLocaleString()} source records.
@@ -106,10 +116,12 @@ function MetricGroup({
   findings,
   ask,
   unit,
+  words = same,
 }: {
   findings: Finding[];
   unit?: string;
   ask: (question: string) => void;
+  words?: Words;
 }) {
   const labels: Record<string, string> = {
     min: "Lowest",
@@ -128,20 +140,18 @@ function MetricGroup({
         {findings.map((finding) => (
           <div className="discoveryMetric" key={finding.id} data-long-value={displayMetric(finding.query.rows[0]?.[0] ?? null).length > 24}>
             <span>{labels[finding.aggregation] ?? finding.aggregation}</span>
-            <strong className="discoveryValue" title={String(finding.query.rows[0]?.[0] ?? "Missing")}>
-              {displayMetric(finding.query.rows[0]?.[0] ?? null)}
-            </strong>
+            <CountUpValue className="discoveryValue" exact={String(finding.query.rows[0]?.[0] ?? "Missing")} value={displayMetric(finding.query.rows[0]?.[0] ?? null)} />
             {unit && finding.aggregation !== "count" && <span>{unit}</span>}
             <button
               className="findingQuestion"
               type="button"
               onClick={() => ask(finding.question)}
-              aria-label={finding.question}
+              aria-label={words(finding.question)}
             >
               Explore
               <Icon name="arrow" size={13} />
             </button>
-            <FindingEvidence finding={finding} />
+            <FindingEvidence finding={finding} words={words} />
           </div>
         ))}
       </div>
@@ -157,9 +167,11 @@ function MetricGroup({
 function FindingCard({
   finding,
   ask,
+  words = same,
 }: {
   finding: Finding;
   ask: (question: string) => void;
+  words?: Words;
 }) {
   const rows = [...finding.query.rows].sort(
     (left, right) =>
@@ -174,8 +186,8 @@ function FindingCard({
         <Icon name="check" size={13} /> Calculated from your file
       </div>
       <AnswerVisualization
-        title={finding.title}
-        columns={finding.query.columns.map((column, index) =>
+        title={words(finding.title)}
+        columns={finding.query.columns.map(column => words(column)).map((column, index) =>
           column === "__value" && index === finding.query.columns.length - 1
             ? finding.aggregation === "count" ? "Count" : finding.metric
             : column,
@@ -183,6 +195,7 @@ function FindingCard({
         rows={rows}
         recordsAnalyzed={finding.query.records_analyzed}
         compact
+        initialChart={finding.aggregation === "count" && rows.length <= 7 && donutEligible(rows.map(row => row[1])) ? "pie" : "bar"}
         chartLimit={8}
         chartClassName="discoveryBars"
       />
@@ -196,10 +209,10 @@ function FindingCard({
         className="findingQuestion"
         onClick={() => ask(finding.question)}
       >
-        {finding.question}
+        {words(finding.question)}
         <Icon name="arrow" size={15} />
       </button>
-      <FindingEvidence finding={finding} />
+      <FindingEvidence finding={finding} words={words} />
     </article>
   );
 }
@@ -233,6 +246,9 @@ export function DiscoveryPanel({
   const [failure, setFailure] = useState<{ root: string; message: string } | null>(null);
   const error = failure?.root === root ? failure.message : "";
   const [attempt, setAttempt] = useState(0);
+  const [insights, retryInsights] = useInsights(root, request, enabled);
+  const knownFields = useMemo(() => discovery?.diagram?.nodes.filter(node => node.kind === "field").map(node => node.label) ?? [], [discovery]);
+  const [fields, words] = useInsightWords(insights?.payload, knownFields);
   useEffect(() => {
     if (!enabled) return;
     let active = true;
@@ -297,6 +313,19 @@ export function DiscoveryPanel({
         </p>
       </section>
     );
+  const act = (intent: ActionIntent) => {
+    if (intent.type === "ask") onQuestion(intent.question);
+    else if (intent.type === "prepare") onPrepare();
+    else if (intent.type === "review") onReview();
+    else if (intent.type === "anomalies") onAnalysis?.("anomalies", intent.metric);
+    else if (intent.type === "scenario") onScenario?.(intent.metric, intent.aggregation);
+  };
+  const proposed: ProposedItem[] = [
+    ...proposedFromInsights(insights?.payload?.next_actions ?? [], act, words),
+    ...(onAnalysis ? discovery.analysis_suggestions ?? [] : []).map(item => ({ key: `analysis:${item.tool}:${item.metric ?? ""}`, label: words(item.label), reason: words(item.reason), group: "Check", run: () => onAnalysis?.(item.tool, item.metric) })),
+    ...(onScenario ? discovery.scenario_metrics ?? [] : []).map(item => ({ key: `scenario:${item.metric}:${item.aggregation}`, label: `What if ${item.metric.replaceAll("_", " ")} changes?`, reason: `Start from the ${item.aggregation === "avg" ? "average" : "total"} in this file and adjust it yourself. Hypothetical arithmetic, not a prediction.`, group: "What-if", run: () => onScenario?.(item.metric, item.aggregation) })),
+    ...discovery.suggestions.slice(0, 4).map(question => ({ key: `ask:${question}`, label: words(question), group: "Ask", run: () => onQuestion(question) })),
+  ].filter((item, index, all) => all.findIndex(other => other.label.toLowerCase() === item.label.toLowerCase()) === index);
   const metricGroups = [
     ...new Set(
       discovery.findings
@@ -320,24 +349,14 @@ export function DiscoveryPanel({
           </div>
         </div>
         <p className="discoveryFilename">{discovery.dataset_name}</p>
-        <p className={overview.summary}>{discovery.summary.split("\n\n")[0]}</p>
+        <p className={overview.summary}>{words(discovery.summary.split("\n\n")[0])}</p>
         <span className="meaningState">{discovery.definition_state === "confirmed" ? "Confirmed meanings" : "Inferred meanings — not confirmed"}</span>
-        <div className={`discoveryShape ${overview.shape}`} aria-label="File structure">
-          <span>
-            <strong>{discovery.shape.rows.toLocaleString()}</strong> rows
-          </span>
-          <span>
-            <strong>{discovery.shape.columns.toLocaleString()}</strong> columns
-          </span>
-          <span>
-            <strong>{discovery.shape.metrics}</strong>{" "}
-            {discovery.shape.metrics === 1 ? "measure" : "measures"}
-          </span>
-          <span>
-            <strong>{discovery.shape.dimensions}</strong>{" "}
-            {discovery.shape.dimensions === 1 ? "category" : "categories"}
-          </span>
-        </div>
+        {!insights?.payload?.kpis.length && <div className={`discoveryShape ${overview.shape}`} aria-label="File structure">
+          <StatTile label="Rows" value={discovery.shape.rows.toLocaleString()} />
+          <StatTile label="Columns" value={discovery.shape.columns.toLocaleString()} />
+          <StatTile label={discovery.shape.metrics === 1 ? "Measure" : "Measures"} value={String(discovery.shape.metrics)} />
+          <StatTile label={discovery.shape.dimensions === 1 ? "Category" : "Categories"} value={String(discovery.shape.dimensions)} />
+        </div>}
         {discovery.definition_state !== "confirmed" && <div className={overview.meaningPrompt}>
           <div><strong>Help me put these numbers in context</strong><p>Confirm what one record represents and the units of your measures. This helps keep comparisons meaningful.</p></div>
           <button type="button" onClick={onReview}>Review data meaning<Icon name="arrow" size={15} /></button>
@@ -347,7 +366,7 @@ export function DiscoveryPanel({
         </button>
         <details className="discoveryProvenance">
           <summary>Source & interpretation</summary>
-          {discovery.summary.split("\n\n").map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+          {discovery.summary.split("\n\n").map((paragraph, index) => <p key={index}>{words(paragraph)}</p>)}
           <p>
             Structure comes from your file. Suggested business meanings remain
             tentative until reviewed.
@@ -370,11 +389,13 @@ export function DiscoveryPanel({
           ))}
         </details>
       </div>
-      {discovery.findings.length > 0 && <header className={overview.sectionHeading}>
+      <InsightsOverview state={insights} retry={retryInsights} onAction={act} fields={fields} words={words} />
+      {discovery.findings.length > 0 && <details className={`legacyCalculations ${overview.legacy}`} open={Boolean(insights?.error || (insights && !insights.payload?.insights.length))}>
+      <summary>More detail: individual calculations</summary>
+      <header className={overview.sectionHeading}>
         <span>YOUR STARTING POINT</span><h3>The numbers and groups in your file</h3>
         <p>These charts are calculated from the accessible records. Open a calculation only when you want the details.</p>
-      </header>}
-      {discovery.findings.length > 0 && (
+      </header>
         <div
           className="discoveryFindings"
           aria-label="Calculated starting points"
@@ -388,6 +409,7 @@ export function DiscoveryPanel({
                 return field && !field.unit_column ? field.currency || field.unit : undefined;
               })()}
               ask={onQuestion}
+              words={words}
             />
           ))}
           {discovery.findings
@@ -397,10 +419,11 @@ export function DiscoveryPanel({
                 key={finding.id}
                 finding={finding}
                 ask={onQuestion}
+                words={words}
               />
             ))}
         </div>
-      )}
+      </details>}
       {discovery.diagram && <section className={overview.dataMap} aria-label="Map of your data">
         <DiagramResults key={discovery.sources.map(source => source.revision_id).join(":")} diagram={discovery.diagram} sources={discovery.sources.map(source => ({ revision_id: source.revision_id, understanding_id: source.understanding_id ?? undefined }))} />
       </section>}
@@ -420,8 +443,8 @@ export function DiscoveryPanel({
               <li key={item.code}>
                 <Icon name="prepare" size={17} />
                 <div>
-                  <p>{item.text}</p>
-                  <span>{item.action}</span>
+                  <p>{words(item.text)}</p>
+                  <span>{words(item.action)}</span>
                 </div>
               </li>
             ))}
@@ -454,36 +477,12 @@ export function DiscoveryPanel({
             )}
           <ul>
             {discovery.limitations.map((item, index) => (
-              <li key={index}>{item}</li>
+              <li key={index}>{words(item)}</li>
             ))}
           </ul>
         </div>
       )}
-      {onAnalysis && Boolean(discovery.analysis_suggestions?.length) && <div className="discoveryNext">
-        <h3>Take a closer look</h3>
-        <div className={overview.nextActions}>{discovery.analysis_suggestions?.map(item => <button key={item.tool} type="button" onClick={() => onAnalysis(item.tool, item.metric)}><strong>{item.label}<Icon name="arrow" size={14} /></strong><span>{item.reason}</span></button>)}</div>
-        <p>These are suggested checks, not findings. Review each result and its assumptions.</p>
-      </div>}
-      {onScenario && Boolean(discovery.scenario_metrics?.length) && <section className="discoveryNext" aria-label="Explore a what-if">
-        <h3>Explore a what-if</h3>
-        <p>Change a confirmed measure and compare it with today’s baseline. This is hypothetical arithmetic, not a prediction of how another factor will respond.</p>
-        <div className={overview.nextActions}>{discovery.scenario_metrics?.map(item => <button key={`${item.metric}:${item.aggregation}`} type="button" onClick={() => onScenario(item.metric, item.aggregation)}><strong>What if {item.metric.replaceAll("_", " ")} changes?<Icon name="arrow" size={14} /></strong><span>Start from the {item.aggregation === "avg" ? "average" : "total"} in this file and adjust it yourself.</span></button>)}</div>
-      </section>}
-      <div className="discoveryNext">
-        <h3>Where would you like to go next?</h3>
-        <div className="suggestionChips">
-          {discovery.suggestions.slice(0, 4).map((question) => (
-            <button
-              key={question}
-              type="button"
-              onClick={() => onQuestion(question)}
-            >
-              {question}
-              <Icon name="arrow" size={14} />
-            </button>
-          ))}
-        </div>
-      </div>
+      <ProposedActions items={proposed} />
     </section>
   );
 }

@@ -2,7 +2,7 @@
 What it does: Exercises metadata-only search, layout choices, exact replay, stale-result removal and immutable study pins. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview, openFindings } from "./workspace-helpers";
+import { finishInitialReview, openFindings, navigateTo } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -25,7 +25,7 @@ async function start(page: Page, token: string, csv: string) {
 }
 
 async function navigate(page: Page, name: string) {
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name, exact: true }).click();
+  await navigateTo(page, name);
 }
 
 async function mobile(page: Page) {

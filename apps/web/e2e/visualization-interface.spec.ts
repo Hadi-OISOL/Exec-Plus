@@ -2,7 +2,7 @@
 What it does: Exercises signed and missing values, modal keyboard behavior, server drill-down, and narrow screens against actual services. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview, openFindings } from "./workspace-helpers";
+import { finishInitialReview, openFindings, showIndividualCalculations } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -60,8 +60,9 @@ test("chart and table exploration preserve exact values, gaps, source filters an
   await expect(trend.locator('[data-chart-template="documd-line"]')).toBeVisible();
   const trendEngine = trend.locator('[data-chart-renderer="apache-echarts"]');
   await expect(trendEngine.locator("svg")).toBeVisible();
+  await showIndividualCalculations(page);
   await expect(discovery.locator('.discoveryValue').filter({ hasText: '9,007,199,254,740,993' }).first()).toBeVisible();
-  expect(await page.locator('.analyticsShell').evaluate(element => getComputedStyle(element).fontFamily.toLowerCase())).toContain('manrope');
+  expect(await page.locator('.analyticsShell').evaluate(element => getComputedStyle(element).fontFamily.toLowerCase())).toContain('inter');
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await expect(trendEngine).toHaveAttribute("data-reduced-motion", "false");
   await page.emulateMedia({ reducedMotion: "reduce" });

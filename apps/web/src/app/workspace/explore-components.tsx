@@ -28,6 +28,7 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     upload: "M12 16V3 M7 8l5-5 5 5 M4 15v6h16v-6",
     arrow: "M5 12h14 M13 6l6 6-6 6",
     check: "M4 12l5 5L20 6",
+    more: "M5 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z M19 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z",
     sparkle: "M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z",
   };
   return (

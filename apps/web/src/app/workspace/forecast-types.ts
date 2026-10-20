@@ -139,7 +139,31 @@ export type ForecastOptions = {
   metrics: { name: string; unit: string; aggregations: string[] }[];
   limitations: string[];
   defaults: { coverage_start: string | null; coverage_end: string | null };
+  quick_start?: ForecastQuickStart;
 };
+
+export type ForecastQuickStart =
+  | {
+      kind: "forecast";
+      message: string;
+      name: string;
+      time_column: string;
+      metric: string;
+      unit: string;
+      aggregation: string;
+      frequency: "daily" | "monthly";
+      horizon: number;
+      coverage_start: string;
+      coverage_end: string;
+      periods: number;
+    }
+  | {
+      kind: "no_timeline";
+      title: string;
+      message: string;
+      alternatives: { tool: "unusual_values" | "patterns" | "scenario"; label: string; description: string; available: boolean }[];
+    }
+  | { kind: "needs_review" | "advanced" | "too_short"; message: string };
 
 export function advancedMinimumHistory(
   frequency: "daily" | "monthly",

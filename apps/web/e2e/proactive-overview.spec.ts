@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, showIndividualCalculations } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 
@@ -48,6 +48,7 @@ test("overview maps the file, keeps evidence optional, and carries an average in
     await page.getByRole("radio", { name: mode, exact: true }).check();
     expect(await overview.locator("details[open]").count()).toBe(0);
   }
+  await showIndividualCalculations(page);
   const evidence = overview.locator("details.findingEvidence").first();
   await evidence.locator(":scope > summary").focus();
   await page.keyboard.press("Enter");

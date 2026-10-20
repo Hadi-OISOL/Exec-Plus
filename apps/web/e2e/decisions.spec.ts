@@ -31,13 +31,13 @@ test("private anomaly and allocation evidence survives replay and human review",
     }
     await meanings.getByRole("button", { name: "Confirm business definitions", exact: true }).click();
     await expect(meanings.getByText("confirmed", { exact: true })).toBeVisible();
+    const quickResponse = page.waitForResponse(r => r.url().endsWith("/decision-analysis/unusual-values") && r.request().method() === "POST");
     await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
-    const quickResponse = page.waitForResponse(r => r.url().endsWith("/decision-analysis/anomalies") && r.request().method() === "POST");
-    await panel.getByRole("button", { name: "Check unusual values", exact: true }).click();
     const quick = await quickResponse;
-    expect(quick.status()).toBe(201);
-    expect((await quick.json()).run.result.flagged_records).toBe(1);
-    await expect(panel.getByRole("region", { name: "Saved analysis result", exact: true })).toContainText("1 of 9 records flagged");
+    expect(quick.status()).toBe(200);
+    expect((await quick.json()).total_findings).toBe(1);
+    await expect(panel.getByRole("region", { name: "Unusual values", exact: true })).toContainText("amount is 100");
+    await panel.getByText("Advanced options: choose one measure", { exact: false }).click();
     await panel.getByRole("combobox", { name: "Measure to inspect", exact: true }).selectOption("amount");
     await panel.getByLabel("Analysis name", { exact: true }).fill("Reviewed anomaly sample");
     const savedResponse = page.waitForResponse((r) => r.url().endsWith("/decision-analysis/anomalies") && r.request().method() === "POST");

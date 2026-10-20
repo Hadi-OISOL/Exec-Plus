@@ -9,7 +9,7 @@ import { AccountAccess } from "./account-access";
 import { AccountSecurity, InvitationIdentityApproval } from "./account-security";
 import { OnboardingGuide } from "./onboarding-guide";
 import type { ApiRequest } from "./profile-panel";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { FormEvent } from "react";
@@ -27,13 +27,7 @@ import { DiscoveryPanel } from "./discovery-panel";
 import type { StaffRole } from "./support-panel";
 import { AnalyticsHome } from "./analytics-home";
 import { WorkspaceLoading } from "./workspace-loading";
-import "./analytics-shell.css";
-import "./product-polish.css";
-import "./focused-workspace.css";
-import "./studio-workspace.css";
 import { ThemeControl } from "../theme-control";
-import "./open-workspace.css";
-import "./intelligence-workspace.css";
 
 const loadingView = () => <WorkspaceLoading />;
 const SourcesPanel = dynamic(
@@ -224,6 +218,8 @@ export default function WorkspacePage() {
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [topQuestion, setTopQuestion] = useState("");
   const role = members.find((member) => member.user_id === user?.id)?.role;
   const manager = role === "owner" || role === "admin";
   const limitedUpload = uploads.find(item => item.id === profileUpload)?.access_limited === true;
@@ -325,6 +321,10 @@ export default function WorkspacePage() {
       setBusy(false);
     }
   }
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [user?.id, section]);
 
   useEffect(() => {
     if (!profileUpload || !user || limitedUpload) return;
@@ -874,24 +874,38 @@ export default function WorkspacePage() {
   const guidedActive = Boolean(root && user && !limitedUpload && guidedFor === profileUpload && !briefActive && !reviewOpen);
   const reviewing = ["overview", "ask"].includes(section) && (guidedActive || reviewOpen || (section === "overview" && briefActive && briefManual));
   const sections = [
-    { id: "overview", name: "Overview", group: "INSIGHTS" },
-    { id: "ask", name: "Ask ExecPlus", group: "INSIGHTS" },
-    { id: "search", name: "Search data", group: "INSIGHTS" },
-    { id: "studies", name: "Studies & dashboards", group: "LIBRARY" },
-    { id: "saved", name: "Saved work", group: "LIBRARY" },
-    { id: "forecasts", name: "Forecasts", group: "ANALYSIS & ALERTS" },
-    { id: "decisions", name: "Anomalies & decisions", group: "ANALYSIS & ALERTS" },
-    { id: "refresh", name: "Refresh & alerts", group: "ANALYSIS & ALERTS" },
-    { id: "data", name: "Data library", group: "DATA WORKSPACE" },
-    { id: "prepare", name: "Prepare data", group: "DATA WORKSPACE" },
-    { id: "documents", name: "Documents", group: "DATA WORKSPACE" },
-    { id: "memory", name: "My memory", group: "MANAGE" },
-    { id: "team", name: "Team & settings", group: "MANAGE" },
-    { id: "audit", name: "Audit history", group: "MANAGE" },
-    ...(manager ? [{ id: "usage", name: "Usage & retention", group: "MANAGE" }] : []),
-    { id: "support", name: "Support", group: "MANAGE" },
-    ...(staffRole ? [{ id: "admin", name: "Admin console", group: "MANAGE" }] : []),
+    { id: "overview", name: "Overview", group: "Analyze" },
+    { id: "ask", name: "Ask ExecPlus", group: "Analyze" },
+    { id: "search", name: "Search data", group: "Analyze" },
+    { id: "forecasts", name: "Forecasts", group: "Analyze" },
+    { id: "decisions", name: "Anomalies & decisions", group: "Analyze" },
+    { id: "studies", name: "Studies & dashboards", group: "Library" },
+    { id: "saved", name: "Saved work", group: "Library" },
+    { id: "refresh", name: "Refresh & alerts", group: "Library" },
+    { id: "data", name: "Data library", group: "Data" },
+    { id: "prepare", name: "Prepare data", group: "Data" },
+    { id: "documents", name: "Documents", group: "Data" },
+    { id: "team", name: "Team & settings", group: "Workspace" },
+    { id: "memory", name: "My memory", group: "More" },
+    { id: "audit", name: "Audit history", group: "More" },
+    ...(manager ? [{ id: "usage", name: "Usage & retention", group: "More" }] : []),
+    { id: "support", name: "Support", group: "More" },
+    ...(staffRole ? [{ id: "admin", name: "Admin console", group: "More" }] : []),
   ];
+  const current = sections.find((item) => item.id === section);
+  const moreVisible = moreOpen || current?.group === "More";
+  const navButton = (item: { id: string; name: string }) => (
+    <button
+      type="button"
+      key={item.id}
+      disabled={!user || busy}
+      aria-current={section === item.id ? "page" : undefined}
+      onClick={() => navigate(item.id)}
+    >
+      <Icon name={item.id === "ask" ? "chat" : item.id === "search" ? "search" : item.id} size={18} />
+      <span>{item.name}</span>
+    </button>
+  );
   function loadSample(kind: string) {
     if (!workspace) return;
     void run(async () => {
@@ -956,91 +970,97 @@ export default function WorkspacePage() {
     >
       <aside className="workbenchRail">
         <Link className="brand" href="/">
-          <span className="brandMark">
-            E<span>+</span>
-          </span>
-          <span>
-            ExecPlus<small>YOUR DATA. CLEARER.</small>
-          </span>
+          <span className="brandMark" aria-hidden="true">E+</span>
+          <span>ExecPlus</span>
         </Link>
         <nav aria-label="Workspace navigation">
-          {[...new Set(sections.map((item) => item.group))].map((group) => (
-            <div className="analyticsNavGroup" key={group}>
+          {["Analyze", "Library", "Data"].map((group) => (
+            <div className="navGroup" key={group}>
               <div className="railCaption">{group}</div>
-              {sections.filter((item) => item.group === group).map((item) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  title={item.name}
-                  disabled={!user || busy}
-                  aria-current={section === item.id ? "page" : undefined}
-                  onClick={() => navigate(item.id)}
-                >
-                  <Icon name={item.id === "ask" ? "chat" : item.id === "search" ? "search" : item.id} />
-                  <span>{item.name}</span>
-                </button>
-              ))}
+              {sections.filter((item) => item.group === group).map(navButton)}
             </div>
           ))}
+          <div className="navGroup">
+            <div className="railCaption">Workspace</div>
+            {sections.filter((item) => item.group === "Workspace").map(navButton)}
+            <button type="button" className="navMoreToggle" aria-expanded={moreVisible} aria-controls="workspace-more-navigation" onClick={() => setMoreOpen((open) => !open)}>
+              <Icon name="more" size={18} /><span>More</span>
+            </button>
+            <div id="workspace-more-navigation" className="navMoreItems" hidden={!moreVisible}>
+              {sections.filter((item) => item.group === "More").map(navButton)}
+            </div>
+          </div>
         </nav>
-        <div className="railNote">
-          <Icon name="check" />
-          <strong>Clarity, backed by evidence.</strong>
-          <p>Your questions. Your data. Your next step.</p>
-          <span>Private demo</span>
-        </div>
       </aside>
       <div className="workbenchBody">
         <header className="workbenchTop">
-          <div>
-            <span className="topBreadcrumb">
-              <strong>ExecPlus</strong> / {sections.find((item) => item.id === section)?.name}
-            </span>
-            {user && <button className="headerSearch" type="button" aria-label="Search your data" onClick={() => navigate("search")}>
-              <Icon name="search" size={15} /><span>Search your data</span>
-            </button>}
-            <span className="privateBadge">
-              <span className="liveDot" /> Private workspace
-            </span>
-          </div>
-          <ThemeControl />
-          {user && (
-            <div className="sessionBar">
-              <span className="userIdentity">
-                <span className="userAvatar">
-                  {user.email.slice(0, 1).toUpperCase()}
-                </span>
-                <span>Signed in as {user.email}</span>
-              </span>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await request("/auth/logout", { method: "POST" });
-                    clearSession();
-                  })
-                }
-              >
-                Sign out
-              </button>
-            </div>
+          <span className="topBreadcrumb">
+            {current?.group ?? "ExecPlus"} <span aria-hidden="true">/</span> <strong>{current?.name}</strong>
+          </span>
+          {user && section !== "ask" && (
+            <form className="topAsk" role="search" onSubmit={(event) => {
+              event.preventDefault();
+              const text = topQuestion.trim();
+              if (!text) return;
+              setTopQuestion("");
+              if (root) askFromHome(text);
+              else { navigate("data"); setMessage("Add a data file first, then ask your question."); }
+            }}>
+              <Icon name="sparkle" size={17} />
+              <input
+                aria-label="Ask anything about your data"
+                placeholder={root ? "Ask anything about your data…" : "Add data to start asking…"}
+                value={topQuestion}
+                maxLength={500}
+                onChange={(event) => setTopQuestion(event.target.value)}
+              />
+              <button type="submit" aria-label="Submit question" disabled={!topQuestion.trim()}><Icon name="arrow" size={16} /></button>
+            </form>
           )}
+          <div className="topActions">
+            {user && <button className="headerSearch" type="button" aria-label="Search your data" title="Search your data" onClick={() => navigate("search")}>
+              <Icon name="search" size={17} />
+            </button>}
+            <ThemeControl />
+            {user && (
+              <div className="sessionBar">
+                <span className="userIdentity">
+                  <span className="userAvatar" aria-hidden="true">
+                    {user.email.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span>Signed in as {user.email}</span>
+                </span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await request("/auth/logout", { method: "POST" });
+                      clearSession();
+                    })
+                  }
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </header>
         <div className="workbenchContent">
           <header className="workspaceHeader" hidden={Boolean(user && reviewing && ["overview", "ask"].includes(section))}>
             <div>
-              <p className="eyebrow">{sections.find((item) => item.id === section)?.group ?? "WELCOME"}</p>
               <h1>
                 {!user
                   ? "Meet your data."
-                  : section === "overview"
-                    ? "Overview"
-                    : sections.find((item) => item.id === section)?.name}
+                  : section === "overview" && selectedUpload ? selectedUpload.filename : current?.name}
               </h1>
               <p>
-                {section === "overview"
-                  ? "Explore, ask and build on what you discover."
+                {!user
+                  ? "Sign in to explore, prepare and share your data."
+                  : section === "overview" && selectedUpload
+                    ? `${selectedUpload.row_count.toLocaleString()} ${selectedUpload.access_limited ? "rows in your view" : "rows"} · ${selectedUpload.column_count.toLocaleString()} columns · ${selectedUpload.sample_id ? "Fictional sample" : "Your upload"}`
+                  : section === "overview"
+                    ? "Explore, ask and build on what you discover."
                   : section === "memory"
                     ? "Your private preferences for clearer explanations."
                   : section === "prepare"
@@ -1061,7 +1081,7 @@ export default function WorkspacePage() {
                 disabled={busy}
                 onClick={() => setSection("data")}
               >
-                <Icon name="upload" /> Add data
+                <Icon name="upload" size={17} /> Add data
               </button>
             )}
           </header>
@@ -1112,11 +1132,10 @@ export default function WorkspacePage() {
             </section>
           ) : (
             <>
-              {workspace && ["overview", "data", "team"].includes(section) && <OnboardingGuide key={`setup-${workspace.id}-${user.id}`} workspaceId={workspace.id} request={request} defaultOpen={nativeAccount} onNavigate={navigate} />}
               {workspace && !["admin", "memory"].includes(section) && (
                 <section className="datasetToolbar" aria-label="Selected data">
                   <label>
-                    Current workspace
+                    <span>Current workspace</span>
                     <select
                       value={workspace.id}
                       disabled={busy}
@@ -1138,7 +1157,7 @@ export default function WorkspacePage() {
                     </select>
                   </label>
                   <label>
-                    Dataset
+                    <span>Dataset</span>
                     <select
                       aria-label="Dataset"
                       value={dataset}
@@ -1160,7 +1179,7 @@ export default function WorkspacePage() {
                     </select>
                   </label>
                   <label>
-                    Profile upload
+                    <span>Profile upload</span>
                     <select
                       value={profileUpload}
                       disabled={busy || !uploads.length}
@@ -1181,7 +1200,8 @@ export default function WorkspacePage() {
                       ))}
                     </select>
                   </label>
-                  {selectedUpload && (
+                  {["overview", "data", "team"].includes(section) && <OnboardingGuide key={`setup-${workspace.id}-${user.id}`} workspaceId={workspace.id} request={request} defaultOpen={nativeAccount} onNavigate={navigate} />}
+                  {selectedUpload && section !== "overview" && (
                     <span className="sourceStats">
                       <strong>
                         {selectedUpload.row_count.toLocaleString()}
@@ -1213,6 +1233,7 @@ export default function WorkspacePage() {
                   </p>
                   <form onSubmit={uploadFile}>
                     <label className="fileDropzone">
+                      <Icon name="upload" size={26} />
                       CSV or Excel file
                       <input
                         key={workspace?.id ?? "first-upload"}
@@ -1227,7 +1248,7 @@ export default function WorkspacePage() {
                       <span>
                         {file
                           ? `${file.name} · ${(file.size / 1024).toFixed(1)} KB`
-                          : "Choose a .csv or .xlsx file · up to 20 MiB"}
+                          : "Drop a .csv or .xlsx file here, or click to browse · up to 20 MiB"}
                       </span>
                     </label>
                     <label>What is this data about? (optional)<select disabled={busy} value={uploadDomain} onChange={event => setUploadDomain(event.target.value)}>{domains.map(item => <option key={item} value={item}>{item === "auto" ? "Help me work it out" : item}</option>)}</select></label>
@@ -1726,9 +1747,12 @@ export default function WorkspacePage() {
                   {section === "forecasts" && !reviewing && expert && analysisFocusControl}
                   <div hidden={!["overview", "ask"].includes(section)} className={section === "ask" ? "dedicatedConversation" : "overviewConversation"}>
                     <div className="analysisViewControls" hidden={reviewing}>
-                      <div>
-                        <strong>{section === "ask" ? "Your conversation" : "Explore further"}</strong>
-                      </div>
+                      {section === "ask" ? <div><strong>Your conversation</strong></div> : !limitedUpload && !reviewOpen && guidedFor !== profileUpload ? (
+                        <div className="reviewEntryActions">
+                          <button type="button" disabled={busy} onClick={openBrief}>Check what ExecPlus understood</button>
+                          <details><summary>Other review options</summary><button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button></details>
+                        </div>
+                      ) : <span />}
                       <fieldset className="analysisViewChoice" data-mode={expert ? "expert" : "simple"}>
                         <legend className="srOnly">Analysis view</legend>
                         <span className="analysisViewIndicator" aria-hidden="true" />
@@ -1753,12 +1777,6 @@ export default function WorkspacePage() {
                       </fieldset>
                     </div>
                     {section === "overview" && !reviewing && expert && analysisFocusControl}
-                    {root && !limitedUpload && section === "overview" && !reviewOpen && guidedFor !== profileUpload && (
-                      <div className="reviewEntryActions">
-                        <button type="button" disabled={busy} onClick={openBrief}>Check what ExecPlus understood</button>
-                        <details><summary>Other review options</summary><button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button></details>
-                      </div>
-                    )}
                     {root && user && !limitedUpload && guidedFor === profileUpload && briefFor !== profileUpload && !reviewOpen && (
                       <GuidedReview
                         key={`guided-${user.id}-${root}-${revisionTick}`}
@@ -1776,6 +1794,22 @@ export default function WorkspacePage() {
                       />
                     )}
                     <div className="exploreLayout discoveryLayout">
+                  {briefActive && user && (
+                    <div hidden={section !== "overview"}><DataBriefReview
+                      key={`brief-${user.id}-${root}`}
+                      root={root}
+                      request={request}
+                      manual={briefManual}
+                      onClose={closeBrief}
+                      onUnavailable={(reason) => {
+                        setBriefFor("");
+                        setBriefManual(false);
+                        setGuidedFor("");
+                        if (reason || briefManual)
+                          setMessage(`${reason || "The data reading is unavailable right now."} You can review data meaning from the overview.`);
+                      }}
+                    /></div>
+                  )}
                       <section className="workspaceSurface overviewFindings" aria-label="First findings from your file" hidden={section !== "overview" || reviewing}>
                         <header className="workspaceSurfaceHeader">
                           <Icon name="overview" />
@@ -1807,22 +1841,6 @@ export default function WorkspacePage() {
                         />
                       </div>
                       </section>
-                  {briefActive && user && (
-                    <div hidden={section !== "overview"}><DataBriefReview
-                      key={`brief-${user.id}-${root}`}
-                      root={root}
-                      request={request}
-                      manual={briefManual}
-                      onClose={closeBrief}
-                      onUnavailable={(reason) => {
-                        setBriefFor("");
-                        setBriefManual(false);
-                        setGuidedFor("");
-                        if (reason || briefManual)
-                          setMessage(`${reason || "The data reading is unavailable right now."} You can review data meaning from the overview.`);
-                      }}
-                    /></div>
-                  )}
 
                       <div className="conversationWorkspace" hidden={section !== "ask" || reviewing}>
                       <AskPanel

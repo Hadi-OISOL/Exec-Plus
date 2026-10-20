@@ -130,7 +130,7 @@ test("owner keys and private embedded dashboards retain exact access and reject 
   await expect(exactView.locator('[data-chart-renderer="apache-echarts"]')).toHaveAttribute("data-engine-ready", "true");
   await expect(exactView).not.toContainText("__value");
   await expect(exactView).toContainText("amount · USD");
-  expect(await frame.getByRole("main").evaluate(element => getComputedStyle(element).fontFamily.toLowerCase())).toContain("manrope");
+  expect(await frame.getByRole("main").evaluate(element => getComputedStyle(element).fontFamily.toLowerCase())).toContain("inter");
   await exactView.getByRole("button", { name: "Table", exact: true }).click();
   await expect(exactView).toContainText("9007199254740993.000001");
   await expect(exactView).toContainText("-0.200000000000");

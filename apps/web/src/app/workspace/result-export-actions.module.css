@@ -1,12 +1,12 @@
 /* Use case: Styles compact, accessible result download controls.
 What it does: Keeps format choice and feedback readable without crowding analysis results. */
-.export { margin: 16px 0; padding: 14px 18px; border: 1px solid light-dark(#d5e1dc, var(--theme-border)); border-radius: 14px; background: light-dark(#f8faf9, var(--theme-surface)); color: light-dark(#253d35, var(--theme-ink)); }
+.export { margin: 16px 0; padding: 14px 18px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface-sunken); color: var(--color-text); }
 .export summary { min-height: 28px; cursor: pointer; font-size: 14px; font-weight: 650; }
 .export .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; }
 .export .controls label { display: flex; flex: 1 1 180px; flex-direction: column; gap: 6px; font-size: 14px; }
 .export .controls select, .export .controls button { min-height: 44px; font: inherit; border-radius: 8px; }
-.export .controls select { width: 100%; min-width: 0; flex: 0 0 auto; padding: 8px; background: light-dark(#fff, var(--theme-surface)); color: light-dark(#253d35, var(--theme-ink)); border: 1px solid light-dark(#b8c9c1, var(--theme-border)); }
-.export p { max-width: 78ch; font-size: 13px; line-height: 1.6; color: light-dark(#4b6157, var(--theme-ink)); }
-.export [role="alert"] { color: light-dark(#973e30, var(--theme-warning)); }
-.export :focus-visible { outline: 3px solid light-dark(#176c64, var(--theme-accent)); outline-offset: 3px; }
+.export .controls select { width: 100%; min-width: 0; flex: 0 0 auto; padding: 8px; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
+.export p { max-width: 78ch; font-size: 13px; line-height: 1.6; color: var(--color-text-secondary); }
+.export [role="alert"] { color: var(--color-danger); }
+.export :focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
 @media(max-width:600px) { .export .controls select { font-size: 16px; } .export .controls button { width: 100%; } }

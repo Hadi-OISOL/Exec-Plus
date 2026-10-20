@@ -26,6 +26,7 @@ type BriefColumn = {
   unit: string;
   uncertain: boolean;
   question: string;
+  unit_source?: string;
 };
 type Brief = {
   source: "model" | "profile";
@@ -133,7 +134,7 @@ function buildCards(brief: Brief): Card[] {
       facts: [
         `Type: ${column.type}`,
         `Seen as: ${roleNames[column.role] ?? column.role}`,
-        ...(column.unit ? [`Unit: ${column.unit}`] : []),
+        ...(column.unit ? [`Unit: ${column.unit}${column.unit_source === "suggested from column name" ? " (suggested from column name)" : ""}`] : []),
       ],
       quote: "",
       column,

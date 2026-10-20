@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { navigateTo } from "./workspace-helpers";
 
 test("internal alerts collect durable failures and honor staff review and revocation", async ({ page }) => {
   test.setTimeout(140_000);
@@ -24,7 +25,7 @@ test("internal alerts collect durable failures and honor staff review and revoca
   await page.goto("/workspace");
   await page.getByLabel("Session token").fill(token);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Admin console", exact: true }).click();
+  await navigateTo(page, "Admin console");
   await page.getByRole("button", { name: "Service alerts", exact: true }).click();
   const panel = page.getByRole("region", { name: "Internal service alerts", exact: true });
   const card = panel.getByRole("article", { name: "A staged refresh could not activate", exact: true });

@@ -3,30 +3,30 @@ What it does: Styles local navigation and exact inspection without changing data
 
 .plot { min-width: 0; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-.toolbar > span { color: light-dark(#536961, var(--theme-muted)); font-size: 13px; line-height: 1.6; }
+.toolbar > span { color: var(--color-text-secondary); font-size: 13px; line-height: 1.6; }
 .toolbar > div, .inspectionControls > div { display: flex; gap: 6px; flex-wrap: wrap; }
-.plot .toolbar button, .plot .inspectionControls button, .plot .drill { min-height: 44px; min-width: 44px; padding: 8px 12px; border: 1px solid light-dark(#d5e0d8, var(--theme-border)); border-radius: 7px; background: light-dark(#fff, var(--theme-surface)); color: light-dark(#245a4d, var(--theme-accent)); font-size: 13px; line-height: 1.5; }
+.plot .toolbar button, .plot .inspectionControls button, .plot .drill { min-height: 44px; min-width: 44px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-surface); color: var(--color-primary-text); font-size: 13px; line-height: 1.5; }
 .plot button:disabled { opacity: .5; cursor: default; }
-.plot button:not(:disabled):hover { background: light-dark(#edf4ef, var(--theme-subtle)); }
-.range { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 4px; color: light-dark(#536961, var(--theme-muted)); font-size: 12px; line-height: 1.6; }
+.plot button:not(:disabled):hover { background: var(--color-surface-sunken); }
+.range { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 4px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.6; }
 .range > span { min-width: 0; max-width: 40%; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .range small { display: block; font-size: 12px; }
 .range > span:nth-child(2) { font-size: 12px; text-align: center; }
 .range > span:last-child { text-align: right; }
 .chart { width: 100%; min-width: 0; border-radius: 8px; }
 .chart > div { width: 100%; min-width: 0; }
-.chart:focus-visible { outline: 2px solid light-dark(#176b57, var(--theme-accent)); outline-offset: 4px; }
-.help { color: light-dark(#536961, var(--theme-muted)); font-size: 12px; line-height: 1.6; margin: 12px 0; }
-.missing { padding: 10px 12px; margin: 12px 0; border: 1px solid light-dark(#d5e0d8, var(--theme-border)); border-radius: 7px; color: light-dark(#536961, var(--theme-muted)); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.chart:focus-visible { outline: 2px solid var(--color-primary-text); outline-offset: 4px; }
+.help { color: var(--color-text-secondary); font-size: 12px; line-height: 1.6; margin: 12px 0; }
+.missing { padding: 10px 12px; margin: 12px 0; border: 1px solid var(--color-border); border-radius: 7px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .missing p { margin: 0; }
-.missing strong { display: block; color: light-dark(#304c43, var(--theme-ink)); }
+.missing strong { display: block; color: var(--color-text); }
 .missing ul { margin: 6px 0 0; padding-left: 18px; }
 .missing summary { min-height: 44px; padding: 10px 0; cursor: pointer; }
-.plot .windowControl { display: grid; gap: 7px; font-size: 12px; color: light-dark(#536961, var(--theme-muted)); margin: 14px 0; }
-.windowControl input { width: 100%; min-width: 0; min-height: 44px; padding: 0; accent-color: #176b57; }
+.plot .windowControl { display: grid; gap: 7px; font-size: 12px; color: var(--color-text-secondary); margin: 14px 0; }
+.windowControl input { width: 100%; min-width: 0; min-height: 44px; padding: 0; accent-color: var(--color-primary); }
 .inspectionControls { display: flex; align-items: flex-end; gap: 10px; margin: 18px 0 0; }
-.plot .inspectionControls > label { display: grid; flex: 1 1 auto; gap: 7px; min-width: 0; font-size: 12px; color: light-dark(#536961, var(--theme-muted)); }
-.plot .inspectionControls select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid light-dark(#d5e0d8, var(--theme-border)); border-radius: 7px; background: light-dark(#fff, var(--theme-surface)); padding: 8px; font-size: 14px; color: light-dark(#213a32, var(--theme-ink)); }
+.plot .inspectionControls > label { display: grid; flex: 1 1 auto; gap: 7px; min-width: 0; font-size: 12px; color: var(--color-text-secondary); }
+.plot .inspectionControls select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-surface); padding: 8px; font-size: 14px; color: var(--color-text); }
 .plot .inspectionControls > div { flex: 0 0 auto; }
 .plot .drill { margin: 14px 0 0; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
 @media (max-width: 650px) {

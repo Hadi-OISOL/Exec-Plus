@@ -10,6 +10,7 @@ import { LargeAllocationPanel, isLargeAllocationMethod } from "./large-allocatio
 import { CalendarAnomalyPanel } from "./calendar-anomaly-panel";
 import { isCalendarMethod } from "./calendar-anomaly-types";
 import { MultivariateAnomalyPanel, MULTIVARIATE_METHOD } from "./multivariate-anomaly-panel";
+import { UnusualValues } from "./unusual-values";
 const post = (body: object): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 export function DecisionPanel({ root, request, onReview, initialMethod, initialMetric = "", initialOperation, initialAggregation }: {
     root: string;
@@ -122,24 +123,6 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
             setMessage("Saved privately with original source evidence.");
         });
     }
-    async function quickAnomaly() {
-        const suggested = options?.anomaly_default;
-        if (!options || !suggested) return;
-        await work("Checking unusual values…", async signal => {
-            const value = await request<AnalysisBody>(`${root}/decision-analysis/anomalies`, {
-                ...post({ name: Array.from(`Unusual ${suggested.metric}`).slice(0, 100).join(""), revision_id: options.revision_id,
-                    understanding_id: options.understanding_id, filters: [], metric: suggested.metric,
-                    threshold: suggested.threshold, materiality: suggested.materiality,
-                    segment_column: null, minimum_segment_size: suggested.minimum_segment_size }), signal,
-            });
-            if (signal.aborted) return;
-            setSelected(value);
-            setMetric(suggested.metric);
-            setNote(""); setTarget("");
-            setHistory(previous => [value.run, ...previous.filter(item => item.id !== value.run.id)]);
-            setMessage("Saved privately. This checks unusual values across the visible file; it does not prove errors or causes.");
-        });
-    }
     async function open(id: string) {
         await work("Replaying original sources and checking the result…", async (signal) => {
             const value = await request<AnalysisBody>(`${runsRoot}/${id}`, { signal });
@@ -174,21 +157,8 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
     if (kind === "scenarios") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><ScenarioPanel initialAggregation={initialAggregation} initialMetric={initialMetric} initialOperation={initialOperation} root={root} request={request} onReview={onReview} /></>;
     if (kind === "large-allocations") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><LargeAllocationPanel key={root} root={root} request={request} onReview={onReview} /></>;
     if (kind === "seasonal" || kind === "drift" || kind === "rolling") return <><label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={e => changeMethod(e.target.value)}>{methodOptions}</select></label><CalendarAnomalyPanel key={`${root}:${kind}`} root={root} request={request} onReview={onReview} method={kind} /></>;
-    return <section className="panel decisionPanel" aria-label="Anomalies and decisions">
-    <header><p className="eyebrow">PRIVATE EVIDENCE · HUMAN REVIEW</p><h2>Find unusual values. Compare a declared decision.</h2>
-      <p>Statistical findings need your context. Allocation benefits are conditional estimates from your declared inputs, never proven effects.</p></header>
-    {error && <p role="alert" className="error">{error}</p>}
-    {message && <p role="status">{message}</p>}
-    {pending && <p role="status">{pending}</p>}
-    {kind === "anomalies" && options?.anomaly_default && <div className="analysisQuickStart">
-      <h3>Start with one useful check</h3>
-      <p>{options.anomaly_default.reason}</p>
-      <p>Inspect {options.anomaly_default.metric.replaceAll("_", " ")} across the visible file, using the standard threshold of {options.anomaly_default.threshold}. Custom filters below apply only to the custom analysis.</p>
-      <button type="button" disabled={!!pending} onClick={() => void quickAnomaly()}>Check unusual values</button>
-    </div>}
-    {!options ? <p>Loading source options…</p> : options.state !== "ready" ? <div><h3>Review meanings and units before analysis</h3><p>Confirm the selected source and a fixed unit for every numerical measure.</p><button type="button" onClick={onReview}>Review data meanings</button></div> : <form onSubmit={create} onInvalidCapture={event => { const disclosure = (event.target as HTMLElement).closest("details"); if (disclosure) disclosure.open = true; }}>
+    const advancedForm = !options ? <p>Loading source options…</p> : options.state !== "ready" ? <div><h3>Review meanings and units before analysis</h3><p>Confirm the selected source and a fixed unit for every numerical measure.</p><button type="button" onClick={onReview}>Review data meanings</button></div> : <form onSubmit={create} onInvalidCapture={event => { const disclosure = (event.target as HTMLElement).closest("details"); if (disclosure) disclosure.open = true; }}>
       <div className="formGrid">
-        <label>Analysis method<select value={kind} onChange={(e) => changeMethod(e.target.value)}>{methodOptions}</select></label>
         <label>Analysis name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Optional name"/></label>
         {kind === "anomalies" ? <>
           {selector("Measure to inspect", metricName, setMetric, options.metrics.map((m) => m.name))}
@@ -243,7 +213,16 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
         <label className="checkLabel"><input type="checkbox" checked={confirmed} required onChange={(e) => setConfirmed(e.target.checked)}/>I confirm fixed per-unit costs and additive linear benefits in a common benefit unit. Any additional resource has fixed additive per-unit use. These are decision assumptions, not proven causal effects.</label>
       </>}
       <button disabled={Boolean(pending) || (kind === "allocations" && (!confirmed || !entityName || !benefitName || costName === benefitName))}>Calculate and save privately</button>
-    </form>}
+    </form>;
+    return <section className="panel decisionPanel" aria-label="Anomalies and decisions">
+    <header><p className="eyebrow">PRIVATE EVIDENCE · HUMAN REVIEW</p><h2>Find unusual values. Compare a declared decision.</h2>
+      <p>Statistical findings need your context. Allocation benefits are conditional estimates from your declared inputs, never proven effects.</p></header>
+    {error && <p role="alert" className="error">{error}</p>}
+    {message && <p role="status">{message}</p>}
+    {pending && <p role="status">{pending}</p>}
+    <label className="analysisMethodSwitch">Analysis method<select value={kind} onChange={(e) => changeMethod(e.target.value)}>{methodOptions}</select></label>
+    {kind === "anomalies" && <UnusualValues root={root} request={request} onReview={onReview} autoRun />}
+    {kind === "anomalies" ? <details className="analysisAdvanced"><summary>Advanced options: choose one measure, group or threshold and save it for review</summary>{advancedForm}</details> : advancedForm}
     <section aria-label="Private analysis history"><h3>Your saved analyses</h3><p>Only you can view these runs and reviews, including in a shared workspace.</p>
       {history.filter(item => item.kind !== "scenario_comparison" && !isCalendarMethod(item.method_version) && item.method_version !== MULTIVARIATE_METHOD && !isLargeAllocationMethod(item.method_version)).length ? <ul>{history.filter(item => item.kind !== "scenario_comparison" && !isCalendarMethod(item.method_version) && item.method_version !== MULTIVARIATE_METHOD && !isLargeAllocationMethod(item.method_version)).map((item) => <li key={item.id}><button type="button" disabled={Boolean(pending)} onClick={() => open(item.id)}>{item.name} · {item.kind === "robust_distribution" ? "Unusual values" : "Allocation"}</button></li>)}</ul> : <p>No saved analyses yet.</p>}
     </section>

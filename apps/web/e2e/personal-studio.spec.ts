@@ -6,7 +6,7 @@ import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, navigateTo } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 const screenshots = "../../data/verification/2026-10-16/studio-ui";
@@ -25,7 +25,7 @@ async function upload(page: Page, name: string) {
   await finishInitialReview(page);
 }
 async function navigate(page: Page, name: string) {
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name, exact: true }).click();
+  await navigateTo(page, name);
 }
 
 test("private memory survives files and reopening, handles competing edits, and can be forgotten", async ({ page }) => {

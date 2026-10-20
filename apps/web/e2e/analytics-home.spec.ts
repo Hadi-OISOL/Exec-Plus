@@ -2,7 +2,7 @@
 What it does: Covers saved evidence navigation, accessible mobile search and preservation of a second question during active work. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, navigateTo } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -31,8 +31,7 @@ async function start(page: Page) {
 }
 
 async function navigate(page: Page, name: string) {
-  await page.getByRole("navigation", { name: "Workspace navigation" })
-    .getByRole("button", { name, exact: true }).click();
+  await navigateTo(page, name);
 }
 
 test("analytics home shows saved meaning and a private goal with clear review and exploration actions", async ({ page }) => {

@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { navigateTo } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 const seed = `
@@ -44,7 +45,7 @@ test("AI usage preserves unknown costs, exact amounts and owner boundaries", asy
   await page.goto("/workspace");
   await page.getByLabel("Session token").fill(token);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Usage & retention", exact: true }).click();
+  await navigateTo(page, "Usage & retention");
   await page.getByRole("group", { name: "Usage view" }).getByRole("button", { name: "AI usage", exact: true }).click();
   const panel = page.getByRole("region", { name: "AI usage", exact: true });
   await expect(panel.getByText("No AI attempts were recorded in this window.", { exact: false })).toBeVisible();

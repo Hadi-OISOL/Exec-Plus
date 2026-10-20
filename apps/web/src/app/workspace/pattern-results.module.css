@@ -1,51 +1,51 @@
 /* Use case: Presents measured patterns as readable evidence, with original chart styling.
 What it does: Gives records, comparison scales and exact-value inspectors a consistent responsive canvas. */
 
-.results { color: light-dark(#213a32, var(--theme-ink)); min-width: 0; }
-.results :global(.patternOverview) { background: light-dark(#f7faf5, var(--theme-surface)); border: 1px solid light-dark(#dce5dc, var(--theme-border)); border-radius: 16px; padding: 24px; }
+.results { color: var(--color-text); min-width: 0; }
+.results :global(.patternOverview) { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; padding: 24px; }
 .results :global(.patternOverview h3) { font-size: 22px; line-height: 1.35; letter-spacing: -.025em; }
-.results :global(.patternCoverage) { gap: 24px; border-top: 1px solid light-dark(#dce5dc, var(--theme-border)); padding-top: 18px; }
-.results :global(.patternCoverage dd) { font-size: 28px; font-weight: 650; color: light-dark(#176b57, var(--theme-accent)); }
+.results :global(.patternCoverage) { gap: 24px; border-top: 1px solid var(--color-border); padding-top: 18px; }
+.results :global(.patternCoverage dd) { font-size: 28px; font-weight: 650; color: var(--color-primary-text); }
 .results :global(.patternCoverage dt) { font-size: 12px; }
 .results :global(.patternFindings) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 22px; }
-.results :global(.patternFinding) { border-color: light-dark(#dce5dc, var(--theme-border)); border-radius: 16px; padding: 24px; box-shadow: none; }
+.results :global(.patternFinding) { border-color: var(--color-border); border-radius: 16px; padding: 24px; box-shadow: none; }
 .results :global(.patternFinding h4) { font-size: 18px; line-height: 1.4; letter-spacing: -.015em; }
-.results :global(.patternFinding .patternSummary) { font-size: 14px; color: light-dark(#53685f, var(--theme-muted)); }
-.results :global(.patternNumber) { border-radius: 8px; background: light-dark(#e9f1e7, var(--theme-subtle)); color: light-dark(#176b57, var(--theme-accent)); }
+.results :global(.patternFinding .patternSummary) { font-size: 14px; color: var(--color-text-secondary); }
+.results :global(.patternNumber) { border-radius: 8px; background: var(--color-surface-sunken); color: var(--color-primary-text); }
 .results :global(.patternType), .results :global(.patternSupport), .results :global(.patternCoverageNote) { font-size: 12px; }
-.results :global(.patternCoverageNote) { padding-top: 14px; border-top: 1px solid light-dark(#e6eae2, var(--theme-border)); }
-.chartHeading { display: grid; gap: 5px; font-size: 13px; color: light-dark(#213a32, var(--theme-ink)); overflow-wrap: anywhere; }
-.chartHeading span { color: light-dark(#53685f, var(--theme-muted)); font-size: 12px; }
-.scatter.scatter { background: light-dark(#fbfcfa, var(--theme-surface)); border: 1px solid light-dark(#e3e9df, var(--theme-border)); border-radius: 12px; padding: 18px; margin: 18px 0; }
+.results :global(.patternCoverageNote) { padding-top: 14px; border-top: 1px solid var(--color-border); }
+.chartHeading { display: grid; gap: 5px; font-size: 13px; color: var(--color-text); overflow-wrap: anywhere; }
+.chartHeading span { color: var(--color-text-secondary); font-size: 12px; }
+.scatter.scatter { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px; margin: 18px 0; }
 .scatterLayout { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; margin-top: 18px; }
-.valueScale { display: flex; flex-direction: column; justify-content: space-between; padding-block: 5px 29px; font-size: 11px; text-align: right; color: light-dark(#53685f, var(--theme-muted)); font-variant-numeric: tabular-nums; }
+.valueScale { display: flex; flex-direction: column; justify-content: space-between; padding-block: 5px 29px; font-size: 11px; text-align: right; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
 .scatterPlot { min-width: 0; border-radius: 6px; }
-.scatterPlot:focus-visible { outline: 2px solid light-dark(#176b57, var(--theme-accent)); outline-offset: 4px; }
+.scatterPlot:focus-visible { outline: 2px solid var(--color-primary-text); outline-offset: 4px; }
 .scatterPlot.scatterPlot svg { width: 100%; height: 220px; margin: 0; display: block; }
-.scatterPlot :global(.patternGridLine) { stroke: light-dark(#dce5dc, var(--theme-muted)); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.scatterPlot circle { stroke: #fff; stroke-width: 1; fill: light-dark(#176b57, var(--theme-accent)); opacity: .8; cursor: pointer; }
-.scatterPlot circle[data-selected="true"] { stroke: light-dark(#213a32, var(--theme-ink)); stroke-width: 2; opacity: 1; }
-.cursor { stroke: light-dark(#7c9187, var(--theme-muted)); stroke-dasharray: 3 5; vector-effect: non-scaling-stroke; }
-.horizontalScale, .scoreAxis { display: flex; justify-content: space-between; color: light-dark(#53685f, var(--theme-muted)); font-size: 11px; font-variant-numeric: tabular-nums; }
-.horizontalTitle { text-align: center; padding: 7px 0 15px 58px; color: light-dark(#53685f, var(--theme-muted)); font-size: 12px; overflow-wrap: anywhere; }
-.pointInspection { border-top: 1px solid light-dark(#dce5dc, var(--theme-border)); padding-top: 14px; margin: 0 0 14px; }
-.pointInspection > span { font-size: 12px; color: light-dark(#53685f, var(--theme-muted)); overflow-wrap: anywhere; }
+.scatterPlot :global(.patternGridLine) { stroke: var(--color-text-secondary); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.scatterPlot circle { stroke: var(--color-surface); stroke-width: 1; fill: var(--color-primary-text); opacity: .8; cursor: pointer; }
+.scatterPlot circle[data-selected="true"] { stroke: var(--color-text); stroke-width: 2; opacity: 1; }
+.cursor { stroke: var(--color-text-secondary); stroke-dasharray: 3 5; vector-effect: non-scaling-stroke; }
+.horizontalScale, .scoreAxis { display: flex; justify-content: space-between; color: var(--color-text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.horizontalTitle { text-align: center; padding: 7px 0 15px 58px; color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.pointInspection { border-top: 1px solid var(--color-border); padding-top: 14px; margin: 0 0 14px; }
+.pointInspection > span { font-size: 12px; color: var(--color-text-secondary); overflow-wrap: anywhere; }
 .pointInspection dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 0; }
 .pointInspection dl > div { min-width: 0; }
-.pointInspection dt { color: light-dark(#53685f, var(--theme-muted)); font-size: 12px; overflow-wrap: anywhere; }
-.pointInspection dd { margin: 4px 0 0; color: light-dark(#213a32, var(--theme-ink)); font-weight: 650; font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.results .recordPicker.recordPicker { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 8px; color: light-dark(#53685f, var(--theme-muted)); font-size: 12px; margin-bottom: 14px; }
+.pointInspection dt { color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.pointInspection dd { margin: 4px 0 0; color: var(--color-text); font-weight: 650; font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.results .recordPicker.recordPicker { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 8px; color: var(--color-text-secondary); font-size: 12px; margin-bottom: 14px; }
 .recordPicker select { min-height: 44px; width: 100%; max-width: 100%; flex: none; padding: 8px; }
-.results .scatter figcaption small { font-size: 12px; line-height: 1.5; color: light-dark(#53685f, var(--theme-muted)); }
+.results .scatter figcaption small { font-size: 12px; line-height: 1.5; color: var(--color-text-secondary); }
 .results :global(.patternBarChart), .results :global(.patternCategoryChart) { gap: 18px; }
-.results :global(.patternBarLabel) { font-size: 14px; color: light-dark(#213a32, var(--theme-ink)); gap: 6px 12px; }
-.results :global(.patternBarTrack) { height: 14px; border-radius: 4px; margin: 9px 0 5px; background: light-dark(#edf2e9, var(--theme-subtle)); }
-.results :global(.patternBarTrack > span), .results :global(.patternCountTrack > span) { background: #478672; }
-.results :global(.patternBarTrack > span[data-negative="true"]) { background: #a56730; }
-.results :global(.patternBarRow small) { font-size: 12px; color: light-dark(#53685f, var(--theme-muted)); }
-.results :global(.patternCategoryRow) { grid-template-columns: minmax(0, 1fr) minmax(50px, .65fr) 40px; font-size: 13px; color: light-dark(#213a32, var(--theme-ink)); }
-.results :global(.patternCountTrack) { height: 14px; border-radius: 4px; background: light-dark(#edf2e9, var(--theme-subtle)); }
-.results :global(.relationshipPooled) { border-color: light-dark(#a9c4b6, var(--theme-border)); background: light-dark(#f5f9f3, var(--theme-subtle)); padding: 22px; }
+.results :global(.patternBarLabel) { font-size: 14px; color: var(--color-text); gap: 6px 12px; }
+.results :global(.patternBarTrack) { height: 14px; border-radius: 4px; margin: 9px 0 5px; background: var(--color-surface-sunken); }
+.results :global(.patternBarTrack > span), .results :global(.patternCountTrack > span) { background: var(--chart-1); }
+.results :global(.patternBarTrack > span[data-negative="true"]) { background: var(--chart-2); }
+.results :global(.patternBarRow small) { font-size: 12px; color: var(--color-text-secondary); }
+.results :global(.patternCategoryRow) { grid-template-columns: minmax(0, 1fr) minmax(50px, .65fr) 40px; font-size: 13px; color: var(--color-text); }
+.results :global(.patternCountTrack) { height: 14px; border-radius: 4px; background: var(--color-surface-sunken); }
+.results :global(.relationshipPooled) { border-color: var(--color-border); background: var(--color-surface-sunken); padding: 22px; }
 .results :global(.relationshipGroup) { padding: 22px; border-radius: 14px; }
 .results :global(.relationshipScore strong) { font-size: 18px; font-variant-numeric: tabular-nums; }
 .scoreAxis { padding: 0 2px; margin: -2px 0 10px; }
@@ -54,20 +54,20 @@ What it does: Gives records, comparison scales and exact-value inspectors a cons
 .cohort h4, .cohort h5, .cohort dt, .cohort dd, .cohort th, .cohort td { overflow-wrap: anywhere; }
 .cohort h5 { font-size: 16px; line-height: 1.5; margin: 0; }
 .cohort > section, .cohort :global(.patternFinding) { min-width: 0; }
-.cohortTakeaway, .cohortNext { margin-block: 20px; padding: 20px; border: 1px solid light-dark(#dce5dc, var(--theme-border)); border-radius: 14px; background: light-dark(#f7faf5, var(--theme-surface)); }
+.cohortTakeaway, .cohortNext { margin-block: 20px; padding: 20px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface); }
 .cohortTakeaway h4, .cohortNext h4 { margin-top: 0; }
 .cohort p, .cohort li { line-height: 1.6; font-size: 14px; }
-.cohortUnit { font-size: 13px; font-weight: 400; color: light-dark(#53685f, var(--theme-muted)); }
-.cohortDifference { padding: 14px 0; margin: 0; border-top: 1px solid light-dark(#e6eae2, var(--theme-border)); }
-.cohortDifference dt { font-size: 12px; color: light-dark(#53685f, var(--theme-muted)); }
+.cohortUnit { font-size: 13px; font-weight: 400; color: var(--color-text-secondary); }
+.cohortDifference { padding: 14px 0; margin: 0; border-top: 1px solid var(--color-border); }
+.cohortDifference dt { font-size: 12px; color: var(--color-text-secondary); }
 .cohortDifference dd { margin: 6px 0 0; font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.cohortUnavailable { padding: 14px; border-radius: 8px; background: light-dark(#f7f6ef, var(--theme-subtle)); }
+.cohortUnavailable { padding: 14px; border-radius: 8px; background: var(--color-surface-sunken); }
 .cohort .cohortTable { max-width: 100%; overflow-x: auto; margin-block: 14px; }
-.cohortTable:focus-visible { outline: 2px solid light-dark(#176b57, var(--theme-accent)); outline-offset: 3px; }
+.cohortTable:focus-visible { outline: 2px solid var(--color-primary-text); outline-offset: 3px; }
 .cohortTable table { width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
-.cohortTable caption { text-align: left; padding-block: 8px; color: light-dark(#53685f, var(--theme-muted)); }
+.cohortTable caption { text-align: left; padding-block: 8px; color: var(--color-text-secondary); }
 .cohort .cohortTable th, .cohort .cohortTable td { text-align: start; min-width: 104px; overflow-wrap: normal; }
-.cohortCategories > article { padding: 18px; margin-block: 16px; border: 1px solid light-dark(#dce5dc, var(--theme-border)); border-radius: 12px; min-width: 0; }
+.cohortCategories > article { padding: 18px; margin-block: 16px; border: 1px solid var(--color-border); border-radius: 12px; min-width: 0; }
 .cohortNext :global(.suggestionChips) { display: flex; flex-wrap: wrap; gap: 8px; }
 .cohortNext button { min-height: 44px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: start; }
 @keyframes appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }

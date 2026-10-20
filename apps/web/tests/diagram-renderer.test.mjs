@@ -15,7 +15,7 @@ import ts from "typescript";
 echarts.use([TreeChart, SVGRenderer]);
 const require = createRequire(import.meta.url);
 const modules = {};
-for (const [path, filename] of [["../theme-control", "../theme-control.tsx"], ["./chart-theme", "chart-theme.ts"]]) {
+for (const [path, filename] of [["../theme-control", "../theme-control.tsx"], ["./chart-theme", "chart-theme.ts"], ["./charts/chart-tokens", "charts/chart-tokens.ts"]]) {
   const dependency = await readFile(new URL(`../src/app/workspace/${filename}`, import.meta.url), "utf8");
   const loaded = { exports: {} };
   new Function("require", "module", "exports", ts.transpileModule(dependency, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText)(require, loaded, loaded.exports);

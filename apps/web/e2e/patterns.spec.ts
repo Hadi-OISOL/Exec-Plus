@@ -31,7 +31,7 @@ test("measured patterns replay privately and no-date forecasts lead to explicit 
   await meanings.getByRole("button", { name: "Confirm business definitions", exact: true }).click();
   await expect(meanings.getByText("confirmed", { exact: true })).toBeVisible();
   await nav.getByRole("button", { name: "Forecasts", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "This file has no timeline to forecast" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "This file has no dates, so we can't forecast over time" })).toBeVisible();
   await page.getByRole("button", { name: "Find patterns", exact: false }).click();
   const patterns = page.getByRole("region", { name: "Measured data patterns", exact: true });
   await expect(patterns.getByRole("heading", { name: "Here is what stands out", exact: true })).toBeVisible();

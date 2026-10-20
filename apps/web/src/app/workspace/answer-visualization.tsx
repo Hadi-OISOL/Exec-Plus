@@ -11,6 +11,9 @@ import {
 import type { VisualizationCell } from "./visualization-values";
 import styles from "./answer-visualization.module.css";
 import { EChartsAnswerPlot } from "./echarts-answer-plot";
+import { KitChart } from "./charts/kit-chart";
+import { bucketSlices, donutEligible, selectAnswerChart } from "./charts/chart-values";
+import type { AnswerChart } from "./charts/chart-values";
 
 export type { VisualizationCell } from "./visualization-values";
 export type AnswerVisualizationProps = {
@@ -18,7 +21,9 @@ export type AnswerVisualizationProps = {
   columns: string[];
   rows: VisualizationCell[][];
   initialMode?: "chart" | "table";
-  initialChart?: "bar" | "line" | "dot";
+  initialChart?: AnswerChart;
+  recommendedChart?: string | null;
+  unit?: string;
   categoryIndex?: number;
   valueIndex?: number;
   allowLine?: boolean;
@@ -108,6 +113,10 @@ function ExactTable({
   );
 }
 
+function donutSlices(rows: VisualizationCell[][], categoryIndex: number, valueIndex: number) {
+  return bucketSlices(rows.map(row => ({ label: exactCell(row[categoryIndex]), value: String(row[valueIndex]) })));
+}
+
 export function AnswerVisualization(props: AnswerVisualizationProps) {
   const {
     title,
@@ -127,9 +136,11 @@ export function AnswerVisualization(props: AnswerVisualizationProps) {
   const eligible =
     chartAllowed && chartEligible(columns, rows, categoryIndex, valueIndex);
   const [preferredMode, setMode] = useState(initialMode);
-  const [preferredChart, setChart] = useState(initialChart);
+  const values = rows.map(row => row[valueIndex] ?? null);
+  const donutOk = eligible && donutEligible(values);
+  const [preferredChart, setChart] = useState(() => selectAnswerChart({ recommended: props.recommendedChart, fallback: initialChart, values, allowLine }));
   const mode = eligible ? preferredMode : "table";
-  const chart = !allowLine && preferredChart === "line" ? "bar" : preferredChart;
+  const chart = (!allowLine && preferredChart === "line") || (!donutOk && preferredChart === "pie") ? "bar" : preferredChart;
   const dialog = useRef<HTMLDialogElement>(null);
   const [expanded, setExpanded] = useState(false);
   const id = useId();
@@ -138,7 +149,7 @@ export function AnswerVisualization(props: AnswerVisualizationProps) {
       <>
         <header className={styles.header}>
           <div>
-            <span className={styles.eyebrow}>{mode === "table" ? "THE RETURNED VALUES" : chart === "line" ? "FOLLOW THE SERIES" : "COMPARE THE CATEGORIES"}</span>
+            <span className={styles.eyebrow}>{mode === "table" ? "THE RETURNED VALUES" : chart === "line" ? "FOLLOW THE SERIES" : chart === "pie" ? "SEE THE SHARES" : "COMPARE THE CATEGORIES"}</span>
             <h3 id={`${id}-${expanded ? "expanded" : "inline"}`}>{title}</h3>
             {mode === "table" && <p className={styles.fieldCaption}>{columns.join(" · ")}</p>}
           </div>
@@ -213,6 +224,7 @@ export function AnswerVisualization(props: AnswerVisualizationProps) {
               Bars
             </button>
             <button type="button" aria-pressed={chart === "dot"} onClick={() => setChart("dot")}>Dots</button>
+            {donutOk && <button type="button" aria-pressed={chart === "pie"} onClick={() => setChart("pie")}>Donut</button>}
             {allowLine &&
             <button
               type="button"
@@ -223,7 +235,20 @@ export function AnswerVisualization(props: AnswerVisualizationProps) {
             </button>}
           </div>
         )}
-        {mode === "chart" ? (
+        {mode === "chart" && chart === "pie" ? (
+          <div className={styles.plot} data-chart-template="echarts-donut">
+            <KitChart
+              bare
+              spec={{ kind: "donut", title, unit: props.unit, slices: rows.map(row => ({ label: exactCell(row[categoryIndex]), value: String(row[valueIndex]) })) }}
+              centerLabel={columns[valueIndex] === "Count" ? "Total rows" : "Total"}
+              onItem={props.onSelect && !props.selectionDisabled ? index => {
+                const picked = donutSlices(rows, categoryIndex, valueIndex)[index];
+                const row = picked && !picked.members ? rows.find(item => exactCell(item[categoryIndex]) === picked.label) : undefined;
+                if (row && row[categoryIndex] !== null) { if (expanded) dialog.current?.close(); props.onSelect?.(row[categoryIndex], row); }
+              } : undefined}
+            />
+          </div>
+        ) : mode === "chart" ? (
           <EChartsAnswerPlot
             key={chart}
             props={
@@ -237,7 +262,7 @@ export function AnswerVisualization(props: AnswerVisualizationProps) {
                   }
                 : props
             }
-            kind={chart}
+            kind={chart === "pie" ? "bar" : chart}
           />
         ) : (
           <ExactTable title={title} columns={columns} rows={rows} />

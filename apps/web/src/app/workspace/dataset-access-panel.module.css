@@ -1,7 +1,7 @@
 /* Use case: Keeps dataset access rules readable on desktop and small screens.
 What it does: Groups people, field choices and row conditions with visible keyboard focus. */
 
-.panel { --access-border: var(--studio-border, light-dark(#d5e1dc, var(--theme-border))); --access-ink: var(--studio-ink, light-dark(#243d35, var(--theme-ink))); --access-accent: var(--studio-accent, light-dark(#176c64, var(--theme-accent))); color: var(--access-ink); }
+.panel { --access-border: var(--studio-border, var(--color-border)); --access-ink: var(--studio-ink, var(--color-text)); --access-accent: var(--studio-accent, var(--color-primary-text)); color: var(--access-ink); }
 .panel p { max-width: 75ch; line-height: 1.6; }
 .heading h2 { margin-top: 8px; }
 .panel label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -12,7 +12,7 @@ What it does: Groups people, field choices and row conditions with visible keybo
 .mode label { flex-direction: row; align-items: center; padding: 10px 0; min-height: 44px; }
 .mode input, .check input { flex: 0 0 auto; width: 18px; height: 18px; accent-color: var(--access-accent); }
 .mode small { display: block; margin-top: 4px; font-size: 14px; font-weight: 400; }
-.notice { padding: 14px 18px; color: var(--studio-ink, light-dark(#243d35, var(--theme-ink))); background: var(--studio-wash, light-dark(#f3f7f5, var(--theme-subtle))); border-left: 3px solid var(--access-accent, var(--studio-accent, light-dark(#176c64, var(--theme-accent)))); border-radius: 8px; }
+.notice { padding: 14px 18px; color: var(--studio-ink, var(--color-text)); background: var(--studio-wash, var(--color-surface-sunken)); border-left: 3px solid var(--access-accent, var(--studio-accent, var(--color-primary))); border-radius: 8px; }
 .grant summary { cursor: pointer; font-weight: 650; min-height: 44px; overflow-wrap: anywhere; }
 .grant summary span { display: block; margin-top: 6px; font-size: 13px; font-weight: 400; }
 .grant fieldset { border: 0; padding: 8px 0 0; min-width: 0; }
@@ -26,6 +26,6 @@ What it does: Groups people, field choices and row conditions with visible keybo
 .add label { flex: 1 1 200px; }
 .actions span { font-size: 14px; }
 .success { color: var(--access-accent); font-weight: 600; }
-.panel [role="alert"] { color: var(--danger, light-dark(#963e30, var(--theme-warning))); }
+.panel [role="alert"] { color: var(--danger, var(--color-danger)); }
 .panel :focus-visible { outline: 3px solid var(--access-accent); outline-offset: 3px; }
 @media(max-width:600px) { .condition { grid-template-columns: 1fr; } .condition button { grid-column: auto; } .actions button, .add button { width: 100%; } .mode, .grant { padding: 12px; } }

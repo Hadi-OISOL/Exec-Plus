@@ -165,13 +165,15 @@ test("negative outside values have their own gutter before the category labels",
 });
 
 const { chartTheme } = await loadPreset("chart-theme.ts");
-test("dark palette changes presentation while preserving exact rows, functions and light options", () => {
+test("preset colours follow the shared chart tokens while preserving exact rows, functions and the source option", () => {
   const formatter = value => value;
-  const option = { axisLabel: { color: "#53625f", formatter }, data: [["South", "9007199254740993.0001"], ["#176b57", null]], animation: false };
-  assert.equal(chartTheme(option, false), option);
-  const dark = chartTheme(option, true);
-  assert.equal(dark.axisLabel.color, "#bbcec7");
-  assert.equal(dark.axisLabel.formatter, formatter);
-  assert.deepEqual(dark.data, option.data);
+  const tokens = { series: ["#2a78d6", "#eb6834"], ink: "#161b26", muted: "#677080", grid: "#e1e5eb", surface: "#ffffff", other: "#8a93a0", font: "InterTest, sans-serif", diverging: [] };
+  const option = { axisLabel: { color: "#53625f", fontFamily: "Manrope, sans-serif", formatter }, itemStyle: { color: "#176b57" }, data: [["South", "9007199254740993.0001"], ["#176b57", null]], animation: false };
+  const themed = chartTheme(option, tokens);
+  assert.equal(themed.axisLabel.color, "#677080");
+  assert.equal(themed.axisLabel.fontFamily, "InterTest, sans-serif");
+  assert.equal(themed.itemStyle.color, "#2a78d6");
+  assert.equal(themed.axisLabel.formatter, formatter);
+  assert.deepEqual(themed.data, option.data);
   assert.equal(option.axisLabel.color, "#53625f");
 });

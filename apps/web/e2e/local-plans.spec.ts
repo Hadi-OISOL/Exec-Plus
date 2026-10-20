@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, navigateTo } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 
@@ -27,7 +27,7 @@ test("local allowances enforce backend limits and administrator changes appear f
   const headers = { Authorization: `Bearer ${auth.token}` };
   await expect(page.getByText(`Signed in as ${email}`, { exact: true })).toBeVisible();
   const wid = await page.getByRole("combobox", { name: "Current workspace", exact: true }).inputValue();
-  const navigate = async (label: string) => page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: label, exact: true }).click();
+  const navigate = async (label: string) => navigateTo(page, label);
   await navigate("Usage & retention");
   await page.getByRole("button", { name: "Workspace allowances", exact: true }).click();
   const summary = page.getByRole("region", { name: "Workspace allowances", exact: true });

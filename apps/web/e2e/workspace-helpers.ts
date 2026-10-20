@@ -18,6 +18,13 @@ export async function finishInitialReview(page: Page) {
   await expect(home).toBeVisible();
 }
 
+export async function showIndividualCalculations(page: Page) {
+  const more = page.locator("details.legacyCalculations").first();
+  await expect(more).toBeAttached({ timeout: 60_000 });
+  if (!(await more.evaluate(element => (element as HTMLDetailsElement).open))) await more.locator(":scope > summary").click();
+  await expect(more).toHaveJSProperty("open", true);
+}
+
 export async function openFindings(page: Page) {
   await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Overview", exact: true }).click();
   await expect(page.getByRole("region", { name: "First findings from your file", exact: true })).toBeVisible();
@@ -27,4 +34,11 @@ export async function openFindings(page: Page) {
 export async function openConversation(page: Page) {
   await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
   await expect(page.getByLabel("Your question", { exact: true })).toBeVisible();
+}
+
+export async function navigateTo(page: Page, name: string) {
+  const nav = page.getByRole("navigation", { name: "Workspace navigation" });
+  const more = nav.getByRole("button", { name: "More", exact: true });
+  if (await more.getAttribute("aria-expanded") === "false") await more.click();
+  await nav.getByRole("button", { name, exact: true }).click();
 }

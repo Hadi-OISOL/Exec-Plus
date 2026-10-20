@@ -9,19 +9,19 @@ What it does: Scopes responsive gallery, toolbar and result styling without chan
 .toolbar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; padding: 16px 0 22px; }
 .toolbar label { margin: 0; font-size: .74rem; gap: 7px; }
 .search { flex: 1; min-width: 180px; }
-.search input { min-height: 42px; background: var(--surface, light-dark(white, var(--theme-surface))); }
+.search input { min-height: 42px; background: var(--surface, var(--color-surface)); }
 .visibility { flex: 0 1 195px; min-width: 170px; }
 .visibility select { min-height: 42px; }
 .viewSwitch { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; padding: 3px; gap: 3px; }
 .viewSwitch button { display: grid; place-items: center; padding: 7px; border: 0; background: transparent; color: var(--muted); min-height: 34px; }
-.viewSwitch button[aria-pressed="true"] { color: var(--green); background: color-mix(in srgb, var(--green) 10%, light-dark(white, var(--theme-surface))); }
+.viewSwitch button[aria-pressed="true"] { color: var(--green); background: color-mix(in srgb, var(--green) 10%, var(--color-surface)); }
 .viewSwitch svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; }
 .count { color: var(--muted); font-size: .74rem; align-self: center; white-space: nowrap; padding-top: 16px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(255px, 100%), 1fr)); gap: 16px; margin-bottom: 24px; }
-.card { display: flex; flex-direction: column; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, light-dark(white, var(--theme-surface))); box-shadow: 0 2px 4px rgba(19, 31, 52, .025); }
+.card { display: flex; flex-direction: column; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, var(--color-surface)); box-shadow: 0 2px 4px rgba(19, 31, 52, .025); }
 .card:hover { border-color: color-mix(in srgb, var(--green) 42%, var(--line)); box-shadow: 0 5px 16px rgba(19, 31, 52, .05); }
 .cardTop { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-.cardIcon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; color: var(--green); background: color-mix(in srgb, var(--green) 8%, light-dark(white, var(--theme-surface))); flex-shrink: 0; }
+.cardIcon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; color: var(--green); background: color-mix(in srgb, var(--green) 8%, var(--color-surface)); flex-shrink: 0; }
 .cardType { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .badge { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; font-size: .65rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
 .card h3, .card h4 { margin: 0 0 8px; font-size: .98rem; line-height: 1.45; overflow-wrap: anywhere; }
@@ -29,8 +29,8 @@ What it does: Scopes responsive gallery, toolbar and result styling without chan
 .metadata { font-size: .71rem; color: var(--muted); margin: 0 0 16px; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; }
 .actions button, .actions a { font-size: .75rem; padding: 8px 10px; line-height: 1.4; }
-.actions button[aria-pressed="true"] { color: light-dark(white, #11201e); background: var(--green); border-color: var(--green); }
-.actions button[aria-pressed="false"] { color: var(--muted); background: var(--surface, light-dark(white, var(--theme-surface))); border: 1px solid var(--line); }
+.actions button[aria-pressed="true"] { color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary); }
+.actions button[aria-pressed="false"] { color: var(--muted); background: var(--surface, var(--color-surface)); border: 1px solid var(--line); }
 .actions a { border: 1px solid var(--line); border-radius: 5px; }
 .secondaryActions { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
 .secondaryActions summary { font-size: .75rem; color: var(--muted); cursor: pointer; }
@@ -40,7 +40,7 @@ What it does: Scopes responsive gallery, toolbar and result styling without chan
 .list .cardTop { margin-bottom: 10px; }
 .empty { border: 1px dashed var(--line); padding: 36px 20px; text-align: center; border-radius: 10px; color: var(--muted); font-size: .88rem; }
 .empty h3 { color: var(--ink); margin: 0 0 10px; }
-.result { margin: 24px 0; background: var(--surface, light-dark(white, var(--theme-surface))); border: 1px solid var(--line); border-radius: 10px; padding: 24px; min-width: 0; }
+.result { margin: 24px 0; background: var(--surface, var(--color-surface)); border: 1px solid var(--line); border-radius: 10px; padding: 24px; min-width: 0; }
 .resultHeading { display: flex; align-items: center; gap: 16px; justify-content: space-between; margin-bottom: 16px; }
 .resultHeading h3 { margin: 0; overflow-wrap: anywhere; }
 .resultHeading > span { font-size: .75rem; color: var(--muted); }
@@ -56,7 +56,7 @@ What it does: Scopes responsive gallery, toolbar and result styling without chan
 .createBoard { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
 .createBoard label { flex: 1; min-width: 180px; margin: 0; }
 .createBoard button { margin-bottom: 0; min-height: 42px; }
-.board { margin-top: 28px; padding: 24px; border-radius: 12px; background: color-mix(in srgb, var(--green) 3%, light-dark(white, var(--theme-surface))); border: 1px solid var(--line); min-width: 0; }
+.board { margin-top: 28px; padding: 24px; border-radius: 12px; background: color-mix(in srgb, var(--green) 3%, var(--color-surface)); border: 1px solid var(--line); min-width: 0; }
 .board .result { margin: 0; padding: 18px; }
 .boardSummary { font-size: .8rem; color: var(--muted); line-height: 1.6; }
 .savedSchedules { border-top: 1px solid var(--line); padding-top: 16px; }

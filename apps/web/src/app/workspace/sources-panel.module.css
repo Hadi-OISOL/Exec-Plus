@@ -8,24 +8,24 @@ What it does: Keeps import stages, exact status and recovery actions readable on
 .header p { margin: 4px 0; }
 .panel button, .panel select { min-height: 44px; max-width: 100%; }
 .header > button { flex: 0 0 auto; }
-.form { border: 1px solid light-dark(#dce6e1, var(--theme-border)); border-radius: 16px; margin: 24px 0 12px; padding: 20px; min-width: 0; display: grid; gap: 18px; }
-.form legend { font-weight: 650; color: light-dark(#213a32, var(--theme-ink)); padding: 0 8px; }
+.form { border: 1px solid var(--color-border); border-radius: 16px; margin: 24px 0 12px; padding: 20px; min-width: 0; display: grid; gap: 18px; }
+.form legend { font-weight: 650; color: var(--color-text); padding: 0 8px; }
 .form label { display: grid; gap: 8px; min-width: 0; font-size: 14px; }
 .form select { width: 100%; min-width: 0; }
 .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.caption { font-size: 13px; color: light-dark(#52645c, var(--theme-ink)); }
-.notice { padding: 18px; border: 1px solid light-dark(#dce6e1, var(--theme-border)); border-radius: 12px; background: light-dark(#f4f8f5, var(--theme-subtle)); margin-top: 20px; }
-.fields { background: light-dark(#f9fbf9, var(--theme-surface)); border: 1px solid light-dark(#e1e8e3, var(--theme-border)); padding: 12px 16px; border-radius: 12px; }
+.caption { font-size: 13px; color: var(--color-text-secondary); }
+.notice { padding: 18px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-sunken); margin-top: 20px; }
+.fields { background: var(--color-surface-sunken); border: 1px solid var(--color-border); padding: 12px 16px; border-radius: 12px; }
 .fields summary, .disconnect summary, .history summary { cursor: pointer; min-height: 44px; align-content: center; overflow-wrap: anywhere; }
 .fields > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 8px 16px; margin-top: 8px; }
 .fields label { display: flex; flex-direction: row; align-items: center; min-height: 44px; overflow-wrap: anywhere; }
-.fields input { width: 18px; height: 18px; flex: 0 0 18px; accent-color: #176b57; }
+.fields input { width: 18px; height: 18px; flex: 0 0 18px; accent-color: var(--color-primary); }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
-.textButton { display: inline; padding: 4px 6px; background: transparent; border: 0; color: light-dark(#176b57, var(--theme-accent)); text-decoration: underline; white-space: normal; }
-.disconnect { border-top: 1px solid light-dark(#e2e8e4, var(--theme-border)); margin-top: 20px; padding-top: 8px; color: light-dark(#52645c, var(--theme-ink)); }
+.textButton { display: inline; padding: 4px 6px; background: transparent; border: 0; color: var(--color-primary-text); text-decoration: underline; white-space: normal; }
+.disconnect { border-top: 1px solid var(--color-border); margin-top: 20px; padding-top: 8px; color: var(--color-text-secondary); }
 .history { margin-top: 20px; }
-.record { padding: 18px; border: 1px solid light-dark(#dce6e1, var(--theme-border)); border-radius: 12px; margin-top: 12px; background: light-dark(#fbfcfa, var(--theme-surface)); }
-.record strong { color: light-dark(#213a32, var(--theme-ink)); font-size: 16px; }
+.record { padding: 18px; border: 1px solid var(--color-border); border-radius: 12px; margin-top: 12px; background: var(--color-surface); }
+.record strong { color: var(--color-text); font-size: 16px; }
 .record p { margin: 6px 0; }
 .record button { margin-top: 12px; }
 .latest { margin-top: 20px; }

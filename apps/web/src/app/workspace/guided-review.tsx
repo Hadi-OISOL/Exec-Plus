@@ -35,6 +35,7 @@ type Understanding = {
   state: string;
   definition: Definition;
   can_edit: boolean;
+  unit_suggestions?: { column: string; unit: string }[];
 };
 type Card = {
   id: string;
@@ -132,13 +133,18 @@ function buildCards(definition: Definition, profile: Profile): Card[] {
   return cards;
 }
 
-function emptyAnswer(definition: Definition, card: Card): Answer {
+function suggestedUnit(context: Understanding, card: Card): string {
+  return context.unit_suggestions?.find((item) => item.column === card.column)?.unit ?? "";
+}
+
+function emptyAnswer(context: Understanding, card: Card): Answer {
+  const definition = context.definition;
   const column = definition.columns.find((item) => item.name === card.column);
   return {
     agreed: true,
     role: column?.role ?? "",
     grain: definition.grain,
-    unit: column?.unit ?? "",
+    unit: column?.unit || (column?.currency ? "" : suggestedUnit(context, card)),
     note: "",
     meaning: column?.meaning ?? "",
   };
@@ -225,7 +231,7 @@ export function GuidedReview({
   const card = cards[index];
   const answer =
     card && context
-      ? (answers[card.id] ?? emptyAnswer(context.definition, card))
+      ? (answers[card.id] ?? emptyAnswer(context, card))
       : null;
 
   function update(patch: Partial<Answer>) {
@@ -434,7 +440,7 @@ export function GuidedReview({
 
       {!explaining && card.kind === "column" && card.numeric && answer.role === "metric" && !context.definition.columns.find(c => c.name === card.column)?.currency && !context.definition.columns.find(c => c.name === card.column)?.unit_column && (
         <label className={styles.unit}>
-          Unit, if you know it (for example PKR, kg, units)
+          Unit, if you know it (for example PKR, kg, units){answer.unit && answer.unit === suggestedUnit(context, card) && !context.definition.columns.find(c => c.name === card.column)?.unit ? " · suggested from column name" : ""}
           <input
             value={answer.unit}
             maxLength={40}
@@ -522,7 +528,7 @@ export function GuidedReview({
               type="button"
               className={styles.secondary}
               onClick={() => {
-                update(emptyAnswer(context.definition, card));
+                update(emptyAnswer(context, card));
                 setExplaining(false);
               }}
             >

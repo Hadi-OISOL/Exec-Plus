@@ -8,12 +8,12 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   overflow-wrap: anywhere;
   margin: 12px auto 28px;
   padding: 32px;
-  background: var(--surface, light-dark(#fff, var(--theme-surface)));
-  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
+  background: var(--surface, var(--color-surface));
+  border: 1px solid var(--line, var(--color-border));
   border-radius: 18px;
   box-shadow: 0 12px 40px #16283f06;
 }
-.eyebrow { display: block; color: light-dark(#08736f, var(--theme-accent)); font-size: 12px; font-weight: 700; letter-spacing: .08em; margin-bottom: 10px; }
+.eyebrow { display: block; color: var(--color-primary-text); font-size: 12px; font-weight: 700; letter-spacing: .08em; margin-bottom: 10px; }
 .header {
   display: flex;
   align-items: flex-start;
@@ -27,16 +27,16 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
 }
 .header p {
   margin: 0;
-  color: var(--muted, light-dark(#667085, var(--theme-muted)));
+  color: var(--muted, var(--color-text-muted));
   font-size: 13px;
 }
 .notice {
   margin: 0 0 14px;
   padding: 10px 12px;
-  background: var(--paper, light-dark(#f6f7fb, var(--theme-surface)));
-  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
+  background: var(--paper, var(--color-surface-sunken));
+  border: 1px solid var(--line, var(--color-border));
   border-radius: 6px;
-  color: var(--muted, light-dark(#667085, var(--theme-muted)));
+  color: var(--muted, var(--color-text-muted));
   font-size: 12px;
 }
 .progressRow {
@@ -44,7 +44,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   align-items: center;
   gap: 12px;
   margin-bottom: 28px;
-  color: var(--muted, light-dark(#667085, var(--theme-muted)));
+  color: var(--muted, var(--color-text-muted));
   font-size: 12px;
   font-weight: 600;
 }
@@ -52,12 +52,12 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   flex: 1;
   height: 6px;
   overflow: hidden;
-  background: var(--line, light-dark(#e4e7ef, var(--theme-subtle)));
+  background: var(--line, var(--color-surface-sunken));
   border-radius: 99px;
 }
 .fill {
   height: 100%;
-  background: var(--green, light-dark(#5147d9, var(--theme-selected)));
+  background: var(--green, var(--color-primary));
   border-radius: 99px;
   transition: width 0.25s;
 }
@@ -68,21 +68,21 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   outline: none;
   font-weight: 650;
   letter-spacing: -0.02em;
-  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
+  color: var(--ink, var(--color-text));
 }
 .quote {
   margin: 10px 0 0;
   padding: 12px 14px;
-  background: var(--paper, light-dark(#f6f7fb, var(--theme-surface)));
-  border-left: 3px solid var(--green, light-dark(#5147d9, var(--theme-accent)));
+  background: var(--paper, var(--color-surface-sunken));
+  border-left: 3px solid var(--green, var(--color-primary));
   border-radius: 4px;
-  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
+  color: var(--ink, var(--color-text));
   font-size: 14px;
   line-height: 1.5;
 }
 .caption {
   margin: 8px 0 0;
-  color: var(--muted, light-dark(#667085, var(--theme-muted)));
+  color: var(--muted, var(--color-text-muted));
   font-size: 12px;
 }
 .peek {
@@ -95,10 +95,10 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
 }
 .peek li {
   padding: 6px 10px;
-  background: var(--paper, light-dark(#f6f7fb, var(--theme-surface)));
-  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
+  background: var(--paper, var(--color-surface-sunken));
+  border: 1px solid var(--line, var(--color-border));
   border-radius: 6px;
-  color: var(--muted, light-dark(#667085, var(--theme-muted)));
+  color: var(--muted, var(--color-text-muted));
   font-size: 12px;
 }
 .choices,
@@ -111,19 +111,19 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
 .nav {
   margin-top: 28px;
   padding-top: 18px;
-  border-top: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
+  border-top: 1px solid var(--line, var(--color-border));
 }
 .spacer {
   flex: 1;
 }
 .brief button.secondary {
-  background: light-dark(#fff, var(--theme-surface));
-  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
-  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
+  background: var(--color-surface);
+  color: var(--ink, var(--color-text));
+  border: 1px solid var(--line, var(--color-border));
 }
 .brief button.link {
   background: transparent;
-  color: var(--muted, light-dark(#667085, var(--theme-muted)));
+  color: var(--muted, var(--color-text-muted));
   border: 0;
   padding-inline: 8px;
 }
@@ -132,14 +132,14 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   gap: 12px;
   margin-top: 16px;
   padding: 16px;
-  background: var(--paper, light-dark(#f6f7fb, var(--theme-surface)));
-  border: 1px solid var(--line, light-dark(#e4e7ef, var(--theme-border)));
+  background: var(--paper, var(--color-surface-sunken));
+  border: 1px solid var(--line, var(--color-border));
   border-radius: 8px;
 }
 .explain label {
   display: grid;
   gap: 6px;
-  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
+  color: var(--ink, var(--color-text));
   font-size: 12px;
   font-weight: 600;
 }
@@ -152,7 +152,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   align-items: center;
   gap: 8px;
   font-weight: 400;
-  color: var(--muted, light-dark(#667085, var(--theme-muted)));
+  color: var(--muted, var(--color-text-muted));
 }
 .summaryList {
   display: grid;
@@ -160,12 +160,12 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
-  color: var(--ink, light-dark(#222b3d, var(--theme-ink)));
+  color: var(--ink, var(--color-text));
   font-size: 13px;
 }
 .error {
   margin: 12px 0 0;
-  color: light-dark(#b42318, var(--theme-warning));
+  color: var(--color-danger);
   font-size: 13px;
 }
 .brief input,

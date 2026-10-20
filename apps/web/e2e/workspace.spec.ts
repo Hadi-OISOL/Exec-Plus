@@ -2,7 +2,7 @@
 What it does: Uses real authentication, invitations, storage, and parser errors without mocking the API. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview, openFindings, openConversation } from "./workspace-helpers";
+import { finishInitialReview, openFindings, openConversation, navigateTo, showIndividualCalculations } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -95,6 +95,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
     page.getByRole("region", { name: "Dataset dashboard" }),
   ).toHaveCount(0);
   await openFindings(page);
+  await showIndividualCalculations(page);
   await discovery
     .getByText("How this was calculated", { exact: true })
     .first()
@@ -325,6 +326,7 @@ test("automatic discoveries show leading categories and keep saved review gates 
     name: "First reading of your data",
     exact: true,
   });
+  await showIndividualCalculations(page);
   const chart = discovery.locator('[data-visualization="How category is distributed"]');
   const picker = chart.getByLabel("Inspect returned row for How category is distributed");
   await expect(picker.locator("option").first()).toHaveText("1. Zulu");
@@ -582,10 +584,7 @@ async function reveal(page: Page, name: string) {
 }
 
 async function navigate(page: Page, name: string) {
-  await page
-    .getByRole("navigation", { name: "Workspace navigation" })
-    .getByRole("button", { name, exact: true })
-    .click();
+  await navigateTo(page, name);
 }
 
 test("adaptive studies retain versions and a private six-pin dashboard on mobile", async ({

@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, navigateTo } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 const password = "synthetic browser passphrase 27";
@@ -24,7 +24,7 @@ async function nativeLogin(page: Page, email: string, secret = password) {
   return { token: body.token as string, userId: body.user.id as string, headers: { Authorization: `Bearer ${body.token}` } };
 }
 async function navigate(page: Page, name: string) {
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name, exact: true }).click();
+  await navigateTo(page, name);
 }
 async function register(page: Page, email: string) {
   const response = await page.request.post(`${api}/auth/register`, { data: { email, password, display_name: "Synthetic account", workspace_name: "Synthetic local workspace" } });

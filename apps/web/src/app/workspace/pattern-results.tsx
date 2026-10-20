@@ -3,6 +3,7 @@ What it does: Presents server-calculated findings, exact evidence labels and acc
 
 import { useEffect, useId, useRef, useState } from "react";
 import styles from "./pattern-results.module.css";
+import { humanizeFields } from "./charts/chart-values";
 
 export type PatternFinding = {
   id: string;
@@ -61,7 +62,7 @@ export type CohortComparisonResult = {
 };
 export type PatternResult = ExplorationResult | GroupRelationshipResult | CohortComparisonResult;
 export type PatternEvidence = { query_id: string; method_version?: string; result_checksum?: string };
-const groupColors = ["#087f8c", "#b35438", "#6657a5", "#406c3c", "#936713", "#a74473", "#276596", "#786650", "#34866e", "#8463a7", "#a14743", "#5d6684"];
+const groupColor = (index: number) => (index >= 0 && index < 8 ? `var(--chart-${index + 1})` : "var(--color-text-muted)");
 
 function PatternChart({ finding }: { finding: PatternFinding }) {
   const [selected, setSelected] = useState(0);
@@ -130,7 +131,7 @@ function PatternChart({ finding }: { finding: PatternFinding }) {
       {[12, 77, 143, 208].map(y => <line key={y} x1="12" y1={y} x2={width - 12} y2={y} className="patternGridLine" />)}
       {[0, .25, .5, .75, 1].map(level => <line key={level} x1={12 + level * (width - 24)} y1="12" x2={12 + level * (width - 24)} y2="208" className="patternGridLine" />)}
       <line x1={12 + position(Number(activePoint.x), minX, maxX) * (width - 24)} x2={12 + position(Number(activePoint.x), minX, maxX) * (width - 24)} y1="12" y2="208" className={styles.cursor} />
-      {points.map((point, index) => <circle key={index} onPointerMove={() => setHovered(index)} onClick={() => { setHovered(null); setSelected(index); }} style={point.group === undefined ? undefined : { fill: groupColors[groups.indexOf(point.group) % groupColors.length] }} cx={12 + position(Number(point.x), minX, maxX) * (width - 24)} cy={208 - position(Number(point.y), minY, maxY) * 196} r={index === activeIndex ? 6 : 4} data-selected={index === activeIndex}><title>{`${point.group === undefined ? "" : `${point.group}; `}${chart.x}: ${point.x}; ${chart.y}: ${point.y}`}</title></circle>)}
+      {points.map((point, index) => <circle key={index} onPointerMove={() => setHovered(index)} onClick={() => { setHovered(null); setSelected(index); }} style={point.group === undefined ? undefined : { fill: groupColor(groups.indexOf(point.group)) }} cx={12 + position(Number(point.x), minX, maxX) * (width - 24)} cy={208 - position(Number(point.y), minY, maxY) * 196} r={index === activeIndex ? 6 : 4} data-selected={index === activeIndex}><title>{`${point.group === undefined ? "" : `${point.group}; `}${chart.x}: ${point.x}; ${chart.y}: ${point.y}`}</title></circle>)}
     </svg>
       <div className={styles.horizontalScale} aria-label="Approximate horizontal scale"><span>{label(minX)}</span><span>{label(maxX)}</span></div>
       </div>
@@ -139,7 +140,7 @@ function PatternChart({ finding }: { finding: PatternFinding }) {
     <div className={styles.pointInspection} id={inspectionId} role="status"><span>Record {activeIndex + 1}{activePoint.group === undefined ? "" : ` · ${activePoint.group}`}</span><dl><div><dt>{chart.x}</dt><dd>{activePoint.x}{chart.x_unit ? ` ${chart.x_unit}` : ""}</dd></div><div><dt>{chart.y}</dt><dd>{activePoint.y}{chart.y_unit ? ` ${chart.y_unit}` : ""}</dd></div></dl></div>
     <label className={styles.recordPicker}>Inspect a plotted record<select value={selected} onChange={event => { setHovered(null); setSelected(Number(event.target.value)); }}>{points.map((point, index) => <option key={index} value={index}>Record {index + 1}{point.group === undefined ? "" : ` · ${point.group}`}</option>)}</select></label>
     <figcaption><small>{points.length} displayed points · approximate coordinates and axis labels. Exact values are in the inspector and table.</small></figcaption>
-    {!!groups.length && <ul className="relationshipLegend" aria-label="Groups in the chart">{groups.map((group, index) => <li key={group}><i style={{ background: groupColors[index % groupColors.length] }} aria-hidden="true" />{group}</li>)}</ul>}
+    {!!groups.length && <ul className="relationshipLegend" aria-label="Groups in the chart">{groups.map((group, index) => <li key={group}><i style={{ background: groupColor(index) }} aria-hidden="true" />{group}</li>)}</ul>}
   </figure>;
 }
 
@@ -197,8 +198,8 @@ function PatternCard({ finding, index, instance, weak = false }: { finding: Patt
   const statistics: Record<string, string> = { pearson: "Straight-line relationship", spearman: "Rank relationship", eta_squared: "Group difference (eta squared)", cramers_v: "Category association (Cramér’s V)" };
   return <article className="patternFinding" data-strength={weak ? "weak" : "screened"} aria-labelledby={`${instance}-${finding.id}`}>
     <div className="patternFindingTop"><span className="patternNumber">{index + 1}</span><span className="patternType">{weak ? "Weak relationship · exploratory" : labels[finding.type]}</span><span className="patternSupport">{finding.support} rows</span></div>
-    <h4 id={`${instance}-${finding.id}`}>{finding.title}</h4>
-    <p className="patternSummary">{finding.summary}</p>
+    <h4 id={`${instance}-${finding.id}`} title={finding.title}>{humanizeFields(finding.title, finding.columns)}</h4>
+    <p className="patternSummary">{humanizeFields(finding.summary, finding.columns)}</p>
     <PatternChart finding={finding} />
     <p className="patternCoverageNote">Based on {finding.support} rows · {finding.excluded} excluded from this comparison.</p>
     <details className="patternDetails"><summary>See values and method</summary>

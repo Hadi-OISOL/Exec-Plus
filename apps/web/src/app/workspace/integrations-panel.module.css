@@ -1,20 +1,20 @@
 /* Use case: Keeps owner integration settings understandable on small screens.
 What it does: Separates explicit actions, credentials and current access records with accessible forms. */
 .panel { display: grid; gap: 20px; }
-.panel p { max-width: 76ch; color: light-dark(#47615b, var(--theme-ink)); font-size: 14px; line-height: 1.6; }
+.panel p { max-width: 76ch; color: var(--color-text-secondary); font-size: 14px; line-height: 1.6; }
 .tabs, .actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .panel button, .panel input:not([type="checkbox"]), .panel select { min-height: 44px; }
-.tabs button[aria-pressed="true"] { background: #174f49; color: white; }
-.form { display: grid; gap: 16px; max-width: 680px; padding: 20px; border: 1px solid light-dark(#cbdad3, var(--theme-border)); border-radius: 16px; }
+.tabs button[aria-pressed="true"] { background: var(--color-primary); color: var(--color-on-primary); }
+.form { display: grid; gap: 16px; max-width: 680px; padding: 20px; border: 1px solid var(--color-border); border-radius: 16px; }
 .panel .form label { display: grid; gap: 6px; font-size: 14px; min-width: 0; }
-.panel .form fieldset { display: grid; gap: 8px; min-width: 0; padding: 12px; border: 1px solid light-dark(#cbdad3, var(--theme-border)); border-radius: 10px; }
+.panel .form fieldset { display: grid; gap: 8px; min-width: 0; padding: 12px; border: 1px solid var(--color-border); border-radius: 10px; }
 .panel .form .check { display: flex; flex-direction: row; gap: 10px; align-items: center; min-height: 44px; }
 .check input { width: 18px; height: 18px; flex: 0 0 18px; }
 .items { display: grid; gap: 12px; }
-.items article { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; align-items: center; padding: 16px; border: 1px solid light-dark(#d8e1dc, var(--theme-border)); border-radius: 14px; }
+.items article { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; align-items: center; padding: 16px; border: 1px solid var(--color-border); border-radius: 14px; }
 .items article > div { min-width: 0; }
 .items h3 { font-size: 16px; overflow-wrap: anywhere; }
 .items p { margin: 5px 0; overflow-wrap: anywhere; }
-.secret, .notice, .deliveries { background: light-dark(#f0f6f2, var(--theme-subtle)); padding: 20px; border-radius: 16px; min-width: 0; }
+.secret, .notice, .deliveries { background: var(--color-surface-sunken); padding: 20px; border-radius: 16px; min-width: 0; }
 .secret textarea { width: 100%; max-width: 100%; resize: vertical; font-family: monospace; font-size: 13px; margin-bottom: 12px; }
 @media (max-width: 600px) { .form, .secret, .notice, .deliveries { padding: 14px; } .panel input:not([type="checkbox"]), .panel select, .secret textarea { font-size: 16px; } .items article > button { width: 100%; } }

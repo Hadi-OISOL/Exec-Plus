@@ -13,6 +13,7 @@ export const domains = [
   "marketing",
   "operations",
   "research",
+  "agriculture",
   "other",
 ];
 type Column = {
@@ -53,6 +54,13 @@ type Definition = {
   metrics: Metric[];
   relationships: Relationship[];
 };
+type UnitSuggestion = {
+  column: string;
+  unit: string;
+  currency: string;
+  source: string;
+  question: string;
+};
 type Understanding = {
   revision_id: string;
   version: number;
@@ -60,6 +68,7 @@ type Understanding = {
   definition: Definition;
   proposal: Definition;
   questions: string[];
+  unit_suggestions?: UnitSuggestion[];
   can_edit: boolean;
   column_types: Record<string, string>;
   relationship_options: {
@@ -164,6 +173,29 @@ export function UnderstandingPanel({
   }
 
   const column = definition?.columns.find((item) => item.name === selected);
+  const pendingUnits = (context?.unit_suggestions ?? []).filter((item) => {
+    const current = definition?.columns.find((entry) => entry.name === item.column);
+    return current && !current.unit && !current.currency && !current.unit_column;
+  });
+  const suggestedQuestions = new Set(pendingUnits.map((item) => item.question));
+  const openQuestions = (context?.questions ?? []).filter(
+    (question) => question.trim() && !suggestedQuestions.has(question),
+  );
+  const columnSuggestion = context?.unit_suggestions?.find((item) => item.column === selected);
+  function acceptSuggestedUnits() {
+    if (!definition) return;
+    const byColumn = new Map(pendingUnits.map((item) => [item.column, item]));
+    setDefinition({
+      ...definition,
+      columns: definition.columns.map((item) => {
+        const suggestion = byColumn.get(item.name);
+        return suggestion ? { ...item, unit: suggestion.unit, currency: suggestion.currency } : item;
+      }),
+    });
+    setMessage(
+      `Suggested units filled in for ${pendingUnits.length} field${pendingUnits.length === 1 ? "" : "s"}. Review them, then confirm business definitions to use them.`,
+    );
+  }
   function changeColumn(changes: Partial<Column>) {
     if (definition)
       setDefinition({
@@ -255,13 +287,25 @@ export function UnderstandingPanel({
               retained; review them against this upload.
             </p>
           )}
-          {!refreshNeeded && context.questions.some(question => question.trim()) && (
+          {!refreshNeeded && context.can_edit && pendingUnits.length > 0 && (
+            <details className="missingDetailsReview" open>
+              <summary>Suggested units ({pendingUnits.length})</summary>
+              <p>Suggested from column name. Nothing is saved until you confirm.</p>
+              <ul aria-label="Suggested units">
+                {pendingUnits.map((item) => (
+                  <li key={item.column}><span>{item.column}: {item.currency || item.unit}</span></li>
+                ))}
+              </ul>
+              <button type="button" disabled={busy} onClick={acceptSuggestedUnits}>Accept suggested units</button>
+            </details>
+          )}
+          {!refreshNeeded && openQuestions.length > 0 && (
             <details className="missingDetailsReview" open>
               <summary>
-                Missing details ({context.questions.filter(question => question.trim()).length})
+                Missing details ({openQuestions.length})
               </summary>
               <ul aria-label="Missing data details">
-                {context.questions.filter(question => question.trim()).map((question) => (
+                {openQuestions.map((question) => (
                   <li key={question}><span>{question}</span></li>
                 ))}
               </ul>
@@ -453,7 +497,7 @@ export function UnderstandingPanel({
                       Unit of measurement
                       <input
                         maxLength={40}
-                        placeholder="e.g. kilograms"
+                        placeholder={columnSuggestion?.unit ? `${columnSuggestion.unit} (suggested from column name)` : "e.g. kilograms"}
                         value={column.unit}
                         onChange={(event) =>
                           changeColumn({ unit: event.target.value })

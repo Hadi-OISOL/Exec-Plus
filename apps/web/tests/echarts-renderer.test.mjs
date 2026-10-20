@@ -14,7 +14,7 @@ import ts from "typescript";
 echarts.use([BarChart, LineChart, ScatterChart, GridComponent, MarkLineComponent, TooltipComponent, DataZoomComponent, SVGRenderer]);
 const require = createRequire(import.meta.url);
 const modules = {};
-for (const name of ["../theme-control", "chart-theme", "visualization-values", "lieflat-chart-presets", "documd-chart-presets", "echarts-answer-plot"]) {
+for (const name of ["../theme-control", "charts/chart-tokens", "chart-theme", "visualization-values", "lieflat-chart-presets", "documd-chart-presets", "echarts-answer-plot"]) {
   const source = await readFile(new URL(`../src/app/workspace/${name}.${["echarts-answer-plot", "../theme-control"].includes(name) ? "tsx" : "ts"}`, import.meta.url), "utf8");
   const compiled = { exports: {} };
   const load = path => path.endsWith(".module.css") ? { default: new Proxy({}, { get: (_, key) => key }) } : modules[path] ?? require(path);

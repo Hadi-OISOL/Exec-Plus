@@ -3,9 +3,7 @@ import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-const files = ["globals.css", "theme.css", ...[
-  "analytics-shell", "product-polish", "focused-workspace", "studio-workspace", "open-workspace", "intelligence-workspace",
-].map(name => `workspace/${name}.css`)];
+const files = ["globals.css"];
 
 function contrast(first: string, second: string) {
   const luminance = (color: string) => {

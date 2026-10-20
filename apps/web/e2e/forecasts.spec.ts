@@ -2,7 +2,7 @@
 What it does: Covers review, coverage declarations, exact estimates, saved evidence, later actuals and narrow-screen access without mocked results. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview, selectAnalysisFocus } from "./workspace-helpers";
+import { finishInitialReview, selectAnalysisFocus, navigateTo } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -153,6 +153,10 @@ async function review(page: Page) {
   await selectAnalysisFocus(page, "predictive");
   await page.getByRole("navigation", { name: "Workspace navigation" })
     .getByRole("button", { name: "Forecasts", exact: true }).click();
+  const advanced = page.locator("details.forecastAdvanced");
+  await expect(advanced).toBeVisible();
+  if (!(await advanced.evaluate((element) => (element as HTMLDetailsElement).open)))
+    await advanced.locator("summary.forecastAdvancedSummary").click();
 }
 
 test("basic forecasts retain exact evidence, compare later actuals and expose authorized audit history", async ({
@@ -320,10 +324,7 @@ test("basic forecasts retain exact evidence, compare later actuals and expose au
   await expect(result).toContainText(
     "2 observed periods · 1 awaiting complete actual data",
   );
-  await page
-    .getByRole("navigation", { name: "Workspace navigation" })
-    .getByRole("button", { name: "Audit history", exact: true })
-    .click();
+  await navigateTo(page, "Audit history");
   const audit = page.getByRole("region", {
     name: "Workspace audit history",
     exact: true,

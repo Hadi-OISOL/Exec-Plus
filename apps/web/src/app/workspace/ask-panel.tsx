@@ -71,6 +71,11 @@ type Answer = {
     actions?: { tool: string; label: string; metric?: string; scenario_mode?: "daily_change" }[];
   };
   sources?: { revision_id: string; understanding_id?: string }[];
+  presentation?: {
+    chart?: { type: string } | null;
+    share_of_total?: { label: string; percent: string }[];
+    follow_ups?: string[];
+  };
 };
 type Turn = {
   id: number | string;
@@ -839,6 +844,7 @@ export function AskPanel({
                       rows={turn.answer.rows}
                       recordsAnalyzed={turn.answer.records_analyzed ?? turn.answer.lineage.records_analyzed}
                       matchedRecords={turn.answer.matched_records}
+                      recommendedChart={turn.answer.presentation?.chart?.type}
                     />
                   ) : (
                     <RecordTable
@@ -853,6 +859,15 @@ export function AskPanel({
                 </>
               )}
               {turn.answer?.additional_data && <CompoundResults results={turn.answer.additional_data} />}
+              {turn.answer?.lineage && !!turn.answer.presentation?.follow_ups?.length && (
+                <div className="suggestionChips" aria-label="Suggested follow-up questions">
+                  {turn.answer.presentation.follow_ups.map((suggestion) => (
+                    <button key={suggestion} type="button" disabled={busy} onClick={() => void ask(suggestion)}>
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
               {turn.answer?.lineage && (
                 <>
                   <span className="kpiFootnote">

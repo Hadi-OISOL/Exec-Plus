@@ -42,6 +42,12 @@ async function modelReading(page: Page) {
   });
 }
 
+async function readingLeadsOverview(page: Page, panel: ReturnType<Page["getByRole"]>) {
+  const home = page.getByRole("region", { name: "Analytics home", exact: true });
+  await expect(home).toBeVisible();
+  expect((await panel.boundingBox())!.y).toBeLessThan((await home.boundingBox())!.y);
+}
+
 async function upload(page: Page, person: ReturnType<typeof account>, source = file) {
   await page.getByLabel("CSV or Excel file").setInputFiles(source);
   const created = page.waitForResponse(r => r.url().includes("/uploads?filename=") && r.request().method() === "POST");
@@ -65,9 +71,9 @@ test("a model reading opens at the top after upload and saves confirmed meaning 
   expect((await panel.boundingBox())!.y).toBeLessThan(500);
   await expect(page.locator("#chat-question")).toBeHidden();
   await page.getByRole("button", { name: "Ask ExecPlus", exact: true }).first().click();
-  await expect(panel).toBeVisible();
-  await expect(page.locator("#chat-question")).toBeHidden();
+  await expect(page.locator("#chat-question")).toBeVisible();
   await page.getByRole("button", { name: "Overview", exact: true }).first().click();
+  await expect(panel).toBeVisible();
   await expect(page.getByRole("region", { name: "Guided data review", exact: true })).toHaveCount(0);
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
@@ -113,12 +119,14 @@ test("skipping the data reading changes no shared meaning and stores no notes", 
   expect(await get(dataset + "/documents")).toEqual([]);
 });
 
-test("without a model reading the existing guided review still opens after upload", async ({ page }) => {
+test("without a model reading the overview stays open with a way to review meaning", async ({ page }) => {
   const person = account();
   await signIn(page, person);
   await upload(page, person);
-  await expect(page.getByRole("region", { name: "Guided data review", exact: true }).getByRole("button", { name: "Skip for now", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "First findings from your file", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Check what ExecPlus understood", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Data reading", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Guided data review", exact: true })).toHaveCount(0);
 });
 
 test("a skipped data reading can be reopened from the Prepare data panel", async ({ page }) => {
@@ -162,7 +170,7 @@ for (const partial of [false, true]) {
     await reading.getByRole("button", { name: "Continue to my insights" }).click();
     if (partial) return;
     await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Forecasts", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "This file has no timeline to forecast" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "This file has no dates, so we can't forecast over time" })).toBeVisible();
     await expect(page.getByText("Your saved data meanings are in use.", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: "Review missing meanings or units" })).toHaveCount(0);
     await page.getByRole("button", { name: "Explore observed data", exact: true }).click();
@@ -173,7 +181,10 @@ for (const partial of [false, true]) {
     await page.locator("#chat-question").fill("Find anomalies in measure_19");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await page.getByRole("button", { name: "Inspect unusual values", exact: true }).click();
-    await expect(page.getByRole("combobox", { name: "Measure to inspect", exact: true })).toHaveValue("measure_19");
+    const decisions = page.getByRole("region", { name: "Anomalies and decisions", exact: true });
+    await expect(decisions.getByRole("region", { name: "Unusual values", exact: true })).toBeVisible();
+    await decisions.getByText("Advanced options: choose one measure", { exact: false }).click();
+    await expect(decisions.getByRole("combobox", { name: "Measure to inspect", exact: true })).toHaveValue("measure_19");
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
@@ -201,8 +212,7 @@ test("focused reading keeps edits on Back, saves progress and retries only the f
   const { root, dataset, get } = await upload(page, person);
   const panel = page.getByRole("region", { name: "Data reading", exact: true });
   await expect(panel.getByText("Question 1 of", { exact: false })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toHaveCount(0);
-  await expect(page.locator(".analysisViewControls")).toBeHidden();
+  await readingLeadsOverview(page, panel);
   await expect(page.locator("#chat-question")).toBeHidden();
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
@@ -258,7 +268,7 @@ test("a rejected AI reading keeps a focused structural review with honest proven
   await expect(panel).toContainText("Based on the file’s structure and your saved definitions");
   await expect(panel).not.toContainText("Suggested by the language model");
   await expect(page.getByRole("region", { name: "Guided data review", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toHaveCount(0);
+  await readingLeadsOverview(page, panel);
   const before = await get(root + "/understanding");
   await panel.getByRole("button", { name: "Skip for now", exact: true }).click();
   expect(await get(root + "/understanding")).toEqual(before);

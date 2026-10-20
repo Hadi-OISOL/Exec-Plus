@@ -4,12 +4,12 @@ What it does: Themes the trigger and body-portalled menu with visible focus,
 
 .field,
 .content {
-  --select-ink: light-dark(#16283f, var(--theme-accent));
-  --select-muted: light-dark(#54676f, var(--theme-muted));
-  --select-accent: light-dark(#176b57, var(--theme-accent));
-  --select-border: light-dark(#78988e, var(--theme-muted));
-  --select-surface: light-dark(#ffffff, var(--theme-surface));
-  --select-highlight: light-dark(#edf6f2, var(--theme-subtle));
+  --select-ink: var(--color-text);
+  --select-muted: var(--color-text-secondary);
+  --select-accent: var(--color-primary-text);
+  --select-border: var(--color-border-strong);
+  --select-surface: var(--color-surface);
+  --select-highlight: var(--color-primary-subtle);
   font-family: var(--font-product), system-ui, sans-serif;
 }
 
@@ -38,17 +38,17 @@ What it does: Themes the trigger and body-portalled menu with visible focus,
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: 48px;
+  min-height: 44px;
   margin: 0;
-  padding: 11px 14px;
+  padding: 10px 12px;
   border: 1px solid var(--select-border);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--select-surface);
   color: var(--select-ink);
-  box-shadow: 0 2px 4px rgb(22 40 63 / 3%);
+  box-shadow: none;
   font: inherit;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1.45;
   text-align: left;
   cursor: pointer;
@@ -59,7 +59,7 @@ What it does: Themes the trigger and body-portalled menu with visible focus,
 .field .trigger:hover:not(:disabled),
 .field .trigger[data-state="open"] {
   border-color: var(--select-accent);
-  background: light-dark(#f7fbf9, var(--theme-surface));
+  background: var(--color-surface-sunken);
   color: var(--select-ink);
 }
 
@@ -69,9 +69,9 @@ What it does: Themes the trigger and body-portalled menu with visible focus,
 }
 
 .field .trigger:disabled {
-  background: light-dark(#f2f5f4, var(--theme-subtle));
+  background: var(--color-surface-sunken);
   color: var(--select-muted);
-  border-color: light-dark(#c5d2cd, var(--theme-border));
+  border-color: var(--color-border);
   box-shadow: none;
   cursor: not-allowed;
   opacity: 1;
@@ -97,11 +97,11 @@ What it does: Themes the trigger and body-portalled menu with visible focus,
   max-width: min(var(--radix-select-content-available-width), calc(100vw - 24px));
   max-height: min(25rem, var(--radix-select-content-available-height));
   overflow: hidden;
-  border: 1px solid light-dark(#c9d9d3, var(--theme-border));
-  border-radius: 14px;
-  background: var(--select-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
   color: var(--select-ink);
-  box-shadow: 0 16px 44px rgb(22 40 63 / 14%), 0 3px 10px rgb(22 40 63 / 6%);
+  box-shadow: var(--shadow-2);
   transform-origin: var(--radix-select-content-transform-origin);
   box-sizing: border-box;
 }
@@ -124,7 +124,7 @@ What it does: Themes the trigger and body-portalled menu with visible focus,
   min-height: 48px;
   padding: 12px 38px 12px 12px;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
   outline: none;
   cursor: pointer;
@@ -134,10 +134,11 @@ What it does: Themes the trigger and body-portalled menu with visible focus,
 }
 
 .item + .item { margin-top: 4px; }
-.item[data-state="checked"] { background: light-dark(#f4f9f6, var(--theme-subtle)); }
-.item[data-highlighted] { border-color: var(--select-accent); background: var(--select-highlight); }
+.item[data-state="checked"] { background: var(--color-surface-sunken); }
+.item[data-highlighted] { background: var(--color-surface-hover); }
+.item[data-state="checked"] .optionLabel { color: var(--color-primary-text); }
 .optionCopy { display: grid; gap: 3px; min-width: 0; }
-.optionLabel { color: var(--select-ink); font-size: 15px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.optionLabel { color: var(--select-ink); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 .description { color: var(--select-muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .indicator { position: absolute; inset-inline-end: 12px; display: inline-flex; color: var(--select-accent); }
 .scrollButton { display: flex; align-items: center; justify-content: center; min-height: 44px; color: var(--select-accent); background: var(--select-surface); }

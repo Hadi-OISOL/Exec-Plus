@@ -24,7 +24,7 @@ export function ThemeControl() {
     window.addEventListener("storage", restore);
     return () => window.removeEventListener("storage", restore);
   }, []);
-  return <label className="themeControl">Appearance<select aria-label="Appearance" value={theme} onChange={event => {
+  return <label className="themeControl"><span className="srOnly">Appearance</span><select aria-label="Appearance" value={theme} onChange={event => {
     const next = valid(event.target.value); setTheme(next); apply(next);
     try { localStorage.setItem(key, next); } catch { /* Keep the active preference for this page. */ }
   }}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>;
