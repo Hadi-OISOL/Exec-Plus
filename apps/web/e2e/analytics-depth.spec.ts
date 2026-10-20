@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, openAnalysisAdvanced } from "./workspace-helpers";
 
 test.use({ actionTimeout: 20_000 });
 
@@ -23,6 +23,7 @@ async function upload(page: Page, token: string, csv: string) {
 async function confirm(page: Page, metrics: string[]) {
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await openAnalysisAdvanced(page);
   await page.getByRole("button", { name: "Review data meanings", exact: true }).click();
   const meanings = page.getByRole("region", { name: "Data understanding", exact: true });
   await meanings.getByLabel("One row represents").selectOption("record");
@@ -116,6 +117,7 @@ test("selection rules constrain the allocation, reject self-rules and retain rul
   await confirm(page, ["cost", "benefit", "hours"]);
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await openAnalysisAdvanced(page);
   const panel = page.getByRole("region", { name: "Anomalies and decisions", exact: true });
   await panel.getByRole("combobox", { name: "Analysis method", exact: true }).selectOption("allocations");
   await panel.getByLabel("Analysis name", { exact: true }).fill("Choices with prerequisites");
@@ -170,6 +172,7 @@ test("selection rules constrain the allocation, reject self-rules and retain rul
   await page.getByLabel("Session token").fill(token);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await openAnalysisAdvanced(page);
   await panel.getByRole("button", { name: "Choices with prerequisites · Allocation", exact: true }).click();
   await expect(savedRules).toContainText("A and C cannot both be selected.");
   await expect(result).toContainText(body.run.result.benefit);

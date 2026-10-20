@@ -1,7 +1,7 @@
 /* Use case: Exercises grouped findings, resource limits and compound scenarios in the browser.
 What it does: Verifies real calculations, replay, declared assumptions and mobile layouts. */
 import { execFileSync } from "node:child_process";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, openAnalysisAdvanced } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -23,6 +23,7 @@ test("extended analysis preserves group coverage, resource limits and compound e
   await expect(page.getByLabel("Analysis focus")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await openAnalysisAdvanced(page);
   const panel = page.getByRole("region", { name: "Anomalies and decisions", exact: true });
   await panel.getByRole("button", { name: "Review data meanings", exact: true }).click();
   const meanings = page.getByRole("region", { name: "Data understanding", exact: true });
@@ -36,6 +37,7 @@ test("extended analysis preserves group coverage, resource limits and compound e
   await meanings.getByRole("button", { name: "Confirm business definitions", exact: true }).click();
   await expect(meanings.getByText("confirmed", { exact: true })).toBeVisible();
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await openAnalysisAdvanced(page);
   await panel.getByRole("combobox", { name: "Measure to inspect", exact: true }).selectOption("amount");
   await panel.getByRole("combobox", { name: "Compare within group", exact: true }).selectOption("segment");
   await panel.getByRole("button", { name: "Calculate and save privately", exact: true }).click();

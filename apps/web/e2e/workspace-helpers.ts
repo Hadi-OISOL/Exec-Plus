@@ -18,6 +18,12 @@ export async function finishInitialReview(page: Page) {
   await expect(home).toBeVisible();
 }
 
+export async function openAnalysisAdvanced(page: Page) {
+  await page.locator("label.analysisMethodSwitch").first().waitFor({ timeout: 30_000 });
+  const advanced = page.locator("details.analysisAdvanced").first();
+  if (await advanced.count() && !(await advanced.evaluate(element => (element as HTMLDetailsElement).open))) await advanced.locator(":scope > summary").click();
+}
+
 export async function showIndividualCalculations(page: Page) {
   const more = page.locator("details.legacyCalculations").first();
   await expect(more).toBeAttached({ timeout: 60_000 });

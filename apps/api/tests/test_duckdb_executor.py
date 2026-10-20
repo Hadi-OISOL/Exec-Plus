@@ -90,6 +90,25 @@ async def test_execute_computes_grouped_aggregations(aggregation, expected):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("order", "expected"),
+    [("desc", ["South", "North"]), ("asc", ["West", "North"])],
+)
+async def test_ranked_average_orders_by_average_not_hidden_sum(order, expected):
+    dataset_id = uuid4()
+    scope_ = scope(dataset_id)
+    many = tuple(("West", "2026-01-03", "30") for _ in range(10))
+    data = TableData(table().headers, table().rows + many)
+    request = MetricRequest(
+        "revenue", AggregationKind.AVG, group_by=("region",), order=order, limit=2
+    )
+    plan = plan_query(scope_, dataset_id, view(), request, row_limit=100)
+    executor = DuckDBQueryExecutor(timeout_seconds=5, memory_limit_mb=64)
+    result = await executor.execute(plan, scope_, data, view())
+    assert [row[0] for row in result.rows] == expected
+
+
+@pytest.mark.asyncio
 async def test_execute_enforces_row_limit():
     dataset_id = uuid4()
     scope_ = scope(dataset_id)

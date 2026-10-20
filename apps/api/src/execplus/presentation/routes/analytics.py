@@ -363,18 +363,19 @@ async def analyst_overview(
     if await request.is_disconnected():
         return Response(status_code=499)
     router_service = request.app.state.runtime.intent_router
-    return await _unless_disconnected(
-        request,
-        build_insights(
-            service,
-            actor,
-            workspace_id,
-            dataset_id,
-            upload_id,
-            statistics=router_service.patterns.statistics,
-            model=router_service.model,
-        ),
-    )
+    with usage_scope(UsageAttribution(workspace_id, actor.id, uuid4(), "summary")):
+        return await _unless_disconnected(
+            request,
+            build_insights(
+                service,
+                actor,
+                workspace_id,
+                dataset_id,
+                upload_id,
+                statistics=router_service.patterns.statistics,
+                model=router_service.model,
+            ),
+        )
 
 
 @router.post("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/dashboard")

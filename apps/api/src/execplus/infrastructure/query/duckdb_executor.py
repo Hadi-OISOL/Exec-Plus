@@ -193,11 +193,25 @@ class DuckDBQueryExecutor:
         closed = Event()
         guard = Lock()
         average = query.find(exp.Avg)
+        ordering: list[tuple[str, bool]] = []
+        limit: int | None = None
         if average is not None:
             alias = average.parent
             if not isinstance(alias, exp.Alias) or average is not alias.this:
                 connection.close()
                 raise UnsafeQueryError("Only a single direct average is supported")
+            order = query.args.get("order")
+            if order is not None and any(
+                item.this.output_name == alias.alias for item in order.expressions
+            ):
+                ordering = [
+                    (item.this.output_name, bool(item.args.get("desc")))
+                    for item in order.expressions
+                ]
+                limit_node = query.args.get("limit")
+                limit = int(limit_node.expression.name) if limit_node is not None else None
+                query.set("order", None)
+                query.set("limit", None)
             alias.set("this", exp.Sum(this=average.this.copy()))
             query.select(
                 exp.alias_(exp.Count(this=average.this.copy()), "__count"), append=True, copy=False
@@ -238,6 +252,16 @@ class DuckDBQueryExecutor:
                         result_rows.append((*row[:-2], value))
                     else:
                         result_rows.append(tuple(row))
+                if ordering:
+                    names = columns[:-1]
+                    for name, descending in reversed(ordering):
+                        position = names.index(name)
+                        present = [row for row in result_rows if row[position] is not None]
+                        present.sort(key=lambda row: row[position], reverse=descending)  # type: ignore[arg-type, return-value]
+                        result_rows = present + [
+                            row for row in result_rows if row[position] is None
+                        ]
+                    result_rows = result_rows[:limit] if limit is not None else result_rows
                 return QueryResult(
                     plan.query_id,
                     columns[:-1] if average is not None else columns,
