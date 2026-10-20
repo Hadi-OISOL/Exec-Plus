@@ -77,3 +77,120 @@ curl --retry 10 --retry-delay 2 --retry-connrefused -fsS \
 Check worker processing and reopen an existing compound result with both receipts. Disabling
 new planning must not erase historical results. These are operator fallback instructions,
 not actions performed by this document.
+
+## October 20, 2026 — Ranked plans, model-selected patterns and answer presentation
+
+Measured on the offline farm evaluation (`apps/api/tests/fixtures/harness_eval_farm.json`,
+48 questions, on a seeded synthetic 100-row farm table run through the real thread API).
+The planner is scripted to reply with the ideal plan for each question. So this measures
+what the harness can express, validate and present. It does not measure DeepSeek's
+language quality.
+
+| Run | Before (`42da96b`) | After |
+| --- | --- | --- |
+| Scripted planner, routed to the expected governed outcome | 34 / 48 | 48 / 48 |
+| Scripted planner, full pass (chart and 2-3 follow-ups too) | 9 / 48 | 48 / 48 |
+| Model disabled (`DisabledLanguageModel`), 27 marked questions | 0 / 27 | 27 / 27 |
+
+Of the 14 routing failures before:
+
+- Seven came from the plan language itself: no ranked groups, no ordered top-N records, and
+  no way for the planner to choose the pattern tool.
+- Six are offered phrasings that are scripted with no planner reply. At baseline they
+  needed a model plan, so they fail in this test. A real model might have planned them, so
+  the model-disabled run is the fair measure for these six.
+- One is "any unusual rows?", which reached no governed tool.
+
+Before, every model-disabled question ended with "could not complete safely".
+
+### Plan grammar additions (validated server-side; old plans unchanged)
+
+- Numerical: optional `"order": "asc|desc"` (only with `group_by`) and `"limit": 1-1000`
+  (only with `order`). SQL orders by the calculated value with `NULLS LAST`, then by the
+  group fields, so ties replay identically. The prompt asks for `order` with no limit for
+  "which group has the most …", so tied groups stay visible. With an explicit top-N limit, a
+  group tied with the last shown group can be left out. Ties are broken alphabetically.
+- Rows: optional `"order_by": {"column": "<numeric measure>", "direction": "asc|desc"}`,
+  not combinable with `extremum`. Every selected field breaks ties.
+- New planner kind `{"kind": "patterns", "columns": [...]}` runs the existing
+  `explore_patterns` service, with the same confirmed-meaning, row-filter and receipt guards
+  as the deterministic pattern path.
+- Job plan bodies leave out unused optional keys, so earlier plans keep their exact shape.
+
+The planner prompt now includes ranking, share, comparison, distribution and scatter rules,
+a Roman Urdu/Hindi word hint, and nine few-shot examples. The examples use illustrative
+field names and no data values.
+
+### New response fields for the frontend (additive)
+
+Every numerical or record answer body (`kind` absent, or `data` / `additional_data` inside
+`mixed`) now has a `presentation` object:
+
+```json
+"presentation": {
+  "chart": {"type": "bar", "x": "Region"},
+  "share_of_total": [{"label": "Yes", "percent": "49.0"}],
+  "follow_ups": ["Which Region has the highest average Rainfall_mm?", "..."]
+}
+```
+
+- `chart.type` is one of `kpi`, `bar`, `grouped_bar` (`x`, `series`, `y`), `pie` (`label`,
+  `value`), `line` (date groups), `scatter` (`x`, `y`: exactly two numeric record columns),
+  `histogram` (`x`: one numeric record column) or `table`. Pie is chosen only for whole
+  count or sum results of at most twelve groups when the question asks for a share,
+  percentage or distribution, or asks for a pie. A chart word in the question
+  (pie/bar/line/table) is honoured when the result fits it. Ranked results never use pie.
+- `share_of_total` lists each group's exact share of the returned total, as decimal strings
+  rounded half-up to one place. It is set only for a single-group count or sum with
+  non-negative values that is not ranked, and is empty otherwise.
+- `follow_ups` holds two or three questions phrased from real, authorized field names that
+  the answer did not already use. They are worked out at answer time from the router's
+  access-scoped view, saved in the private turn evidence as `follow_ups`, and returned
+  unchanged when the answer is reopened. Legacy `/ask` answers return them too. Saved-item
+  answers show a chart but no follow-ups. If an access policy later hides a field, a
+  follow-up already saved on that same actor's private turn can still name it.
+
+### Offered questions and the offline model
+
+The question templates the application offers itself are planned exactly, with no model
+call (`canonical_question` in `domain/intent.py`, route `deterministic:offered-question-v1`).
+These come from suggestions, insight actions and follow-ups. They need exact field names:
+`What is the <total|average|minimum|maximum|count> of X [by Y]?`, `Show the … of X by Y`,
+`What is the average X [by Y]?`, `Show|Compare average X by Y`,
+`Which Y has the highest <op> X?`, `Which Y has the most records?`,
+`How many records are there [by Y]?`, `Show [all] records where Y equals V`,
+`Show the first 10 records`, and `Does X relate to Z?` (pattern scan). Each one still goes
+through the same plan validation, governed definitions and receipts as a model plan. Every
+generated follow-up is one of these templates, so follow-up buttons keep working when the
+model is unavailable.
+
+With `EXECPLUS_LLM_MODE=disabled`, a free-form question used to fail with "could not
+complete safely". It now gets a completed clarification with choices that work without a
+model. `ModelDisabledError`, a subclass of `ProviderUnavailableError`, makes this distinction.
+Hosted provider failures still produce the earlier `failed` turn.
+
+### Offline fallback planner (model disabled only)
+
+`domain/offline_planner.py` runs only when the planner raises `ModelDisabledError`. It never
+replaces the hosted model. Route: `deterministic:offline-plan-v1`.
+
+- It matches field names loosely. Every non-unit word of the name must appear in the
+  question: "rainfall" matches `Rainfall_mm`, "soil moisture" matches `Soil_Moisture`, and
+  "mulching" matches `Mulching_Used`. When several fields match, the more specific match
+  wins. A category matched by only part of its name ("irrigation" for `Irrigation_Type`)
+  resolves to the single measure that contains that word (`Previous_Irrigation_mm`), so
+  "which crop needs the most irrigation?" ranks crops by average previous irrigation.
+- It recognises average, total, minimum, maximum and count; grouping words ("by", "per",
+  "each", "wise", "which", "vs"); share or percentage wording (count by the category, so
+  shares and a pie are returned); ranking words ("highest", "most", "top N"); and
+  relationship wording (pattern scan).
+- It refuses rather than guesses. Any row restriction ("in", "where", "only", "above",
+  …), a stray number, more than one candidate measure, or an unmatched category value
+  returns a completed clarification instead of a broader answer. For example, "average
+  rainfall in the north" is never answered as the overall average.
+- The clarification choices are offered templates built from the matched fields first,
+  and then from other real fields. They vary by question.
+
+"Any unusual / weird / odd rows or values", "outliers" and "anomalies" now return a guide
+whose action opens the automatic unusual-values scan. This applies with or without the
+model, and no confirmed meanings are needed.

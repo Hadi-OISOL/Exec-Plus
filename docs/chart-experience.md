@@ -58,3 +58,13 @@ coverage for new interactions. Inspect screenshots of real returned results,
 then build and activate the API/jobs/web images with a rollback checkpoint and
 preserved user data on unchanged schema 0018. Record initial failures as well as passing reruns. The user's earlier
 open-tab mismatch remains unverified until their refreshed screen is observed.
+
+## October 20, 2026 — readable labels, exact tables
+
+Chart-kit labels, donut legends and centre totals, KPI tiles and insight evidence chips show a
+readable value: four decimal places, or four significant digits for values below one, rounded
+half away from zero with exact decimal arithmetic (`readableMetric` in
+`apps/web/src/app/workspace/charts/chart-values.ts`). The value is only rounded for display.
+Tooltips, element titles and "View as table" keep the exact returned string. Field names
+are shown with spaces instead of underscores (display only). Action payloads, questions
+sent to the server and table cells keep the original names.

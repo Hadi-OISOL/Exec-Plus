@@ -20,6 +20,7 @@ terms. These notices do not change the independent licenses of other components.
 | ReportLab | [5.0.1](https://pypi.org/project/reportlab/5.0.1/) | Pinned unmodified PDF runtime; ExecPlus supplies protected saved-answer content and a bounded renderer | [BSD](apps/web/public/third-party/reportlab-LICENSE.txt) |
 | Pillow | 12.3.0, pinned directly | Trusted server chart drawing and ReportLab image support; no user images, arbitrary image paths or remote loading are exposed | [MIT-CMU and bundled notices](apps/web/public/third-party/pillow-LICENSE.txt) |
 | charset-normalizer | 3.5.2 in the verified PDF build | ReportLab dependency | [MIT](apps/web/public/third-party/charset-normalizer-LICENSE.txt) |
+| Inter by Rasmus Andersson | [4.1](https://github.com/rsms/inter/releases/tag/v4.1) variable woff2; SHA-256 `693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3` (roman), `e564f652916db6c139570fefb9524a77c4d48f30c92928de9db19b6b5c7a262a` (italic) | Unmodified self-hosted web interface font | [SIL OFL](apps/web/src/app/fonts/Inter-LICENSE.txt) |
 | Manrope by Mikhail Sharanda and Mirko Velimirović | Existing ExecPlus font; SHA-256 `3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6` | Unmodified duplicate packaged for offline PDF embedding with checked glyph coverage | [SIL OFL](apps/api/src/execplus/infrastructure/exports/assets/OFL.txt) |
 
 Exact reused source paths and implementation boundaries are recorded in
