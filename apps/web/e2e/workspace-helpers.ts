@@ -18,6 +18,11 @@ export async function finishInitialReview(page: Page) {
   await expect(home).toBeVisible();
 }
 
+export async function openHomeTools(page: Page) {
+  const tools = page.getByRole("region", { name: "Analytics home", exact: true }).locator("details.homeMoreTools");
+  if (!(await tools.evaluate(element => (element as HTMLDetailsElement).open))) await tools.locator(":scope > summary").click();
+}
+
 export async function openAnalysisAdvanced(page: Page) {
   await page.locator("label.analysisMethodSwitch").first().waitFor({ timeout: 30_000 });
   const advanced = page.locator("details.analysisAdvanced").first();

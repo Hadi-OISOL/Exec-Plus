@@ -152,7 +152,10 @@ def scan_request(context: DescriptionContext, table: TableData) -> dict[str, Any
         units[name] = meaning.get("currency") or meaning.get("unit") or None
     if not measures:
         raise ClarificationRequiredError(
-            "This file has no numeric columns that can be checked for unusual values."
+            "No numeric column can be checked for unusual values yet. "
+            + " ".join(f"{item['column']}: {item['reason']}" for item in exclusions[:3])
+            if exclusions
+            else "This file has no numeric columns that can be checked for unusual values."
         )
     return dict(
         version=VERSION,

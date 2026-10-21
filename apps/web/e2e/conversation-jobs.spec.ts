@@ -97,6 +97,8 @@ test("durable conversation shows actual actions and Expert changes only the evid
   );
   const count = computations;
   await page.getByRole("radio", { name: "Expert", exact: true }).check();
+  await chat.getByText("Request activity", { exact: true }).click();
+  await chat.getByText("Recorded actions", { exact: false }).click();
   await expect(
     chat.getByText("Request completed", { exact: true }),
   ).toBeVisible();
@@ -107,11 +109,9 @@ test("durable conversation shows actual actions and Expert changes only the evid
   await expect(chat).not.toContainText("Finding supporting document passages");
   await expect(chat).not.toContainText("Planning and checking your request");
   await expect(chat.locator(".verifiedBadge")).toHaveCount(0);
-  await expect(page.locator(".discoveryValue")).toHaveText([
-    "0.1",
-    "0.3",
-    "0.2",
-  ]);
+  await expect(chat.locator(".datasetGuidance")).toContainText(
+    "3 rows and 2 columns",
+  );
   expect(computations).toBe(count);
   for (const width of [320, 390, 1280]) {
     await page.setViewportSize({ width, height: 900 });
@@ -174,6 +174,7 @@ test("durable conversation shows actual actions and Expert changes only the evid
     "3 rows and 2 columns",
   );
   await page.getByRole("radio", { name: "Expert", exact: true }).check();
+  await chat.getByText("Request activity", { exact: true }).click();
   await expect(
     chat.getByText("Request completed", { exact: true }),
   ).toBeVisible();
@@ -300,6 +301,7 @@ test("explicit cancellation reports the actual terminal outcome and remains usab
     );
     const finalJob = await statusResponse.json();
     expect(["cancelled", "succeeded"]).toContain(finalJob.status);
+    await page.getByText("Request activity", { exact: true }).click();
     await expect(
       page.getByText(
         finalJob.status === "cancelled"

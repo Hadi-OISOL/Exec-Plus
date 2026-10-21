@@ -1750,7 +1750,7 @@ export default function WorkspacePage() {
                       {section === "ask" ? <div><strong>Your conversation</strong></div> : !limitedUpload && !reviewOpen && guidedFor !== profileUpload ? (
                         <div className="reviewEntryActions">
                           <button type="button" disabled={busy} onClick={openBrief}>Check what ExecPlus understood</button>
-                          <details><summary>Other review options</summary><button type="button" disabled={busy} onClick={() => setGuidedFor(profileUpload)}>Review this upload step by step</button></details>
+                          <details><summary>Other review options</summary><button type="button" disabled={busy} onClick={() => { setBriefFor(""); setGuidedFor(profileUpload); }}>Review this upload step by step</button></details>
                         </div>
                       ) : <span />}
                       <fieldset className="analysisViewChoice" data-mode={expert ? "expert" : "simple"}>

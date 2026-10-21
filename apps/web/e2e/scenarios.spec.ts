@@ -1,7 +1,7 @@
 /* Use case: Verifies conditional scenarios with real numerical source receipts.
 What it does: Exercises exact comparisons, immutable succession and narrow layouts. */
 import { execFileSync } from "node:child_process";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, openAnalysisAdvanced } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -21,6 +21,7 @@ test("private what-if comparisons reproduce original evidence and preserve prede
   await expect(page.getByLabel("Analysis focus")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await openAnalysisAdvanced(page);
   await page.getByRole("button", { name: "Review data meanings", exact: true }).click();
   const meanings = page.getByRole("region", { name: "Data understanding", exact: true });
   await meanings.getByLabel("One row represents").selectOption("record");

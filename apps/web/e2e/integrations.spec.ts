@@ -8,10 +8,22 @@ import https from "node:https";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { finishInitialReview } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 const web = "http://127.0.0.1:3001";
+
+async function compileEmbedRoute(page: Page, base: string, boardId: string, host: string, headers: Record<string, string>) {
+  await page.goto("about:blank");
+  const created = await (await page.request.post(`${api}${base}/integrations/embeds`, { headers, data: { board_id: boardId, host_origin: host } })).json();
+  expect((await page.request.get(`${web}/embed/${created.grant.id}`, { timeout: 120_000 })).status()).toBe(200);
+  expect((await page.request.delete(`${api}${base}/integrations/embeds/${created.grant.id}`, { headers })).status()).toBe(204);
+  await page.goto("/workspace");
+  await page.getByLabel("Session token").fill(headers.Authorization.slice("Bearer ".length));
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByText("Signed in as", { exact: false })).toBeVisible();
+}
 
 test("owner keys and private embedded dashboards retain exact access and reject another host", async ({ page, browser }) => {
   test.setTimeout(120_000);
@@ -58,6 +70,7 @@ test("owner keys and private embedded dashboards retain exact access and reject 
   const boardResponse = await page.request.post(`${api}${base}/study-boards`, { headers, data: { name: "Private regional dashboard", shared: true, pins: [study.version.id] } });
   expect(boardResponse.status()).toBe(201);
   const board = await boardResponse.json();
+  await compileEmbedRoute(page, base, board.id, host, headers);
   const additional = await page.request.post(`${api}${base}/datasets`, { headers, data: { name: "Additional source fixture" } });
   expect(additional.status()).toBe(201);
   const additionalDataset = await additional.json();

@@ -24,6 +24,9 @@ async function upload(page: Page, content = "city,amount,cost\nKarachi,0.10,0.05
   const r = await response; expect(r.status()).toBe(201); const stored = await r.json();
   const root = `/workspaces/${stored.workspace_id}/datasets/${stored.dataset_id}/uploads/${stored.id}`;
   const panel = page.getByRole("region", { name: "Guided data review", exact: true });
+  await expect(panel).toHaveCount(0);
+  await page.getByText("Other review options", { exact: true }).click();
+  await page.getByRole("button", { name: "Review this upload step by step", exact: true }).click();
   await expect(panel.getByRole("button", { name: "Skip for now", exact: true })).toBeVisible();
   return { root, stored, panel };
 }

@@ -121,6 +121,12 @@ def test_reference_farm_file_scan_runs_without_inputs():
     assert result["findings"] or result["closest"]
 
 
+def test_small_file_explains_why_no_column_can_be_scanned():
+    value, table = context(b"name,amount\na,1\nb,2\nc,3\n")
+    with pytest.raises(ClarificationRequiredError, match="amount: Fewer than eight"):
+        scan_request(value, table)
+
+
 def test_saved_draft_meaning_blocks_calculation_with_one_clear_step():
     value, table = context(farm(), revision_id="r", understanding_id="u")
     with pytest.raises(ClarificationRequiredError, match="Confirm them once"):

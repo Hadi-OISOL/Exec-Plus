@@ -6,7 +6,7 @@ import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { finishInitialReview, navigateTo } from "./workspace-helpers";
+import { finishInitialReview, navigateTo, openHomeTools } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 const screenshots = "../../data/verification/2026-10-16/studio-ui";
@@ -87,9 +87,11 @@ test("studio tool cards navigate real workflows and both fictional demos retain 
     await page.screenshot({ path: `${screenshots}/home-${width}.png`, animations: "disabled", fullPage: true });
     await page.screenshot({ path: `${screenshots}/home-viewport-${width}.png`, animations: "disabled", fullPage: false });
   }
+  await openHomeTools(page);
   await home.getByRole("button", { name: "Open forecasts and what-ifs", exact: true }).click();
   await expect(page.locator("main")).toHaveAttribute("data-section", "forecasts");
   await navigate(page, "Overview");
+  await openHomeTools(page);
   await home.getByRole("button", { name: "Open anomalies and decisions", exact: true }).click();
   await expect(page.locator("main")).toHaveAttribute("data-section", "decisions");
   await navigate(page, "Data library");

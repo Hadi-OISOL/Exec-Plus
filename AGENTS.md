@@ -40,6 +40,22 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 21 — Claude redesign, analyst overview and zero-config analysis live
+
+- Claude Code took over from Codex. Commits 8cf8f2e..0cde101 (+ follow-up) add: one
+  token-based design system (Inter, light/dark), new shell and tabbed Liveboard overview,
+  ECharts chart kit, six deterministic cross-checked analysts (`/analyst-overview`,
+  `docs/insights-engine.md`), zero-config unusual values, forecast quick start, unit
+  suggestions from column names, ranked/offline-capable chat with chart + follow-ups.
+- Live fixes found on VPS: top-N by AVG ranked by hidden SUM (executor) and overview
+  narrator missing usage scope. Releases 6430e1d89fa1f6ad then 955612bb1c42d2bc on
+  unchanged 0029; checked backups 20261020T161935Z, 20261021T042449Z, 20261021T042618Z.
+  Live DeepSeek check: 11 verified cards, 7/7 chat incl. Roman Urdu, correct rankings.
+- Owner direction (Oct 20): demo has no users; work directly on the VPS to save tokens,
+  still with checked backups. Release kit: `data/verification/2026-10-20-claude-release/`.
+- Evidence limits: no single clean full backend run (67% reached, 0 failures) and browser
+  failures were fixed per spec file, not in one clean 122-test run. VC audit/DOCX not updated.
+
 ### October 19 — Proactive overview and contextual what-if verified live
 
 - Private release **074a5821f55d2aff /0029**, runtime **c5b0b4a**, is active.

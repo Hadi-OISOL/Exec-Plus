@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { finishInitialReview, openAnalysisAdvanced } from "./workspace-helpers";
+import { finishInitialReview, openAnalysisAdvanced, openHomeTools } from "./workspace-helpers";
 
 test.use({ actionTimeout: 20_000 });
 
@@ -44,6 +44,7 @@ test("group comparisons explain a reversal on the same rows and privately replay
   const csv = "region,amount,response\n" + Array.from({ length: 20 }, (_, i) => `North,${i + 1},${101 + i}\nSouth,${101 + i},${i + 1}\n`).join("") + "Small,3,5\nSmall,4,6\nSmall,5,7\nNorth,,8\n,9,10\n";
   await upload(page, token, csv);
   await confirm(page, ["amount", "response"]);
+  await openHomeTools(page);
   const setup = page.locator(".groupComparisonSetup");
   await expect(setup).not.toHaveAttribute("open", "");
   await setup.locator("summary").focus();
@@ -102,6 +103,7 @@ test("group comparisons explain a reversal on the same rows and privately replay
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "new-source.csv", mimeType: "text/csv", buffer: Buffer.from("category,value\nX,1\nY,2\n") });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   await finishInitialReview(page);
+  await openHomeTools(page);
   await page.locator(".groupComparisonSetup summary").click();
   await expect(page.locator(".groupComparisonSetup")).toContainText("Confirm two numerical measures");
   await expect(page.locator(".groupComparisonSetup").getByRole("combobox")).toHaveCount(0);

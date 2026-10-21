@@ -180,7 +180,7 @@ for (const partial of [false, true]) {
     await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
     await page.locator("#chat-question").fill("Find anomalies in measure_19");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
-    await page.getByRole("button", { name: "Inspect unusual values", exact: true }).click();
+    await page.getByRole("button", { name: "Scan for unusual values", exact: true }).click();
     const decisions = page.getByRole("region", { name: "Anomalies and decisions", exact: true });
     await expect(decisions.getByRole("region", { name: "Unusual values", exact: true })).toBeVisible();
     await decisions.getByText("Advanced options: choose one measure", { exact: false }).click();

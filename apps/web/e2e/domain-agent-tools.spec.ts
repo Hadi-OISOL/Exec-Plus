@@ -100,7 +100,7 @@ test("the first reading waits for entered upload context and a failed context sa
   allowSave();
   await finishInitialReview(page);
   await expect.poll(() => readingRequests).toBeGreaterThan(0);
-  expect(readingGoal).toBe("Find patterns and unusual values");
+  await expect.poll(() => readingGoal).toBe("Find patterns and unusual values");
   await page.unroute("**/datasets/*/preferences");
   await page.route("**/datasets/*/preferences", route => route.request().method() === "POST" ? route.fulfill({ status: 503, json: { error: { message: "Temporary context save failure" } } }) : route.continue());
   await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Data library", exact: true }).click();
