@@ -25,7 +25,7 @@ test("extended analysis preserves group coverage, resource limits and compound e
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
   await openAnalysisAdvanced(page);
   const panel = page.getByRole("region", { name: "Anomalies and decisions", exact: true });
-  await panel.getByRole("button", { name: "Review data meanings", exact: true }).click();
+  await panel.getByRole("button", { name: "Review data meanings", exact: true }).first().click();
   const meanings = page.getByRole("region", { name: "Data understanding", exact: true });
   await meanings.getByLabel("One row represents").selectOption("record");
   for (const name of ["amount", "cost"]) {

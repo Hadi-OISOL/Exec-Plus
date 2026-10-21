@@ -1,7 +1,7 @@
 {
   "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
-  "date": "2026-10-17",
+  "date": "2026-10-21",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
   "rows": [
     {
@@ -172,7 +172,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Registered data/document, diagram and PDF tools retain evidence. Whole-file understanding now shares one reading route; both reported paraphrases and simpler follow-ups pass live checks. New tasks end stale calculation context; genuine numerical follow-ups retain exact queries. Private context never changes numeric filters.",
+      "note": "Registered data/document, diagram and PDF tools retain evidence. Whole-file understanding now shares one reading route; both reported paraphrases and simpler follow-ups pass live checks. New tasks end stale calculation context; genuine numerical follow-ups retain exact queries. Private context never changes numeric filters. Oct 21: planner supports ranking/top-N and record ordering, app-generated questions and an offline planner answer without the model; answers carry chart type, exact shares and grounded follow-ups. Live DeepSeek check 7/7 incl. Roman Urdu on release 955612bb1c42d2bc. A top-N-by-average ranking defect was found live and fixed.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -195,7 +195,9 @@
         "docs/conversation-harness-repair.md",
         "docs/verification-conversation-harness.md",
         "apps/api/tests/test_understanding_routing.py",
-        "apps/api/tests/test_conversation_boundaries.py"
+        "apps/api/tests/test_conversation_boundaries.py",
+        "docs/insights-engine.md",
+        "data/verification/2026-10-20-claude-release (ignored live checks)"
       ],
       "evidence_groups": [
         "E2",
@@ -422,12 +424,14 @@
       "section": "Improve activation",
       "feature": "Automated dashboard recommendations",
       "status": "done",
-      "note": "Compatible columns and KPIs drive automatic dashboard suggestions. Confirmed meanings and private goals refine study recommendations; users can dismiss suggestions.",
+      "note": "Compatible columns and KPIs drive automatic dashboard suggestions. Confirmed meanings and private goals refine study recommendations; users can dismiss suggestions. Oct 21: analyst overview (insights-v1) runs six deterministic analysts with independent cross-checks; the model only orders cards and picks actions from a server catalog. Live: 11 verified cards, 0 dropped.",
       "evidence": [
         "apps/api/src/execplus/application/services/analytics.py",
         "apps/api/src/execplus/domain/studies.py",
         "apps/api/tests/test_analytics_integration.py",
-        "apps/api/tests/test_studies.py"
+        "apps/api/tests/test_studies.py",
+        "docs/insights-engine.md",
+        "data/verification/2026-10-20-claude-release (ignored live checks)"
       ],
       "evidence_groups": [
         "E2"
@@ -672,7 +676,7 @@
       "section": "Growth-plan features",
       "feature": "Basic time-series forecasting",
       "status": "done",
-      "note": "Daily/monthly forecasts use complete dated history. Without dates, users can inspect measured patterns or supply a daily assumption; a what-if is not a learned forecast.",
+      "note": "Daily/monthly forecasts use complete dated history. Without dates, users can inspect measured patterns or supply a daily assumption; a what-if is not a learned forecast. Oct 21: forecast quick start picks date, measure and frequency from profile facts; files without dates get a plain explanation and working alternatives. Saved forecasts still require confirmed meanings.",
       "evidence": [
         "docs/verification-phase4c.md",
         "docs/phase4-forecasting.md",
@@ -681,7 +685,9 @@
         "apps/api/tests/test_forecast_integration.py",
         "apps/web/e2e/forecasts.spec.ts",
         "docs/measured-patterns.md",
-        "docs/verification-measured-patterns.md"
+        "docs/verification-measured-patterns.md",
+        "docs/insights-engine.md",
+        "data/verification/2026-10-20-claude-release (ignored live checks)"
       ],
       "roadmap": "Phase 4C complete for verified local/test and private-demo scope",
       "evidence_groups": [
@@ -985,7 +991,7 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "partial",
-      "note": "Native registration and workspace provisioning connect to a private versioned setup guide: upload/sample, quality and meaning review, safe cleaning, first analysis/dashboard, recommendations and teammates. Resume, pause/skip, explicit Finish and reopen pass through the actual UI/backend; shared corrections still require confirmation. The code is active in private release 4fff22633f0c5f44 on 0029, and synthetic API/UI setup persistence checks pass. Production onboarding, verified-email recovery/delivery and representative customer acceptance remain open.",
+      "note": "Native registration and workspace provisioning connect to a private versioned setup guide: upload/sample, quality and meaning review, safe cleaning, first analysis/dashboard, recommendations and teammates. Resume, pause/skip, explicit Finish and reopen pass through the actual UI/backend; shared corrections still require confirmation. The code is active in private release 4fff22633f0c5f44 on 0029, and synthetic API/UI setup persistence checks pass. Production onboarding, verified-email recovery/delivery and representative customer acceptance remain open. Oct 21: units are suggested from column names (one-click accept, never auto-confirmed) and an agriculture domain suggestion; 7 of 12 farm-file unit questions become one click. Broader automated onboarding remains Partial.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
@@ -1006,7 +1012,9 @@
         "apps/web/e2e/local-accounts.spec.ts",
         "docs/verification-codex-phase1.md",
         "docs/regression-original-37.md",
-        "docs/verification-codex-private-release.md"
+        "docs/verification-codex-private-release.md",
+        "docs/insights-engine.md",
+        "data/verification/2026-10-20-claude-release (ignored live checks)"
       ],
       "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
@@ -1221,7 +1229,7 @@
       "section": "Integration with other Solutions",
       "feature": "Anomaly detection",
       "status": "partial",
-      "note": "Local private analyses include weighted MAD/IQR, fixed seasonal-residual checks, two-window distribution drift, strictly earlier-window rolling flags and reference-only multivariate distance for two to four confirmed measures. Thresholds, exact flagged records, source versions, review feedback, replay and exports remain inspectable. Synthetic labeled checks measure their own precision/recall, including adaptation limits; flags are not proof of fraud/errors and calibrated false-alarm rates or customer reliability remain open.",
+      "note": "Local private analyses include weighted MAD/IQR, fixed seasonal-residual checks, two-window distribution drift, strictly earlier-window rolling flags and reference-only multivariate distance for two to four confirmed measures. Thresholds, exact flagged records, source versions, review feedback, replay and exports remain inspectable. Synthetic labeled checks measure their own precision/recall, including adaptation limits; flags are not proof of fraud/errors and calibrated false-alarm rates or customer reliability remain open. Oct 21: zero-config unusual-values scan (MAD/IQR, grouped, ranked rows, closest-to-unusual when nothing stands out) runs without settings or confirmed meanings as a live owner-private check. Seasonal/multivariate/drift breadth unchanged; remains Partial.",
       "evidence": [
         "docs/decision-analysis.md",
         "docs/verification-decision-analysis.md",
@@ -1242,7 +1250,9 @@
         "apps/api/tests/test_multivariate_query_boundary.py",
         "apps/web/e2e/advanced-anomalies.spec.ts",
         "docs/regression-original-37.md",
-        "docs/verification-codex-private-release.md"
+        "docs/verification-codex-private-release.md",
+        "docs/insights-engine.md",
+        "data/verification/2026-10-20-claude-release (ignored live checks)"
       ],
       "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [

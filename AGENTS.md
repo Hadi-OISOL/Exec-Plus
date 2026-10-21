@@ -48,13 +48,16 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   `docs/insights-engine.md`), zero-config unusual values, forecast quick start, unit
   suggestions from column names, ranked/offline-capable chat with chart + follow-ups.
 - Live fixes found on VPS: top-N by AVG ranked by hidden SUM (executor) and overview
-  narrator missing usage scope. Releases 6430e1d89fa1f6ad then 955612bb1c42d2bc on
-  unchanged 0029; checked backups 20261020T161935Z, 20261021T042449Z, 20261021T042618Z.
+  narrator missing usage scope. Releases 6430e1d89fa1f6ad, 955612bb1c42d2bc, then
+  **0849c0684bcb26ed** (commit 33726ed, active) on unchanged 0029; checked backups
+  20261020T161935Z, 20261021T042449Z/042618Z, 20261021T092547Z/092614Z.
   Live DeepSeek check: 11 verified cards, 7/7 chat incl. Roman Urdu, correct rankings.
 - Owner direction (Oct 20): demo has no users; work directly on the VPS to save tokens,
   still with checked backups. Release kit: `data/verification/2026-10-20-claude-release/`.
 - Evidence limits: no single clean full backend run (67% reached, 0 failures) and browser
-  failures were fixed per spec file, not in one clean 122-test run. VC audit/DOCX not updated.
+  full 122-test run: 116 pass/2 fail/4 model skips; both failures pass on rerun (one stale
+  selector fixed, one transient fetch). VC audit rows 9/20/34/47/58
+  annotated; counts unchanged 41/17/6; DOCX ExecPlus_Latest_Changes_2026-10-21.docx.
 
 ### October 19 — Proactive overview and contextual what-if verified live
 
