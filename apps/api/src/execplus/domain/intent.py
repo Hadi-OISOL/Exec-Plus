@@ -50,7 +50,10 @@ class RoutedIntent:
     data_steps: tuple["RoutedIntent", ...] = ()
 
 
-def _unsupported(message: str, issue: str = "") -> RoutedIntent:
+INVALID_PLAN = "invalid_plan"
+
+
+def _unsupported(message: str, issue: str = INVALID_PLAN) -> RoutedIntent:
     return RoutedIntent(QuestionKind.UNSUPPORTED, message=message, validation_issue=issue)
 
 
@@ -428,7 +431,8 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
                 return _unsupported(
                     "The clarification explanation could not be validated."
                     if focus == "clarification"
-                    else "The conversational reply could not be validated."
+                    else "The conversational reply could not be validated.",
+                    "",
                 )
             return RoutedIntent(kind, message=message.strip(), guide_focus=focus)
         if (
@@ -461,7 +465,7 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
         )
         return RoutedIntent(QuestionKind.TEXTUAL, message=message)
     fallback = payload.get("message") or "This question is outside the supported scope."
-    return _unsupported(str(fallback))
+    return _unsupported(str(fallback), "")
 
 
 def canonical_cohort(question: str, view: DatasetView) -> RoutedIntent | None:
@@ -649,8 +653,10 @@ def canonical_question(question: str, view: DatasetView) -> RoutedIntent | None:
         return metric(*found)
     if found := match(rf"(?:what is the|show|compare) {operation} {field}(?: by {field})?"):
         return metric(*found)
-    if found := match(rf"which {field} has the highest {operation} {field}"):
-        return metric(found[1], found[2], found[0], "desc")
+    if found := match(rf"which {field} has the (highest|lowest) {operation} {field}"):
+        return metric(
+            found[2], found[3], found[0], "desc" if found[1].casefold() == "highest" else "asc"
+        )
     if found := match(rf"which {field} has the most records"):
         return plan(
             "numerical",

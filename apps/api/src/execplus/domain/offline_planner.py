@@ -2,15 +2,17 @@
 
 What it does: Matches field names loosely, recognises a small set of operations and
 returns a validated plan only when nothing in the question would be silently dropped;
-otherwise it offers varied questions that work without a model.
+otherwise it offers varied questions that work without a model. The same executable
+questions back clickable choices whenever a model plan cannot be validated.
 """
 
 import json
 import re
 from typing import Any
 
+from execplus.domain.conversation_requirements import loosely_named_metrics
 from execplus.domain.guidance import words
-from execplus.domain.intent import RoutedIntent, route_response
+from execplus.domain.intent import RoutedIntent, canonical_question, route_response
 from execplus.domain.models import QuestionKind
 from execplus.domain.semantics import RECORD_COUNT, DatasetView
 
@@ -157,3 +159,24 @@ def offline_choices(question: str, view: DatasetView) -> tuple[str, ...]:
         choices.append(f"Does {measures[0]} relate to {measures[1]}?")
     choices.append("Check data quality")
     return tuple(dict.fromkeys(choices))[:4]
+
+
+def executable_choice(choice: str, view: DatasetView) -> bool:
+    planned = canonical_question(choice, view)
+    return planned is not None and planned.kind != QuestionKind.UNSUPPORTED
+
+
+def working_choices(question: str, view: DatasetView) -> tuple[str, ...]:
+    """Up to three related questions that plan deterministically on this file."""
+    operation = "average" if re.search(_AGGREGATIONS[0][1], words(question)) else "total"
+    named = dict.fromkeys(
+        [
+            *(name for name in _matched(question, view) if name in view.metrics),
+            *loosely_named_metrics(question, view),
+        ]
+    )
+    candidates = [f"What is the {operation} of {name}?" for name in list(named)[:2]]
+    candidates += offline_choices(question, view)
+    return tuple(choice for choice in dict.fromkeys(candidates) if executable_choice(choice, view))[
+        :3
+    ]

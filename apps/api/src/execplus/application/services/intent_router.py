@@ -82,6 +82,7 @@ from execplus.domain.guidance import (
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.intent import (
     CONTRADICTORY_FILTERS,
+    INVALID_PLAN,
     RoutedIntent,
     canonical_cohort,
     canonical_question,
@@ -98,7 +99,12 @@ from execplus.domain.models import (
     VerifiedMetricAnswer,
 )
 from execplus.domain.offline_planner import ROUTE as OFFLINE_ROUTE
-from execplus.domain.offline_planner import offline_choices, offline_plan
+from execplus.domain.offline_planner import (
+    executable_choice,
+    offline_choices,
+    offline_plan,
+    working_choices,
+)
 from execplus.domain.pattern_requests import (
     group_relationship_selection,
     pattern_filter_needs_clarification,
@@ -171,7 +177,7 @@ _SYSTEM_PROMPT = (
     '{"kind": "diagram", "columns": ["<existing field name, optional>"]}\n'
     '{"kind": "cohort_comparison", "target_column": "<text category>", '
     '"target_value": "<exact observed value>", "columns": ["<optional measure>"]}\n'
-    '{"kind": "ambiguous", "message": "...", "options": ["...", "..."]}\n'
+    '{"kind": "ambiguous", "message": "...", "options": ["<complete question>", "..."]}\n'
     '{"kind": "textual", "query": "<document question, maximum 500 characters>"}\n'
     '{"kind": "mixed", "data": {"kind":"numerical|rows", "plan":{...}}, '
     '"document_query":"<document question>"}\n'
@@ -251,7 +257,12 @@ _SYSTEM_PROMPT = (
     "explanation supersedes an earlier pending calculation. A bare measure or short reply "
     "to that calculation retains the pending task instead. "
     "Ask one focused clarification identifying the missing measure, operation or filter. "
-    "Use at most three short choices. For ideal/perfect conditions, ask which recorded "
+    "Use at most three short choices. Each option is a button that sends its text as the "
+    "next question, so write a complete question with exact field names, such as "
+    "'What is the average of <measure> by <category>?', 'Which <category> has the "
+    "highest|lowest average <measure>?' or 'How many records are there by <category>?'; "
+    "a bare field name or observed value is also allowed. "
+    "For ideal/perfect conditions, ask which recorded "
     "outcome matters, not which input to maximize: higher pH, temperature, moisture or "
     "spending is not automatically better. Once a recorded outcome is named, use "
     "cohort_comparison to inspect observed differences, without claiming interventions. "
@@ -1318,6 +1329,13 @@ class IntentRouterService:
                         "comparison is descriptive, not a causal effect. Preserve every "
                         "condition; if the needed operation is unclear ask one simple question."
                     )
+            if not correction and proposal.validation_issue == INVALID_PLAN:
+                correction = (
+                    f"Your reply failed validation: {proposal.message} Propose a fresh JSON "
+                    "reply for the same question using only the listed shapes and exact field "
+                    "names. If the request cannot be expressed that way, return one focused "
+                    "ambiguous question whose options are complete supported questions."
+                )
             if not correction:
                 return proposal, first, ""
             current = await self._describe(actor, workspace_id, dataset_id, upload_id)
@@ -1345,6 +1363,8 @@ class IntentRouterService:
                 if proposal.validation_issue == "count_plan"
                 else "filter-plan correction"
                 if proposal.validation_issue == CONTRADICTORY_FILTERS
+                else "plan correction"
+                if proposal.validation_issue == INVALID_PLAN
                 else "visual-plan correction",
             )
 
@@ -1737,20 +1757,23 @@ class IntentRouterService:
                 actor, workspace_id, dataset_id, upload_id, routed, view, model_route, question
             )
         if routed.kind == QuestionKind.AMBIGUOUS:
-            options = f" Candidates: {', '.join(routed.options)}." if routed.options else ""
-            raise PlanningClarification(
-                ClarificationContext(
-                    prior_clarification.question if prior_clarification else question,
-                    f"{routed.message}{options}",
-                    view.sources,
-                    tuple(
-                        dict.fromkeys(
-                            option
-                            for option in routed.options
-                            if view.column(option) or option in category_options
-                        )
-                    )[:6],
+            original = prior_clarification.question if prior_clarification else question
+            choices = tuple(
+                dict.fromkeys(
+                    option
+                    for option in routed.options
+                    if view.column(option)
+                    or option in category_options
+                    or executable_choice(option, view)
                 )
+            )[:6] or working_choices(original, view)
+            options = (
+                f" Candidates: {', '.join(routed.options)}."
+                if routed.options and not choices
+                else ""
+            )
+            raise PlanningClarification(
+                ClarificationContext(original, f"{routed.message}{options}", view.sources, choices)
             )
         if routed.validation_issue == CONTRADICTORY_FILTERS:
             column = routed.options[0]
@@ -1774,6 +1797,22 @@ class IntentRouterService:
                     "of matching records, or the nonempty values in a specific field? "
                     "Please keep any conditions in your reply.",
                     view.sources,
+                )
+            )
+        if routed.validation_issue == INVALID_PLAN:
+            original = prior_clarification.question if prior_clarification else question
+            choices = working_choices(original, view)
+            raise PlanningClarification(
+                ClarificationContext(
+                    original,
+                    "I couldn't turn that into a calculation I can run safely on this file. "
+                    + (
+                        "These related questions work:"
+                        if choices
+                        else "Please name a measure, the calculation and any grouping."
+                    ),
+                    view.sources,
+                    choices,
                 )
             )
         raise UnsupportedQuestionError(routed.message)
