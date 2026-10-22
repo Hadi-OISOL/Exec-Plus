@@ -260,6 +260,23 @@ The web API URL is a build argument. A future domain requires rebuilding the web
 image for its HTTPS API address and updating `EXECPLUS_WEB_ORIGIN`; changing only
 runtime environment variables cannot replace an already-built browser URL.
 
+### Scheduled email reports (opt-in)
+
+Email stays disabled until private `app.env` sets `EXECPLUS_EMAIL_MODE=smtp`,
+`EXECPLUS_SMTP_HOST`, `EXECPLUS_SMTP_PORT`, `EXECPLUS_SMTP_USERNAME`,
+`EXECPLUS_SMTP_PASSWORD`, `EXECPLUS_SMTP_SENDER` and
+`EXECPLUS_SMTP_SECURITY=ssl` (port 465) or `starttls` (port 587). `none` is refused
+outside local/test. Then install and start the delivery timer:
+
+```bash
+sudo cp deploy/vps/execplus-reports.service deploy/vps/execplus-reports.timer /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now execplus-reports.timer
+```
+
+Each due slot is claimed once; a transient SMTP failure retries after 15 minutes,
+and lost access disables the schedule. Do not enable the timer while email is
+disabled: every due slot would be recorded as failed.
+
 ## Backups and restoration
 
 `execplus-backup.timer` runs daily at 03:00 UTC (08:00 Pakistan time). It briefly

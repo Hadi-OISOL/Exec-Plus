@@ -395,6 +395,7 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
                     "consolidation_runs",
                     "google_connections",
                     "connector_connections",
+                    "account_reset_codes",
                     "external_identities",
                     "oauth_attempts",
                     "local_accounts",

@@ -321,6 +321,7 @@ def build_runtime(settings: Settings) -> "Runtime":
                 settings.smtp_username,
                 settings.smtp_password,
                 settings.smtp_sender,
+                settings.smtp_security,
             )
             if settings.email_mode == "smtp"
             else DisabledEmailDelivery(),

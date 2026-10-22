@@ -117,6 +117,28 @@ class SQLAccountRepository(SQLWorkspaceRepository):
                 .values(revoked_at=now)
             )
 
+    def set_reset_code(self, user_id: UUID, digest: str | None, expires_at: datetime) -> None:
+        self.connection.execute(
+            delete(s.account_reset_codes).where(s.account_reset_codes.c.user_id == user_id)
+        )
+        if digest is not None:
+            self.connection.execute(
+                insert(s.account_reset_codes).values(
+                    user_id=user_id,
+                    code_hash=digest,
+                    expires_at=expires_at,
+                    created_at=datetime.now(timezone.utc),
+                )
+            )
+
+    def reset_code(self, user_id: UUID) -> tuple[str, datetime] | None:
+        row = self.connection.execute(
+            select(s.account_reset_codes.c.code_hash, s.account_reset_codes.c.expires_at)
+            .where(s.account_reset_codes.c.user_id == user_id)
+            .with_for_update()
+        ).one_or_none()
+        return (row[0], row[1]) if row else None
+
     def account_event(
         self, user_id: UUID | None, action: str, now: datetime, reason: str = ""
     ) -> None:

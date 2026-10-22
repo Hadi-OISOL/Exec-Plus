@@ -100,6 +100,7 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
         "consolidation_runs",
         "google_connections",
         "connector_connections",
+        "account_reset_codes",
         "external_identities",
         "oauth_attempts",
         "local_accounts",

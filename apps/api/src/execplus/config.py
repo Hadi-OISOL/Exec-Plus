@@ -57,10 +57,13 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = Field(default="", repr=False)
     smtp_sender: str = ""
+    smtp_security: Literal["ssl", "starttls", "none"] = "ssl"
     vector_mode: Literal["disabled"] = "disabled"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
     web_origin: str = "http://localhost:3000"
     local_registration_enabled: bool = True
+    trusted_proxies: list[str] = Field(default_factory=list)
+    session_cookie_secure: bool | None = None
     integration_allow_loopback: bool = False
     webhook_master_secret: str = Field(default="", repr=False)
     webhook_destinations: dict[str, str] = Field(default_factory=dict, repr=False)
@@ -175,8 +178,11 @@ class Settings(BaseSettings):
             raise ValueError("Selection requires both a base URL and model name")
         if self.llm_mode == "disabled" and self.llm_selection_model:
             raise ValueError("Selection requires an active primary model")
+        if self.smtp_security == "none" and self.environment not in {"local", "test"}:
+            raise ValueError("Unencrypted SMTP is restricted to local/test fake mail servers")
         if self.email_mode == "smtp" and not all(
-            (self.smtp_host, self.smtp_username, self.smtp_password, self.smtp_sender)
+            (self.smtp_host, self.smtp_sender)
+            + (() if self.smtp_security == "none" else (self.smtp_username, self.smtp_password))
         ):
             raise ValueError("SMTP delivery requires host, username, password and sender")
         if self.google_enabled:

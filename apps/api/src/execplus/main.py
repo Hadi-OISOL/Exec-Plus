@@ -105,6 +105,12 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     configured = settings or Settings()
     configure_observation_logging()
     application.state.web_origin = configured.web_origin
+    application.state.trusted_proxies = frozenset(configured.trusted_proxies)
+    application.state.secure_cookies = (
+        configured.session_cookie_secure
+        if configured.session_cookie_secure is not None
+        else configured.environment in {"staging", "production"}
+    )
     application.add_middleware(AccountRequestGuard, web_origin=configured.web_origin)
     application.add_middleware(
         CORSMiddleware,
@@ -169,6 +175,12 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
             )
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-site"
+        if request.url.scheme == "https" or request.app.state.secure_cookies:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         response.headers["X-Request-ID"] = str(request_id)
         return response
 
