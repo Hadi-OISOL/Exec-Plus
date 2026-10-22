@@ -40,6 +40,21 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 22 — phase5 merged, cookie sessions and new-user onboarding live
+
+- Merged origin/phase5 (317dc94): control-plane database refused as a connector source;
+  Google enabled in local/test keeps LocalSessionIdentity. Commit 14ba1db adds an
+  HttpOnly SameSite=Lax `execplus_session` cookie (login/password/Google exchange);
+  cookie requests need `X-ExecPlus-Request: 1`; Bearer still works and wins. Web keeps
+  no token in storage, restores on load, auto-signs-in after registration and opens
+  the first-upload guide. Release **a5d380f2541ef5bd** active on unchanged 0029;
+  checked backups 20261022T100453Z (pre) / 20261022T100541Z (post).
+- Evidence: backend 264 + 188 + 45 targeted (not full suite); web 93/93, types/lint;
+  browser full run 101/17 fail/4 skip, both causes fixed, affected 7 files 41/41.
+  Live curl and real-browser journey (sign-up, refresh, disable, sign-in screen) pass;
+  both fictional accounts disabled. All tunnel users share the per-IP sign-up limit.
+  VC audit/DOCX not updated for this slice.
+
 ### October 21 — Claude redesign, analyst overview and zero-config analysis live
 
 - Claude Code took over from Codex. Commits 8cf8f2e..0cde101 (+ follow-up) add: one
