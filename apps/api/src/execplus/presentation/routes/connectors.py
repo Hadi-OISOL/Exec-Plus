@@ -3,6 +3,7 @@
 What it does: Runs the browser redirects and delegates browsing, credentials and imports.
 """
 
+from dataclasses import asdict
 from typing import Annotated
 from uuid import UUID
 
@@ -12,9 +13,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from execplus.application.services.connectors import ConnectorService
+from execplus.domain.connectors import unconfigured_platforms
 from execplus.domain.ingestion import IngestionError
 from execplus.presentation.routes import oauth
 from execplus.presentation.routes.accounts import peer
+from execplus.presentation.routes.refresh import Refresh, StageInput
 from execplus.presentation.routes.workspaces import Actor, public_upload
 
 router = APIRouter(tags=["connectors"])
@@ -53,9 +56,17 @@ class ImportInput(BaseModel):
     source_id: str = Field(min_length=1, max_length=600)
 
 
+class RefreshInput(ImportInput):
+    options: StageInput
+
+
 @router.get("/connectors")
-async def catalog(actor: Actor, service: OptionalService) -> object:
-    return await run_in_threadpool(service.catalog, actor) if service else []
+async def catalog(actor: Actor, service: OptionalService, request: Request) -> object:
+    available = await run_in_threadpool(service.catalog, actor) if service else []
+    configured = [item["id"] for item in available]
+    if request.app.state.runtime.google_access is not None:
+        configured.append("google_sheets")
+    return [*available, *unconfigured_platforms(configured)]
 
 
 @router.post("/connectors/{provider}/connect")
@@ -155,3 +166,31 @@ async def import_source(
         oauth.session_token(request),
     )
     return public_upload(upload)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/datasets/{dataset_id}/connectors/{provider}/refresh-candidates",
+    status_code=201,
+)
+async def stage_refresh(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    provider: str,
+    body: RefreshInput,
+    request: Request,
+    actor: Actor,
+    service: Service,
+    refresh: Refresh,
+) -> object:
+    candidate = await run_in_threadpool(
+        service.stage_refresh,
+        actor,
+        workspace_id,
+        dataset_id,
+        provider,
+        body.source_id,
+        oauth.session_token(request),
+        refresh,
+        body.options.model_dump(),
+    )
+    return asdict(candidate)

@@ -169,6 +169,9 @@ def test_config_exposes_only_public_picker_values(integration):
     assert "secret" not in json.dumps(body)
     enable(integration, picker=False)
     assert integration.client.get("/auth/google/config").json()["picker"] is None
+    owner, _ = identity(integration, "sheets-on@example.test")
+    catalog = integration.client.get("/connectors", headers=owner).json()
+    assert "google_sheets" not in [item["id"] for item in catalog]
 
 
 def test_sign_in_redirects_to_google_with_pkce_and_a_bound_cookie(integration):

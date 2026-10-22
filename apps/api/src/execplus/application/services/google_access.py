@@ -26,6 +26,7 @@ from execplus.application.google_ports import (
 )
 from execplus.application.oauth_ports import OAuthState
 from execplus.application.ports import WorkspaceRepository
+from execplus.application.services.refresh import RefreshService, editor
 from execplus.application.services.workspaces import WorkspaceService, normalized_email
 from execplus.domain.google_oauth import (
     SHEETS_SCOPES,
@@ -37,7 +38,7 @@ from execplus.domain.google_oauth import (
     verified_identity,
 )
 from execplus.domain.ingestion import AuditEvent, IngestionError, Upload, User
-from execplus.domain.profiling import Revision
+from execplus.domain.refresh import RefreshCandidate
 
 logger = logging.getLogger("execplus.google")
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
@@ -298,17 +299,10 @@ class GoogleAccessService:
             ],
         )
 
-    def import_sheet(
-        self,
-        actor: User,
-        workspace_id: UUID,
-        dataset_id: UUID,
-        spreadsheet_id: str,
-        sheet_id: int | None,
-        session_token: str,
-    ) -> Upload:
+    def _snapshot(
+        self, actor: User, spreadsheet_id: str, sheet_id: int | None, session_token: str
+    ) -> tuple[str, bytes, Callable[[WorkspaceRepository, str, UUID, UUID], None]]:
         identifier = valid_spreadsheet_id(spreadsheet_id)
-        self.uploads.get_dataset(actor, workspace_id, dataset_id)
         tokens, connection = self._access_token(actor)
         token = tokens.access_token
         info: SpreadsheetInfo = self._call(
@@ -326,25 +320,42 @@ class GoogleAccessService:
         content = sheet_to_csv(values)
         filename = import_filename(info.title, tab.title if len(info.tabs) > 1 else "")
 
-        def publish(repo: WorkspaceRepository, upload: Upload, _revision: Revision) -> None:
+        def publish(
+            repo: WorkspaceRepository, action: str, workspace_id: UUID, target: UUID
+        ) -> None:
             repo.require_provider_connection(
                 actor.id,
                 hashlib.sha256(session_token.encode()).hexdigest(),
                 "google",
                 connection.version,
             )
+            kind = "upload" if action == "google_sheets.imported" else "refresh_candidate"
             repo.add(
                 AuditEvent(
                     uuid4(),
-                    upload.workspace_id,
+                    workspace_id,
                     actor.id,
-                    "google_sheets.imported",
-                    "upload",
-                    upload.id,
+                    action,
+                    kind,
+                    target,
                     datetime.now(timezone.utc),
                 )
             )
 
+        return filename, content, publish
+
+    def import_sheet(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        spreadsheet_id: str,
+        sheet_id: int | None,
+        session_token: str,
+    ) -> Upload:
+        valid_spreadsheet_id(spreadsheet_id)
+        self.uploads.get_dataset(actor, workspace_id, dataset_id)
+        filename, content, publish = self._snapshot(actor, spreadsheet_id, sheet_id, session_token)
         upload = self.uploads.upload(
             actor,
             workspace_id,
@@ -352,7 +363,41 @@ class GoogleAccessService:
             filename,
             "text/csv",
             BytesIO(content),
-            _publication_guard=publish,
+            _publication_guard=lambda repo, upload, _revision: publish(
+                repo, "google_sheets.imported", upload.workspace_id, upload.id
+            ),
         )
         logger.info("google_sheets_import outcome=success upload_id=%s", upload.id)
         return upload
+
+    def stage_refresh(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        spreadsheet_id: str,
+        sheet_id: int | None,
+        session_token: str,
+        refresh: RefreshService,
+        options: dict[str, Any],
+    ) -> RefreshCandidate:
+        valid_spreadsheet_id(spreadsheet_id)
+        with refresh.uow() as repo:
+            editor(repo, actor, workspace_id, dataset_id)
+        filename, content, publish = self._snapshot(actor, spreadsheet_id, sheet_id, session_token)
+        candidate = refresh.stage(
+            actor,
+            workspace_id,
+            dataset_id,
+            filename=filename,
+            content_type="text/csv",
+            content=content,
+            _publication_guard=lambda repo, staged: publish(
+                repo, "google_sheets.refresh_staged", workspace_id, staged.id
+            ),
+            **options,
+        )
+        logger.info(
+            "google_sheets_refresh outcome=%s candidate_id=%s", candidate.status, candidate.id
+        )
+        return candidate

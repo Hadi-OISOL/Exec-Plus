@@ -72,7 +72,11 @@ config return 404 when Google is not configured.
 - Limits: 20 MiB, 200,000 rows, 500 columns, 2,000,000 cells, one tab per import. A header
   row and at least one data row are required; blank or repeated headers are renamed.
 - The import is a snapshot. It has a profile, the data reading and replayable answers like
-  any upload, but it does not update when the sheet changes. Import again to refresh.
+  any upload, but it does not update when the sheet changes. Import again, or stage the sheet's current
+  values as a staged-refresh candidate with
+  `POST /workspaces/{id}/datasets/{id}/google-sheets/refresh-candidates`
+  (`{spreadsheet_id, sheet_id, options}`); it is validated, reviewed for schema changes and
+  activated like any refresh file, and audited as `google_sheets.refresh_staged`.
 - Google applies its own quotas, roughly sixty reads per minute per user.
 - Errors are explained without exposing Google's replies: expired connection, a sheet that
   was not picked, a sheet that is too large and Google being unavailable.

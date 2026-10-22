@@ -148,7 +148,23 @@ def stored(env, user_id, provider):
 
 def test_no_connectors_means_an_empty_catalog_and_clear_errors(integration):
     owner, _ = identity(integration, "none@example.test")
-    assert integration.client.get("/connectors", headers=owner).json() == []
+    catalog = integration.client.get("/connectors", headers=owner).json()
+    assert [item["id"] for item in catalog] == [
+        "google_sheets",
+        "quickbooks",
+        "xero",
+        "zoho_books",
+        "odoo",
+        "postgresql",
+        "bigquery",
+    ]
+    assert all(
+        item["configured"] is False
+        and item["kind"] == "unavailable"
+        and item["fields"] == []
+        and item["connected"] is False
+        for item in catalog
+    )
     missing = integration.client.post("/connectors/quickbooks/connect", headers=owner)
     assert missing.status_code == 404 and missing.json()["error"]["code"] == "unknown_connector"
     assert integration.client.get("/connectors").status_code == 401
@@ -160,7 +176,14 @@ def test_the_catalog_lists_each_platform_with_its_form_and_the_callers_connectio
     catalog = {
         item["id"]: item for item in integration.client.get("/connectors", headers=owner).json()
     }
-    assert set(catalog) == {"quickbooks", "odoo"}
+    assert {name for name, item in catalog.items() if item["configured"]} == {"quickbooks", "odoo"}
+    assert {name for name, item in catalog.items() if not item["configured"]} == {
+        "google_sheets",
+        "xero",
+        "zoho_books",
+        "postgresql",
+        "bigquery",
+    }
     assert catalog["odoo"]["kind"] == "credentials" and catalog["quickbooks"]["kind"] == "oauth"
     assert [item["name"] for item in catalog["odoo"]["fields"]] == ["url", "api_key"]
     assert catalog["odoo"]["fields"][1]["secret"] is True

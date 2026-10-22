@@ -5,8 +5,16 @@
 
 Users connect a platform once, choose a source and import it as a normal upload. It then has
 a profile, the data reading and replayable answers like any file. Imports are snapshots: they
-do not update when the platform changes, so import again to refresh. A platform appears only
-when its settings are present. Every connector needs `EXECPLUS_TOKEN_ENCRYPTION_KEY`
+do not update when the platform changes. To refresh, import again, or stage the platform's
+current data into the dataset's [staged refresh](phase4-refresh-monitoring.md) with
+`POST /workspaces/{id}/datasets/{id}/connectors/{platform}/refresh-candidates`
+(`{source_id, options}`, the same options as a staged file). The candidate goes through the
+same validation, schema-change review and activation as an uploaded refresh file; only the
+dataset creator or an owner/admin may stage it, and it is audited as
+`connector.refresh_staged`. Refreshes are started by a person; nothing polls a platform. A platform appears only
+when its settings are present; `GET /connectors` still lists every known platform, with
+`configured: false` and no form for those without settings, so the upload screen can say
+"Not set up on this server". Every connector needs `EXECPLUS_TOKEN_ENCRYPTION_KEY`
 (a Fernet key, see [Google integration](google-integration.md)) and `make migrate` (migration
 0029 adds one table and keeps every existing record).
 
@@ -64,10 +72,14 @@ copies tables through the table-data API, so no query runs and no query cost is 
 ## Verification status
 
 The PostgreSQL connector is tested against a real PostgreSQL server, including the read-only
-guarantee. The other platforms are tested against mock servers shaped like each platform's
+guarantee and an end-to-end API journey with a least-privilege role (sealed password, browse,
+import, re-import as a refresh, tenant isolation). Offline tests record every mock-platform
+request and prove reads only (GET, or Odoo `fields_get`/`search_read`), read-only scopes where
+the platform offers them (QuickBooks has only its full accounting scope), settings gating and
+the error mapping; malformed platform replies become `connector_unexpected_response` (502). The other platforms are tested against mock servers shaped like each platform's
 documented API. None has been run against the real platform, and endpoint, scope and field names
 should be confirmed with real credentials before relying on them. Xero in particular is moving
 to granular scopes, so adjust `EXECPLUS_XERO_SCOPES` if Xero rejects the defaults. Odoo uses
 the JSON-RPC endpoint, which Odoo is replacing in version 19 with a newer API. Not included:
-MySQL, SQL Server or other databases, live queries, scheduled refresh and report-style data
+MySQL, SQL Server or other databases, live queries, unattended scheduled platform polling and report-style data
 such as profit and loss.
