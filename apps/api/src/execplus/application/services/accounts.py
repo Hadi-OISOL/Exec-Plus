@@ -160,6 +160,7 @@ class AccountService:
                 replace(account, password_hash=digest, password_changed_at=now)
             )
             repo.revoke_account_credentials(actor.id, now)
+            repo.set_reset_code(actor.id, None, now)
             repo.account_event(actor.id, "password.changed", now)
             return self._session(repo, actor, now)
 
@@ -204,6 +205,7 @@ class AccountService:
                 )
             )
             repo.revoke_account_credentials(user_id, now)
+            repo.set_reset_code(user_id, None, now)
             repo.account_event(
                 user_id, "account.recovered", now, "operator_checked_account_control"
             )
@@ -211,6 +213,61 @@ class AccountService:
                 repo.account_event(
                     user_id, "account.enabled", now, "operator_checked_account_control"
                 )
+
+    def issue_reset_code(
+        self, user_id: UUID, *, identity_checked: bool
+    ) -> tuple[str, datetime]:
+        if identity_checked is not True:
+            raise IngestionError(
+                "identity_check_required",
+                "An authorized operator must first verify account control.",
+                403,
+            )
+        code, now = secrets.token_urlsafe(16), self.clock()
+        expires_at = now + timedelta(minutes=30)
+        with self.store.transaction() as repo:
+            account = repo.local_account(user_id, lock=True)
+            if account is None or account.disabled_at is not None:
+                raise IngestionError(
+                    "account_unavailable", "This local password account is unavailable.", 404
+                )
+            repo.set_reset_code(user_id, hashlib.sha256(code.encode()).hexdigest(), expires_at)
+            repo.account_event(
+                user_id, "reset_code.issued", now, "operator_checked_account_control"
+            )
+        return code, expires_at
+
+    def reset_password(self, email: str, code: str, new_password: str, peer: str) -> None:
+        email = normalized_email(account_text(email))
+        password_input(new_password, new=True)
+        self._rate("reset", email, peer)
+        invalid = IngestionError(
+            "reset_code_invalid", "This reset code is incorrect, used or expired.", 401
+        )
+        digest, now = self.passwords.hash(new_password), self.clock()
+        with self.store.transaction() as repo:
+            account = repo.account_by_email(email)
+            if account is None:
+                raise invalid
+            repo.lock_account_workspaces(account.user.id)
+            account = repo.local_account(account.user.id, lock=True)
+            stored = repo.reset_code(account.user.id) if account else None
+            if (
+                account is None
+                or stored is None
+                or account.disabled_at is not None
+                or stored[1] <= now
+                or not hmac.compare_digest(
+                    stored[0], hashlib.sha256(account_text(code).encode()).hexdigest()
+                )
+            ):
+                raise invalid
+            repo.update_local_account(
+                replace(account, password_hash=digest, password_changed_at=now)
+            )
+            repo.set_reset_code(account.user.id, None, now)
+            repo.revoke_account_credentials(account.user.id, now)
+            repo.account_event(account.user.id, "password.reset", now, "operator_reset_code")
 
     def profile(self, actor: User) -> dict[str, Any]:
         with self.store.transaction() as repo:

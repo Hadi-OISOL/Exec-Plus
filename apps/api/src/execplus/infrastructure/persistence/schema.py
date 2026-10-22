@@ -168,6 +168,14 @@ account_events = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     Index("account_events_private", "user_id", "created_at"),
 )
+account_reset_codes = Table(
+    "account_reset_codes",
+    metadata,
+    Column("user_id", Uuid, ForeignKey("users.id"), primary_key=True),
+    Column("code_hash", String(64), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
 account_rate_windows = Table(
     "account_rate_windows",
     metadata,

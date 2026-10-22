@@ -50,6 +50,13 @@ class PasswordInput(BaseModel):
     new_password: str = Field(min_length=1, max_length=128, repr=False)
 
 
+class ResetInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: str = Field(min_length=3, max_length=254)
+    code: str = Field(min_length=1, max_length=64, repr=False)
+    new_password: str = Field(min_length=1, max_length=128, repr=False)
+
+
 class DisableInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     password: str = Field(min_length=1, max_length=128, repr=False)
@@ -76,7 +83,7 @@ def options(accounts: Service) -> object:
     return {
         "local_registration_enabled": accounts.registration_enabled,
         "email_verification": "unavailable",
-        "password_recovery": "authorized_local_operator",
+        "password_recovery": "operator_reset_code",
     }
 
 
@@ -104,6 +111,12 @@ def issued(
     remaining = session.expires_at - accounts.clock()
     set_session_cookie(request, response, session.token, int(remaining.total_seconds()))
     return asdict(session)
+
+
+@router.post("/auth/reset-password", status_code=204)
+def reset_password(body: ResetInput, request: Request, accounts: Service) -> Response:
+    accounts.reset_password(body.email, body.code, body.new_password, peer(request))
+    return Response(status_code=204)
 
 
 @router.get("/auth/account")

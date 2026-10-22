@@ -13,6 +13,7 @@ _CREDENTIAL_PATHS = {
     "/auth/login",
     "/auth/password",
     "/auth/disable",
+    "/auth/reset-password",
     "/auth/oauth/exchange",
 }
 _CONNECTOR_CREDENTIAL_PATH = re.compile(r"/connectors/[^/]+/credentials")

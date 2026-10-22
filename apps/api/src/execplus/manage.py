@@ -130,6 +130,39 @@ def _recover_account(args: argparse.Namespace) -> None:
     )
 
 
+def _issue_reset_code(args: argparse.Namespace) -> None:
+    if not args.identity_checked or args.account_id is None:
+        print(
+            "A reset code requires an exact --account-id and --identity-checked after "
+            "separately checking account control.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    try:
+        runtime = build_runtime(Settings())
+        try:
+            code, expires_at = runtime.accounts.issue_reset_code(
+                args.account_id, identity_checked=True
+            )
+        finally:
+            runtime.engine.dispose()
+    except Exception:
+        print(
+            "operator action=reset-code outcome=failed code=reset_code_failure", file=sys.stderr
+        )
+        raise SystemExit(1) from None
+    print(
+        json.dumps(
+            {
+                "action": "reset-code-issued",
+                "account_id": str(args.account_id),
+                "code": code,
+                "expires_at": expires_at.isoformat(),
+            }
+        )
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -143,6 +176,7 @@ def main() -> None:
             "grant-staff",
             "revoke-staff",
             "recover-local-account",
+            "issue-reset-code",
         ],
     )
     parser.add_argument("--email")
@@ -154,6 +188,9 @@ def main() -> None:
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--poll-seconds", type=float, default=0.5)
     args = parser.parse_args()
+    if args.action == "issue-reset-code":
+        _issue_reset_code(args)
+        return
     if args.action == "recover-local-account":
         _recover_account(args)
         return

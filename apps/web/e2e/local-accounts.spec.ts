@@ -1,6 +1,7 @@
 /* Use case: Proves native account and private guide journeys through the actual UI.
 What it does: Exercises signup, resume, source profiling, password rotation and explicit invitation proof with synthetic users. */
 
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
@@ -42,7 +43,7 @@ test("native signup creates a private workspace and the guide resumes without cl
   await access.getByRole("button", { name: "New account", exact: true }).click();
   await access.getByLabel("Account email", { exact: true }).fill(email);
   await access.getByLabel("Your name", { exact: true }).fill("Synthetic owner");
-  await access.getByLabel("Workspace name", { exact: true }).fill("Synthetic browser workspace");
+  await access.getByLabel("Company or workspace name", { exact: true }).fill("Synthetic browser workspace");
   await access.getByLabel("Account password", { exact: true }).fill(password);
   await access.getByLabel("Confirm account password", { exact: true }).fill(password);
   const signedIn = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/auth/login"));
@@ -186,4 +187,27 @@ test("a native teammate joins only after the manager explicitly checks their acc
     await expect(guide.getByRole("heading", { level: 3 })).toHaveCount(0);
     await expect(guide.getByRole("button", { name: "Reload setup guide", exact: true })).toBeVisible();
   } finally { await second.close(); }
+});
+
+test("an operator reset code lets a user choose a new password and signs them in", async ({ page }) => {
+  const email = `reset-browser-${randomUUID()}@example.test`;
+  await register(page, email);
+  const first = await nativeLogin(page, email);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  const issued = JSON.parse(execFileSync("python3", ["-m", "execplus.manage", "issue-reset-code", "--account-id", first.userId, "--identity-checked"], { cwd: "../..", encoding: "utf8" }));
+  await page.goto("/workspace");
+  const access = page.getByRole("region", { name: "Local account access", exact: true });
+  await access.getByRole("button", { name: "Have a reset code?", exact: true }).click();
+  await access.getByLabel("Account email", { exact: true }).fill(email);
+  await access.getByLabel("One-time reset code", { exact: true }).fill("wrong-code");
+  await access.getByLabel("New account password", { exact: true }).fill(replacement);
+  await access.getByLabel("Confirm account password", { exact: true }).fill(replacement);
+  await access.getByRole("button", { name: "Reset password and sign in", exact: true }).click();
+  await expect(access.getByRole("alert")).toContainText("reset code is incorrect");
+  await access.getByLabel("One-time reset code", { exact: true }).fill(issued.code);
+  await access.getByLabel("New account password", { exact: true }).fill(replacement);
+  await access.getByLabel("Confirm account password", { exact: true }).fill(replacement);
+  await access.getByRole("button", { name: "Reset password and sign in", exact: true }).click();
+  await expect(page.getByText(`Signed in as ${email}`, { exact: true })).toBeVisible();
+  expect((await page.request.get(`${api}/auth/me`, { headers: first.headers })).status()).toBe(401);
 });
