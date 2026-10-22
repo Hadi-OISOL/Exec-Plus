@@ -6,7 +6,9 @@
 Users connect a platform once, choose a source and import it as a normal upload. It then has
 a profile, the data reading and replayable answers like any file. Imports are snapshots: they
 do not update when the platform changes, so import again to refresh. A platform appears only
-when its settings are present. Every connector needs `EXECPLUS_TOKEN_ENCRYPTION_KEY`
+when its settings are present; `GET /connectors` still lists every known platform, with
+`configured: false` and no form for those without settings, so the upload screen can say
+"Not set up on this server". Every connector needs `EXECPLUS_TOKEN_ENCRYPTION_KEY`
 (a Fernet key, see [Google integration](google-integration.md)) and `make migrate` (migration
 0029 adds one table and keeps every existing record).
 
@@ -64,7 +66,11 @@ copies tables through the table-data API, so no query runs and no query cost is 
 ## Verification status
 
 The PostgreSQL connector is tested against a real PostgreSQL server, including the read-only
-guarantee. The other platforms are tested against mock servers shaped like each platform's
+guarantee and an end-to-end API journey with a least-privilege role (sealed password, browse,
+import, re-import as a refresh, tenant isolation). Offline tests record every mock-platform
+request and prove reads only (GET, or Odoo `fields_get`/`search_read`), read-only scopes where
+the platform offers them (QuickBooks has only its full accounting scope), settings gating and
+the error mapping; malformed platform replies become `connector_unexpected_response` (502). The other platforms are tested against mock servers shaped like each platform's
 documented API. None has been run against the real platform, and endpoint, scope and field names
 should be confirmed with real credentials before relying on them. Xero in particular is moving
 to granular scopes, so adjust `EXECPLUS_XERO_SCOPES` if Xero rejects the defaults. Odoo uses

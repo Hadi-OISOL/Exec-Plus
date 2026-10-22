@@ -245,6 +245,7 @@ def test_spreadsheet_lists_visible_tabs_and_values_use_quoted_ranges_and_raw_num
     assert "%27O%27%27Brien%27" in str(request.url) or "'O''Brien'" in request.url.path
     assert request.url.params["valueRenderOption"] == "UNFORMATTED_VALUE"
     assert request.url.params["dateTimeRenderOption"] == "FORMATTED_STRING"
+    assert {call.method for call in calls} == {"GET"}
 
 
 @pytest.mark.parametrize("status", [401, 403, 404, 429, 500])
