@@ -38,6 +38,11 @@ from execplus.domain.analysis_extensions import (
 )
 from execplus.domain.analysis_queries import analysis_plan, scenario_coverage_plans
 from execplus.domain.analysis_readiness import fixed_unit_columns, forecast_options
+from execplus.domain.anomaly_calibration import (
+    CALIBRATED_METHOD,
+    calibrated_threshold,
+    calibration_evidence,
+)
 from execplus.domain.calendar_anomaly_requests import CALENDAR_METHODS, is_calendar_anomaly
 from execplus.domain.decision_analysis import (
     METHODS,
@@ -52,19 +57,25 @@ from execplus.domain.evidence import receipt
 from execplus.domain.exploration_selection import anomaly_default
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.large_allocation import METHOD as LARGE_ALLOCATION_METHOD
-from execplus.domain.large_allocation import SENSITIVITY_METHOD as CAPACITY_METHOD
 from execplus.domain.large_allocation import (
+    SCHEDULE_METHOD,
     checked_allocation,
     is_large_allocation,
     prepare_allocation,
     reopen_allocation,
 )
+from execplus.domain.large_allocation import SENSITIVITY_METHOD as CAPACITY_METHOD
 from execplus.domain.models import CalculationLineage, QueryResult
 from execplus.domain.multivariate_anomalies import METHOD as MULTIVARIATE_METHOD
 from execplus.domain.multivariate_anomalies import detect_multivariate, is_multivariate
 from execplus.domain.scenario_constraints import METHOD as CONSTRAINED_SCENARIO_METHOD
 from execplus.domain.scenarios import COMPOUND_METHOD, DAILY_METHOD, alternatives, compare_scenarios
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
+from execplus.domain.scheduled_allocation import (
+    checked_schedule,
+    prepare_schedule,
+    reopen_schedule,
+)
 from execplus.domain.source_scenarios import METHOD as SOURCE_SCENARIO_METHOD
 from execplus.domain.source_scenarios import (
     compare_source_scenarios,
@@ -124,6 +135,8 @@ def method_version(raw: dict[str, Any]) -> str:
         item["operation"] == "daily_change" for item in raw["alternatives"]
     ):
         return DAILY_METHOD
+    if raw["kind"] == "robust_distribution" and raw.get("target_false_alarm_rate"):
+        return CALIBRATED_METHOD
     if raw["kind"] == "robust_distribution" and raw.get("segment_column"):
         return SEGMENT_METHOD
     if raw["kind"] == "bounded_allocation" and (raw.get("prerequisites") or raw.get("exclusions")):
@@ -145,6 +158,13 @@ def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
             return compare_source_scenarios(raw, value.rows)
         return compare_scenarios(raw, value.rows)
     if raw["kind"] == "robust_distribution":
+        if raw.get("target_false_alarm_rate"):
+            target = raw["target_false_alarm_rate"]
+            return detect_distribution(
+                [(row[0], row[1]) for row in value.rows],
+                calibrated_threshold(target),
+                raw["materiality"],
+            ) | dict(method_version=CALIBRATED_METHOD, calibration=calibration_evidence(target))
         if raw.get("segment_column"):
             return detect_segments(
                 [(None if row[0] is None else str(row[0]), row[1], row[2]) for row in value.rows],
@@ -253,6 +273,8 @@ class DecisionAnalysisService:
             large_allocations=dict(
                 model=LARGE_ALLOCATION_METHOD,
                 sensitivity_model=CAPACITY_METHOD,
+                schedule_model=SCHEDULE_METHOD,
+                maximum_periods=12,
                 available=self.allocation_solver is not None,
                 maximum_actions=50,
                 maximum_resources=4,
@@ -261,6 +283,7 @@ class DecisionAnalysisService:
             extensions=[
                 LARGE_ALLOCATION_METHOD,
                 CAPACITY_METHOD,
+                SCHEDULE_METHOD,
                 CONSTRAINED_SCENARIO_METHOD,
                 SEGMENT_METHOD,
                 RESOURCE_METHOD,
@@ -270,6 +293,7 @@ class DecisionAnalysisService:
                 SOURCE_SCENARIO_METHOD,
                 *sorted(CALENDAR_METHODS),
                 MULTIVARIATE_METHOD,
+                CALIBRATED_METHOD,
             ],
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
@@ -483,6 +507,7 @@ class DecisionAnalysisService:
                 in {
                     LARGE_ALLOCATION_METHOD,
                     CAPACITY_METHOD,
+                    SCHEDULE_METHOD,
                     CONSTRAINED_SCENARIO_METHOD,
                     SEGMENT_METHOD,
                     RESOURCE_METHOD,
@@ -491,6 +516,7 @@ class DecisionAnalysisService:
                     DAILY_METHOD,
                     SOURCE_SCENARIO_METHOD,
                     MULTIVARIATE_METHOD,
+                    CALIBRATED_METHOD,
                 }
                 else SCENARIO_METHOD
                 if raw["kind"] == "scenario_comparison"
@@ -560,6 +586,11 @@ class DecisionAnalysisService:
                     )
                     outcomes.append(await self.allocation_solver.solve(problem.integers))
                 calculated = checked_sensitivity(raw, problems, tuple(outcomes))
+            elif raw["model"] == SCHEDULE_METHOD:
+                scheduled = prepare_schedule(raw, result.rows)
+                calculated = checked_schedule(
+                    scheduled, await self.allocation_solver.solve_schedule(scheduled.integers)
+                )
             else:
                 problem = prepare_allocation(raw, result.rows)
                 outcome = await self.allocation_solver.solve(problem.integers)
@@ -724,6 +755,10 @@ class DecisionAnalysisService:
             if is_large_allocation(run.request):
                 if run.request["model"] == CAPACITY_METHOD:
                     rebuilt = reopen_sensitivity(run.request, result.rows, run.result)
+                elif run.request["model"] == SCHEDULE_METHOD:
+                    rebuilt = reopen_schedule(
+                        prepare_schedule(run.request, result.rows), run.result
+                    )
                 else:
                     rebuilt = reopen_allocation(
                         prepare_allocation(run.request, result.rows), run.result

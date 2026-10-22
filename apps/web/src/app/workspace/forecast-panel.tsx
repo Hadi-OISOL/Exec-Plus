@@ -64,7 +64,7 @@ export function ForecastPanel({
   const [frequency, setFrequency] = useState<"daily" | "monthly">("monthly");
   const [horizon, setHorizon] = useState(3);
   const [seasonal, setSeasonal] = useState(false);
-  const [engine, setEngine] = useState<"basic-v1" | "advanced-v2">("basic-v1");
+  const [engine, setEngine] = useState<"basic-v1" | "advanced-v2" | "advanced-v3">("basic-v1");
   const [methodFamily, setMethodFamily] = useState("auto");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -176,7 +176,7 @@ export function ForecastPanel({
       frequency,
       horizon,
       season_length: seasonal ? (frequency === "daily" ? 7 : 12) : null,
-      ...(engine === "advanced-v2" ? { engine, method_family: methodFamily } : {}),
+      ...(engine !== "basic-v1" ? { engine, method_family: methodFamily } : {}),
       coverage_start: start,
       coverage_end: end,
     });
@@ -408,12 +408,13 @@ export function ForecastPanel({
                   <h4>Choose a forecast approach</h4>
                   <label>
                     Forecast approach
-                    <select value={engine} disabled={!!pending} onChange={event => setEngine(event.target.value as "basic-v1" | "advanced-v2")}>
+                    <select value={engine} disabled={!!pending} onChange={event => setEngine(event.target.value as "basic-v1" | "advanced-v2" | "advanced-v3")}>
                       <option value="basic-v1">Basic — compare simple methods</option>
                       <option value="advanced-v2" disabled={!options.advanced_methods?.length}>Advanced — compare smoothing and trends</option>
+                      <option value="advanced-v3" disabled={!options.advanced_methods?.length}>Advanced with calibrated 80% ranges — needs longer history</option>
                     </select>
                   </label>
-                  {engine === "advanced-v2" && <>
+                  {engine !== "basic-v1" && <>
                     <p>Try methods that follow a changing level, trend or repeating cycle. We compare them on three earlier time windows, then test the selected method on a later window it has not seen.</p>
                     <label>
                       Advanced method family
@@ -421,7 +422,7 @@ export function ForecastPanel({
                         {options.advanced_methods?.map(method => <option key={method.id} value={method.id}>{method.label}</option>)}
                       </select>
                     </label>
-                    <p id="advanced-forecast-history">This choice needs at least {advancedMinimumHistory(frequency, horizon, methodFamily) ?? "a valid number of"} complete {frequency === "daily" ? "days" : "months"}. Simple baselines stay in the comparison; advanced methods do not always win.</p>
+                    <p id="advanced-forecast-history">This choice needs at least {advancedMinimumHistory(frequency, horizon, methodFamily, engine === "advanced-v3") ?? "a valid number of"} complete {frequency === "daily" ? "days" : "months"}. Simple baselines stay in the comparison; advanced methods do not always win.</p>
                     {methodFamily === "holt_winters_additive" && !seasonal && <p role="status">Open “Forecast name and seasonal comparison” below and declare the repeating cycle before continuing.</p>}
                     <p>Ranges show earlier forecast errors. They do not promise a probability of being right.</p>
                   </>}
@@ -496,7 +497,7 @@ export function ForecastPanel({
                     />
                     Also evaluate a{" "}
                     {frequency === "daily" ? "7-day" : "12-month"} seasonal
-                    {engine === "advanced-v2" ? " baseline and eligible seasonal smoothing." : " baseline."}
+                    {engine !== "basic-v1" ? " baseline and eligible seasonal smoothing." : " baseline."}
                   </label>
                   <p>
                     Seasonal comparison needs enough historical cycles. The
@@ -509,7 +510,7 @@ export function ForecastPanel({
                     !!pending ||
                     !confirmed ||
                     !metricName ||
-                    (engine === "advanced-v2" && methodFamily === "holt_winters_additive" && !seasonal) ||
+                    (engine !== "basic-v1" && methodFamily === "holt_winters_additive" && !seasonal) ||
                     !options.date_columns.length
                   }
                 >

@@ -202,3 +202,73 @@ def test_projection_uses_declared_filters_and_rejects_stock_and_mixed_population
     ]
     with pytest.raises(IngestionError, match="identical required filters"):
         projection(scope, did, table, apply_definition(view, bad), method["baseline"], True)
+
+
+def oracle(before, after, index, keep=lambda row: True):
+    deltas = {}
+    for sign, rows in ((-1, before), (1, after)):
+        for row in rows:
+            if keep(row):
+                deltas[row[index]] = deltas.get(row[index], 0) + sign * Fraction(row[1])
+    return deltas
+
+
+def test_root_cause_ranks_fields_by_exact_concentration_and_drills_into_top_member():
+    before = (("A", "10", "N", "web"), ("A", "10", "S", "web"), ("B", "5", "N", "shop"))
+    after = (("A", "30", "N", "shop"), ("A", "10", "S", "web"), ("B", "4", "N", "shop"))
+    value = calculate_contributions(before, after, False, ("segment", "region", "channel"))
+    cause = value["root_cause"]
+    assert cause["state"] == "available" and cause["method"] == "dimension-concentration-v1"
+    expected = {}
+    for field, index in (("segment", 0), ("region", 2), ("channel", 3)):
+        deltas = oracle(before, after, index)
+        top = max(deltas.values(), key=abs)
+        expected[field] = abs(top) / sum(abs(d) for d in deltas.values())
+    assert [f["field"] for f in cause["fields"]] == sorted(expected, key=lambda f: -expected[f])
+    assert {f["field"]: exact(f["concentration"]) for f in cause["fields"]} == expected
+    assert exact(value["net_change"]) == 19
+    region = cause["fields"][0]
+    assert region["top_member"] == "N" and exact(region["top_delta"]) == 19
+    assert exact(region["top_share_of_net"]) == 1
+    drill = cause["drilldown"]
+    assert drill["within_field"] == "region" and drill["within_member"] == "N"
+    inside = oracle(before, after, 3 if drill["field"] == "channel" else 0, lambda r: r[2] == "N")
+    assert {r["member"]: exact(r["delta"]) for r in drill["rows"]} == inside
+    assert drill["reconciled"] and sum(inside.values()) == 19
+    plain = calculate_contributions(
+        tuple(r[:2] for r in before), tuple(r[:2] for r in after), False
+    )
+    assert {k: v for k, v in value.items() if k != "root_cause"} == plain
+    assert "root_cause" not in plain
+
+
+def test_root_cause_refuses_missing_amounts_and_mismatched_evidence():
+    value = calculate_contributions(
+        (("A", None, "N"),), (("A", "1", "N"),), False, ("segment", "region")
+    )
+    assert value["root_cause"]["state"] == "undefined_missing_values"
+    flat = calculate_contributions((("A", "1", "N"),), (("A", "1", "N"),), False, ("s", "r"))
+    assert flat["root_cause"]["state"] == "no_change"
+    with pytest.raises(IngestionError):
+        calculate_contributions((("A", "1"),), (("A", "2"),), False, ("segment", "region"))
+
+
+def test_ranked_dimensions_are_validated_and_must_match_on_both_sides():
+    did, uid = uuid4(), uuid4()
+    side = dict(column="revenue", segment="product", dimensions=["region"])
+    other = dict(dataset_id=str(did), upload_id=str(uid), revision_id=str(uuid4()))
+    other["understanding_id"] = str(uuid4())
+    method = dict(
+        kind="contribution",
+        mode="dataset",
+        baseline=side,
+        comparison={**side, **other},
+        additive_rows_confirmed=True,
+    )
+    assert validate_comparison(method, did, uid)["baseline"]["dimensions"] == ["region"]
+    for dims in ([], ["product"], ["a", "a"], ["a", "b", "c", "d"], "region"):
+        with pytest.raises(IngestionError):
+            validate_comparison({**method, "baseline": {**side, "dimensions": dims}}, did, uid)
+    with pytest.raises(IngestionError):
+        changed = {**method, "baseline": {**side, "dimensions": ["region", "channel"]}}
+        validate_comparison(changed, did, uid)

@@ -45,6 +45,13 @@ class AnomalyInput(SourceInput):
     materiality: str = Field(default="0", min_length=1, max_length=100)
     segment_column: str | None = Field(default=None, min_length=1, max_length=200)
     minimum_segment_size: int = Field(default=8, ge=8, le=1000, strict=True)
+    target_false_alarm_rate: Literal["0.05", "0.01", "0.005"] | None = None
+
+    @model_validator(mode="after")
+    def calibrated_threshold(self) -> "AnomalyInput":
+        if self.target_false_alarm_rate and (self.segment_column or self.threshold != "3.5"):
+            raise ValueError("A false-alarm target sets the threshold for one ungrouped measure.")
+        return self
 
 
 class MultivariateInput(SourceInput):
@@ -164,11 +171,26 @@ class CapacitySensitivity(Input):
     )
 
 
+class Precedence(Input):
+    candidate: str = Field(min_length=1, max_length=200)
+    after: str = Field(min_length=1, max_length=200)
+
+
+class ScheduleInput(Input):
+    period_budgets: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(
+        min_length=2, max_length=12
+    )
+    precedence: list[Precedence] = Field(default_factory=list, max_length=40)
+
+
 class LargeAllocationInput(SourceInput):
     kind: Literal["bounded_allocation"] = "bounded_allocation"
-    model: Literal["cp-sat-integer-allocation-v1", "cp-sat-capacity-sensitivity-v2"] = (
-        "cp-sat-integer-allocation-v1"
-    )
+    model: Literal[
+        "cp-sat-integer-allocation-v1",
+        "cp-sat-capacity-sensitivity-v2",
+        "cp-sat-scheduled-allocation-v1",
+    ] = "cp-sat-integer-allocation-v1"
+    schedule: ScheduleInput | None = None
     capacity_sensitivity: CapacitySensitivity | None = None
     entity_column: str = Field(min_length=1, max_length=200)
     cost_column: str = Field(min_length=1, max_length=200)
@@ -233,6 +255,11 @@ class SourceSensitivity(Input):
     percent_changes: list[str] = Field(min_length=2, max_length=21)
 
 
+class SourceRange(Input):
+    low: str = Field(min_length=1, max_length=100)
+    high: str = Field(min_length=1, max_length=100)
+
+
 class ScenarioConstraint(Input):
     field: Literal[
         "quantity",
@@ -262,6 +289,9 @@ class SourceScenarioInput(SourceInput):
     fixed_cost_column: str | None = Field(default=None, min_length=1, max_length=200)
     alternatives: list[SourceAlternative] = Field(min_length=1, max_length=5)
     sensitivity: SourceSensitivity | None = None
+    ranges: (
+        dict[Literal["price", "quantity", "variable_cost", "fixed_cost"], SourceRange] | None
+    ) = Field(default=None, min_length=1, max_length=4)
     assumptions_confirmed: bool = Field(strict=True)
     row_basis_confirmed: bool = Field(strict=True)
     parent_run_id: UUID | None = None
@@ -318,9 +348,10 @@ async def anomalies(
     actor: Actor,
     analyses: Service,
 ) -> object:
-    return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-    )
+    raw = body.model_dump(mode="json")
+    if body.target_false_alarm_rate is None:
+        raw.pop("target_false_alarm_rate")
+    return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
 
 
 @router.post(SOURCE + "/allocations", status_code=201)
@@ -349,9 +380,10 @@ async def large_allocations(
     actor: Actor,
     analyses: Service,
 ) -> object:
-    return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-    )
+    raw = body.model_dump(mode="json")
+    if body.schedule is None:
+        raw.pop("schedule")
+    return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
 
 
 @router.post(SOURCE + "/seasonal-anomalies", status_code=201)

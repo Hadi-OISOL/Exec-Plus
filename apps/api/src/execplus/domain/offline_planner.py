@@ -120,7 +120,7 @@ def offline_plan(question: str, view: DatasetView) -> RoutedIntent | None:
                     for entry in (view.definition or {}).get("metrics", [])
                     if entry["column"] == metrics[0]
                 ),
-                "avg" if group_by else None,
+                "sum" if share else "avg" if group_by else None,
             )
         if aggregation is None:
             return None

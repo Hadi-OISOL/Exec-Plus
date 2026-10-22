@@ -351,3 +351,21 @@ def test_source_and_legacy_methods_never_silently_change_predecessor_meaning(int
     assert crossed.status_code == 422 and "successor" in crossed.text
     assert env.client.get(endpoint(root, old), headers=headers).json()["run"] == old["run"]
     assert env.client.get(endpoint(root, source), headers=headers).json()["run"] == source["run"]
+
+
+def test_declared_driver_ranges_save_exact_bounds_and_reopen_unchanged(integration):
+    env = integration
+    headers, _, wid, _, _, root = fixture(env)
+    ranges = dict(price=dict(low="-10", high="20"), quantity=dict(low="-50", high="10"))
+    response = create(env, headers, root, ranges=ranges)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    bounds = body["run"]["result"]["ranges"]["bounds"]["remaining"]
+    assert (Decimal(bounds["low"]), Decimal(bounds["high"])) == (Decimal("11"), Decimal("59"))
+    assert env.client.get(endpoint(root, body), headers=headers).json()["run"] == body["run"]
+    member, _ = add_member(env, headers, wid, "admin")
+    assert env.client.get(endpoint(root, body), headers=member).status_code == 404
+    plain = create(env, headers, root)
+    assert plain.status_code == 201 and "ranges" not in plain.json()["run"]["result"]
+    bad = create(env, headers, root, ranges=dict(price=dict(low="5", high="1")))
+    assert bad.status_code == 422

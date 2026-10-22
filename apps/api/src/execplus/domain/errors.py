@@ -28,6 +28,10 @@ class QueryDataError(UnsafeQueryError):
     pass
 
 
+class QueryCapacityError(UnsafeQueryError):
+    pass
+
+
 class ProviderUnavailableError(ExecPlusError):
     pass
 

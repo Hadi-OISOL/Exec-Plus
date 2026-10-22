@@ -34,6 +34,11 @@ from execplus.domain.forecasting import (
 
 VERSION = "forecast-v2"
 ENGINE = "advanced-v2"
+CALIBRATED_VERSION = "forecast-v3"
+CALIBRATED_ENGINE = "advanced-v3"
+CALIBRATION_ORIGINS = 9
+NOMINAL_COVERAGE = "0.8"
+CONFORMAL_RANK = 8
 REGISTRY_VERSION = "smoothing-grid-v1"
 ROLLING_ORIGINS = 3
 MAX_CANDIDATES = 43
@@ -87,7 +92,9 @@ def _approximate(value: Decimal) -> Decimal:
         return Decimal(_estimated(value)).normalize()
 
 
-def minimum_history(request: ForecastRequest, family: str = "auto") -> int:
+def minimum_history(
+    request: ForecastRequest, family: str = "auto", calibrated: bool = False
+) -> int:
     _request(request)
     if family not in FAMILIES:
         raise _invalid("forecast_method", "Choose a registered advanced forecast method.")
@@ -98,7 +105,9 @@ def minimum_history(request: ForecastRequest, family: str = "auto") -> int:
     training = MIN_TRAINING[request.frequency]
     if family == "holt_winters_additive":
         training = max(training, 2 * (request.season_length or 0))
-    return training + (ROLLING_ORIGINS + 1) * max(request.horizon, MIN_HOLDOUT[request.frequency])
+    holdout = max(request.horizon, MIN_HOLDOUT[request.frequency])
+    calibration = CALIBRATION_ORIGINS - 1 + holdout if calibrated else 0
+    return training + (ROLLING_ORIGINS + 1) * holdout + calibration
 
 
 def registered_candidates(
@@ -215,10 +224,24 @@ def _prediction(period: str, estimate: Decimal, width: Decimal) -> dict[str, str
     }
 
 
+def _step_widths(
+    candidate: Candidate, values: tuple[Decimal, ...], origins: tuple[int, ...], holdout: int
+) -> tuple[Decimal, ...]:
+    """Split-conformal rank per horizon step from windows unused by selection or testing."""
+    residuals: list[list[Decimal]] = [[] for _ in range(holdout)]
+    for origin in origins:
+        for step, estimate in enumerate(predict(candidate, values[:origin], holdout)):
+            residuals[step].append(abs(values[origin + step] - estimate))
+    return tuple(sorted(errors)[CONFORMAL_RANK - 1] for errors in residuals)
+
+
 def advanced_forecast(
-    points: tuple[ForecastPoint, ...], request: ForecastRequest, family: str = "auto"
+    points: tuple[ForecastPoint, ...],
+    request: ForecastRequest,
+    family: str = "auto",
+    calibrated: bool = False,
 ) -> ForecastResult:
-    required = minimum_history(request, family)
+    required = minimum_history(request, family, calibrated)
     _points(points, request.frequency, contiguous=True)
     if len(points) < required:
         raise _invalid(
@@ -229,8 +252,23 @@ def advanced_forecast(
     holdout = max(request.horizon, MIN_HOLDOUT[request.frequency])
     first_origin = len(points) - 4 * holdout
     origins = tuple(first_origin + index * holdout for index in range(ROLLING_ORIGINS))
-    candidates = registered_candidates(request, family, first_origin)
-    work = len(candidates) * sum(origins) + (len(points) - holdout) + len(points)
+    calibration_origins = (
+        tuple(
+            first_origin - holdout - CALIBRATION_ORIGINS + 1 + index
+            for index in range(CALIBRATION_ORIGINS)
+        )
+        if calibrated
+        else ()
+    )
+    candidates = registered_candidates(
+        request, family, calibration_origins[0] if calibrated else first_origin
+    )
+    work = (
+        len(candidates) * sum(origins)
+        + sum(calibration_origins)
+        + (len(points) - holdout)
+        + len(points)
+    )
     if len(points) > MAX_HISTORY or work > MAX_STATE_UPDATES:
         raise _invalid(
             "forecast_work_limit",
@@ -271,11 +309,16 @@ def advanced_forecast(
         )
         selected = candidates[chosen]
         width = _range_width(residual_sets[chosen])
+        widths = (
+            _step_widths(selected, values, calibration_origins, holdout)
+            if calibrated
+            else (width,) * holdout
+        )
         test_points = points[-holdout:]
         estimates = predict(selected, values[:-holdout], holdout)
         backtest = []
-        for point, estimate in zip(test_points, estimates, strict=True):
-            row = _prediction(point.period.isoformat(), estimate, width)
+        for point, estimate, step_width in zip(test_points, estimates, widths, strict=True):
+            row = _prediction(point.period.isoformat(), estimate, step_width)
             difference = point.actual - Decimal(row["estimate"])
             row.update(
                 actual=format(point.actual, "f"),
@@ -292,9 +335,9 @@ def advanced_forecast(
         future = predict(selected, values, request.horizon)
         period = points[-1].period
         predictions = []
-        for estimate in future:
+        for estimate, step_width in zip(future, widths, strict=False):
             period = next_period(period, request.frequency)
-            predictions.append(_prediction(period.isoformat(), estimate, width))
+            predictions.append(_prediction(period.isoformat(), estimate, step_width))
         limitations = [
             "Fixed registered smoothing candidates are compared, "
             "not every possible forecasting model.",
@@ -390,14 +433,48 @@ def advanced_forecast(
             },
             "limitations": limitations,
         }
+        if calibrated:
+            _calibrate_record(record, points, calibration_origins, first_origin, widths)
         return ForecastResult(
             json.dumps(record, sort_keys=True, separators=(",", ":"), allow_nan=False)
         )
 
 
+def _calibrate_record(
+    record: dict[str, Any],
+    points: tuple[ForecastPoint, ...],
+    calibration_origins: tuple[int, ...],
+    first_origin: int,
+    widths: tuple[Decimal, ...],
+) -> None:
+    record["version"] = CALIBRATED_VERSION
+    record["windows"]["calibration"] = _window(points[calibration_origins[0] : first_origin])
+    record["uncertainty"] = {
+        "method": "split_conformal_per_step_v1",
+        "label": "80% split-conformal range from separate earlier calibration windows",
+        "nominal_coverage": NOMINAL_COVERAGE,
+        "coverage_guaranteed": False,
+        "calibration_independent": True,
+        "calibration_origins": len(calibration_origins),
+        "conformal_rank": CONFORMAL_RANK,
+        "step_widths": [_estimated(value) for value in widths],
+        "backtest_error_source": "calibration",
+        "future_error_source": "calibration",
+        "backtest_coverage": record["uncertainty"]["backtest_coverage"],
+    }
+    record["limitations"] = [
+        item for item in record["limitations"] if not item.startswith(("Error ranges", "The same"))
+    ] + [
+        "Ranges use the selected method's errors from nine earlier calibration windows "
+        "that neither choose the method nor measure test error.",
+        "The 80% level is a split-conformal rank. It holds on average only when errors "
+        "behave alike over time; trend breaks or seasonal shifts can reduce coverage.",
+    ]
+
+
 def compare_advanced_forecast(
     record: dict[str, Any], actuals: tuple[ForecastPoint, ...]
 ) -> dict[str, Any]:
-    if record.get("version") != VERSION:
+    if record.get("version") not in {VERSION, CALIBRATED_VERSION}:
         raise _invalid("forecast_record", "This advanced forecast version is unavailable.")
     return compare_forecast({**record, "version": BASIC_VERSION}, actuals)

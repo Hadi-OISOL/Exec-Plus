@@ -5,7 +5,7 @@ What it does: Checks row alignment, decimal boundaries, null batches and concurr
 
 import asyncio
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from uuid import uuid4
 
 import pytest
@@ -25,7 +25,7 @@ from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("batch_size", [1, 2, 500, 10000])
+@pytest.mark.parametrize("batch_size", [1, 2, 500, 5000, 10000])
 async def test_typed_column_batches_keep_nulls_types_row_alignment_and_bound_values(batch_size):
     table = TableData(
         ("amount", "count", "enabled", "date", "label", "empty"),
@@ -116,3 +116,37 @@ async def test_eight_concurrent_bounded_loads_keep_distinct_workspace_results():
 
     ids = await asyncio.gather(*(run(index) for index in range(1, 9)))
     assert len(set(ids)) == 8
+
+
+@pytest.mark.asyncio
+async def test_default_large_batches_match_small_batches_and_an_independent_exact_sum():
+    amounts = [f"{index % 97}.{index % 1000:03d}" for index in range(6000)]
+    amounts[17] = "-99999999999.000000000000001"
+    amounts[4321] = "0.000000000000000000000000001"
+    table = TableData(
+        ("amount", "region"), tuple((value, f"r{i % 3}") for i, value in enumerate(amounts))
+    )
+    view = dataset_view(profile(table))
+    did = uuid4()
+    scope = WorkspaceScope(uuid4(), uuid4(), frozenset({"owner"}), frozenset({did}))
+    plan = plan_query(
+        scope,
+        did,
+        view,
+        MetricRequest("amount", AggregationKind.SUM, group_by=("region",)),
+        row_limit=100,
+    )
+    default = await DuckDBQueryExecutor(5, 64).execute(plan, scope, table, view)
+    small = await DuckDBQueryExecutor(5, 64, 500).execute(plan, scope, table, view)
+    with localcontext() as context:
+        context.prec = 80
+        expected = {
+            region: sum(
+                (Decimal(value) for i, value in enumerate(amounts) if f"r{i % 3}" == region),
+                Decimal(0),
+            )
+            for region in ("r0", "r1", "r2")
+        }
+    assert expected["r1"] == Decimal("96719.679000000000000000000000001")
+    assert sorted(default.rows) == sorted(small.rows)
+    assert dict(default.rows) == expected

@@ -226,7 +226,7 @@ def run(source: Path, output: Path, fixtures: Path) -> dict[str, Any]:
                         if body is None
                         else env.client.post(root + path, headers=headers, json=body)
                     )
-                    assert response.status_code == 200, response.status_code
+                    assert response.status_code == 200, (response.status_code, response.text[:300])
                     return response.json()
 
                 measure(report, "api_profile_read", lambda: request("/profile"))

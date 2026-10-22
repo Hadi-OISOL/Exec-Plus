@@ -201,6 +201,9 @@ def build_runtime(settings: Settings) -> "Runtime":
         input_rows=settings.query_input_rows,
         input_cells=settings.query_input_cells,
         result_rows=settings.query_result_rows,
+        concurrent_queries=settings.query_concurrent_limit,
+        workspace_concurrent_queries=settings.query_workspace_concurrent_limit,
+        queue_seconds=settings.query_queue_seconds,
     )
     executor = ComputeBroker(
         {

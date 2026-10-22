@@ -421,3 +421,41 @@ def test_dashboard_rejects_a_template_not_supported_by_the_dataset(integration):
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "unsupported_question"
+
+
+def test_query_capacity_refusal_is_a_retryable_503_with_a_failed_receipt(integration):
+    from dataclasses import replace
+    from uuid import UUID
+
+    from sqlalchemy import text
+
+    env = integration
+    owner, _ = identity(env, "owner@example.test")
+    wid = workspace(env, owner)
+    did, uid = uploaded_dataset(env, owner, wid)
+    compute = env.runtime.analytics.executor.executor
+    capabilities = compute._engine.capabilities
+    compute._engine = replace(
+        compute._engine,
+        capabilities=replace(capabilities, budget=replace(capabilities.budget, queue_seconds=0)),
+    )
+    compute._workspace_running[UUID(wid)] = capabilities.budget.workspace_concurrent_queries
+    body = {"metric": "revenue", "aggregation": "sum", "group_by": [], "filters": []}
+    refused = query(env, owner, wid, did, uid, body)
+    assert refused.status_code == 503, refused.text
+    assert refused.headers["Retry-After"] == "5"
+    assert refused.json()["error"]["code"] == "query_capacity"
+    with env.engine.connect() as connection:
+        outcomes = (
+            connection.execute(
+                text("SELECT receipt->>'outcome' FROM query_executions WHERE workspace_id = :w"),
+                {"w": wid},
+            )
+            .scalars()
+            .all()
+        )
+    assert outcomes == ["failed"]
+    del compute._workspace_running[UUID(wid)]
+    accepted = query(env, owner, wid, did, uid, body)
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["rows"] == [["350.000000000000"]]

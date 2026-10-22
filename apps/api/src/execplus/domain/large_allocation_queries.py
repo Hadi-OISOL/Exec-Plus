@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 from execplus.domain.allocation_sensitivity import sensitivity
 from execplus.domain.decision_analysis import fail
-from execplus.domain.large_allocation import SENSITIVITY_METHOD
+from execplus.domain.large_allocation import SCHEDULE_METHOD, SENSITIVITY_METHOD
 from execplus.domain.models import QueryPlan, WorkspaceScope
 from execplus.domain.profiling import TableData
 from execplus.domain.semantics import (
@@ -29,6 +29,8 @@ def large_allocation_plan(
         sensitivity(raw)
     elif raw.get("capacity_sensitivity"):
         fail("allocation_sensitivity", "Use the capacity-comparison method for alternative limits.")
+    if (raw.get("model") == SCHEDULE_METHOD) != bool(raw.get("schedule")):
+        fail("invalid_schedule", "Use the scheduled method with declared period budgets.")
     names = [
         raw["cost_column"],
         raw["benefit_column"],

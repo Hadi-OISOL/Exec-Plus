@@ -52,6 +52,29 @@ def bounded_input(value: Any) -> dict[str, Any]:
     return value
 
 
+def bounded_schedule(value: Any) -> dict[str, Any]:
+    keys = {"base", "period_costs", "period_capacities", "after"}
+    if not isinstance(value, dict) or set(value) != keys:
+        raise ValueError("Invalid schedule input")
+    base = bounded_input(value["base"])
+    n, periods = len(base["benefits"]), len(value["period_capacities"])
+    if not 2 <= periods <= 12 or len(value["period_costs"]) != n:
+        raise ValueError("Invalid schedule dimensions")
+    for column in (value["period_costs"], value["period_capacities"]):
+        if any(type(x) is not int or not 0 <= x <= LIMIT for x in column):
+            raise ValueError("Invalid integer coefficient")
+    if sum(c * q for c, q in zip(value["period_costs"], base["maximum"], strict=True)) > LIMIT:
+        raise ValueError("Unsafe integer scale")
+    if len(value["after"]) > 40 or any(
+        len(pair) != 2
+        or any(type(x) is not int or not 0 <= x < n for x in pair)
+        or pair[0] == pair[1]
+        for pair in value["after"]
+    ):
+        raise ValueError("Invalid precedence rule")
+    return value
+
+
 def main() -> None:
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     resource.setrlimit(resource.RLIMIT_AS, (768 * 1024 * 1024,) * 2)
@@ -68,7 +91,9 @@ def main() -> None:
     encoded = sys.stdin.buffer.read(100_001)
     if len(encoded) > 100_000:
         raise ValueError("Oversized solver input")
-    value = bounded_input(json.loads(encoded))
+    loaded = json.loads(encoded)
+    schedule = bounded_schedule(loaded) if isinstance(loaded, dict) and "base" in loaded else None
+    value = schedule["base"] if schedule else bounded_input(loaded)
     import ortools
     from ortools.sat.python import cp_model
 
@@ -89,6 +114,26 @@ def main() -> None:
         model.add(chosen[first] <= chosen[required])
     for first, second in value["excludes"]:
         model.add(chosen[first] + chosen[second] <= 1)
+    slots: list[list[Any]] = []
+    if schedule:
+        count = len(schedule["period_capacities"])
+        parts: list[list[Any]] = []
+        for index, (quantity, selected) in enumerate(zip(quantities, chosen, strict=True)):
+            upper = value["maximum"][index]
+            slots.append([model.new_bool_var(f"p{index}_{p}") for p in range(count)])
+            parts.append([model.new_int_var(0, upper, f"q{index}_{p}") for p in range(count)])
+            model.add(sum(slots[index]) == selected)
+            for part, slot in zip(parts[index], slots[index], strict=True):
+                model.add(part <= upper * slot)
+            model.add(sum(parts[index]) == quantity)
+        for p, capacity in enumerate(schedule["period_capacities"]):
+            model.add(
+                sum(c * parts[i][p] for i, c in enumerate(schedule["period_costs"])) <= capacity
+            )
+        starts = [sum(p * slot for p, slot in enumerate(row)) for row in slots]
+        for later, earlier in schedule["after"]:
+            model.add(chosen[later] <= chosen[earlier])
+            model.add(starts[earlier] + 1 <= starts[later]).only_enforce_if(chosen[later])
     model.maximize(sum(c * q for c, q in zip(value["benefits"], quantities, strict=True)))
     solver = cp_model.CpSolver()
     solver.parameters.num_search_workers = 1
@@ -102,18 +147,21 @@ def main() -> None:
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
         else None
     )
-    print(
-        json.dumps(
-            dict(
-                status=solver.status_name(status),
-                quantities=selected,
-                objective=sum(c * q for c, q in zip(value["benefits"], selected, strict=True))
-                if selected is not None
-                else None,
-                termination="solver_completed",
-            )
-        )
+    output: dict[str, Any] = dict(
+        status=solver.status_name(status),
+        quantities=selected,
+        objective=sum(c * q for c, q in zip(value["benefits"], selected, strict=True))
+        if selected is not None
+        else None,
+        termination="solver_completed",
     )
+    if schedule:
+        output["periods"] = (
+            [next((p for p, slot in enumerate(row) if solver.value(slot)), None) for row in slots]
+            if selected is not None
+            else None
+        )
+    print(json.dumps(output))
 
 
 if __name__ == "__main__":

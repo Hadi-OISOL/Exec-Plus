@@ -1,14 +1,19 @@
 """Use case: Brokers authorized analytical execution through registered engines.
 
-What it does: Applies snapshot/result budgets while preserving the QueryExecutor contract.
+What it does: Applies snapshot/result and concurrency budgets while preserving the
+QueryExecutor contract.
 """
 
-from collections.abc import Mapping
+import asyncio
+import time
+from collections.abc import AsyncIterator, Mapping
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from uuid import UUID
 
 from execplus.application.ports import QueryExecutor
 from execplus.domain.compute import ComputeCapabilities, ComputeOperation
-from execplus.domain.errors import AuthorizationError, UnsafeQueryError
+from execplus.domain.errors import AuthorizationError, QueryCapacityError, UnsafeQueryError
 from execplus.domain.join_paths import JoinPath
 from execplus.domain.models import QueryPlan, QueryResult, WorkspaceScope
 from execplus.domain.profiling import TableData
@@ -28,6 +33,8 @@ class ComputeBroker:
         self._engine = engines[selected_engine]
         if self._engine.capabilities.engine_id != selected_engine:
             raise ValueError("The registered compute engine identifier does not match")
+        self._running = 0
+        self._workspace_running: dict[UUID, int] = {}
 
     @property
     def capabilities(self) -> ComputeCapabilities:
@@ -46,6 +53,34 @@ class ComputeBroker:
         if sum(len(table.headers) * len(table.rows) for table in tables) > budget.input_cells:
             raise UnsafeQueryError("The query exceeds the input cell budget")
 
+    def _saturated(self, workspace_id: UUID) -> bool:
+        budget = self.capabilities.budget
+        return (
+            self._running >= budget.concurrent_queries
+            or self._workspace_running.get(workspace_id, 0) >= budget.workspace_concurrent_queries
+        )
+
+    @asynccontextmanager
+    async def _slot(self, workspace_id: UUID) -> AsyncIterator[None]:
+        deadline = time.monotonic() + self.capabilities.budget.queue_seconds
+        while self._saturated(workspace_id):
+            if time.monotonic() >= deadline:
+                raise QueryCapacityError(
+                    "The query service is at its concurrent query limit; try again shortly"
+                )
+            await asyncio.sleep(0.01)
+        self._running += 1
+        self._workspace_running[workspace_id] = self._workspace_running.get(workspace_id, 0) + 1
+        try:
+            yield
+        finally:
+            self._running -= 1
+            remaining = self._workspace_running[workspace_id] - 1
+            if remaining:
+                self._workspace_running[workspace_id] = remaining
+            else:
+                del self._workspace_running[workspace_id]
+
     def _result(self, plan: QueryPlan, result: QueryResult) -> QueryResult:
         if result.query_id != plan.query_id:
             raise UnsafeQueryError("The engine returned a result for a different execution")
@@ -60,7 +95,9 @@ class ComputeBroker:
     ) -> QueryResult:
         self._authorize(plan, scope)
         self._validate(ComputeOperation.SNAPSHOT_QUERY, table)
-        return self._result(plan, await self._engine.executor.execute(plan, scope, table, view))
+        async with self._slot(scope.workspace_id):
+            result = await self._engine.executor.execute(plan, scope, table, view)
+        return self._result(plan, result)
 
     async def execute_join(
         self,
@@ -81,9 +118,8 @@ class ComputeBroker:
         ):
             raise AuthorizationError("Both joined datasets must belong to the authorized workspace")
         self._validate(ComputeOperation.DECLARED_JOIN, left_table, right_table)
-        return self._result(
-            plan,
-            await self._engine.executor.execute_join(
+        async with self._slot(scope.workspace_id):
+            result = await self._engine.executor.execute_join(
                 plan, scope, join_path, left_table, left_view, right_table, right_view
-            ),
-        )
+            )
+        return self._result(plan, result)

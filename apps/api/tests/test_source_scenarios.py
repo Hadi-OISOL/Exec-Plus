@@ -366,3 +366,74 @@ def test_successors_preserve_mapping_grain_units_filters_and_selected_meanings()
     scope, did, table, _ = source()
     with pytest.raises(UnsupportedQuestionError):
         source_scenario_plan(scope, did, replacement, table, raw)
+
+
+def oracle_outcome(p, q, c, f):
+    p, q, c, f = (1 + Fraction(v) / 100 for v in (p, q, c, f))
+    revenue, variable, fixed = 80 * p * q, 36 * q * c, 7 * f
+    remaining = revenue - variable - fixed
+    return dict(
+        quantity=5 * q,
+        revenue=revenue,
+        variable_cost=variable,
+        fixed_cost=fixed,
+        total_cost=variable + fixed,
+        contribution=revenue - variable,
+        remaining=remaining,
+        margin_percent=remaining / revenue * 100,
+    )
+
+
+def test_declared_ranges_give_exact_bounds_that_contain_every_interior_combination():
+    ranges = dict(
+        price=dict(low="-10", high="20"),
+        quantity=dict(low="-50", high="10"),
+        fixed_cost=dict(low="0", high="50"),
+    )
+    result = compare_source_scenarios(request(ranges=ranges), ROWS)
+    value = result["ranges"]
+    assert value["method"] == "vertex-interval-bounds-v1" and value["corners_evaluated"] == 8
+    grid = [
+        oracle_outcome(p, q, 0, f)
+        for p in range(-10, 21, 5)
+        for q in range(-50, 11, 10)
+        for f in range(0, 51, 25)
+    ]
+    for key, bounds in value["bounds"].items():
+        low, high = min(g[key] for g in grid), max(g[key] for g in grid)
+        if key == "margin_percent":
+            assert abs(Fraction(bounds["low"]) - low) < Fraction(1, 10**20)
+            assert abs(Fraction(bounds["high"]) - high) < Fraction(1, 10**20)
+        else:
+            assert (Fraction(bounds["low"]), Fraction(bounds["high"])) == (low, high)
+    remaining = value["bounds"]["remaining"]
+    assert (Fraction(remaining["low"]), Fraction(remaining["high"])) == (Fraction(15, 2), 59)
+    assert remaining["high_assumptions"] == dict(price="20", quantity="10", fixed_cost="0")
+    assert remaining["low_assumptions"] == dict(price="-10", quantity="-50", fixed_cost="50")
+    without = compare_source_scenarios(request(), ROWS)
+    assert "ranges" not in without
+    assert {k: v for k, v in result.items() if k != "ranges"} == without
+
+
+def test_ranges_are_validated_and_zero_revenue_margin_bounds_stay_unavailable():
+    zero = compare_source_scenarios(request(ranges=dict(price=dict(low="-100", high="0"))), ROWS)[
+        "ranges"
+    ]["bounds"]
+    assert zero["margin_percent"] is None and zero["revenue"]["low"] == "0"
+    for ranges in (
+        {},
+        dict(price=dict(low="5", high="5")),
+        dict(price=dict(low="-101", high="0")),
+        dict(margin=dict(low="0", high="1")),
+        dict(price=dict(low="0")),
+    ):
+        with pytest.raises(IngestionError):
+            compare_source_scenarios(request(ranges=ranges), ROWS)
+    plain = dict(name="Flat", price="0", quantity="0", variable_cost="0", fixed_cost="0")
+    raw = request(fixed_cost_column=None, alternatives=[plain], sensitivity=None)
+    assert "ranges" not in compare_source_scenarios(raw, tuple(row[:3] for row in ROWS))
+    with pytest.raises(IngestionError, match="fixed-cost column before varying"):
+        compare_source_scenarios(
+            {**raw, "ranges": dict(fixed_cost=dict(low="0", high="1"))},
+            tuple(row[:3] for row in ROWS),
+        )

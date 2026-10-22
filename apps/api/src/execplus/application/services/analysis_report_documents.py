@@ -174,12 +174,15 @@ def _overview(report: _Report, record: dict[str, Any], kind: str) -> None:
 def _forecast(report: _Report, record: dict[str, Any]) -> None:
     result = record["result"]
     history, predictions = result["history"], result["predictions"]
-    range_label = "Empirical" if result.get("version") == "forecast-v2" else "Heuristic"
-    range_note = (
-        "The reported ranges use validation errors, not calibrated confidence intervals."
-        if range_label == "Empirical"
-        else "The reported ranges are heuristic, not calibrated confidence intervals."
+    range_label = {"forecast-v2": "Empirical", "forecast-v3": "Calibrated 80%"}.get(
+        str(result.get("version")), "Heuristic"
     )
+    range_note = {
+        "Empirical": "The reported ranges use validation errors, "
+        "not calibrated confidence intervals.",
+        "Calibrated 80%": "The reported ranges use separate earlier calibration windows; "
+        "80% coverage assumes errors behave alike over time and is not guaranteed.",
+    }.get(range_label, "The reported ranges are heuristic, not calibrated confidence intervals.")
     report.text(
         "Interpretation",
         "Historical actuals are recorded source values. Predictions and error measures are "

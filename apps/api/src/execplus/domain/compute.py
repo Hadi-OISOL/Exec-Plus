@@ -21,16 +21,23 @@ class QueryBudget:
     input_rows: int = 200_000
     input_cells: int = 2_000_000
     result_rows: int = 100_000
+    concurrent_queries: int = 8
+    workspace_concurrent_queries: int = 4
+    queue_seconds: float = 15.0
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.timeout_seconds) or not 0 < self.timeout_seconds <= 300:
             raise ValueError("Query time budget must be finite and at most 300 seconds")
+        if not math.isfinite(self.queue_seconds) or not 0 <= self.queue_seconds <= 300:
+            raise ValueError("Query queue wait must be finite and at most 300 seconds")
         bounds = (
             (self.memory_limit_mb, 16_384),
             (self.threads, 8),
             (self.input_rows, 200_000),
             (self.input_cells, 2_000_000),
             (self.result_rows, 100_000),
+            (self.concurrent_queries, 64),
+            (self.workspace_concurrent_queries, self.concurrent_queries),
         )
         if any(type(value) is not int or not 1 <= value <= maximum for value, maximum in bounds):
             raise ValueError("Query budgets must use positive integers within supported limits")

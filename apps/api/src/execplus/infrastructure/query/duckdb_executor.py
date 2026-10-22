@@ -10,6 +10,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from datetime import date
 from decimal import Decimal, InvalidOperation, localcontext
+from functools import lru_cache
 from threading import Event, Lock
 
 import duckdb
@@ -33,6 +34,11 @@ _DUCKDB_TYPES = {
 }
 
 
+@lru_cache(maxsize=39)
+def _decimal_bounds(scale: int) -> tuple[Decimal, Decimal]:
+    return Decimal(f"1e{38 - scale}"), Decimal((0, (1,), -scale))
+
+
 def _coerce(value: str, kind: str, scale: int = 12) -> Scalar:
     value = value.strip()
     if not value:
@@ -49,11 +55,12 @@ def _coerce(value: str, kind: str, scale: int = 12) -> Scalar:
             return int(number)
         if kind == "decimal":
             number = Decimal(value)
-            if not number.is_finite() or number.copy_abs() >= Decimal(f"1e{38 - scale}"):
+            limit, quantum = _decimal_bounds(scale)
+            if not number.is_finite() or number.copy_abs() >= limit:
                 raise ValueError("Out of supported decimal range")
             with localcontext() as context:
                 context.prec = 50
-                exact = number.quantize(Decimal((0, (1,), -scale)))
+                exact = number.quantize(quantum)
                 if number != exact:
                     raise ValueError("Out of supported decimal precision")
             return exact
@@ -147,7 +154,7 @@ class DuckDBQueryExecutor:
         self,
         timeout_seconds: float,
         memory_limit_mb: int,
-        insert_batch_size: int = 500,
+        insert_batch_size: int = 5000,
         *,
         budget: QueryBudget | None = None,
     ) -> None:

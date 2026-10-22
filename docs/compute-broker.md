@@ -30,6 +30,19 @@ declared-join cardinality guards and result checksum serialization are unchanged
 | `EXECPLUS_QUERY_INPUT_ROWS` | 200000 | 200000 combined rows |
 | `EXECPLUS_QUERY_INPUT_CELLS` | 2000000 | 2000000 combined cells |
 | `EXECPLUS_QUERY_RESULT_ROWS` | 100000 | 100000 returned rows |
+| `EXECPLUS_QUERY_CONCURRENT_LIMIT` | 8 | 64 simultaneous queries per process |
+| `EXECPLUS_QUERY_WORKSPACE_CONCURRENT_LIMIT` | 4 | the concurrent limit, per workspace |
+| `EXECPLUS_QUERY_QUEUE_SECONDS` | 15 | 300 seconds of waiting for a slot; 0 refuses at once |
+
+Concurrency slots cap simultaneous DuckDB connections, so worst-case engine memory
+is bounded by the concurrent limit times the memory limit (default 8 × 256 MiB).
+A query that cannot obtain both a process slot and a workspace slot within the
+queue wait is refused before reaching the engine with HTTP 503
+`query_capacity` and `Retry-After: 5`; its execution receipt is recorded with
+outcome `failed`. Slots are per process (the API and jobs worker each have their
+own), are polled every 10 ms rather than granted first-in-first-out, and are
+released on success, failure and cancellation. A refused query has already passed
+plan-allowance admission, so it counts once against the processing allowance.
 
 The existing `EXECPLUS_QUERY_ROW_LIMIT` remains the planner's limit and does not
 override a stricter execution budget. File intake keeps its separate existing

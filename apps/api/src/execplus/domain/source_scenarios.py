@@ -27,6 +27,7 @@ METHOD = "source-unit-economics-v1"
 MAX_ROWS = 10000
 DRIVERS = ("price", "quantity", "variable_cost", "fixed_cost")
 COLUMN_KEYS = ("quantity_column", "sales_column", "cost_column", "fixed_cost_column")
+RANGE_METHOD = "vertex-interval-bounds-v1"
 
 
 def is_source_scenario(raw: dict[str, Any]) -> bool:
@@ -98,6 +99,17 @@ def validate_source_scenario(raw: dict[str, Any]) -> None:
             fail("scenario_sensitivity", "Use distinct increasing sensitivity percentages.")
         if sensitivity["driver"] == "fixed_cost" and not raw.get("fixed_cost_column"):
             fail("scenario_fixed_cost", "Choose a source fixed-cost column before varying it.")
+    ranges = raw.get("ranges")
+    if ranges is not None:
+        if not isinstance(ranges, dict) or not 1 <= len(ranges) <= 4 or set(ranges) - set(DRIVERS):
+            fail("scenario_range", "Choose one to four drivers with low and high changes.")
+        for driver, bounds in ranges.items():
+            if not isinstance(bounds, dict) or set(bounds) != {"low", "high"}:
+                fail("scenario_range", "Declare both a low and a high percentage change.")
+            if not _percent(bounds["low"]) < _percent(bounds["high"]):
+                fail("scenario_range", "Each low change must be below its high change.")
+            if driver == "fixed_cost" and not raw.get("fixed_cost_column"):
+                fail("scenario_fixed_cost", "Choose a source fixed-cost column before varying it.")
 
 
 def source_scenario_plan(
@@ -281,6 +293,50 @@ def compare_source_scenarios(
                 ],
                 reference="original_baseline_other_changes_zero",
             )
+        ranges = None
+        if raw.get("ranges"):
+            declared_ranges = {key: raw["ranges"][key] for key in DRIVERS if key in raw["ranges"]}
+            corners = [
+                (
+                    {key: "0" for key in DRIVERS}
+                    | {
+                        key: bounds["high" if index >> bit & 1 else "low"]
+                        for bit, (key, bounds) in enumerate(declared_ranges.items())
+                    },
+                )
+                for index in range(2 ** len(declared_ranges))
+            ]
+            evaluated = [(changes, outcome(changes)) for (changes,) in corners]
+            bounds_by_key: dict[str, Any] = {}
+            for key in baseline:
+                known = [(Decimal(str(r[key])), c) for c, r in evaluated if r[key] is not None]
+                if len(known) != len(evaluated):
+                    bounds_by_key[key] = None
+                    continue
+                low = min(known, key=lambda item: item[0])
+                high = max(known, key=lambda item: item[0])
+                bounds_by_key[key] = dict(
+                    low=encoded(low[0]),
+                    high=encoded(high[0]),
+                    low_assumptions={k: encoded(_percent(low[1][k])) for k in declared_ranges},
+                    high_assumptions={k: encoded(_percent(high[1][k])) for k in declared_ranges},
+                )
+            ranges = dict(
+                method=RANGE_METHOD,
+                reference="original_baseline_other_changes_zero",
+                drivers={
+                    key: dict(low=encoded(_percent(v["low"])), high=encoded(_percent(v["high"])))
+                    for key, v in declared_ranges.items()
+                },
+                corners_evaluated=len(evaluated),
+                bounds=bounds_by_key,
+                limitation=(
+                    "Bounds evaluate every low/high combination exactly; each outcome is "
+                    "monotone in every driver, so extremes occur at these corners. "
+                    "They are declared ranges, not probabilities or forecasts. "
+                    "Margin bounds are unavailable when any combination has zero revenue."
+                ),
+            )
     comparison = dict(
         version=METHOD,
         method_version=METHOD,
@@ -289,6 +345,7 @@ def compare_source_scenarios(
         baseline=baseline,
         alternatives=alternatives,
         sensitivity=sensitivity,
+        **({"ranges": ranges} if ranges else {}),
         parent_run_id=raw.get("parent_run_id"),
         warnings=[
             "Signed source inputs are retained, including returns or credits; "
