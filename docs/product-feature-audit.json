@@ -1,15 +1,15 @@
 {
   "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
-  "date": "2026-10-21",
+  "date": "2026-10-22",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
   "rows": [
     {
       "id": 1,
       "section": "Month 1",
       "feature": "Company registration and secure login",
-      "status": "partial",
-      "note": "Native email/password registration, owner workspace setup, login/logout, expiring and revocable sessions, password change, account disable and authorized operator recovery pass local backend/UI checks. Operator demo access remains. Email remains an unverified identifier. Native account code is active in private release 4fff22633f0c5f44 on 0029; synthetic API/UI registration, password and session checks pass. Verified-email reset and production identity/security acceptance remain open.",
+      "status": "done",
+      "note": "Native email/password registration, owner workspace setup, login/logout, expiring and revocable sessions, password change, account disable and authorized operator recovery pass local backend/UI checks. Operator demo access remains. Email remains an unverified identifier. Native account code is active in private release 4fff22633f0c5f44 on 0029; synthetic API/UI registration, password and session checks pass. Verified-email reset and production identity/security acceptance remain open. October 22 (private release f590a4a813287580 on 0030): operator-issued one-time reset codes (hashed, single use, 30 minutes), HttpOnly SameSite=Lax session cookie, session-fixation revocation, API security headers and automatic sign-in after registration pass backend/browser checks and a live check. Done for the private-demo scope; verified-email reset needs SMTP and a domain.",
       "evidence": [
         "apps/api/src/execplus/infrastructure/identity.py",
         "apps/api/src/execplus/manage.py",
@@ -22,7 +22,10 @@
         "apps/web/e2e/local-accounts.spec.ts",
         "docs/verification-codex-phase1.md",
         "docs/regression-original-37.md",
-        "docs/verification-codex-private-release.md"
+        "docs/verification-codex-private-release.md",
+        "apps/api/tests/test_account_reset_codes.py",
+        "apps/api/tests/test_session_cookie.py",
+        "apps/api/tests/test_security_hardening.py"
       ],
       "evidence_groups": [
         "E1",
@@ -307,7 +310,7 @@
       "section": "Month 1",
       "feature": "Usage limits and metering",
       "status": "partial",
-      "note": "Local versioned plans enforce stock and period allowances at real backend entrypoints, jobs and supported exports/forecasts. Atomic admissions, unchanged-retry idempotency, period accounting and owner/admin remaining-capacity screens pass local tests. Global safety limits remain. Commercial billing-grade metering, payment-derived activation and production acceptance remain outside this local scope.",
+      "note": "Local versioned plans enforce stock and period allowances at real backend entrypoints, jobs and supported exports/forecasts. Atomic admissions, unchanged-retry idempotency, period accounting and owner/admin remaining-capacity screens pass local tests. Global safety limits remain. Commercial billing-grade metering, payment-derived activation and production acceptance remain outside this local scope. October 22 (private release f590a4a813287580 on 0030): query concurrency limits (8 per process, 4 per workspace) refuse excess work with a recorded receipt.",
       "evidence": [
         "apps/api/src/execplus/application/services/workspaces.py",
         "apps/api/src/execplus/application/services/activation.py",
@@ -319,7 +322,8 @@
         "apps/web/e2e/local-plans.spec.ts",
         "docs/verification-codex-phase1.md",
         "docs/regression-original-37.md",
-        "docs/verification-codex-private-release.md"
+        "docs/verification-codex-private-release.md",
+        "docs/compute-broker.md"
       ],
       "evidence_groups": [
         "E1",
@@ -495,12 +499,13 @@
       "section": "Improve activation",
       "feature": "Scheduled email reports",
       "status": "partial",
-      "note": "Scheduling, unsubscribe, access checks and an email adapter are built and tested. Email is disabled by default; real scheduled delivery has not been verified.",
+      "note": "Scheduling, unsubscribe, access checks and an email adapter are built and tested. Email is disabled by default; real scheduled delivery has not been verified. October 22 (private release f590a4a813287580 on 0030): SMTP ssl/starttls modes, retry after temporary failure and an opt-in report timer pass tests against a local fake SMTP server; real sending still needs an approved SMTP account.",
       "evidence": [
         "apps/api/src/execplus/application/services/reports.py",
         "apps/api/src/execplus/infrastructure/email.py",
         "apps/api/tests/test_phase3_integration.py",
-        "docs/verification-phase3.md"
+        "docs/verification-phase3.md",
+        "apps/api/tests/test_report_email_delivery.py"
       ],
       "evidence_groups": [
         "E3"
@@ -643,7 +648,7 @@
       "section": "Growth-plan features",
       "feature": "Variance and root-cause analysis",
       "status": "partial",
-      "note": "Local saved studies compare nonoverlapping periods or two explicitly mapped files, rank exact signed category contributions, and decompose eligible matched groups into volume, mix and unit-revenue effects with separate entries/exits. Both-source permissions, original receipts, drilldown, sharing and exports are checked. These are observed accounting contributions and associations, not proven business causes; broader causal methods remain open.",
+      "note": "Local saved studies compare nonoverlapping periods or two explicitly mapped files, rank exact signed category contributions, and decompose eligible matched groups into volume, mix and unit-revenue effects with separate entries/exits. Both-source permissions, original receipts, drilldown, sharing and exports are checked. These are observed accounting contributions and associations, not proven business causes; broader causal methods remain open. October 22 (private release f590a4a813287580 on 0030): optional root-cause ranking over up to three category fields with a one-level drilldown that adds back exactly; labelled accounting attribution, not causation.",
       "evidence": [
         "apps/api/src/execplus/domain/refresh.py",
         "apps/api/src/execplus/application/services/monitoring.py",
@@ -795,7 +800,7 @@
       "section": "Commercial readiness",
       "feature": "Security hardening",
       "status": "partial",
-      "note": "Local native authentication, origin and streamed-body checks, safe errors, rate limits, account disable/revocation and shared authorization guards pass negative backend/UI tests. Existing private-resource and tenant boundaries remain. Public HTTPS/proxy setup, independent penetration/privacy review and production security acceptance remain open; the accepted code is active in private release 4fff22633f0c5f44 on 0029, with separate synthetic API boundary checks.",
+      "note": "Local native authentication, origin and streamed-body checks, safe errors, rate limits, account disable/revocation and shared authorization guards pass negative backend/UI tests. Existing private-resource and tenant boundaries remain. Public HTTPS/proxy setup, independent penetration/privacy review and production security acceptance remain open; the accepted code is active in private release 4fff22633f0c5f44 on 0029, with separate synthetic API boundary checks. October 22 (private release f590a4a813287580 on 0030): API security headers, web anti-framing, Secure cookies outside local/test, session-fixation revocation and trusted-proxy rate-limit keying are tested; the development token sign-in box is removed from production builds. Independent penetration test and public HTTPS remain.",
       "evidence": [
         "apps/api/src/execplus/main.py",
         "apps/api/src/execplus/infrastructure/identity.py",
@@ -808,7 +813,9 @@
         "apps/api/tests/test_dataset_access.py",
         "docs/verification-codex-phase1.md",
         "docs/regression-original-37.md",
-        "docs/verification-codex-private-release.md"
+        "docs/verification-codex-private-release.md",
+        "apps/api/tests/test_security_hardening.py",
+        "apps/web/tests/operator-signin.test.mjs"
       ],
       "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
@@ -851,7 +858,7 @@
       "section": "Commercial readiness",
       "feature": "Backup and recovery",
       "status": "partial",
-      "note": "The local 0029 recovery rehearsal checks archive integrity, restores only disposable empty targets and verifies 77 matching table fingerprints, three uploads/revisions and three exact replays. The earlier expanded 0027 rehearsal includes native account, private onboarding, plan and incident records; disabled-account and revoked-source replay denials pass. Private 0029 release pre/post backups 20261017T161322Z/20261017T162930Z pass checksum and archive-readability checks; no live restore occurred. Production restore, off-server custody/retention and formal recovery objectives remain open.",
+      "note": "The local 0029 recovery rehearsal checks archive integrity, restores only disposable empty targets and verifies 77 matching table fingerprints, three uploads/revisions and three exact replays. The earlier expanded 0027 rehearsal includes native account, private onboarding, plan and incident records; disabled-account and revoked-source replay denials pass. Private 0029 release pre/post backups 20261017T161322Z/20261017T162930Z pass checksum and archive-readability checks; no live restore occurred. Production restore, off-server custody/retention and formal recovery objectives remain open. October 22 (private release f590a4a813287580 on 0030): the local recovery rehearsal passes on schema 0030; checked VPS backups 20261022T164756Z (before) and 20261022T171045Z (after). Off-server custody and recovery objectives remain.",
       "evidence": [
         "deploy/vps/backup.sh",
         "apps/api/tests/test_backup_worker_coordination.py",
@@ -911,7 +918,7 @@
       "section": "Commercial readiness",
       "feature": "AI-response evaluation",
       "status": "partial",
-      "note": "Deterministic offline evaluation covers 40 named synthetic cases and 112 exact checks, including numerical agreement, citation binding, unsupported-output checks, access boundaries and replay consistency. Initial failures remain recorded. This proves the fixed local cases only; representative live-provider quality, speed, spending and customer-data performance remain unverified.",
+      "note": "Deterministic offline evaluation covers 40 named synthetic cases and 112 exact checks, including numerical agreement, citation binding, unsupported-output checks, access boundaries and replay consistency. Initial failures remain recorded. This proves the fixed local cases only; representative live-provider quality, speed, spending and customer-data performance remain unverified. October 22 (private release f590a4a813287580 on 0030): provider-free labelled evaluation: routing 23/24, output validation 20/20, grounding 9/10, binding 5/5, executed answers 16/16. A live 12-dataset/81-question review (36 pass/16 partial/29 fail, all executed numbers correct) found calendar-grain, impossible-filter, ratio-measure and follow-up defects; fixes are deployed and await a live re-measure.",
       "evidence": [
         "scripts/evaluate_demo_model.py",
         "scripts/evaluate_data_partner.py",
@@ -924,7 +931,10 @@
         "docs/verification-local-workflow.md",
         "scripts/check_analysis_evaluation.py",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-evaluation-cost-performance.md",
+        "apps/api/tests/test_live_dataset_defects.py",
+        "docs/agent-harness.md"
       ],
       "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
@@ -938,7 +948,7 @@
       "section": "Commercial readiness",
       "feature": "Query cost controls",
       "status": "partial",
-      "note": "Local model accounting retains actual provider-reported counters when supplied, configured price estimates, atomic budget reservations and explicit unknown exposure. Plan attempts share the existing ledger; request/response byte bounds and pre-dispatch rejection are tested. Reserved exposure is not a guaranteed token or invoice upper bound. Actual provider spending, invoiced charges and production cost acceptance remain unverified.",
+      "note": "Local model accounting retains actual provider-reported counters when supplied, configured price estimates, atomic budget reservations and explicit unknown exposure. Plan attempts share the existing ledger; request/response byte bounds and pre-dispatch rejection are tested. Reserved exposure is not a guaranteed token or invoice upper bound. Actual provider spending, invoiced charges and production cost acceptance remain unverified. October 22 (private release f590a4a813287580 on 0030): bounded query concurrency returns 503 query_capacity with a recorded failed receipt; about 5 microseconds overhead per query.",
       "evidence": [
         "apps/api/src/execplus/domain/compute.py",
         "apps/api/src/execplus/domain/jobs.py",
@@ -950,7 +960,8 @@
         "apps/api/tests/test_usage_metering_integration.py",
         "apps/api/tests/test_usage_provider.py",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/compute-broker.md"
       ],
       "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
@@ -991,7 +1002,7 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "partial",
-      "note": "Native registration and workspace provisioning connect to a private versioned setup guide: upload/sample, quality and meaning review, safe cleaning, first analysis/dashboard, recommendations and teammates. Resume, pause/skip, explicit Finish and reopen pass through the actual UI/backend; shared corrections still require confirmation. The code is active in private release 4fff22633f0c5f44 on 0029, and synthetic API/UI setup persistence checks pass. Production onboarding, verified-email recovery/delivery and representative customer acceptance remain open. Oct 21: units are suggested from column names (one-click accept, never auto-confirmed) and an agriculture domain suggestion; 7 of 12 farm-file unit questions become one click. Broader automated onboarding remains Partial.",
+      "note": "Native registration and workspace provisioning connect to a private versioned setup guide: upload/sample, quality and meaning review, safe cleaning, first analysis/dashboard, recommendations and teammates. Resume, pause/skip, explicit Finish and reopen pass through the actual UI/backend; shared corrections still require confirmation. The code is active in private release 4fff22633f0c5f44 on 0029, and synthetic API/UI setup persistence checks pass. Production onboarding, verified-email recovery/delivery and representative customer acceptance remain open. Oct 21: units are suggested from column names (one-click accept, never auto-confirmed) and an agriculture domain suggestion; 7 of 12 farm-file unit questions become one click. Broader automated onboarding remains Partial. October 22 (private release f590a4a813287580 on 0030): registration signs in automatically and opens the first-upload guide; reset codes support recovery.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
@@ -1062,7 +1073,7 @@
       "section": "Commercial readiness",
       "feature": "Performance optimization",
       "status": "partial",
-      "note": "Repeatable local benchmarks retain synthetic fixture bytes, exact result checks, first/warm latency, serial throughput and qualified memory/bundle measurements. Thirteen workflow operations and nine modified API operations are checked. The combined validated XLSX parse removes a duplicate traversal; measured results include improvements and slowdowns, not a general speedup. Representative sustained load and production-scale acceptance remain open.",
+      "note": "Repeatable local benchmarks retain synthetic fixture bytes, exact result checks, first/warm latency, serial throughput and qualified memory/bundle measurements. Thirteen workflow operations and nine modified API operations are checked. The combined validated XLSX parse removes a duplicate traversal; measured results include improvements and slowdowns, not a general speedup. Representative sustained load and production-scale acceptance remain open. October 22 (private release f590a4a813287580 on 0030): query loading 19-34% faster on 20,000-row synthetic benchmarks with identical results; no sustained-load claim.",
       "evidence": [
         "docs/verification-operations.md",
         "docs/operations-console-support.md",
@@ -1072,7 +1083,8 @@
         "scripts/benchmark_data_workflow.py",
         "apps/api/tests/test_synthetic_workflow_roundtrip.py",
         "docs/verification-codex-phase1.md",
-        "docs/regression-original-37.md"
+        "docs/regression-original-37.md",
+        "docs/verification-evaluation-cost-performance.md"
       ],
       "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
@@ -1100,14 +1112,16 @@
       "id": 52,
       "section": "Integration with other Solutions",
       "feature": "QuickBooks or Xero integration",
-      "status": "missing",
-      "note": "No accounting-system connector is implemented. Files exported from those products can only use the existing supported-file upload flow.",
+      "status": "partial",
+      "note": "No accounting-system connector is implemented. Files exported from those products can only use the existing supported-file upload flow. October 22 (private release f590a4a813287580 on 0030): QuickBooks and Xero read-only connectors with encrypted tokens, paging, row limits, error mapping, isolation and staged refresh pass mock-provider tests. Not run against real Intuit/Xero apps; not configured on the VPS.",
       "evidence": [
         "ROADMAP.md",
         "apps/api/src/execplus/application/ports.py",
-        "apps/api/src/execplus/bootstrap.py"
+        "apps/api/src/execplus/bootstrap.py",
+        "docs/connectors.md",
+        "apps/api/tests/test_connector_safety.py",
+        "apps/api/tests/test_connector_refresh.py"
       ],
-      "roadmap": "Phase 6, Frozen",
       "evidence_groups": [
         "E8"
       ]
@@ -1116,14 +1130,15 @@
       "id": 53,
       "section": "Integration with other Solutions",
       "feature": "Zoho Books or Odoo integration",
-      "status": "missing",
-      "note": "No Zoho Books or Odoo connector, authentication flow or synchronization is implemented.",
+      "status": "partial",
+      "note": "No Zoho Books or Odoo connector, authentication flow or synchronization is implemented. October 22 (private release f590a4a813287580 on 0030): Zoho Books and Odoo read-only connectors pass mock-provider tests, including Odoo private-host blocking and limited RPC calls. Not run against real accounts; not configured on the VPS.",
       "evidence": [
         "ROADMAP.md",
         "apps/api/src/execplus/application/ports.py",
-        "apps/api/src/execplus/bootstrap.py"
+        "apps/api/src/execplus/bootstrap.py",
+        "docs/connectors.md",
+        "apps/api/tests/test_connector_safety.py"
       ],
-      "roadmap": "Phase 6, Frozen",
       "evidence_groups": [
         "E8"
       ]
@@ -1132,14 +1147,15 @@
       "id": 54,
       "section": "Integration with other Solutions",
       "feature": "Google Sheets integration",
-      "status": "missing",
-      "note": "No Google Sheets connection or live refresh exists. It is planned as an initial controlled read-only connector.",
+      "status": "partial",
+      "note": "No Google Sheets connection or live refresh exists. It is planned as an initial controlled read-only connector. October 22 (private release f590a4a813287580 on 0030): Google sign-in, Picker sheet import and person-started refresh through staged review pass mocked tests. Google is configured on the private VPS and a live redirect reaches Google's consent page; a completed live sign-in and sheet import are not yet verified.",
       "evidence": [
         "ROADMAP.md",
         "docs/platform-foundation-plan.md",
-        "apps/api/src/execplus/bootstrap.py"
+        "apps/api/src/execplus/bootstrap.py",
+        "docs/google-integration.md",
+        "apps/api/tests/test_connector_refresh.py"
       ],
-      "roadmap": "Phase 4E",
       "evidence_groups": [
         "E8"
       ]
@@ -1148,14 +1164,15 @@
       "id": 55,
       "section": "Integration with other Solutions",
       "feature": "Database/BigQuery connector",
-      "status": "missing",
-      "note": "PostgreSQL currently stores ExecPlus’s own metadata. It is not an external customer-data connector. Read-only PostgreSQL and BigQuery connectors are still unbuilt.",
+      "status": "partial",
+      "note": "PostgreSQL currently stores ExecPlus’s own metadata. It is not an external customer-data connector. Read-only PostgreSQL and BigQuery connectors are still unbuilt. October 22 (private release f590a4a813287580 on 0030): the read-only PostgreSQL connector passes an end-to-end test against a real server with a SELECT-only role, encrypted credentials and the control-plane database refused; BigQuery is mock-tested only.",
       "evidence": [
         "ROADMAP.md",
         "apps/api/src/execplus/application/ports.py",
-        "apps/api/src/execplus/bootstrap.py"
+        "apps/api/src/execplus/bootstrap.py",
+        "docs/connectors.md",
+        "apps/api/tests/test_connectors_postgres_api.py"
       ],
-      "roadmap": "PostgreSQL Phase 4E; BigQuery Phase 6",
       "evidence_groups": [
         "E8"
       ]
@@ -1165,7 +1182,7 @@
       "section": "Integration with other Solutions",
       "feature": "Advanced forecasts",
       "status": "partial",
-      "note": "Existing opt-in advanced forecasts compare naive, seasonal-naive, SES, Holt, damped and additive Holt-Winters candidates using chronological validation and a later untouched holdout. Phase 2 focused regression rechecks train-only fitting, numerical results, immutable vintages, later actuals, permissions, replay and exports. Empirical error ranges are not calibrated probability intervals; external regressors and representative customer acceptance remain open.",
+      "note": "Existing opt-in advanced forecasts compare naive, seasonal-naive, SES, Holt, damped and additive Holt-Winters candidates using chronological validation and a later untouched holdout. Phase 2 focused regression rechecks train-only fitting, numerical results, immutable vintages, later actuals, permissions, replay and exports. Empirical error ranges are not calibrated probability intervals; external regressors and representative customer acceptance remain open. October 22 (private release f590a4a813287580 on 0030): opt-in advanced-v3 split-conformal 80% ranges (76.7% observed coverage on 240 synthetic test points); v2 output unchanged.",
       "evidence": [
         "docs/phase4-forecasting.md",
         "ROADMAP.md",
@@ -1190,7 +1207,7 @@
       "section": "Integration with other Solutions",
       "feature": "Scenario planning",
       "status": "partial",
-      "note": "Local private source-derived scenarios combine confirmed quantity, price/revenue and cost inputs with explicit simultaneous drivers, up to five named alternatives, sensitivity tables and immutable successors. Declared unit-checked outcome limits use exact checks, including rational margin boundaries; authorized charts and exports preserve source evidence. Fixed mix and supplied formulas are assumptions, not learned demand response or probabilistic forecasts; nonlinear dynamics and representative acceptance remain open.",
+      "note": "Local private source-derived scenarios combine confirmed quantity, price/revenue and cost inputs with explicit simultaneous drivers, up to five named alternatives, sensitivity tables and immutable successors. Declared unit-checked outcome limits use exact checks, including rational margin boundaries; authorized charts and exports preserve source evidence. Fixed mix and supplied formulas are assumptions, not learned demand response or probabilistic forecasts; nonlinear dynamics and representative acceptance remain open. October 22 (private release f590a4a813287580 on 0030): low/high driver ranges (up to four drivers, 16 exact combinations) give exact best/worst outcomes.",
       "evidence": [
         "docs/scenario-planning.md",
         "docs/verification-scenario-planning.md",
@@ -1213,7 +1230,8 @@
         "apps/web/e2e/scenario-capacity.spec.ts",
         "docs/verification-codex-phase2.md",
         "docs/regression-original-37.md",
-        "docs/verification-codex-private-release.md"
+        "docs/verification-codex-private-release.md",
+        "docs/internal-analytics-depth.md"
       ],
       "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
@@ -1229,7 +1247,7 @@
       "section": "Integration with other Solutions",
       "feature": "Anomaly detection",
       "status": "partial",
-      "note": "Local private analyses include weighted MAD/IQR, fixed seasonal-residual checks, two-window distribution drift, strictly earlier-window rolling flags and reference-only multivariate distance for two to four confirmed measures. Thresholds, exact flagged records, source versions, review feedback, replay and exports remain inspectable. Synthetic labeled checks measure their own precision/recall, including adaptation limits; flags are not proof of fraud/errors and calibrated false-alarm rates or customer reliability remain open. Oct 21: zero-config unusual-values scan (MAD/IQR, grouped, ranked rows, closest-to-unusual when nothing stands out) runs without settings or confirmed meanings as a live owner-private check. Seasonal/multivariate/drift breadth unchanged; remains Partial.",
+      "note": "Local private analyses include weighted MAD/IQR, fixed seasonal-residual checks, two-window distribution drift, strictly earlier-window rolling flags and reference-only multivariate distance for two to four confirmed measures. Thresholds, exact flagged records, source versions, review feedback, replay and exports remain inspectable. Synthetic labeled checks measure their own precision/recall, including adaptation limits; flags are not proof of fraud/errors and calibrated false-alarm rates or customer reliability remain open. Oct 21: zero-config unusual-values scan (MAD/IQR, grouped, ranked rows, closest-to-unusual when nothing stands out) runs without settings or confirmed meanings as a live owner-private check. Seasonal/multivariate/drift breadth unchanged; remains Partial. October 22 (private release f590a4a813287580 on 0030): seeded false-alarm calibration and target false-alarm thresholds; heavy-tailed synthetic data shows 0.031 false alarms at the default threshold.",
       "evidence": [
         "docs/decision-analysis.md",
         "docs/verification-decision-analysis.md",
@@ -1252,7 +1270,8 @@
         "docs/regression-original-37.md",
         "docs/verification-codex-private-release.md",
         "docs/insights-engine.md",
-        "data/verification/2026-10-20-claude-release (ignored live checks)"
+        "data/verification/2026-10-20-claude-release (ignored live checks)",
+        "docs/internal-analytics-depth.md"
       ],
       "roadmap": "October 17 combined local Phase 2 accepted on 0029: 2,937 latest passing backend cases, 107 passing browser journeys and three explicit model skips. Private release 4fff22633f0c5f44 is active from checkpoint 00be9da; its verification is recorded separately. All eight production gates remain open.",
       "evidence_groups": [
@@ -1267,7 +1286,7 @@
       "section": "Integration with other Solutions",
       "feature": "Prescriptive recommendations",
       "status": "partial",
-      "note": "Local conditional decisions retain exact small enumeration and a bounded CP-SAT model for up to 50 actions, a budget and three additional resources, quantity bounds, prerequisites and exclusions. Capacity alternatives retain exact checked quantities, objectives, utilization and provable shortfalls; optimal, feasible-only, infeasible and unknown remain distinct. Private approval applies only to the original model and becomes ineffective when inputs change. Assumed additive benefits are not causal uplift; general nonlinear models and validated action effects remain open, and no external action executes.",
+      "note": "Local conditional decisions retain exact small enumeration and a bounded CP-SAT model for up to 50 actions, a budget and three additional resources, quantity bounds, prerequisites and exclusions. Capacity alternatives retain exact checked quantities, objectives, utilization and provable shortfalls; optimal, feasible-only, infeasible and unknown remain distinct. Private approval applies only to the original model and becomes ineffective when inputs change. Assumed additive benefits are not causal uplift; general nonlinear models and validated action effects remain open, and no external action executes. October 22 (private release f590a4a813287580 on 0030): CP-SAT multi-period scheduling with per-period budgets and ordering rules, independently re-verified; API only, no web form yet.",
       "evidence": [
         "docs/decision-analysis.md",
         "docs/verification-decision-analysis.md",
@@ -1352,7 +1371,7 @@
       "section": "Integration with other Solutions",
       "feature": "API and webhooks",
       "status": "partial",
-      "note": "The local customer API has separately hashed, scoped, expiring and revocable keys, atomic limits, audited access and eight documented operations using existing governed query/result services. Studies and dashboards require every source and current sharing at final delivery; other private results remain issuer-owned. A signed metadata-only outbox provides deduplication, bounded retry/backoff and status with loopback tests. Real outbound delivery is disabled by default and needs explicit network allowlisting; external delivery, production capacity and security acceptance remain unverified.",
+      "note": "The local customer API has separately hashed, scoped, expiring and revocable keys, atomic limits, audited access and eight documented operations using existing governed query/result services. Studies and dashboards require every source and current sharing at final delivery; other private results remain issuer-owned. A signed metadata-only outbox provides deduplication, bounded retry/backoff and status with loopback tests. Real outbound delivery is disabled by default and needs explicit network allowlisting; external delivery, production capacity and security acceptance remain unverified. October 22 (private release f590a4a813287580 on 0030): local key/webhook suites pass; a real outbound destination remains.",
       "evidence": [
         "apps/api/src/execplus/main.py",
         "apps/api/src/execplus/presentation/routes/workspaces.py",
@@ -1383,7 +1402,7 @@
       "section": "Integration with other Solutions",
       "feature": "Embedded dashboards",
       "status": "partial",
-      "note": "A local private embed path now uses a one-use tenant/dashboard/host-bound bootstrap and short-lived separate in-memory frame session. Current shared studies, every source, expiry and revocation are checked before and after replay; frame-host restrictions and redacted read audits are enforced. The runnable local host and browser tests cover handshake, forgery, expiry, revocation and refusal of ordinary session/export authority. Production HTTPS, approved deployment domains and real hosting acceptance remain open; already displayed authorized content cannot be remotely retracted before the next check.",
+      "note": "A local private embed path now uses a one-use tenant/dashboard/host-bound bootstrap and short-lived separate in-memory frame session. Current shared studies, every source, expiry and revocation are checked before and after replay; frame-host restrictions and redacted read audits are enforced. The runnable local host and browser tests cover handshake, forgery, expiry, revocation and refusal of ordinary session/export authority. Production HTTPS, approved deployment domains and real hosting acceptance remain open; already displayed authorized content cannot be remotely retracted before the next check. October 22 (private release f590a4a813287580 on 0030): local embed suites pass; production HTTPS/domain allow-listing remains.",
       "evidence": [
         "apps/web/src/app/workspace/dashboard-panel.tsx",
         "apps/web/src/app/workspace/studies-panel.tsx",
@@ -1412,7 +1431,7 @@
       "section": "Integration with other Solutions",
       "feature": "Detailed permissions and audit logs",
       "status": "partial",
-      "note": "Versioned server-side row/column grants and private ownership remain enforced before calculations and when reopening or delivering saved evidence. Phase 2 adds both-source contribution guards, organization-owner plus every-company authorization, scoped-key dataset checks and embed rechecks, including final-transaction sharing races. Permission edits, keys, consolidation, downloads and embed reads retain redacted audit history. Cell grants authorize visible cells, not aggregate-only anonymity; regulated audit, independent privacy/security review and compliance certification remain open.",
+      "note": "Versioned server-side row/column grants and private ownership remain enforced before calculations and when reopening or delivering saved evidence. Phase 2 adds both-source contribution guards, organization-owner plus every-company authorization, scoped-key dataset checks and embed rechecks, including final-transaction sharing races. Permission edits, keys, consolidation, downloads and embed reads retain redacted audit history. Cell grants authorize visible cells, not aggregate-only anonymity; regulated audit, independent privacy/security review and compliance certification remain open. October 22 (private release f590a4a813287580 on 0030): local permission/audit suites pass; independent review remains.",
       "evidence": [
         "apps/api/src/execplus/domain/ingestion.py",
         "apps/api/src/execplus/application/services/workspaces.py",

@@ -40,6 +40,28 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 22 (night) — multi-agent closure release and Google sign-in live
+
+- Release **f590a4a813287580** (commit b3ddc0a) is active on **0030** (additive
+  `account_reset_codes`). Checked backups 20261022T164756Z (pre) / 20261022T171045Z (post).
+  Kit: `data/verification/2026-10-22-claude-release/` (runs alembic after image swap).
+- Merged five agent branches: UI fixes (7 layout defects; operator token box only in
+  dev/browser-test builds), connectors (not-configured states, malformed-reply 502,
+  Postgres E2E, staged platform refresh), analytics (#33/56/57/58/59 additions, query
+  concurrency limits, evaluation and performance evidence), accounts/security (reset
+  codes, security headers, session-fixation revoke, SMTP modes, opt-in report timer),
+  live-dataset harness fixes (calendar period grain, impossible filters, ratio measures,
+  follow-ups, unusual-value routing; see `docs/agent-harness.md`).
+- Evidence: backend full suite 3,636 pass / 18 skip / 0 fail; web 96/96, types/lint;
+  browser full run 115/4 fail/4 skip, all 4 fixed in b3ddc0a and rechecked (not a fresh
+  full run). Live: register/cookie/me/disable, headers, 7 connectors, no token box.
+- Google sign-in/Sheets enabled on the VPS (friend's OAuth client; app.env backup in
+  ops/google-enable-*); live redirect reaches Google consent for localhost:18401.
+  A completed Google sign-in/import is not yet verified. Rotate the DeepSeek key and
+  Google client secret that were shared in chat.
+- Audit/DOCX: **42 Done / 20 Partial / 2 Not yet** (`ExecPlus_Latest_Changes_2026-10-22.docx`).
+  Phase-2 model plan: `docs/phase2-model-plan.md` (Qwen3.6-35B-A3B, ≤$200/month GPU).
+
 ### October 22 — phase5 merged, cookie sessions and new-user onboarding live
 
 - Merged origin/phase5 (317dc94): control-plane database refused as a connector source;
