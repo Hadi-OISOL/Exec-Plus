@@ -160,10 +160,11 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
     ):
         raise UnsafeQueryError("Calendar grouping requires a source column and bound period")
     if any(
-        not node.to.is_type(exp.DataType.Type.DATE) or not isinstance(node.this, exp.TimestampTrunc)
+        not node.to.is_type(exp.DataType.Type.DATE)
+        or not isinstance(node.this, exp.TimestampTrunc | exp.Column)
         for node in query.find_all(exp.Cast)
     ):
-        raise UnsafeQueryError("Only a calendar period may be converted to a date")
+        raise UnsafeQueryError("Only a calendar period or field may be converted to a date")
     if len(list(query.find_all(exp.AggFunc))) > 1:
         raise UnsafeQueryError("Only one verified aggregation per query is supported")
     references = list(query.find_all(exp.Table))

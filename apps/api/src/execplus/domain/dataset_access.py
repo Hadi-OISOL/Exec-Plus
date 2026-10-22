@@ -7,13 +7,13 @@ to the exact policy revision and audience without executing user-supplied expres
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from execplus.domain.errors import UnsupportedQuestionError
 from execplus.domain.ingestion import IngestionError
-from execplus.domain.profiling import TableData
-from execplus.domain.semantics import DatasetView, normalize_filter_value
+from execplus.domain.profiling import TableData, parse_datetime
+from execplus.domain.semantics import DatasetView, SemanticColumn, normalize_filter_value
 
 ACCESS_KEYS = frozenset(
     {"access_policy_id", "access_policy_version", "access_actor_id", "access_restricted"}
@@ -161,7 +161,7 @@ def validate_grants(raw: Any, view: DatasetView, members: set[str]) -> list[dict
     return result
 
 
-def _matches(raw: str, condition: dict[str, Any]) -> bool:
+def _matches(raw: str, condition: dict[str, Any], has_time: bool = False) -> bool:
     if not raw.strip():
         return False
     actual: Any
@@ -172,7 +172,8 @@ def _matches(raw: str, condition: dict[str, Any]) -> bool:
             if not actual.is_finite() or not expected.is_finite():
                 return False
         elif condition["type"] == "date":
-            actual = date.fromisoformat(raw)
+            moment = parse_datetime(raw) if has_time else None
+            actual = moment[0].date() if moment else date.fromisoformat(raw)
             expected = date.fromisoformat(condition["value"])
         elif condition["type"] == "boolean":
             if raw.strip().lower() not in {"true", "false"}:
@@ -205,12 +206,19 @@ def project_table(table: TableData, view: DatasetView, access: DatasetAccess) ->
         if column is None or column.type != condition["type"]:
             raise denied()
     indices = tuple(index for index, name in enumerate(table.headers) if name in visible)
-    filters = tuple((table.headers.index(item["column"]), item) for item in access.conditions)
+    filters = tuple(
+        (
+            table.headers.index(item["column"]),
+            item,
+            cast(SemanticColumn, view.column(item["column"])).has_time,
+        )
+        for item in access.conditions
+    )
     return TableData(
         tuple(table.headers[index] for index in indices),
         tuple(
             tuple(row[index] for index in indices)
             for row in table.rows
-            if all(_matches(row[index], condition) for index, condition in filters)
+            if all(_matches(row[index], condition, timed) for index, condition, timed in filters)
         ),
     )

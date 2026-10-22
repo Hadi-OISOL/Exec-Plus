@@ -95,7 +95,7 @@ def test_identifier_leading_zeros_and_cancellation_prefixes_remain_source_values
     assert table.rows == (("001", "002"), ("C001", "POST"))
     assert table.checksum() == original_checksum
     with pytest.raises(IngestionError, match="version"):
-        reconstruct(table, replace(revision, algorithm="profile-v3"))
+        reconstruct(table, replace(revision, algorithm="profile-v4"))
     with pytest.raises(IngestionError, match="integrity"):
         reconstruct(table, replace(revision, output_checksum="b" * 64))
 

@@ -8,7 +8,7 @@ import json
 import re
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any, TypedDict, cast
 from uuid import UUID
@@ -16,7 +16,10 @@ from uuid import UUID
 from execplus.domain.ingestion import IngestionError
 
 ALGORITHM = "profile-v1"
-CURRENT_ALGORITHM = "profile-v2"
+PROFILE_V2 = "profile-v2"
+CURRENT_ALGORITHM = "profile-v3"
+ALGORITHMS = frozenset({ALGORITHM, PROFILE_V2, CURRENT_ALGORITHM})
+_DATETIME = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})?")
 
 
 class Cleaning(TypedDict):
@@ -216,10 +219,64 @@ def _calendar_component(name: str, values: list[str]) -> bool:
     )
 
 
+def parse_datetime(value: str) -> tuple[datetime, bool] | None:
+    value = value.strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        try:
+            return datetime.fromisoformat(value), False
+        except ValueError:
+            return None
+    if not _DATETIME.fullmatch(value):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed, False
+    return parsed.astimezone(timezone.utc).replace(tzinfo=None), True
+
+
+def _datetime_column(values: list[str]) -> tuple[list[datetime], bool] | None:
+    parsed = [parse_datetime(value) for value in values]
+    if not values or any(item is None for item in parsed):
+        return None
+    pairs = cast(list[tuple[datetime, bool]], parsed)
+    aware = {flag for _, flag in pairs}
+    timed = [value for value in values if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value)]
+    if not timed or len(aware) > 1:
+        return None
+    return [moment for moment, _ in pairs], aware == {True}
+
+
+def _with_datetimes(table: TableData, result: dict[str, object]) -> None:
+    for index, column in enumerate(cast(list[dict[str, Any]], result["columns"])):
+        if column["role"] != "dimension" or column["type"] not in {"text", "date"}:
+            continue
+        if {"identifier", "calendar_component"} & set(column["semantic_tags"]):
+            continue
+        detected = _datetime_column(
+            [row[index].strip() for row in table.rows if row[index].strip()]
+        )
+        if detected is None:
+            continue
+        moments, aware = detected
+        column.update(
+            type="date",
+            datetime=True,
+            timezone="UTC" if aware else "as_given",
+            type_conflicts=0,
+            invalid_dates=0,
+            date_min=min(moments).date().isoformat(),
+            date_max=max(moments).date().isoformat(),
+            semantic_tags=sorted(set(column["semantic_tags"]) | {"date", "datetime"}),
+        )
+
+
 def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
     if algorithm == ALGORITHM:
         return profile(table)
-    if algorithm != CURRENT_ALGORITHM:
+    if algorithm not in ALGORITHMS:
         raise IngestionError("unsupported_version", "This profiling version is unavailable.", 409)
     result = profile(table)
     columns = cast(list[dict[str, Any]], result["columns"])
@@ -241,6 +298,8 @@ def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
                 | {"identifier" if identifier else "calendar_component"}
             ),
         )
+    if algorithm == CURRENT_ALGORITHM:
+        _with_datetimes(table, result)
     counts = {
         "type_conflicts": sum(int(column["type_conflicts"]) for column in columns),
         "invalid_dates": sum(int(column["invalid_dates"]) for column in columns),
@@ -251,7 +310,7 @@ def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
             check["count"] = counts[check["code"]]
     penalty = sum(Decimal(check["count"]) / max(check["denominator"], 1) for check in checks)
     score = (Decimal(100) - 20 * penalty).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    result.update(algorithm=CURRENT_ALGORITHM, quality_score=str(score))
+    result.update(algorithm=algorithm, quality_score=str(score))
     return result
 
 
@@ -284,7 +343,7 @@ def transform(table: TableData, step: Cleaning) -> TableData:
 
 
 def reconstruct(table: TableData, revision: Revision) -> TableData:
-    if revision.algorithm not in {ALGORITHM, CURRENT_ALGORITHM}:
+    if revision.algorithm not in ALGORITHMS:
         raise IngestionError("unsupported_version", "This profiling version is unavailable.", 409)
     for step in revision.recipe:
         table = transform(table, step)

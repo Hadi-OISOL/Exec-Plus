@@ -23,7 +23,7 @@ from execplus.domain.artifacts import (
     require_acyclic,
 )
 from execplus.domain.ingestion import IngestionError, User
-from execplus.domain.profiling import ALGORITHM, CURRENT_ALGORITHM, Revision
+from execplus.domain.profiling import ALGORITHMS, Revision
 from execplus.domain.quality import QUALITY_VERSION, quality_report
 
 MAX_GRAPH_NODES = 32
@@ -45,7 +45,7 @@ class ArtifactService:
         revision = repo.revision(
             reference.workspace_id, reference.dataset_id, reference.upload_id, reference.id
         )
-        if revision.algorithm not in {ALGORITHM, CURRENT_ALGORITHM}:
+        if revision.algorithm not in ALGORITHMS:
             raise IngestionError(
                 "unsupported_version", "This snapshot version is unavailable.", 409
             )

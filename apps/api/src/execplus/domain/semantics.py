@@ -134,6 +134,7 @@ class SemanticColumn:
     type: str
     role: str
     tags: frozenset[str] = frozenset()
+    has_time: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +158,7 @@ def dataset_view(profile: dict[str, Any]) -> DatasetView:
             frozenset(str(tag) for tag in entry.get("semantic_tags", ()))
             | frozenset(re.findall(r"[a-z]+", str(entry["name"]).lower()))
             & {"headcount", "salary", "tenure", "turnover", "hires"},
+            entry.get("datetime") is True,
         )
         for entry in profile["columns"]
     )
@@ -263,7 +265,10 @@ def build_where(
             params.append(normalized)
             continue
         operator_sql = _OPERATOR_SQL[clause.operator]
-        where_clauses.append(f"{qualify(clause.column)} {operator_sql} ?")
+        target = qualify(clause.column)
+        if column.has_time and not isinstance(normalized, datetime):
+            target = f"CAST({target} AS DATE)"
+        where_clauses.append(f"{target} {operator_sql} ?")
         params.append(normalized)
     return where_clauses, params
 
