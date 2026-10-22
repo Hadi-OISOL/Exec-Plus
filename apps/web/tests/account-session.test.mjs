@@ -1,5 +1,5 @@
 /* Use case: Protects cookie-based password sign-in and new-account sign-in.
-What it does: Checks automatic login after registration, cookie credentials, no token handoff and honest failure messages. */
+What it does: Checks automatic login after registration, cookie credentials, in-memory token handoff and honest failure messages. */
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -23,7 +23,7 @@ function fake(responses) {
 test("registration signs straight in with the same credentials", async () => {
   const { calls, fetcher } = fake([[202, { message: "ready" }], [200, { token: "t1" }]]);
   const result = await signInAccount(fetcher, "http://api", { email: "a@b.test", password: "p" }, { display_name: "A", workspace_name: "W" });
-  assert.deepEqual(result, { signedIn: true });
+  assert.deepEqual(result, { signedIn: true, token: "t1" });
   assert.deepEqual(calls.map(call => call.credentials), ["include", "include"]);
   assert.deepEqual(calls.map(call => call.url), ["http://api/auth/register", "http://api/auth/login"]);
   assert.deepEqual(calls[1].body, { email: "a@b.test", password: "p" });
@@ -43,7 +43,7 @@ test("a rejected registration does not attempt sign-in", async () => {
   assert.equal(calls.length, 1);
 });
 
-test("plain sign-in never hands the token on and reports server messages", async () => {
-  assert.deepEqual(await signInAccount(fake([[200, { token: "t2" }]]).fetcher, "", { email: "e", password: "p" }), { signedIn: true });
+test("plain sign-in hands the token to page memory and reports server messages", async () => {
+  assert.deepEqual(await signInAccount(fake([[200, { token: "t2" }]]).fetcher, "", { email: "e", password: "p" }), { signedIn: true, token: "t2" });
   assert.deepEqual(await signInAccount(fake([[429, {}]]).fetcher, "", { email: "e", password: "p" }), { error: "Account access is unavailable. Please try again.", registered: false });
 });

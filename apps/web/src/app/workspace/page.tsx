@@ -696,9 +696,9 @@ export default function WorkspacePage() {
     catch (cause) { clearSession(); throw cause; }
   }
 
-  async function signInWithPassword(created: boolean) {
+  async function signInWithPassword(created: boolean, sessionToken: string) {
     await run(async () => {
-      await loadTokenSession("");
+      await loadTokenSession(sessionToken);
       if (created) setMessage("Welcome! Your private workspace is ready. Your setup guide is open — start by adding a CSV or Excel file below.");
     });
   }
@@ -706,7 +706,7 @@ export default function WorkspacePage() {
   async function signOut() {
     await run(async () => {
       // shortcut: a failed revoke (offline, 404 or expired) still signs this browser out; the server session then ends at expiry.
-      await request("/auth/logout", { method: "POST" }).catch(() => undefined);
+      await request("/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
       clearSession();
     });
   }

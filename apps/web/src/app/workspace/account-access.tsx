@@ -8,7 +8,7 @@ import type { FormEvent } from "react";
 import { signInAccount } from "./account-session";
 import styles from "./local-accounts.module.css";
 
-export function AccountAccess({ api, onSession }: { api: string; onSession: (created: boolean) => Promise<void> }) {
+export function AccountAccess({ api, onSession }: { api: string; onSession: (created: boolean, token: string) => Promise<void> }) {
   const id = useId();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [registration, setRegistration] = useState(true);
@@ -49,7 +49,7 @@ export function AccountAccess({ api, onSession }: { api: string; onSession: (cre
         return;
       }
       form.reset();
-      await onSession(creating);
+      await onSession(creating, result.token);
     } catch {
       setError("Account access is unavailable. Check your connection and try again.");
     } finally { setBusy(false); }
