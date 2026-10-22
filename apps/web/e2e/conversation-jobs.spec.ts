@@ -430,6 +430,25 @@ test("a broad goal asks a source-specific follow-up and the chosen task executes
 });
 
 
+test("an offered clarification choice is a button that runs its calculation in the same thread", async ({ page }) => {
+  await signIn(page, session());
+  await upload(page);
+  const chat = page.getByRole("region", { name: "Ask a question", exact: true });
+  await chat.getByLabel("Your question", { exact: true }).fill("How spread out is amount in each branch?");
+  await chat.getByRole("button", { name: "Ask", exact: true }).click();
+  const first = chat.locator(".conversationTurn").first();
+  const choices = first.getByRole("group", { name: "Clarify your request", exact: true });
+  await expect(choices).toBeVisible();
+  await expect(first).not.toContainText("validation");
+  await choices.getByRole("button", { name: "How many records are there by branch?", exact: true }).click();
+  const answer = chat.locator(".conversationTurn").last();
+  await expect(chat.locator(".conversationTurn")).toHaveCount(2);
+  await expect(answer.locator(".verifiedBadge")).toBeVisible();
+  await expect(answer).toContainText("North");
+  await expect(answer).toContainText("South");
+});
+
+
 test("sending animation starts before job acceptance and honors reduced motion", async ({ page }) => {
   await signIn(page, session());
   await upload(page);

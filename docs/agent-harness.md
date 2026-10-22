@@ -224,16 +224,17 @@ local only; they are not deployed and have not been re-measured live.
 | D11 | 0.265 displayed as 0.26 | Half-even display rounding | Fixed in v3 (half-up); v2 wording kept |
 | D12 | "Which plant has the highest X?" returned top-5 rows of 62 columns; three tied plants not named | Model chose `order_by` + limit instead of `extremum`; record narrative never names rows | Open |
 | D13 | "What should I do / HR focus on / grow sales" → orientation reading or bare refusal | No recommendation tool; refusal offers no clickable next step | Open |
-| D14 | "Which metrics have the most defects?" (compare totals across columns) → count clarification with no choices | Cross-column comparison unsupported | Open |
+| D14 | "Which metrics have the most defects?" (compare totals across columns) → count clarification with no choices | Cross-column comparison unsupported | Message fixed: validator text is hidden and clickable working questions are offered (see D24); capability still missing |
 | D15 | Forecast questions on unconfirmed files → "Confirm the current data meanings" | Forecasts require confirmed meanings and fixed units by design | Open (by design; zero-config forecast quick start exists only in the panel) |
 | D16 | "What are customers complaining about?" → document search with no documents | Free-text field questions routed as `textual` | Open |
-| D17 | Model clarification candidates ("Lowest average NPS score") are not clickable | Choices are filtered to real field names | Open |
+| D17 | Model clarification candidates ("Lowest average NPS score") are not clickable | Choices are filtered to real field names | Fixed: the prompt asks for complete questions; options that plan deterministically (`canonical_question`, now incl. "Which X has the lowest …") become buttons, others are dropped and replaced by up to three working questions about the named fields. Clicks run as `deterministic:offered-question-v1`; a stale clarification still refuses |
 | D18 | Hourly `2025-03-01 00:00:00` timestamps profiled as text: no daily trend, no forecast | Profiler date detection is date-only | Open |
 | D19 | Exact zero serialized as `0E-12` | `str(Decimal)` at the HTTP boundary | Open (cosmetic; receipts unaffected) |
 | D20 | "Inventory value by warehouse" → `SUM(on_hand_units)` | Product of two fields unsupported; not caught by the derived-measure words | Open |
 | D21 | "Weekends vs weekdays" → daily ranking | No weekday grain | Open |
 | D22 | "Rows with missing sales" → "The model proposed an invalid filter" | No is-missing filter operator | Open |
 | D23 | Quality check missed `Store 1` / `" store 1 "` label variants | Profiler does not compare trimmed/case-folded labels | Open |
+| D24 | "Use a calendar period only when grouping by one date field" / "Rank groups with order asc or desc…" shown to users | Plan-validator text was raised as the refusal | Fixed: every plan-parser failure is marked `invalid_plan`, gets one correction round with the validator reason, then becomes a friendly clarification with 2–3 clickable working questions. Social/clarification reply checks and execution-time guards keep their existing messages |
 
 **Live re-run on release f590a4a813287580 (schema 0030):** 36/16/29 → **48 PASS / 22 PARTIAL /
 11 FAIL**, 22 questions better, 0 worse; see `verification-live-datasets-20261022.md`.
