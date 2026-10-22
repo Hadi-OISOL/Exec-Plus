@@ -167,6 +167,35 @@ the operator's real check; it does not perform identity verification itself.
 If the terminal cannot hide input, recovery fails before an echoing fallback can
 read the password.
 
+Instead of typing the user's new password, the operator can issue a one-time
+reset code (migration 0030 stores only its SHA-256 hash):
+
+```bash
+python3 -m execplus.manage issue-reset-code --account-id <account-uuid> --identity-checked
+```
+
+Pass the printed code to the user over a channel you already trust. On the sign-in
+screen they choose **Have a reset code?**, enter email, code and a new password,
+and are signed in. Codes are single use, expire after 30 minutes, are rate limited
+like sign-in, cannot be issued to or used by disabled accounts, and are cleared by a
+password change or operator recovery. A successful reset revokes every session and
+scoped key. No email is sent; mailbox ownership is still not verified.
+
+## Session and request hardening (October 22)
+
+- API responses carry `X-Frame-Options: DENY`, `Content-Security-Policy:
+  default-src 'none'; frame-ancestors 'none'`, `Referrer-Policy: no-referrer`,
+  `nosniff` and, when HTTPS is in use, HSTS. The web app refuses framing on `/`
+  and `/workspace` (embed pages are unchanged).
+- The session cookie is `Secure` on HTTPS requests and always in staging/production
+  (`EXECPLUS_SESSION_COOKIE_SECURE` overrides).
+- Signing in revokes the session cookie the browser already held, so an old or
+  planted session cannot survive a new sign-in.
+- Rate limits key on the TCP peer. Behind a reverse proxy set
+  `EXECPLUS_TRUSTED_PROXIES=["<proxy ip>"]`; only then is the last
+  `X-Forwarded-For` hop used. SSH-tunnel users all appear as loopback and share
+  the per-address limit; the per-account limit still applies to each account.
+
 Granting native staff authority also requires the exact intended UUID:
 
 ```bash
