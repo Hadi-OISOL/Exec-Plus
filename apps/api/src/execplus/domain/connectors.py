@@ -21,6 +21,15 @@ XERO_DATE = re.compile(r"/Date\((-?\d+)(?:[+-]\d{4})?\)/")
 MAX_DEPTH = 3
 MAX_IMPORT_BYTES = 20 * 1024 * 1024
 PROVIDER_ID = re.compile(r"[a-z][a-z0-9_]{1,39}")
+KNOWN_PLATFORMS = (
+    ("google_sheets", "Google Sheets"),
+    ("quickbooks", "QuickBooks Online"),
+    ("xero", "Xero"),
+    ("zoho_books", "Zoho Books"),
+    ("odoo", "Odoo"),
+    ("postgresql", "PostgreSQL database"),
+    ("bigquery", "Google BigQuery"),
+)
 
 
 def source_too_large() -> IngestionError:
@@ -37,6 +46,10 @@ class RecordBuffer(list[dict[str, Any]]):
         self.columns: set[str] = set()
 
     def append(self, record: dict[str, Any]) -> None:
+        if not isinstance(record, dict):
+            raise IngestionError(
+                "connector_unexpected_response", "The platform sent an unexpected reply.", 502
+            )
         if len(self) >= MAX_ROWS + 1 or len(record) > MAX_COLUMNS:
             raise source_too_large()
         size = 0
@@ -199,3 +212,21 @@ def connector_filename(platform: str, account: str, source: str) -> str:
     label = re.sub(r"[\\/\x00-\x1f]", " ", " - ".join(parts))
     label = " ".join(label.split())[:96] or "Imported data"
     return f"{label}.csv"
+
+
+def unconfigured_platforms(configured: Iterable[str]) -> list[dict[str, Any]]:
+    present = set(configured)
+    return [
+        dict(
+            id=platform,
+            label=label,
+            kind="unavailable",
+            description="Not set up on this server. An administrator must add its settings.",
+            fields=[],
+            connected=False,
+            account="",
+            configured=False,
+        )
+        for platform, label in KNOWN_PLATFORMS
+        if platform not in present
+    ]

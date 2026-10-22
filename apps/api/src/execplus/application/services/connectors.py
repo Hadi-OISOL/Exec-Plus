@@ -101,6 +101,7 @@ class ConnectorService:
                 ],
                 connected=connector.id in connected,
                 account=connected[connector.id].display_name if connector.id in connected else "",
+                configured=True,
             )
             for connector in self.connectors.values()
         ]
@@ -314,6 +315,9 @@ class ConnectorService:
             return action()
         except ConnectorApiError as error:
             raise self._failure(error) from None
+        except (AttributeError, TypeError, KeyError, IndexError):
+            logger.warning("connector_reply_malformed outcome=refused")
+            raise self._failure(ConnectorApiError(502)) from None
 
     def status(self, actor: User, provider: str) -> dict[str, Any]:
         connector = self._connector(provider)

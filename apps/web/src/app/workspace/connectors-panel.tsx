@@ -10,11 +10,12 @@ type Field = { name: string; label: string; secret: boolean; placeholder: string
 type Platform = {
   id: string;
   label: string;
-  kind: "oauth" | "credentials";
+  kind: "oauth" | "credentials" | "unavailable";
   description: string;
   fields: Field[];
   connected: boolean;
   account: string;
+  configured?: boolean;
 };
 type Item = { id: string; label: string; container: boolean };
 type Crumb = { id: string | null; label: string };
@@ -150,6 +151,8 @@ export function ConnectorsPanel({
   }
 
   if (!platforms?.length && !error) return null;
+  const ready = (platforms ?? []).filter(platform => platform.configured !== false);
+  const unavailable = (platforms ?? []).filter(platform => platform.configured === false);
 
   return (
     <section className={styles.connectors} aria-label="Connect your data">
@@ -158,8 +161,9 @@ export function ConnectorsPanel({
         Pick a platform, sign in once, then choose what to copy. ExecPlus only reads
         a snapshot and you can disconnect at any time.
       </p>
+      {!ready.length && <p>No data platforms are set up on this server yet.</p>}
       <ul className={styles.list}>
-        {(platforms ?? []).map(platform => (
+        {ready.map(platform => (
           <li key={platform.id} className={styles.card}>
             <div>
               <strong>{platform.label}</strong>
@@ -250,6 +254,18 @@ export function ConnectorsPanel({
           </li>
         ))}
       </ul>
+      {unavailable.length > 0 && (
+        <details className={styles.unavailable}>
+          <summary>Not set up on this server ({unavailable.length})</summary>
+          <ul aria-label="Platforms not set up">
+            {unavailable.map(platform => (
+              <li key={platform.id}>
+                <strong>{platform.label}</strong> <span>{platform.description}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {error && (
         <p role="alert" className={styles.error}>
           {error}

@@ -40,10 +40,17 @@ async function mockImport(page: Page, person: ReturnType<typeof account>, provid
   });
 }
 
-test("no connectors configured means no connect panel", async ({ page }) => {
+test("no connectors configured shows every platform as not set up, with nothing to connect", async ({ page }) => {
   const person = account();
   await signIn(page, person.token);
-  await expect(page.getByRole("region", { name: "Connect your data", exact: true })).toHaveCount(0);
+  const panel = page.getByRole("region", { name: "Connect your data", exact: true });
+  await expect(panel.getByText("No data platforms are set up on this server yet.", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: /^Connect / })).toHaveCount(0);
+  await panel.getByText("Not set up on this server (7)").click();
+  const missing = panel.getByRole("list", { name: "Platforms not set up" });
+  for (const label of ["Google Sheets", "QuickBooks Online", "Xero", "Zoho Books", "Odoo", "PostgreSQL database", "Google BigQuery"]) {
+    await expect(missing.getByText(label, { exact: true })).toBeVisible();
+  }
 });
 
 test("a database or Odoo user fills the form, connects, browses and imports a source", async ({ page }) => {

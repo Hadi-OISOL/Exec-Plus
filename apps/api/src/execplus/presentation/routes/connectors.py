@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from execplus.application.services.connectors import ConnectorService
+from execplus.domain.connectors import unconfigured_platforms
 from execplus.domain.ingestion import IngestionError
 from execplus.presentation.routes import oauth
 from execplus.presentation.routes.accounts import peer
@@ -54,8 +55,12 @@ class ImportInput(BaseModel):
 
 
 @router.get("/connectors")
-async def catalog(actor: Actor, service: OptionalService) -> object:
-    return await run_in_threadpool(service.catalog, actor) if service else []
+async def catalog(actor: Actor, service: OptionalService, request: Request) -> object:
+    available = await run_in_threadpool(service.catalog, actor) if service else []
+    configured = [item["id"] for item in available]
+    if request.app.state.runtime.google_access is not None:
+        configured.append("google_sheets")
+    return [*available, *unconfigured_platforms(configured)]
 
 
 @router.post("/connectors/{provider}/connect")
