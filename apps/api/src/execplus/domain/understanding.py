@@ -10,7 +10,7 @@ from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from execplus.domain.errors import ClarificationRequiredError
+from execplus.domain.errors import ClarificationRequiredError, UnsupportedQuestionError
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.profiling import TableData
 from execplus.domain.semantics import (
@@ -505,8 +505,37 @@ def questions(definition: dict[str, Any], profile: dict[str, Any]) -> list[str]:
     return result[:12]
 
 
+def measure_unit(definition: dict[str, Any] | None, name: str) -> tuple[str, str]:
+    """Return a measure's (unit, currency), from saved meaning first, then its name."""
+    entry = next(
+        (item for item in (definition or {}).get("columns", []) if item["name"] == name),
+        None,
+    )
+    if entry and (entry["unit"] or entry["currency"]):
+        return entry["unit"], entry["currency"]
+    suggestion = suggested_unit(name) or {}
+    return suggestion.get("unit", ""), suggestion.get("currency", "")
+
+
+def product_unit(definition: dict[str, Any] | None, metric: str, times: str) -> str:
+    """Unit of a row-level product: quantity times currency-per-unit stays in that currency."""
+    unit_a, currency_a = measure_unit(definition, metric)
+    unit_b, currency_b = measure_unit(definition, times)
+    if currency_a and currency_b:
+        raise UnsupportedQuestionError(
+            f"{metric} ({currency_a}) and {times} ({currency_b}) are "
+            + ("in different currencies" if currency_a != currency_b else "both money amounts")
+            + "; multiplying them does not give a meaningful value."
+        )
+    if currency_a or currency_b:
+        return currency_a or currency_b
+    return f"{unit_a}·{unit_b}" if unit_a and unit_b else ""
+
+
 def governed_request(view: DatasetView, table: TableData, request: MetricRequest) -> MetricRequest:
     definition = view.definition
+    if request.times is not None:
+        product_unit(definition, request.metric, request.times)
     if definition:
         for metric in definition["metrics"]:
             if metric["column"] == request.metric:
@@ -522,15 +551,14 @@ def governed_request(view: DatasetView, table: TableData, request: MetricRequest
                 request = replace(
                     request, filters=tuple(dict.fromkeys((*defaults, *request.filters)))
                 )
-        column = next(
-            (item for item in definition["columns"] if item["name"] == request.metric), None
-        )
-        if column and column["missing_policy"] == "needs_review":
-            index = table.headers.index(request.metric)
-            if any(not row[index].strip() for row in table.rows):
-                raise ClarificationRequiredError(
-                    "Review the missing-value policy before calculating this metric."
-                )
+        for name in (request.metric, request.times):
+            column = next((item for item in definition["columns"] if item["name"] == name), None)
+            if column and column["missing_policy"] == "needs_review":
+                index = table.headers.index(name)
+                if any(not row[index].strip() for row in table.rows):
+                    raise ClarificationRequiredError(
+                        "Review the missing-value policy before calculating this metric."
+                    )
     # A numeric unit/units field holds quantities, never labels such as kg/USD.
     # Text label columns and explicit unit-column mappings keep the guard.
     fixed_unit_measures = {
@@ -548,7 +576,7 @@ def governed_request(view: DatasetView, table: TableData, request: MetricRequest
         unit_columns |= {
             entry["unit_column"]
             for entry in definition["columns"]
-            if entry["name"] == request.metric and entry["unit_column"]
+            if entry["name"] in (request.metric, request.times) and entry["unit_column"]
         }
     if request.aggregation != AggregationKind.COUNT:
         for name in unit_columns:

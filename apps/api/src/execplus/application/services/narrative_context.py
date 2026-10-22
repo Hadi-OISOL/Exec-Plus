@@ -1,5 +1,6 @@
 """Build presentation facts from authorized immutable calculation definitions."""
 
+from contextlib import suppress
 from functools import partial
 from typing import cast
 from uuid import UUID
@@ -10,9 +11,12 @@ from execplus.application.services.forecasts import read_complete
 from execplus.application.services.insight_presentation import build_insight_packet
 from execplus.application.services.intent_router import PatternAnswer
 from execplus.application.services.response_synthesis import build_fact_packet
+from execplus.domain.errors import UnsupportedQuestionError
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
 from execplus.domain.response_synthesis import INSIGHT_VERSIONS, VERSION, FactPacket
+from execplus.domain.semantics import PRODUCT_SIGN
+from execplus.domain.understanding import product_unit
 
 
 def data_answers(answer: object) -> tuple[NumericalAnswer, ...]:
@@ -89,6 +93,12 @@ async def authorized_fact_packet(
         source = refs[0]
         definition_context = contexts.get((UUID(source["dataset_id"]), UUID(source["upload_id"])))
         if definition_context is None or definition_context.state != "confirmed":
+            continue
+        factors = lineage.metric.split(PRODUCT_SIGN)
+        if len(factors) == 2:
+            with suppress(UnsupportedQuestionError):
+                if label := product_unit(definition_context.definition, *factors):
+                    units[str(lineage.query_id)] = label
             continue
         for field in (definition_context.definition or {}).get("columns", []):
             if field["name"] == lineage.metric and field.get("unit_column"):

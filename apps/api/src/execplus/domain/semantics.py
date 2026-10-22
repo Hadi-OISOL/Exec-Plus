@@ -86,7 +86,10 @@ class MetricFilter:
     value: Scalar
 
 
-TIME_PERIODS = ("day", "week", "month", "quarter", "year")
+TIME_PERIODS = ("day", "week", "month", "quarter", "year", "weekday", "weekend")
+DAY_OF_WEEK_LABEL = "%u %A"
+WEEKEND_FROM_ISO_DAY = 6
+PRODUCT_SIGN = " * "
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,7 +100,12 @@ class MetricRequest:
     filters: tuple[MetricFilter, ...] = ()
     order: Literal["asc", "desc"] | None = None
     limit: int | None = None
-    period: Literal["day", "week", "month", "quarter", "year"] | None = None
+    period: Literal["day", "week", "month", "quarter", "year", "weekday", "weekend"] | None = None
+    times: str | None = None
+
+    @property
+    def label(self) -> str:
+        return f"{self.metric}{PRODUCT_SIGN}{self.times}" if self.times else self.metric
 
 
 @dataclass(frozen=True, slots=True)
@@ -274,6 +282,14 @@ def plan_query(
     # non-null semantics, including visible categories and identifiers.
     if not supports_metric(view, request.metric, request.aggregation):
         raise UnsupportedQuestionError(f"{request.metric!r} is not a supported metric")
+    if request.times is not None and (
+        request.aggregation not in (AggregationKind.SUM, AggregationKind.AVG)
+        or request.times not in view.metrics
+        or request.times == request.metric
+    ):
+        raise UnsupportedQuestionError(
+            "A row-level product needs two different measures inside a sum or average"
+        )
     for name in request.group_by:
         if name not in view.dimensions:
             raise UnsupportedQuestionError(f"{name!r} is not a supported dimension")
@@ -292,9 +308,18 @@ def plan_query(
         if request.period not in TIME_PERIODS or len(dated) != 1:
             raise UnsupportedQuestionError("A calendar period needs exactly one grouped date field")
         name = quote_identifier(request.group_by[dated[0]])
-        select[dated[0]] = f"CAST(DATE_TRUNC(?, {name}) AS DATE) AS {name}"
-        params.insert(0, request.period)
+        if request.period == "weekday":
+            select[dated[0]] = f"STRFTIME({name}, ?) AS {name}"
+            params.insert(0, DAY_OF_WEEK_LABEL)
+        elif request.period == "weekend":
+            select[dated[0]] = f"CASE WHEN ISODOW({name}) >= ? THEN ? ELSE ? END AS {name}"
+            params[:0] = [WEEKEND_FROM_ISO_DAY, "weekend", "weekday"]
+        else:
+            select[dated[0]] = f"CAST(DATE_TRUNC(?, {name}) AS DATE) AS {name}"
+            params.insert(0, request.period)
     argument = RECORD_COUNT if request.metric == RECORD_COUNT else quote_identifier(request.metric)
+    if request.times is not None:
+        argument += f" * {quote_identifier(request.times)}"
     select.append(
         f"{request.aggregation.value.upper()}({argument}) AS {quote_identifier(VALUE_ALIAS)}"
     )
@@ -324,7 +349,7 @@ def plan_query(
     question = (
         "count of records"
         if request.metric == RECORD_COUNT
-        else f"{request.aggregation.value} of {request.metric}"
+        else f"{request.aggregation.value} of {request.label}"
     )
     if request.group_by:
         question += f" grouped by {', '.join(request.group_by)}"

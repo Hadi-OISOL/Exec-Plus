@@ -11,7 +11,13 @@ from execplus.domain.context_retrieval import references_earlier_result
 from execplus.domain.guidance import is_greeting, mentioned_columns, words
 from execplus.domain.intent import RoutedIntent
 from execplus.domain.models import CalculationLineage, QuestionKind
-from execplus.domain.semantics import DatasetView, FilterOperator
+from execplus.domain.semantics import (
+    PRODUCT_SIGN,
+    DatasetView,
+    FilterOperator,
+    MetricRequest,
+)
+from execplus.domain.understanding import measure_unit
 
 
 def is_guidance_followup(question: str) -> bool:
@@ -205,7 +211,7 @@ def preserves_followup_scope(
     if intent.kind == QuestionKind.NUMERICAL and intent.request is not None:
         filters = intent.request.filters
         metric, aggregation, groups = (
-            intent.request.metric,
+            intent.request.label,
             intent.request.aggregation.value,
             intent.request.group_by,
         )
@@ -391,3 +397,60 @@ def asks_derived_measure(
     if metric == "*":
         return aggregation == "count" and not grouped
     return aggregation in {"sum", "min", "max"}
+
+
+_VALUE_WORDS = r"\b(value|valuation|worth|revenue|turnover|gmv)\b"
+_QUANTITY_WORDS = frozenset(
+    {"unit", "units", "qty", "quantity", "quantities", "stock", "hand", "pieces", "items", "sold"}
+)
+_PRICE_WORDS = frozenset({"price", "cost", "rate"})
+
+
+def product_choices(question: str, request: MetricRequest, view: DatasetView) -> tuple[str, ...]:
+    """Offer quantity times price when a named value (e.g. inventory value) is not a field."""
+    field_words = {token for column in view.columns for token in words(column.name).split()}
+    text = " ".join(word for word in words(question).split() if word not in field_words)
+    if (
+        request.times is not None
+        or request.aggregation.value not in ("sum", "avg")
+        or request.metric not in view.metrics
+        or not re.search(_VALUE_WORDS, text)
+        or measure_unit(view.definition, request.metric)[1]
+        or not _QUANTITY_WORDS & set(words(request.metric).split())
+    ):
+        return ()
+    priced = [
+        name
+        for name in sorted(view.metrics)
+        if name != request.metric
+        and (measure_unit(view.definition, name)[1] or _PRICE_WORDS & set(words(name).split()))
+    ]
+    group = f" by {request.group_by[0]}" if len(request.group_by) == 1 else ""
+    operation = "total" if request.aggregation.value == "sum" else "average"
+    return (
+        (
+            *(
+                f"What is the {operation} of {request.metric}{PRODUCT_SIGN}{name}{group}?"
+                for name in priced[:3]
+            ),
+            f"What is the {operation} of {request.metric}{group}?",
+        )
+        if priced
+        else ()
+    )
+
+
+_ADVICE = (
+    r"\bwhat (should|can|could|do|must) (i|we|you|hr|\w+) (do|focus on|work on|improve|change|"
+    r"prioriti[sz]e|fix|look at)\b"
+    r"|\bhow (can|do|should|could) (i|we) (grow|increase|improve|boost|raise|reduce|cut)\b"
+    r"|\b(next steps?|action items?|what do you recommend|what would you recommend|"
+    r"any recommendations?|where should (i|we) focus)\b"
+    r"|\bkya karna chahiye\b|\bkya karun\b|\bkya karein\b|\bkya karen\b"
+)
+
+
+def asks_for_next_steps(question: str) -> bool:
+    """An open request for what to do next, answered with grounded analyst findings."""
+    text = words(question)
+    return bool(re.search(_ADVICE, text)) and not re.search(r"\bwhat should i ask\b", text)
