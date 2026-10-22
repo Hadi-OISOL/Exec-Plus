@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from execplus.application.services.accounts import AccountService
-from execplus.presentation.routes.workspaces import Actor
+from execplus.domain.accounts import AccountSession
+from execplus.presentation.routes.workspaces import SESSION_COOKIE, Actor, set_session_cookie
 
 router = APIRouter(tags=["local accounts"])
 
@@ -87,8 +88,18 @@ def register(body: RegistrationInput, request: Request, accounts: Service) -> di
 
 
 @router.post("/auth/login")
-def login(body: AccountInput, request: Request, accounts: Service) -> object:
-    return asdict(accounts.login(body.email, body.password, peer(request)))
+def login(body: AccountInput, request: Request, response: Response, accounts: Service) -> object:
+    return issued(
+        request, response, accounts, accounts.login(body.email, body.password, peer(request))
+    )
+
+
+def issued(
+    request: Request, response: Response, accounts: AccountService, session: AccountSession
+) -> object:
+    remaining = session.expires_at - accounts.clock()
+    set_session_cookie(request, response, session.token, int(remaining.total_seconds()))
+    return asdict(session)
 
 
 @router.get("/auth/account")
@@ -102,16 +113,23 @@ def events(actor: Actor, accounts: Service) -> object:
 
 
 @router.post("/auth/password")
-def password(body: PasswordInput, request: Request, actor: Actor, accounts: Service) -> object:
-    return asdict(
-        accounts.change_password(actor, body.current_password, body.new_password, peer(request))
+def password(
+    body: PasswordInput, request: Request, response: Response, actor: Actor, accounts: Service
+) -> object:
+    return issued(
+        request,
+        response,
+        accounts,
+        accounts.change_password(actor, body.current_password, body.new_password, peer(request)),
     )
 
 
 @router.post("/auth/disable", status_code=204)
 def disable(body: DisableInput, request: Request, actor: Actor, accounts: Service) -> Response:
     accounts.disable(actor, body.password, body.confirmed, peer(request))
-    return Response(status_code=204)
+    response = Response(status_code=204)
+    response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax")
+    return response
 
 
 @router.post(

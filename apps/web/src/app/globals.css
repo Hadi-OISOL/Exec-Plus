@@ -412,6 +412,12 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
 .loginPanel h2 { font-size: var(--text-h1); }
 .loginPanel h3 { margin-top: var(--space-8); padding-top: var(--space-6); border-top: 1px solid var(--color-border); }
 .workbench.analyticsShell .loginPanel button { width: 100%; }
+.workbench.analyticsShell .loginPanel .secondaryAction { border-color: var(--color-border-strong); background: var(--color-surface); color: var(--color-text); }
+.workbench.analyticsShell .loginPanel .secondaryAction:hover:not(:disabled) { background: var(--color-surface-hover); }
+.loginPanel > form:has(.secondaryAction) { margin-top: var(--space-4); }
+.loginPanel form { align-items: stretch; }
+.operatorSession p { margin: 0; color: var(--color-text-secondary); font-size: var(--text-small); }
+@media (max-width: 480px) { .loginPanel { margin: var(--space-4) auto var(--space-8); padding: var(--space-5) var(--space-4); } }
 .memberList { margin: var(--space-4) 0; padding: 0; list-style: none; }
 .memberList li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
 .memberList li > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }

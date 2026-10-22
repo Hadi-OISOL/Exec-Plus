@@ -28,13 +28,43 @@ def get_service(request: Request) -> WorkspaceService:
     return service
 
 
-def get_actor(request: Request) -> User:
-    header = request.headers.get("authorization", "")
-    scheme, _, token = header.partition(" ")
-    if scheme.lower() != "bearer" or not token:
+SESSION_COOKIE = "execplus_session"
+SESSION_SECONDS = 8 * 3600
+
+
+def session_token(request: Request) -> str:
+    header = request.headers.get("authorization")
+    if header is None:
+        token = request.cookies.get(SESSION_COOKIE, "")
+        if token and request.headers.get("x-execplus-request") != "1":
+            raise IngestionError(
+                "session_header_required", "This request is missing its application header.", 401
+            )
+    else:
+        scheme, _, token = header.partition(" ")
+        token = token if scheme.lower() == "bearer" else ""
+    if not token:
         raise IngestionError("unauthenticated", "A valid session token is required.", 401)
+    return token
+
+
+def set_session_cookie(
+    request: Request, response: Response, token: str, max_age: int = SESSION_SECONDS
+) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=max(0, max_age),
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        path="/",
+    )
+
+
+def get_actor(request: Request) -> User:
     identity: IdentityProvider = request.app.state.runtime.identity
-    return identity.authenticate(token)
+    return identity.authenticate(session_token(request))
 
 
 Actor = Annotated[User, Depends(get_actor)]
@@ -73,10 +103,15 @@ def me(actor: Actor) -> User:
 
 
 @router.post("/auth/logout", status_code=204)
-def logout(request: Request, actor: Actor) -> Response:
+def logout(request: Request) -> Response:
     identity: IdentityProvider = request.app.state.runtime.identity
-    identity.revoke(request.headers["authorization"].partition(" ")[2])
-    return Response(status_code=204)
+    token = session_token(request)
+    if "authorization" in request.headers:
+        identity.authenticate(token)
+    identity.revoke(token)
+    response = Response(status_code=204)
+    response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax")
+    return response
 
 
 @router.get("/workspaces")

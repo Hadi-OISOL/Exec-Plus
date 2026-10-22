@@ -9,13 +9,13 @@ import { finishInitialReview, navigateTo } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 
-test("local allowances enforce backend limits and administrator changes appear for the owner", async ({ page }) => {
+test("local allowances enforce backend limits and administrator changes appear for the owner", async ({ page, request }) => {
   test.setTimeout(100_000);
   const email = `plans-${randomUUID()}@example.test`;
   const name = `Synthetic allowances ${randomUUID()}`;
   const password = "synthetic allowance passphrase 27";
   expect((await page.request.post(`${api}/auth/register`, { data: { email, password, display_name: "Synthetic operator", workspace_name: name } })).status()).toBe(202);
-  const checkedAccount = await (await page.request.post(`${api}/auth/login`, { data: { email, password } })).json();
+  const checkedAccount = await (await request.post(`${api}/auth/login`, { data: { email, password } })).json();
   execFileSync("python3", ["-m", "execplus.manage", "grant-staff", "--email", email, "--role", "admin", "--account-id", checkedAccount.user.id, "--identity-checked"], { cwd: "../..", encoding: "utf8" });
   await page.goto("/workspace");
   const login = page.getByRole("region", { name: "Local account access", exact: true });

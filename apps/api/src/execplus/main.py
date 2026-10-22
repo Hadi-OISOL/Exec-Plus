@@ -111,7 +111,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         allow_origins=[configured.web_origin],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-ExecPlus-Request"],
         expose_headers=["Content-Disposition", "X-Request-ID"],
     )
 

@@ -1,7 +1,7 @@
 /* Use case: Styles the local account and resumable setup surfaces.
 What it does: Reuses workspace tokens with readable forms, accessible controls and restrained motion. */
 
-.access { border-bottom: 1px solid var(--border, var(--color-border)); margin-bottom: 1.5rem; padding-bottom: 1.5rem; }
+.access { margin-bottom: var(--space-2); }
 .access p, .guide p { max-width: 66ch; }
 .form { display: grid; gap: .65rem; max-width: 36rem; margin-block: 1rem; }
 .form label { font-weight: 600; }
@@ -9,6 +9,19 @@ What it does: Reuses workspace tokens with readable forms, accessible controls a
 .form button, .choices button, .guide button { min-height: 44px; }
 .form small { line-height: 1.5; color: var(--muted, var(--color-text-secondary)); }
 .choices, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.access h2 { margin: 0; font-size: var(--text-h1); }
+.lead { margin-block: var(--space-2) var(--space-5); color: var(--color-text-secondary); }
+.access .choices { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-lg); background: var(--color-surface-sunken); }
+.access .choices button { border-color: transparent; background: transparent; color: var(--color-text-secondary); font-weight: 600; }
+.access .choices button[aria-pressed="true"] { background: var(--color-surface); border-color: var(--color-border); color: var(--color-text); box-shadow: var(--shadow-1); }
+.error { margin-block: var(--space-4) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-danger); border-radius: var(--radius-md); background: var(--color-danger-subtle); color: var(--color-danger); }
+.form input[aria-invalid="true"] { border-color: var(--color-danger); }
+.passwordField { position: relative; }
+.passwordField input:not([type="checkbox"]) { padding-inline-end: 4.75rem; }
+.passwordField .reveal { position: absolute; inset-block: 4px; inset-inline-end: 4px; width: auto !important; min-width: 0 !important; min-height: 0 !important; padding: 0 var(--space-3); border-color: transparent; background: transparent; color: var(--color-primary-text); font-weight: 600; font-size: var(--text-small); }
+.passwordField .reveal:hover:not(:disabled) { background: var(--color-surface-hover); }
+.submit { margin-top: var(--space-2); }
+.visuallyHidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .choices button[aria-pressed="true"] { background: var(--accent-soft, var(--color-surface-sunken)); border-color: var(--accent, var(--color-primary)); color: var(--text, var(--color-primary-text)); }
 .guide { border: 1px solid var(--border, var(--color-border)); border-radius: 16px; padding: 1rem 1.25rem; background: var(--surface, var(--color-surface)); margin-block: 1rem; }
 .guide summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; gap: .5rem; }

@@ -247,7 +247,8 @@ export default function WorkspacePage() {
     ): Promise<Response> {
       const response = await fetch(`${api}${path}`, {
         ...options,
-        headers: { Authorization: `Bearer ${sessionToken}`, ...options.headers },
+        headers: sessionToken ? { Authorization: `Bearer ${sessionToken}`, ...options.headers } : { "X-ExecPlus-Request": "1", ...options.headers },
+        credentials: options.credentials ?? (sessionToken ? "same-origin" : "include"),
         cache: "no-store",
       });
       if (!response.ok) {
@@ -395,12 +396,23 @@ export default function WorkspacePage() {
       // Old bearer fragments and stored resume credentials are discarded, never adopted.
       try { window.sessionStorage.removeItem("execplus.resume"); } catch { /* Storage can be disabled. */ }
       const returnKeys = ["oauth", "oauth_error", "google", "google_error", "connector_connected", "connector_error", "connector"];
-      if (!fragment.has("session") && !failure && !returnKeys.some(key => query.has(key))) return;
+      const restore = async () => {
+        const probe = await fetch(`${api}/auth/me`, { credentials: "include", headers: { "X-ExecPlus-Request": "1" }, cache: "no-store", signal: controller.signal }).catch(() => null);
+        await probe?.text().catch(() => "");
+        if (!active || probe?.status === 401) return;
+        if (!probe?.ok) { setError("We could not restore your session. Check your connection and reload the page."); return; }
+        setBusy(true);
+        try { await oauthSessionRef.current(""); }
+        catch (cause) { if (active && (cause as { status?: number }).status !== 401) setError("We could not restore your session. Check your connection and reload the page."); }
+        finally { if (active) setBusy(false); }
+      };
+      if (!fragment.has("session") && !failure && !returnKeys.some(key => query.has(key))) return restore();
       for (const key of returnKeys) query.delete(key);
       const rest = query.toString();
       window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
       if (!exchange) {
-        if (failure) setError(oauthFailure(failure));
+        if (!fragment.has("session")) await restore();
+        if (failure && active) setError(oauthFailure(failure));
         return;
       }
       setBusy(true);
@@ -684,8 +696,19 @@ export default function WorkspacePage() {
     catch (cause) { clearSession(); throw cause; }
   }
 
-  async function signInWithPassword(sessionToken: string) {
-    await run(() => loadTokenSession(sessionToken));
+  async function signInWithPassword(created: boolean) {
+    await run(async () => {
+      await loadTokenSession("");
+      if (created) setMessage("Welcome! Your private workspace is ready. Your setup guide is open — start by adding a CSV or Excel file below.");
+    });
+  }
+
+  async function signOut() {
+    await run(async () => {
+      // shortcut: a failed revoke (offline, 404 or expired) still signs this browser out; the server session then ends at expiry.
+      await request("/auth/logout", { method: "POST" }).catch(() => undefined);
+      clearSession();
+    });
   }
 
   function clearSession() {
@@ -1033,12 +1056,7 @@ export default function WorkspacePage() {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      await request("/auth/logout", { method: "POST" });
-                      clearSession();
-                    })
-                  }
+                  onClick={() => void signOut()}
                 >
                   Sign out
                 </button>
@@ -1102,21 +1120,20 @@ export default function WorkspacePage() {
           )}
           {!user ? (
             <section className="panel loginPanel">
-              <h2>Sign in</h2>
+              <AccountAccess api={api} onSession={signInWithPassword} />
               {googleEnabled && (
                 <form method="get" action={`${api}/auth/google/start`}>
-                  <button type="submit" disabled={busy}>
+                  <button type="submit" className="secondaryAction" disabled={busy}>
                     Continue with Google
                   </button>
                 </form>
               )}
-              <AccountAccess api={api} onSession={signInWithPassword} />
-              <h3>Operator session</h3>
-              <p>
-                Use the development session token provided by your local
-                operator. Sessions expire after eight hours.
-              </p>
-              <form onSubmit={signIn}>
+              <form onSubmit={signIn} className="operatorSession" aria-label="Operator session">
+                <h3>Operator session</h3>
+                <p>
+                  For development: paste the session token from your local
+                  operator. Sessions expire after eight hours.
+                </p>
                 <label>
                   Session token
                   <input
@@ -1127,7 +1144,7 @@ export default function WorkspacePage() {
                     autoComplete="off"
                   />
                 </label>
-                <button disabled={busy}>Sign in</button>
+                <button className="secondaryAction" disabled={busy}>Sign in</button>
               </form>
             </section>
           ) : (
@@ -1156,6 +1173,7 @@ export default function WorkspacePage() {
                       ))}
                     </select>
                   </label>
+                  {datasets.length > 0 && <>
                   <label>
                     <span>Dataset</span>
                     <select
@@ -1200,6 +1218,7 @@ export default function WorkspacePage() {
                       ))}
                     </select>
                   </label>
+                  </>}
                   {["overview", "data", "team"].includes(section) && <OnboardingGuide key={`setup-${workspace.id}-${user.id}`} workspaceId={workspace.id} request={request} defaultOpen={nativeAccount} onNavigate={navigate} />}
                   {selectedUpload && section !== "overview" && (
                     <span className="sourceStats">

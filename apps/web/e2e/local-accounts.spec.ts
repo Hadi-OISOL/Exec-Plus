@@ -45,9 +45,15 @@ test("native signup creates a private workspace and the guide resumes without cl
   await access.getByLabel("Workspace name", { exact: true }).fill("Synthetic browser workspace");
   await access.getByLabel("Account password", { exact: true }).fill(password);
   await access.getByLabel("Confirm account password", { exact: true }).fill(password);
+  const signedIn = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/auth/login"));
   await access.getByRole("button", { name: "Create local account", exact: true }).click();
-  await expect(access.getByRole("status")).toContainText("No email has been sent or verified");
-  const session = await nativeLogin(page, email);
+  const created = await (await signedIn).json();
+  const session = { token: created.token as string, userId: created.user.id as string, headers: { Authorization: `Bearer ${created.token}` } };
+  await expect(page.getByText(`Signed in as ${email}`, { exact: true })).toBeVisible();
+  await expect(page.getByText("Your private workspace is ready", { exact: false })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(`Signed in as ${email}`, { exact: true })).toBeVisible();
+  expect((await page.context().cookies(api)).find(cookie => cookie.name === "execplus_session")).toMatchObject({ httpOnly: true, sameSite: "Lax" });
   const wid = await page.getByRole("combobox", { name: "Current workspace", exact: true }).inputValue();
   const guidePath = `${api}/workspaces/${wid}/onboarding-progress`;
   const guide = page.locator("details").filter({ has: page.locator("summary").filter({ hasText: "Your setup guide" }) }).first();
@@ -59,6 +65,8 @@ test("native signup creates a private workspace and the guide resumes without cl
   let state = await (await page.request.get(guidePath, { headers: session.headers })).json();
   expect(state).toMatchObject({ paused: true, active_step: "quality", skipped_steps: ["data"] });
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Local account access", exact: true })).toBeVisible();
   const resumed = await nativeLogin(page, email);
   await expect(guide.locator("summary")).toContainText("paused");
   await expect(guide).not.toHaveAttribute("open", "");

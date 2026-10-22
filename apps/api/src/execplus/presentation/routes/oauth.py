@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict
 
 from execplus.domain.ingestion import IngestionError
+from execplus.presentation.routes import workspaces
 
 router = APIRouter(tags=["oauth"])
 BROWSER_COOKIE = "execplus_oauth_browser"
@@ -29,7 +30,7 @@ def browser(request: Request) -> str:
 
 
 def session_token(request: Request) -> str:
-    return request.headers.get("authorization", "").partition(" ")[2]
+    return workspaces.session_token(request)
 
 
 def set_browser(response: Response, value: str, api_url: str) -> None:
@@ -82,4 +83,6 @@ async def exchange(body: ExchangeInput, request: Request) -> Response:
     )
     response = JSONResponse(result, headers={"Cache-Control": "no-store"})
     response.delete_cookie(EXCHANGE_COOKIE, path="/")
+    if "token" in result:
+        workspaces.set_session_cookie(request, response, result["token"])
     return response
