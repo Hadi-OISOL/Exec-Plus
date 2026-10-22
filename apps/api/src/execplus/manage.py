@@ -147,9 +147,7 @@ def _issue_reset_code(args: argparse.Namespace) -> None:
         finally:
             runtime.engine.dispose()
     except Exception:
-        print(
-            "operator action=reset-code outcome=failed code=reset_code_failure", file=sys.stderr
-        )
+        print("operator action=reset-code outcome=failed code=reset_code_failure", file=sys.stderr)
         raise SystemExit(1) from None
     print(
         json.dumps(

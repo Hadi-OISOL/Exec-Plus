@@ -100,9 +100,7 @@ def test_due_report_is_delivered_once_over_smtp_with_exact_values(integration, m
     assert "0.300000000000" in body and "unsubscribe" in body
 
 
-def test_transient_smtp_failure_retries_soon_instead_of_skipping_the_interval(
-    integration, mailbox
-):
+def test_transient_smtp_failure_retries_soon_instead_of_skipping_the_interval(integration, mailbox):
     env = integration
     owner, _actor, wid, _did, _uid, root = setup(env)
     saved, _ = analysis(env, owner, root)
@@ -114,12 +112,8 @@ def test_transient_smtp_failure_retries_soon_instead_of_skipping_the_interval(
     mailbox.fail_data = True
     assert asyncio.run(env.runtime.reports.deliver_due(first))["failed"] == 1
     mailbox.fail_data = False
-    assert asyncio.run(env.runtime.reports.deliver_due(first + timedelta(minutes=10)))[
-        "sent"
-    ] == 0
-    assert asyncio.run(env.runtime.reports.deliver_due(first + timedelta(minutes=16)))[
-        "sent"
-    ] == 1
+    assert asyncio.run(env.runtime.reports.deliver_due(first + timedelta(minutes=10)))["sent"] == 0
+    assert asyncio.run(env.runtime.reports.deliver_due(first + timedelta(minutes=16)))["sent"] == 1
     assert len(mailbox.messages) == 1
     assert asyncio.run(env.runtime.reports.deliver_due(first + timedelta(hours=2)))["sent"] == 0
 

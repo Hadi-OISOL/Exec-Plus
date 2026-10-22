@@ -55,8 +55,7 @@ def test_settings_default_secure_cookies_only_outside_local_and_test():
 
     assert create_app(Settings(_env_file=None, environment="test")).state.secure_cookies is False
     assert (
-        create_app(Settings(_env_file=None, environment="production")).state.secure_cookies
-        is True
+        create_app(Settings(_env_file=None, environment="production")).state.secure_cookies is True
     )
     assert (
         create_app(

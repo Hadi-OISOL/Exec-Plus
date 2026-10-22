@@ -182,11 +182,7 @@ class Settings(BaseSettings):
             raise ValueError("Unencrypted SMTP is restricted to local/test fake mail servers")
         if self.email_mode == "smtp" and not all(
             (self.smtp_host, self.smtp_sender)
-            + (
-                ()
-                if self.smtp_security == "none"
-                else (self.smtp_username, self.smtp_password)
-            )
+            + (() if self.smtp_security == "none" else (self.smtp_username, self.smtp_password))
         ):
             raise ValueError("SMTP delivery requires host, username, password and sender")
         if self.google_enabled:

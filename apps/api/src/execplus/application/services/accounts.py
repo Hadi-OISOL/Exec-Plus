@@ -214,9 +214,7 @@ class AccountService:
                     user_id, "account.enabled", now, "operator_checked_account_control"
                 )
 
-    def issue_reset_code(
-        self, user_id: UUID, *, identity_checked: bool
-    ) -> tuple[str, datetime]:
+    def issue_reset_code(self, user_id: UUID, *, identity_checked: bool) -> tuple[str, datetime]:
         if identity_checked is not True:
             raise IngestionError(
                 "identity_check_required",

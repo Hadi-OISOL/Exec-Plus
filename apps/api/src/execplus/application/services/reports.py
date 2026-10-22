@@ -14,7 +14,6 @@ from execplus.domain.activation import ReportDelivery, ReportSchedule
 from execplus.domain.errors import ProviderUnavailableError
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
 
-
 RETRY_AFTER = timedelta(minutes=15)
 
 
