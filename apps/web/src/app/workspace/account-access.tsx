@@ -1,5 +1,5 @@
 /* Use case: Provides optional local password sign-in and workspace registration.
-What it does: Signs new accounts straight in, accepts operator reset codes, keeps credentials in memory and leaves operator token access available. */
+What it does: Signs new accounts straight in, accepts operator reset codes and keeps credentials in memory; operator token access exists only in development builds. */
 
 "use client";
 

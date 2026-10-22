@@ -34,6 +34,7 @@ What it does: Reuses workspace tokens with readable forms, accessible controls a
 .steps button { border: 0; background: none; text-align: start; padding: .4rem; }
 .steps [aria-current="step"] { font-weight: 700; color: var(--accent, var(--color-primary-text)); }
 .stepState { color: var(--muted, var(--color-text-secondary)); font-size: .85rem; margin-inline-start: .5rem; }
+.current .stepState { margin-inline-start: 0; }
 .current { border-block: 1px solid var(--border, var(--color-border)); padding-block: 1rem; margin-block: 1rem; }
 .checkbox { display: flex !important; align-items: flex-start; gap: .6rem; font-weight: 400 !important; line-height: 1.5; }
 .checkbox input { min-height: 1.3rem; width: 1.3rem; margin-top: .1rem; flex-shrink: 0; }
