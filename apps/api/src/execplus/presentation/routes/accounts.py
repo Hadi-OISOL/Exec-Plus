@@ -26,7 +26,11 @@ Service = Annotated[AccountService, Depends(service)]
 
 
 def peer(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    host = request.client.host if request.client else "unknown"
+    if host in getattr(request.app.state, "trusted_proxies", ()):
+        forwarded = request.headers.get("x-forwarded-for", "").split(",")[-1].strip()
+        return forwarded[:200] or host
+    return host
 
 
 class AccountInput(BaseModel):

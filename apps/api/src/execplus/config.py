@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
     web_origin: str = "http://localhost:3000"
     local_registration_enabled: bool = True
+    trusted_proxies: list[str] = Field(default_factory=list)
+    session_cookie_secure: bool | None = None
     integration_allow_loopback: bool = False
     webhook_master_secret: str = Field(default="", repr=False)
     webhook_destinations: dict[str, str] = Field(default_factory=dict, repr=False)

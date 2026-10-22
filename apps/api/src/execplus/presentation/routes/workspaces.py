@@ -51,13 +51,17 @@ def session_token(request: Request) -> str:
 def set_session_cookie(
     request: Request, response: Response, token: str, max_age: int = SESSION_SECONDS
 ) -> None:
+    previous = request.cookies.get(SESSION_COOKIE)
+    if previous and previous != token:
+        request.app.state.runtime.identity.revoke(previous)
     response.set_cookie(
         SESSION_COOKIE,
         token,
         max_age=max(0, max_age),
         httponly=True,
         samesite="lax",
-        secure=request.url.scheme == "https",
+        secure=request.url.scheme == "https"
+        or bool(getattr(request.app.state, "secure_cookies", False)),
         path="/",
     )
 
