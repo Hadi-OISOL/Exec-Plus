@@ -11,7 +11,11 @@ from execplus.application.ports import EmailDelivery, WorkspaceRepository
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.saved_items import SavedItemService
 from execplus.domain.activation import ReportDelivery, ReportSchedule
+from execplus.domain.errors import ProviderUnavailableError
 from execplus.domain.ingestion import AuditEvent, IngestionError, User
+
+
+RETRY_AFTER = timedelta(minutes=15)
 
 
 class ReportService:
@@ -127,7 +131,7 @@ class ReportService:
                     replace(schedule, next_due=now + timedelta(hours=schedule.interval_hours))
                 )
                 actor = repo.user(schedule.owner_id)
-            status = "failed"
+            status, retry = "failed", False
             try:
                 with self.uow() as repo:
                     query_id = self._item(repo, actor, wid, schedule.item_id)
@@ -157,8 +161,10 @@ class ReportService:
                         status = "sent"
             except IngestionError as error:
                 status = "unauthorized" if error.status in {403, 404} else "failed"
-            except Exception:
+            except ProviderUnavailableError:
                 status = "failed"
+            except Exception:
+                status, retry = "failed", True
             with self.uow() as repo:
                 repo.workspace(wid, lock=True)
                 repo.set_report_delivery(replace(delivery, status=status))
@@ -171,6 +177,19 @@ class ReportService:
                         status = "cancelled"
                     else:
                         repo.set_report_schedule(replace(latest, enabled=False))
+                if retry:
+                    try:
+                        latest = repo.report_schedule(wid, scheduleid)
+                    except IngestionError as error:
+                        if error.status != 404:
+                            raise
+                        retry = False
+                    else:
+                        retry = latest.enabled
+                    if retry:
+                        repo.set_report_schedule(
+                            replace(latest, next_due=min(latest.next_due, now + RETRY_AFTER))
+                        )
                 repo.add(
                     AuditEvent(
                         uuid4(),
