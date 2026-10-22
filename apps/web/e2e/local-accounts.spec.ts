@@ -195,9 +195,11 @@ test("an operator reset code lets a user choose a new password and signs them in
   const first = await nativeLogin(page, email);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   const issued = JSON.parse(execFileSync("python3", ["-m", "execplus.manage", "issue-reset-code", "--account-id", first.userId, "--identity-checked"], { cwd: "../..", encoding: "utf8" }));
-  await page.goto("/workspace");
   const access = page.getByRole("region", { name: "Local account access", exact: true });
-  await access.getByRole("button", { name: "Have a reset code?", exact: true }).click();
+  await expect(async () => {
+    await access.getByRole("button", { name: "Have a reset code?", exact: true }).click({ timeout: 2000 });
+    await expect(access.getByRole("heading", { name: "Reset your password" })).toBeVisible({ timeout: 1000 });
+  }).toPass();
   await access.getByLabel("Account email", { exact: true }).fill(email);
   await access.getByLabel("One-time reset code", { exact: true }).fill("wrong-code");
   await access.getByLabel("New account password", { exact: true }).fill(replacement);
