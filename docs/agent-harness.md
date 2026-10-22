@@ -235,6 +235,15 @@ local only; they are not deployed and have not been re-measured live.
 | D22 | "Rows with missing sales" → "The model proposed an invalid filter" | No is-missing filter operator | Open |
 | D23 | Quality check missed `Store 1` / `" store 1 "` label variants | Profiler does not compare trimmed/case-folded labels | Open |
 
+**Live re-run on release f590a4a813287580 (schema 0030):** 36/16/29 → **48 PASS / 22 PARTIAL /
+11 FAIL**, 22 questions better, 0 worse; see `verification-live-datasets-20261022.md`.
+Confirmed live: D1, D2, D4, D5, D5b (direct follow-up), D7, D8, D11; D3 now never shows a wrong
+single number (the model asks which ratio, but its candidates are not clickable). Not confirmed:
+D6 (laptop follow-up still rejected). New: D24 "Use a calendar period only when grouping by one
+date field" leaks when the model asks for a day period on a text timestamp; D25 a literal `N/A`
+in a numeric column (previously hidden behind the Units guard) fails every sum of that column;
+D14 now leaks "Rank groups with order asc or desc…".
+
 ### Behaviour contracts added
 
 - **Contradictory filters.** Two `eq`/`ieq` filters on one field with different values
