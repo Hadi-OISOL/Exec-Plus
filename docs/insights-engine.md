@@ -175,3 +175,16 @@ unknown keys and render only known chart types.
 - `infer_definition` proposes the new `agriculture` domain when at least three agriculture
   words (soil, crop, irrigation, rainfall, harvest, sowing, mulching, ...) appear in column
   names and no sales/inventory/HR tag applies. It is a proposal only.
+
+## Related: grounded next steps in chat (2026-10-22)
+
+- Open advice questions ("What should I do to grow sales?", "what should HR focus on?",
+  "batao kya karna chahiye?") run `build_insights` without narration and return a
+  `DatasetGuide` (focus `next_steps`, route `deterministic:next-steps-v1`). Up to five
+  steps are taken in a fixed order (unusual values, group gap, largest group, data gaps,
+  related fields, typical range), cards about a measure named in the question first.
+- Each step quotes the card's server-rendered summary, so every figure comes from the
+  projection receipt and survived the cross-checker. Each step's follow-up question goes
+  into the existing `suggestions` field (clickable in the chat). The reply says the steps are
+  suggestions from patterns, not causes. When no card qualifies (unconfirmed saved meaning,
+  more than 50,000 rows, no eligible fields) the previous guidance path answers instead.
