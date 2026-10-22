@@ -45,6 +45,13 @@ class AnomalyInput(SourceInput):
     materiality: str = Field(default="0", min_length=1, max_length=100)
     segment_column: str | None = Field(default=None, min_length=1, max_length=200)
     minimum_segment_size: int = Field(default=8, ge=8, le=1000, strict=True)
+    target_false_alarm_rate: Literal["0.05", "0.01", "0.005"] | None = None
+
+    @model_validator(mode="after")
+    def calibrated_threshold(self) -> "AnomalyInput":
+        if self.target_false_alarm_rate and (self.segment_column or self.threshold != "3.5"):
+            raise ValueError("A false-alarm target sets the threshold for one ungrouped measure.")
+        return self
 
 
 class MultivariateInput(SourceInput):
@@ -318,9 +325,10 @@ async def anomalies(
     actor: Actor,
     analyses: Service,
 ) -> object:
-    return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-    )
+    raw = body.model_dump(mode="json")
+    if body.target_false_alarm_rate is None:
+        raw.pop("target_false_alarm_rate")
+    return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
 
 
 @router.post(SOURCE + "/allocations", status_code=201)

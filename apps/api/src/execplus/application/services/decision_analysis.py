@@ -38,6 +38,11 @@ from execplus.domain.analysis_extensions import (
 )
 from execplus.domain.analysis_queries import analysis_plan, scenario_coverage_plans
 from execplus.domain.analysis_readiness import fixed_unit_columns, forecast_options
+from execplus.domain.anomaly_calibration import (
+    CALIBRATED_METHOD,
+    calibrated_threshold,
+    calibration_evidence,
+)
 from execplus.domain.calendar_anomaly_requests import CALENDAR_METHODS, is_calendar_anomaly
 from execplus.domain.decision_analysis import (
     METHODS,
@@ -124,6 +129,8 @@ def method_version(raw: dict[str, Any]) -> str:
         item["operation"] == "daily_change" for item in raw["alternatives"]
     ):
         return DAILY_METHOD
+    if raw["kind"] == "robust_distribution" and raw.get("target_false_alarm_rate"):
+        return CALIBRATED_METHOD
     if raw["kind"] == "robust_distribution" and raw.get("segment_column"):
         return SEGMENT_METHOD
     if raw["kind"] == "bounded_allocation" and (raw.get("prerequisites") or raw.get("exclusions")):
@@ -145,6 +152,13 @@ def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
             return compare_source_scenarios(raw, value.rows)
         return compare_scenarios(raw, value.rows)
     if raw["kind"] == "robust_distribution":
+        if raw.get("target_false_alarm_rate"):
+            target = raw["target_false_alarm_rate"]
+            return detect_distribution(
+                [(row[0], row[1]) for row in value.rows],
+                calibrated_threshold(target),
+                raw["materiality"],
+            ) | dict(method_version=CALIBRATED_METHOD, calibration=calibration_evidence(target))
         if raw.get("segment_column"):
             return detect_segments(
                 [(None if row[0] is None else str(row[0]), row[1], row[2]) for row in value.rows],
@@ -270,6 +284,7 @@ class DecisionAnalysisService:
                 SOURCE_SCENARIO_METHOD,
                 *sorted(CALENDAR_METHODS),
                 MULTIVARIATE_METHOD,
+                CALIBRATED_METHOD,
             ],
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
@@ -491,6 +506,7 @@ class DecisionAnalysisService:
                     DAILY_METHOD,
                     SOURCE_SCENARIO_METHOD,
                     MULTIVARIATE_METHOD,
+                    CALIBRATED_METHOD,
                 }
                 else SCENARIO_METHOD
                 if raw["kind"] == "scenario_comparison"
