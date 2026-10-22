@@ -18,8 +18,10 @@ from execplus.domain.studies import method_request, validated_method
 from execplus.domain.understanding import governed_request
 
 METHOD = "segment-contribution-v1"
+ROOT_CAUSE_METHOD = "dimension-concentration-v1"
 MAX_ROWS = 10000
 MAX_GROUPS = 128
+MAX_DIMENSIONS = 3
 LIMITATIONS = [
     "Observed contributions are accounting differences, not proven business causes.",
     "These are selected historical populations, not forecasts or population estimates.",
@@ -45,7 +47,16 @@ def validate_comparison(raw: dict[str, Any], did: UUID, uid: UUID) -> dict[str, 
     sides = {}
     for label in ("baseline", "comparison"):
         side = raw.get(label)
-        fields = {"column", "segment", "quantity_column", "filters", "date_column", "start", "end"}
+        fields = {
+            "column",
+            "segment",
+            "quantity_column",
+            "filters",
+            "date_column",
+            "start",
+            "end",
+            "dimensions",
+        }
         if label == "comparison":
             fields |= {"dataset_id", "upload_id", "revision_id", "understanding_id"}
         if not isinstance(side, dict) or set(side) - fields:
@@ -76,6 +87,19 @@ def validate_comparison(raw: dict[str, Any], did: UUID, uid: UUID) -> dict[str, 
                 "contribution_quantity",
                 "Enable volume/mix/unit-revenue accounting to select quantity.",
             )
+        if "dimensions" in value:
+            dims = value["dimensions"]
+            if (
+                not isinstance(dims, list)
+                or not 1 <= len(dims) <= MAX_DIMENSIONS
+                or any(not isinstance(d, str) or not 1 <= len(d) <= 200 for d in dims)
+                or len(set(dims)) != len(dims)
+                or set(dims) & {value["column"], value["segment"], value.get("quantity_column")}
+            ):
+                fail(
+                    "contribution_dimensions",
+                    "Choose one to three other distinct category fields to rank.",
+                )
         value["filters"] = value.get("filters", [])
         if raw["mode"] == "period":
             try:
@@ -106,6 +130,8 @@ def validate_comparison(raw: dict[str, Any], did: UUID, uid: UUID) -> dict[str, 
                 fail("contribution_source", "Choose a current confirmed comparison snapshot.")
         sides[label] = value
     left, right = sides["baseline"], sides["comparison"]
+    if len(left.get("dimensions", [])) != len(right.get("dimensions", [])):
+        fail("contribution_dimensions", "Map the same number of ranked fields on both sides.")
     if raw["mode"] == "period":
         if right["dataset_id"] != str(did) or right["upload_id"] != str(uid):
             fail(
@@ -119,7 +145,14 @@ def validate_comparison(raw: dict[str, Any], did: UUID, uid: UUID) -> dict[str, 
             )
         if any(
             left.get(key) != right.get(key)
-            for key in ("column", "segment", "quantity_column", "date_column", "filters")
+            for key in (
+                "column",
+                "segment",
+                "quantity_column",
+                "date_column",
+                "filters",
+                "dimensions",
+            )
         ):
             fail(
                 "contribution_population",
@@ -151,6 +184,9 @@ def projection(
     fields = [side["segment"], side["column"]]
     if decompose:
         fields.append(side["quantity_column"])
+    for name in side.get("dimensions", []):
+        if name not in view.dimensions:
+            fail("contribution_dimensions", "Ranked fields must be existing category fields.")
     declared = side.get("filters", [])
     if not isinstance(declared, list):
         fail("contribution_filters", "Use a list of declared filters.")
@@ -202,7 +238,7 @@ def projection(
         units["amount" if index == 0 else "quantity"] = meaning["currency"] or meaning["unit"]
         units["amount_currency" if index == 0 else "quantity_currency"] = bool(meaning["currency"])
     clauses, parameters = build_where(view, population or ())
-    columns = ", ".join(quote_identifier(name) for name in fields)
+    columns = ", ".join(quote_identifier(name) for name in fields + side.get("dimensions", []))
     sql = f'SELECT {columns} FROM "dataset"'
     if clauses:
         sql += " WHERE " + " AND ".join(clauses)
@@ -261,11 +297,120 @@ def _covered(group: dict[str, Any] | None) -> dict[str, Any]:
     )
 
 
+def _member_deltas(
+    baseline: tuple[tuple[Any, ...], ...], comparison: tuple[tuple[Any, ...], ...], index: int
+) -> dict[str | None, Fraction]:
+    deltas: dict[str | None, Fraction] = {}
+    for sign, rows in ((-1, baseline), (1, comparison)):
+        for row in rows:
+            key = None if row[index] is None else str(row[index])
+            deltas[key] = deltas.get(key, Fraction(0)) + sign * Fraction(number(row[1]))
+    return deltas
+
+
+def _ordered(deltas: dict[str | None, Fraction]) -> list[tuple[str | None, Fraction]]:
+    return sorted(deltas.items(), key=lambda m: (-abs(m[1]), m[0] is not None, m[0] or ""))
+
+
+def _concentration(field: str, deltas: dict[str | None, Fraction], net: Fraction) -> dict[str, Any]:
+    gross = sum((abs(d) for d in deltas.values()), Fraction(0))
+    entry: dict[str, Any] = dict(field=field, members=len(deltas))
+    if len(deltas) > MAX_GROUPS:
+        return entry | dict(state="too_many_groups")
+    if gross == 0:
+        return entry | dict(state="no_movement")
+    member, delta = _ordered(deltas)[0]
+    return entry | dict(
+        state="ranked",
+        top_member=member,
+        top_delta=_fraction(delta),
+        concentration=_fraction(abs(delta) / gross),
+        top_share_of_net=_fraction(delta / net) if net else None,
+        gross_movement=_fraction(gross),
+    )
+
+
+def _root_cause(
+    baseline: tuple[tuple[Any, ...], ...],
+    comparison: tuple[tuple[Any, ...], ...],
+    fields: tuple[str, ...],
+    width: int,
+) -> dict[str, Any]:
+    result: dict[str, Any] = dict(
+        method=ROOT_CAUSE_METHOD,
+        limitation=(
+            "Concentration ranks where the exact recorded change is located. "
+            "It is accounting attribution, not a proven business cause."
+        ),
+    )
+    if any(row[1] is None for rows in (baseline, comparison) for row in rows):
+        return result | dict(state="undefined_missing_values", fields=[], drilldown=None)
+    indexes = [0] + [width + offset for offset in range(len(fields) - 1)]
+    net = sum((Fraction(number(r[1])) for r in comparison), Fraction(0)) - sum(
+        (Fraction(number(r[1])) for r in baseline), Fraction(0)
+    )
+    entries = [
+        _concentration(field, _member_deltas(baseline, comparison, index), net)
+        for field, index in zip(fields, indexes, strict=True)
+    ]
+    ranked = sorted(
+        (i for i, e in enumerate(entries) if e["state"] == "ranked"),
+        key=lambda i: (-exact(entries[i]["concentration"]), i),
+    )
+    drilldown = None
+    if ranked and len(fields) > 1:
+        top = ranked[0]
+        member = entries[top]["top_member"]
+        index = indexes[top]
+
+        def inside(rows: tuple[tuple[Any, ...], ...]) -> tuple[tuple[Any, ...], ...]:
+            return tuple(r for r in rows if (None if r[index] is None else str(r[index])) == member)
+
+        subset = inside(baseline), inside(comparison)
+        candidates = []
+        for i, (field, other) in enumerate(zip(fields, indexes, strict=True)):
+            if i == top:
+                continue
+            deltas = _member_deltas(*subset, other)
+            entry = _concentration(field, deltas, exact(entries[top]["top_delta"]))
+            if entry["state"] == "ranked":
+                candidates.append((-exact(entry["concentration"]), i, deltas, entry))
+        if candidates:
+            _, _, deltas, entry = min(candidates, key=lambda c: (c[0], c[1]))
+            drilldown = dict(
+                within_field=fields[top],
+                within_member=member,
+                field=entry["field"],
+                concentration=entry["concentration"],
+                rows=[dict(member=k, delta=_fraction(d)) for k, d in _ordered(deltas)],
+                reconciled=sum(deltas.values(), Fraction(0)) == exact(entries[top]["top_delta"]),
+            )
+    return result | dict(
+        state="available" if ranked else "no_change",
+        fields=[entries[i] for i in ranked] + [e for i, e in enumerate(entries) if i not in ranked],
+        drilldown=drilldown,
+    )
+
+
+def exact(value: dict[str, Any]) -> Fraction:
+    return Fraction(int(value["numerator"]), int(value["denominator"]))
+
+
 def calculate_contributions(
     baseline: tuple[tuple[Any, ...], ...],
     comparison: tuple[tuple[Any, ...], ...],
     decompose: bool,
+    fields: tuple[str, ...] = (),
 ) -> dict[str, Any]:
+    width = 3 if decompose else 2
+    full = baseline, comparison
+    if fields:
+        if not 2 <= len(fields) <= MAX_DIMENSIONS + 1 or any(
+            len(row) != width + len(fields) - 1 for rows in full for row in rows
+        ):
+            fail("contribution_evidence", "The ranked fields do not match the method evidence.")
+        baseline = tuple(row[:width] for row in baseline)
+        comparison = tuple(row[:width] for row in comparison)
     left, right = _groups(baseline, decompose), _groups(comparison, decompose)
     keys = set(left) | set(right)
     if len(keys) > MAX_GROUPS:
@@ -382,4 +527,6 @@ def calculate_contributions(
                 "entries and exits use only observed revenue."
             ),
         )
+    if fields:
+        result["root_cause"] = _root_cause(*full, fields, width)
     return result

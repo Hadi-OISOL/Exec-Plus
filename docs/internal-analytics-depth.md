@@ -248,6 +248,26 @@ omits real browser and network overhead. This short local workload supports a
 declared regression comparison, not sustained load, production capacity or hosted
 model-quality claims. Any optimization needs measured evidence before adoption.
 
+## October 22 additions: ranked change fields and declared driver ranges
+
+- Contribution studies accept optional `dimensions` (one to three other category
+  fields, identical count on both sides). The calculation then adds `root_cause`
+  (`dimension-concentration-v1`): for the segment and each field, the exact signed
+  change per member, the top member, and its concentration (top absolute change ÷
+  total absolute movement, exact fraction). Fields rank by concentration, then by
+  declared order; more than 128 members marks a field `too_many_groups`. A one-level
+  drilldown inside the top member ranks the other fields the same way and reconciles
+  to that member's change. Missing amounts make the ranking `undefined_missing_values`.
+  This is accounting attribution, not causation. Studies without `dimensions` keep
+  identical evidence, `segment-contribution-v1` and replay.
+- Source scenarios accept optional `ranges` (one to four drivers with low < high
+  percent changes, other drivers zero). `vertex-interval-bounds-v1` evaluates every
+  low/high combination (at most 16) with the existing exact formula. Each output is
+  multilinear or, for margin, monotone in every driver, so corner extremes are exact
+  bounds; margin bounds are unavailable if any corner has zero revenue. Ranges are
+  declared assumptions, not probabilities. Runs without `ranges` are unchanged.
+  The web form and exports do not yet display these new fields.
+
 ## Remaining boundaries
 
 No new schema, statistics library, model provider or external integration is needed

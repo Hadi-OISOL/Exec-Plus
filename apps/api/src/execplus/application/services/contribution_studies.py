@@ -27,6 +27,11 @@ if TYPE_CHECKING:
     from execplus.application.services.studies import StudyService
 
 
+def ranked_fields(method: dict[str, Any]) -> tuple[str, ...]:
+    side = method["baseline"]
+    return (side["segment"], *side["dimensions"]) if side.get("dimensions") else ()
+
+
 def check_current(
     repo: WorkspaceRepository, actor: User, wid: UUID, sources: list[dict[str, str]]
 ) -> None:
@@ -156,7 +161,7 @@ async def run_contribution(
         service.analytics._persist(actor, lineage)
         results.append((result, lineage))
     calculation = calculate_contributions(
-        results[0][0].rows, results[1][0].rows, method["decompose"]
+        results[0][0].rows, results[1][0].rows, method["decompose"], ranked_fields(method)
     )
     now = datetime.now(timezone.utc)
     with service.uow() as repo:
@@ -217,7 +222,10 @@ def verify_contribution(
     if version.evidence.get("method_version") != METHOD or len(results) != 2:
         raise IngestionError("lineage_mismatch", "This contribution method is unavailable.", 409)
     calculated = calculate_contributions(
-        results[0][0].rows, results[1][0].rows, version.method["decompose"]
+        results[0][0].rows,
+        results[1][0].rows,
+        version.method["decompose"],
+        ranked_fields(version.method),
     )
     if calculated != version.evidence.get("calculation"):
         raise IngestionError(

@@ -583,3 +583,58 @@ def test_projection_dashboard_export_rechecks_sharing_at_final_download(integrat
         assert not connection.execute(
             select(s.audit_events).where(s.audit_events.c.action == "result.exported")
         ).all()
+
+
+def test_ranked_fields_add_root_cause_evidence_that_replays_exactly(integration):
+    env = integration
+    owner, _ = identity(env, f"root-cause-{uuid4().hex}@example.test")
+    wid = workspace(env, owner)
+    _, uid, root = source(
+        env,
+        owner,
+        wid,
+        b"date,product,region,revenue\n2026-01-01,A,N,10\n2026-01-02,A,S,10\n"
+        b"2026-01-03,B,N,5\n2026-02-01,A,N,30\n2026-02-02,A,S,10\n2026-02-03,B,N,4\n",
+    )
+    current = env.client.get(root + "/adaptive-views", headers=owner).json()
+    left = dict(
+        column="revenue",
+        segment="product",
+        dimensions=["region"],
+        date_column="date",
+        start="2026-01-01",
+        end="2026-01-31",
+    )
+    right = {
+        **left,
+        "start": "2026-02-01",
+        "end": "2026-02-28",
+        "dataset_id": root.split("/")[4],
+        "upload_id": uid,
+        "revision_id": current["revision_id"],
+        "understanding_id": current["understanding_id"],
+    }
+    method = dict(
+        kind="contribution",
+        mode="period",
+        baseline=left,
+        comparison=right,
+        additive_rows_confirmed=True,
+    )
+    response = create_contribution(env, owner, root, method)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    cause = body["contribution"]["root_cause"]
+    assert [f["field"] for f in cause["fields"]] == ["region", "product"]
+    assert cause["fields"][0]["concentration"]["display"] == "1"
+    assert cause["fields"][1]["concentration"]["numerator"] == "20"
+    assert cause["fields"][1]["concentration"]["denominator"] == "21"
+    drill = cause["drilldown"]
+    assert drill["within_member"] == "N" and drill["reconciled"]
+    assert {r["member"]: r["delta"]["display"] for r in drill["rows"]} == {"A": "20", "B": "-1"}
+    assert body["version"]["evidence"]["method_version"] == "segment-contribution-v1"
+    url = f"/workspaces/{wid}/study-versions/{body['version']['id']}"
+    assert env.client.get(url, headers=owner).json() == body
+    method["comparison"] = {**right, "dimensions": ["product"]}
+    method["baseline"] = {**left, "dimensions": ["product"]}
+    assert create_contribution(env, owner, root, method).status_code == 422
