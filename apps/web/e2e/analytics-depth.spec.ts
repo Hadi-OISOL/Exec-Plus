@@ -24,7 +24,7 @@ async function confirm(page: Page, metrics: string[]) {
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   await nav.getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
   await openAnalysisAdvanced(page);
-  await page.getByRole("button", { name: "Review data meanings", exact: true }).click();
+  await page.getByRole("button", { name: "Review data meanings", exact: true }).first().click();
   const meanings = page.getByRole("region", { name: "Data understanding", exact: true });
   await meanings.getByLabel("One row represents").selectOption("record");
   for (const name of metrics) {

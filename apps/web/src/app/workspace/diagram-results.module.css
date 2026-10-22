@@ -12,7 +12,7 @@ What it does: Keeps the diagram, exact field inspector and source details readab
 .panel .branch, .panel .inspector { display: grid; gap: 7px; font-size: 13px; margin: 18px 0 0; min-width: 0; }
 .panel select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font-size: 14px; }
 .caption { color: var(--color-text-secondary); margin: 12px 0 0; }
-.canvas { width: 100%; min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); margin-top: 12px; }
+.canvas { width: 100%; min-width: 0; overflow: hidden; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); margin-top: 12px; }
 .navigation { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .panel button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font-size: 13px; }
 .panel button:disabled { opacity: .5; cursor: default; }

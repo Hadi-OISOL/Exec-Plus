@@ -79,7 +79,7 @@ export function UnusualValues({ root, request, onReview, autoRun = false }: { ro
     {ready && <div className="unusualValuesResult">
       <p className="unusualValuesSummary" role="status">{ready.summary}</p>
       {ready.findings.length > 0 && <ol className="unusualValuesFindings" aria-label="Unusual values found">
-        {ready.findings.map(item => <li key={`${item.row}:${item.column}`} className={`unusualFinding unusualFinding-${item.direction}`}>
+        {ready.findings.map((item, index) => <li key={`${index}:${item.row}:${item.column}`} className={`unusualFinding unusualFinding-${item.direction}`}>
           <p>{item.explanation}</p>
           {item.score && <small>Robust score {item.score} · above {ready.threshold} counts as unusual</small>}
         </li>)}
@@ -87,7 +87,7 @@ export function UnusualValues({ root, request, onReview, autoRun = false }: { ro
       {ready.total_findings > ready.findings.length && <p>Showing the {ready.findings.length} strongest of {ready.total_findings} unusual values.</p>}
       {ready.closest.length > 0 && <div className="unusualValuesClosest">
         <h4>Closest to unusual</h4>
-        <ul>{ready.closest.map(item => <li key={`${item.row}:${item.column}`}>{item.explanation}</li>)}</ul>
+        <ul>{ready.closest.map((item, index) => <li key={`${index}:${item.row}:${item.column}`}>{item.explanation}</li>)}</ul>
       </div>}
       <details className="unusualValuesDetails">
         <summary>What we checked ({ready.measures.length} measures, {ready.rows} rows)</summary>
