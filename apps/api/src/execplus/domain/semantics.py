@@ -86,6 +86,9 @@ class MetricFilter:
     value: Scalar
 
 
+TIME_PERIODS = ("day", "week", "month", "quarter", "year")
+
+
 @dataclass(frozen=True, slots=True)
 class MetricRequest:
     metric: str
@@ -94,6 +97,7 @@ class MetricRequest:
     filters: tuple[MetricFilter, ...] = ()
     order: Literal["asc", "desc"] | None = None
     limit: int | None = None
+    period: Literal["day", "week", "month", "quarter", "year"] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,6 +238,15 @@ def build_where(
         column = view.column(clause.column)
         if column is None:
             raise UnsupportedQuestionError(f"{clause.column!r} is not a filterable column")
+        if (
+            isinstance(clause.value, str)
+            and clause.value != clause.column
+            and view.column(clause.value)
+        ):
+            raise UnsupportedQuestionError(
+                f"Comparing {clause.column} with another field ({clause.value}) in the same "
+                "row is not supported yet. Filter by a fixed value, or ask for each field."
+            )
         normalized = normalize_filter_value(column, clause.value)
         if clause.operator == FilterOperator.IEQ:
             if column.type != "text" or not isinstance(normalized, str):
@@ -270,6 +283,17 @@ def plan_query(
     where_clauses, params = build_where(view, request.filters)
 
     select = [quote_identifier(name) for name in request.group_by]
+    if request.period is not None:
+        dated = [
+            index
+            for index, name in enumerate(request.group_by)
+            if (column := view.column(name)) is not None and column.type == "date"
+        ]
+        if request.period not in TIME_PERIODS or len(dated) != 1:
+            raise UnsupportedQuestionError("A calendar period needs exactly one grouped date field")
+        name = quote_identifier(request.group_by[dated[0]])
+        select[dated[0]] = f"CAST(DATE_TRUNC(?, {name}) AS DATE) AS {name}"
+        params.insert(0, request.period)
     argument = RECORD_COUNT if request.metric == RECORD_COUNT else quote_identifier(request.metric)
     select.append(
         f"{request.aggregation.value.upper()}({argument}) AS {quote_identifier(VALUE_ALIAS)}"
@@ -277,7 +301,9 @@ def plan_query(
     sql = f"SELECT {', '.join(select)} FROM {quote_identifier(VIEW_NAME)}"
     if where_clauses:
         sql += " WHERE " + " AND ".join(where_clauses)
-    if request.group_by:
+    if request.period is not None:
+        sql += " GROUP BY ALL"
+    elif request.group_by:
         sql += " GROUP BY " + ", ".join(quote_identifier(name) for name in request.group_by)
     if not 1 <= row_limit <= 100_000:
         raise UnsafeQueryError("The query row limit is outside supported bounds")
@@ -302,6 +328,8 @@ def plan_query(
     )
     if request.group_by:
         question += f" grouped by {', '.join(request.group_by)}"
+    if request.period is not None:
+        question += f" per {request.period}"
     if request.order is not None:
         question += f" ranked {request.order}"
     return QueryPlan(

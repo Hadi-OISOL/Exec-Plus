@@ -12,7 +12,7 @@ from execplus.application.services.intent_router import PatternAnswer
 from execplus.application.services.response_synthesis import build_fact_packet
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
-from execplus.domain.response_synthesis import INSIGHT_VERSION, VERSION, FactPacket
+from execplus.domain.response_synthesis import INSIGHT_VERSIONS, VERSION, FactPacket
 
 
 def data_answers(answer: object) -> tuple[NumericalAnswer, ...]:
@@ -63,7 +63,7 @@ async def authorized_fact_packet(
     current: bool = False,
     version: str = VERSION,
 ) -> FactPacket | None:
-    if version not in {VERSION, INSIGHT_VERSION}:
+    if version not in {VERSION, *INSIGHT_VERSIONS}:
         return None
     sources = narrative_sources(answer)
     if not sources:
@@ -78,9 +78,12 @@ async def authorized_fact_packet(
         context = await read_complete(partial(analytics.describe, actor, wid, did, uid, source))
         contexts[(did, uid)] = context
     units: dict[str, str] = {}
+    mixed: set[str] = set()
     for data in data_answers(answer):
         lineage = answer_lineage(data)
         refs = receipt_sources(data)
+        if len(refs) != 1:
+            mixed.add(str(lineage.query_id))
         if len(refs) != 1 or lineage.aggregation == "count":
             continue
         source = refs[0]
@@ -88,9 +91,14 @@ async def authorized_fact_packet(
         if definition_context is None or definition_context.state != "confirmed":
             continue
         for field in (definition_context.definition or {}).get("columns", []):
+            if field["name"] == lineage.metric and field.get("unit_column"):
+                mixed.add(str(lineage.query_id))
             if field["name"] == lineage.metric and not field.get("unit_column"):
                 label = field.get("currency") or field.get("unit")
                 if label:
                     units[str(lineage.query_id)] = label
-    builder = build_insight_packet if version == INSIGHT_VERSION else build_fact_packet
-    return builder(answer, units=units)
+    if version in INSIGHT_VERSIONS:
+        return build_insight_packet(
+            answer, units=units, version=version, mixed_units=frozenset(mixed)
+        )
+    return build_fact_packet(answer, units=units)

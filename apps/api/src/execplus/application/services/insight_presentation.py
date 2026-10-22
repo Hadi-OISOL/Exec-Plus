@@ -4,17 +4,24 @@ Historical v1 wording stays in its original builder. Display rounding never chan
 """
 
 from collections.abc import Mapping
-from decimal import Decimal, InvalidOperation, localcontext
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
 from typing import Any
 
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
 from execplus.application.services.intent_router import PatternAnswer
 from execplus.application.services.response_synthesis import build_fact_packet
 from execplus.domain.models import VerifiedMetricAnswer
-from execplus.domain.response_synthesis import INSIGHT_VERSION, FactPacket, FactStatement
+from execplus.domain.response_synthesis import (
+    INSIGHT_VERSION,
+    RANKED_VERSION,
+    FactPacket,
+    FactStatement,
+)
+
+UNIT_LABEL_FIELDS = frozenset({"currency", "currency_code", "unit", "units", "uom"})
 
 
-def display_number(value: object) -> str:
+def display_number(value: object, *, half_up: bool = False) -> str:
     """Round display to two places without binary float conversion or losing tiny nonzero values."""
     number = Decimal(str(value))
     if not number.is_finite():
@@ -25,7 +32,8 @@ def display_number(value: object) -> str:
         return format(number.normalize(), "f")
     with localcontext() as ctx:
         ctx.prec = max(40, len(number.as_tuple().digits) + abs(number.adjusted()) + 4)
-        return format(number.quantize(Decimal("0.01")), ",f").rstrip("0").rstrip(".")
+        rounding = ROUND_HALF_UP if half_up else ROUND_HALF_EVEN
+        return format(number.quantize(Decimal("0.01"), rounding), ",f").rstrip("0").rstrip(".")
 
 
 def field_label(name: str) -> str:
@@ -33,12 +41,21 @@ def field_label(name: str) -> str:
 
 
 def build_insight_packet(
-    answer: object, *, units: Mapping[str, str] | None = None
+    answer: object,
+    *,
+    units: Mapping[str, str] | None = None,
+    version: str = INSIGHT_VERSION,
+    mixed_units: frozenset[str] = frozenset(),
 ) -> FactPacket | None:
+    """v3 ranks single-field results without a confirmed unit unless rows may mix units."""
     legacy = build_fact_packet(answer, units=units)
     if legacy is None:
         return None
     facts: list[FactStatement] = []
+    ranked = version == RANKED_VERSION
+
+    def display(value: object) -> str:
+        return display_number(value, half_up=ranked)
 
     def add(text: str, ref: str, kind: str = "observation") -> None:
         facts.append(FactStatement("pending", (text,), (ref,), kind))
@@ -50,7 +67,7 @@ def build_insight_packet(
         suffix = "" if unit in {"", "unitless"} or line.aggregation == "count" else f" {unit}"
         metric = field_label(line.metric)
         if isinstance(data, VerifiedMetricAnswer):
-            value = display_number(data.value)
+            value = display(data.value)
             if line.aggregation == "count":
                 noun = "matching records" if line.metric == "*" else f"nonmissing {metric} values"
                 add(f"There are {value} {noun}.", ref)
@@ -64,10 +81,17 @@ def build_insight_packet(
                 add(f"The {operation} {metric} is {value}{suffix}.", ref)
         else:
             result = data[0]
+            unlabeled = not (unit or line.aggregation == "count")
+            comparable = (
+                ranked
+                and ref not in mixed_units
+                and not {name.casefold() for name in line.grouping} & UNIT_LABEL_FIELDS
+            )
             if (
                 line.aggregation != "rows"
                 and "__value" in result.columns
-                and not (unit or line.aggregation == "count")
+                and unlabeled
+                and not comparable
             ):
                 add(
                     "The grouped results are available in the chart and table. "
@@ -88,7 +112,7 @@ def build_insight_packet(
                     )
 
                 def measure(row: tuple[Any, ...]) -> str:
-                    return display_number(row[index]) + (
+                    return display(row[index]) + (
                         " records" if line.aggregation == "count" and line.metric == "*" else suffix
                     )
 
@@ -122,6 +146,13 @@ def build_insight_packet(
                         ref,
                         "scope",
                     )
+                    if unlabeled:
+                        add(
+                            f"No unit is confirmed for {metric}; groups are compared as "
+                            "recorded in that one field.",
+                            ref,
+                            "limitation",
+                        )
                 else:
                     add("No nonmissing group values are available to rank.", ref, "limitation")
             else:
@@ -169,8 +200,8 @@ def build_insight_packet(
                 unit = "" if item["unit"] == "unitless" else " " + item["unit"]
                 add(
                     f"{field_label(item['column'])} averages "
-                    f"{display_number(item['target_mean'])}{unit} in {target} records, "
-                    f"versus {display_number(item['other_mean'])}{unit} in the others.",
+                    f"{display(item['target_mean'])}{unit} in {target} records, "
+                    f"versus {display(item['other_mean'])}{unit} in the others.",
                     ref,
                 )
             facts.extend(s for s in legacy.statements if s.kind in {"scope", "limitation"})
@@ -201,7 +232,7 @@ def build_insight_packet(
                 FactStatement(f"F{i + 1}", s.variants, s.evidence_ids, s.kind)
                 for i, s in enumerate(facts)
             ),
-            INSIGHT_VERSION,
+            version,
         )
     except (ValueError, TypeError, KeyError, InvalidOperation):
         return None

@@ -1,6 +1,6 @@
 """Use case: Distinguishes confirmed quantities from per-row unit labels.
 
-What it does: Allows fixed-unit quantity metrics named units while retaining mixed
+What it does: Treats numeric units fields as quantities while retaining mixed
 currency, missing-label and explicit unit-column guards without confirmation.
 """
 
@@ -25,15 +25,23 @@ def test_confirmed_numeric_units_are_quantities_and_do_not_split_sales_revenue()
 
 
 @pytest.mark.parametrize("declared", [False, True])
-def test_unconfirmed_or_unitless_numeric_units_keep_the_legacy_guard(declared):
+def test_numeric_units_field_is_a_quantity_even_without_confirmation(declared):
     table = TableData(("units", "revenue"), (("2", "10"), ("3", "15")))
     view = dataset_view(profile(table))
     if declared:
         definition = infer_definition(profile(table))
         definition["columns"][1]["unit"] = "USD"
         view = apply_definition(view, definition)
+    for metric in ("revenue", "units"):
+        request = MetricRequest(metric, AggregationKind.SUM)
+        assert governed_request(view, table, request) == request
+
+
+def test_text_units_labels_keep_the_mixed_unit_guard_without_confirmation():
+    table = TableData(("units", "weight"), (("kg", "10"), ("lb", "15")))
+    view = dataset_view(profile(table))
     with pytest.raises(ClarificationRequiredError, match="units"):
-        governed_request(view, table, MetricRequest("revenue", AggregationKind.SUM))
+        governed_request(view, table, MetricRequest("weight", AggregationKind.SUM))
 
 
 @pytest.mark.parametrize("labels", [("USD", "EUR"), ("USD", "")])

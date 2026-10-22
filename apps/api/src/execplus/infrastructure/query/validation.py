@@ -40,6 +40,8 @@ _ALLOWED = {
     exp.Order,
     exp.Ordered,
     exp.TimestampTrunc,
+    exp.Cast,
+    exp.DataType,
 }
 
 
@@ -113,6 +115,11 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
         for node in query.find_all(exp.TimestampTrunc)
     ):
         raise UnsafeQueryError("Calendar grouping requires a source column and bound period")
+    if any(
+        not node.to.is_type(exp.DataType.Type.DATE) or not isinstance(node.this, exp.TimestampTrunc)
+        for node in query.find_all(exp.Cast)
+    ):
+        raise UnsafeQueryError("Only a calendar period may be converted to a date")
     if len(list(query.find_all(exp.AggFunc))) > 1:
         raise UnsafeQueryError("Only one verified aggregation per query is supported")
     references = list(query.find_all(exp.Table))

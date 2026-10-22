@@ -72,6 +72,13 @@ def pattern_filter_needs_clarification(question: str, columns: tuple[str, ...] =
     text = words(question)
     for column in sorted(columns, key=len, reverse=True):
         text = re.sub(r"\b" + re.escape(words(column)) + r"\b", "selected field", text)
+    for token in {token for column in columns for token in words(column).split() if len(token) > 2}:
+        text = re.sub(r"\b" + re.escape(token) + r"\b", "selected field", text)
+    text = re.sub(
+        r"\b(relat\w*|correlat\w*|associat\w*|linked|connected|move together) (to|with)\b",
+        "relates",
+        text,
+    )
     if re.search(
         r"\b(only|where|when|if|after|before|during|excluding|except|without|above|below|greater|less)\b",
         text,

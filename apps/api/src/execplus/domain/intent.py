@@ -8,13 +8,14 @@ before it can ever reach the query engine.
 import json
 import math
 import re
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, replace
+from typing import Any, cast
 
 from execplus.domain.guidance import GUIDANCE_FOCUSES, mentioned_columns, words
 from execplus.domain.models import QuestionKind
 from execplus.domain.semantics import (
     RECORD_COUNT,
+    TIME_PERIODS,
     AggregationKind,
     DatasetView,
     FilterOperator,
@@ -76,6 +77,36 @@ def _parse_filters(raw: Any, view: DatasetView) -> tuple[MetricFilter, ...] | No
     return tuple(filters)
 
 
+CONTRADICTORY_FILTERS = "contradictory_filters"
+
+
+def contradictory_filters(filters: tuple[MetricFilter, ...]) -> str | None:
+    """Return a field whose equality filters require two different values in one row."""
+    seen: dict[str, str] = {}
+    for item in filters:
+        if item.operator not in (FilterOperator.EQ, FilterOperator.IEQ):
+            continue
+        value = str(item.value)
+        if item.operator == FilterOperator.IEQ:
+            value = value.casefold()
+        if seen.setdefault(item.column, value) != value:
+            return item.column
+    return None
+
+
+def _contradiction(filters: tuple[MetricFilter, ...]) -> RoutedIntent | None:
+    column = contradictory_filters(filters)
+    if column is None:
+        return None
+    return RoutedIntent(
+        QuestionKind.UNSUPPORTED,
+        options=(column,),
+        message=f"Two different {column} values were required in the same row, "
+        "so nothing could match.",
+        validation_issue=CONTRADICTORY_FILTERS,
+    )
+
+
 def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent:
     plan = payload.get("plan")
     if not isinstance(plan, dict) or set(plan) - {
@@ -85,6 +116,7 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
         "filters",
         "order",
         "limit",
+        "period",
     }:
         return _unsupported("The model did not propose a usable query plan.")
     metric = plan.get("metric")
@@ -110,9 +142,18 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
             "The model proposed an unsupported metric or dimension.",
             "count_plan" if aggregation == "count" else "",
         )
+    period = plan.get("period")
+    if period is not None and (
+        period not in TIME_PERIODS
+        or sum(1 for name in group_by if (column := view.column(name)) and column.type == "date")
+        != 1
+    ):
+        return _unsupported("Use a calendar period only when grouping by one date field.")
     filters = _parse_filters(plan.get("filters") or [], view)
     if filters is None:
         return _unsupported("The model proposed an invalid filter.")
+    if contradiction := _contradiction(filters):
+        return contradiction
     request = MetricRequest(
         metric=metric,
         aggregation=AggregationKind(aggregation),
@@ -120,8 +161,56 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
         filters=filters,
         order=order,
         limit=limit,
+        period=period,
     )
     return RoutedIntent(QuestionKind.NUMERICAL, request=request)
+
+
+_GRAINS = (
+    ("day", r"\b(daily|days?|din)\b"),
+    ("week", r"\b(weekly|weeks?|hafta|hafte)\b"),
+    ("month", r"\b(monthly|months?|mahina|mahine|mahinay)\b"),
+    ("quarter", r"\b(quarterly|quarters?)\b"),
+    ("year", r"\b(yearly|annual|annually|years?|saal)\b"),
+)
+_WINDOW = (
+    r"\b(last|this|next|previous|past|pichle|agle|over the|during the|across the|in the)"
+    r"( \d+)? \w+"
+)
+_TREND = r"\b(trends?|trended|trending|over time|changed?|changes|over the)\b"
+_RANKING = r"\b(highest|lowest|most|least|top|bottom|best|worst|max|min|maximum|minimum)\b"
+
+
+def with_time_grain(
+    question: str, routed: RoutedIntent, view: DatasetView, inherited: str | None = None
+) -> RoutedIntent:
+    """Apply the calendar period and chronological order an explicit time question asks for."""
+    request = routed.request
+    if routed.kind != QuestionKind.NUMERICAL or request is None:
+        return routed
+    dated = [name for name in request.group_by if (c := view.column(name)) and c.type == "date"]
+    if len(dated) != 1:
+        return routed
+    text = words(question)
+    period = request.period
+    if period is None:
+        grains = re.sub(_WINDOW, " ", text)
+        named = [grain for grain, pattern in _GRAINS if re.search(pattern, grains)]
+        if len(named) == 1 and named[0] != "day":
+            period = cast(Any, named[0])
+        elif not named and inherited in TIME_PERIODS:
+            period = cast(Any, inherited)
+    order = request.order
+    if (
+        order is not None
+        and request.limit is None
+        and re.search(_TREND, text)
+        and not re.search(_RANKING, text)
+    ):
+        order = None
+    if (period, order) == (request.period, request.order):
+        return routed
+    return replace(routed, request=replace(request, period=period, order=order))
 
 
 def _unverified_conversation_claims(message: str) -> bool:
@@ -302,6 +391,8 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
             or not 1 <= limit <= 1000
         ):
             return _unsupported("The model proposed invalid record fields, filters or limit.")
+        if contradiction := _contradiction(filters):
+            return contradiction
         return RoutedIntent(
             kind, rows=RowRequest(filters, tuple(columns), extremum, order_by), limit=limit
         )

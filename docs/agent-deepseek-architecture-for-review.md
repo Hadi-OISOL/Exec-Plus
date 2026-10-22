@@ -442,6 +442,15 @@ These repairs passed named tests and selected hosted checks. They do not establi
 | Provenance visibility | Final cohort route overwrites upstream planner route in that field. | Preserve both planning and execution attribution without storing private prompt text. |
 | Safety versus semantics | A valid schema/SQL plan proves executability, not that it matches every nuance of the user's language. | Build semantic regression cases where dropped conditions, wrong populations or wrong count meaning would produce a plausible but wrong result. |
 
+**October 22 live evidence for the "Safety versus semantics" row.** On 81 questions over
+12 fictional datasets the hosted planner produced several executable but wrong plans:
+two equality filters on one field for "A vs B" (empty result), a single aggregate for
+rates/differences ("conversion rate" → sum of purchases, "net income" → credits only),
+and raw-day grouping for "monthly"/"which month". No executed number was arithmetically
+wrong. Deterministic post-plan checks for these three classes, a calendar `period`, pronoun
+follow-ups and narrative v3 are in the local checkout (not deployed); the full catalogue
+and remaining open classes are in `agent-harness.md` (October 22 section).
+
 These are review questions and source-observed constraints, not proof that a particular new user failure has occurred. Do not attribute every refusal to DeepSeek; it may originate in routing, context construction, semantic validation, readiness checks, budget exhaustion or rendering.
 
 ## 15. Suggested diagnosis using fictional data
