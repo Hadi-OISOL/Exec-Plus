@@ -1,5 +1,5 @@
 /* Use case: Provides optional local password sign-in and workspace registration.
-What it does: Signs new accounts straight in, keeps credentials in memory and leaves operator token access available. */
+What it does: Signs new accounts straight in, keeps credentials in memory; operator token access exists only in development builds. */
 
 "use client";
 
@@ -77,7 +77,7 @@ export function AccountAccess({ api, onSession }: { api: string; onSession: (cre
         <input id={`${id}-password`} name="password" type={reveal ? "text" : "password"} autoComplete={creating ? "new-password" : "current-password"} minLength={creating ? 15 : 1} maxLength={128} aria-describedby={`${id}-password-help`} aria-invalid={Boolean(error) || undefined} required disabled={busy} />
         <button type="button" className={styles.reveal} aria-pressed={reveal} aria-controls={`${id}-password`} disabled={busy} onClick={() => setReveal(value => !value)}>{reveal ? "Hide" : "Show"}<span className={styles.visuallyHidden}> password</span></button>
       </div>
-      <small id={`${id}-password-help`}>{creating ? "Use 15–128 characters. A long phrase is easier to remember. Paste and password managers are welcome." : "Sessions last up to eight hours. Ask your local operator about recovery if you lose your password."}</small>
+      <small id={`${id}-password-help`}>{creating ? "Use 15–128 characters. A long phrase is easier to remember. Paste and password managers are welcome." : "Sessions last up to eight hours. If you lose your password, ask your workspace administrator about recovery."}</small>
       {creating && <><label htmlFor={`${id}-confirmation`}>Confirm account password</label><input id={`${id}-confirmation`} name="password_confirmation" type={reveal ? "text" : "password"} autoComplete="new-password" minLength={15} maxLength={128} required disabled={busy} /></>}
       <button className={styles.submit} disabled={busy}>{busy ? (creating ? "Creating your workspace…" : "Signing in…") : creating ? "Create local account" : "Sign in with password"}</button>
       <small>Your email is an account name; mailbox ownership is not verified and no email is sent.</small>

@@ -1128,6 +1128,7 @@ export default function WorkspacePage() {
                   </button>
                 </form>
               )}
+              {process.env.NEXT_PUBLIC_EXECPLUS_OPERATOR_SIGNIN === "1" && (
               <form onSubmit={signIn} className="operatorSession" aria-label="Operator session">
                 <h3>Operator session</h3>
                 <p>
@@ -1146,6 +1147,7 @@ export default function WorkspacePage() {
                 </label>
                 <button className="secondaryAction" disabled={busy}>Sign in</button>
               </form>
+              )}
             </section>
           ) : (
             <>

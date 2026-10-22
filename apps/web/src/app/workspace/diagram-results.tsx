@@ -56,9 +56,9 @@ export function makeDiagramOption(diagram: DatasetDiagram, branch: string, first
     const color = tone(node);
     const isGroup = node.kind === "group";
     return { id: node.id, name: node.label, symbolSize: isGroup ? 14 : 9, itemStyle: { color, borderColor: tokens.surface, borderWidth: 2 },
-      label: { position: "right", align: "left", width: narrow ? 105 : 180, overflow: "truncate", ...pill(isGroup ? color : tokens.grid), fontWeight: isGroup ? 600 : 400 } };
+      label: { position: "right", align: "left", width: narrow ? 96 : 180, overflow: "truncate", ...pill(isGroup ? color : tokens.grid), fontWeight: isGroup ? 600 : 400 } };
   };
-  const groupTree = group ? { ...leaf(group), label: { position: "top", align: "center", distance: 10, width: narrow ? 120 : 160, overflow: "truncate", ...pill(tone(group)), fontWeight: 600 }, children: fields.map(leaf) } : null;
+  const groupTree = group ? { ...leaf(group), label: { position: "top", align: "center", distance: 10, width: narrow ? 100 : 160, overflow: "truncate", ...pill(tone(group)), fontWeight: 600 }, children: fields.map(leaf) } : null;
   const rootNode = { id: root?.id, name: root?.label ?? "This file", symbolSize: 18, itemStyle: { color: tokens.ink, borderColor: tokens.surface, borderWidth: 3 }, label: { position: "top", align: "center", distance: 10, width: narrow ? 110 : 150, overflow: "truncate", fontWeight: 650, ...pill(tokens.ink) } };
   const tree = groupTree && narrow ? groupTree : { ...rootNode, children: groupTree ? [groupTree] : groups.map(leaf) };
   return {

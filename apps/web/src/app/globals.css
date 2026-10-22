@@ -244,6 +244,11 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
 .navMoreToggle[aria-expanded="true"]::after { transform: rotate(225deg) translateY(-2px); }
 .navMoreItems { display: grid; gap: 2px; animation: fadeIn var(--dur-base) var(--ease-standard); }
 .workbenchBody, .workbenchContent { min-width: 0; }
+.workbench.isSignedOut { position: relative; grid-template-columns: minmax(0, 1fr); }
+.workbench.isSignedOut .workbenchTop { position: absolute; top: 0; right: 0; z-index: 30; min-height: 0; padding-block: 6px; border: 0; background: transparent; backdrop-filter: none; }
+.workbench.isSignedOut .workbenchRail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--color-border); }
+.workbench.isSignedOut .workbenchRail nav, .workbench.isSignedOut .topBreadcrumb { display: none; }
+.workbench.isSignedOut .workbenchRail .brand { height: 56px; border-bottom: 0; }
 .workbenchTop {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; gap: var(--space-4);
@@ -351,9 +356,11 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
 .panel h3 { margin: var(--space-5) 0 var(--space-2); font-size: var(--text-h3); font-weight: 600; }
 .panel p { color: var(--color-text-secondary); line-height: 1.6; }
 .panel form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); margin-top: var(--space-4); }
+.panel form > fieldset { align-self: stretch; }
 .panel label { display: flex; flex-direction: column; gap: 6px; width: 100%; color: var(--color-text); font-size: var(--text-small); font-weight: 500; }
 .panel input:not([type="checkbox"]):not([type="radio"]), .panel select { width: 100%; max-width: 560px; }
-.panel input[type="checkbox"] { align-self: flex-start; }
+.panel label:has(> input:is([type="checkbox"], [type="radio"])) { flex-direction: row; align-items: flex-start; gap: var(--space-2); }
+.panel label:has(> input:is([type="checkbox"], [type="radio"])) > input { margin-top: 0.15em; }
 .panel details > summary { padding: var(--space-1) 0; font-weight: 500; }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
 .sectionHeading > span { color: var(--color-text-muted); font-size: var(--text-caption); }
@@ -444,18 +451,18 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
 /* 7. Workspace layout ---------------------------------------------------- */
 .workbench.analyticsShell .uploadShortcut { flex-shrink: 0; }
 .datasetToolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: calc(-1 * var(--space-3)) 0 var(--space-5); }
-.datasetToolbar label {
+.datasetToolbar > label {
   display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
   padding: 0 4px 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-full);
   background: var(--color-surface); color: var(--color-text-muted); font-size: var(--text-caption); font-weight: 500;
   transition: border-color var(--dur-fast) var(--ease-standard);
 }
-.datasetToolbar label:hover, .datasetToolbar label:focus-within { border-color: var(--color-primary); }
-.datasetToolbar label > span { white-space: nowrap; }
-.workbench.analyticsShell .datasetToolbar select { min-width: 0; max-width: 240px; min-height: 34px; padding: 0 26px 0 2px; border: 0; background-color: transparent; color: var(--color-text); font-size: var(--text-small); font-weight: 600; text-overflow: ellipsis; box-shadow: none; }
+.datasetToolbar > label:hover, .datasetToolbar > label:focus-within { border-color: var(--color-primary); }
+.datasetToolbar > label > span { white-space: nowrap; }
+.workbench.analyticsShell .datasetToolbar select { min-width: 0; max-width: 360px; min-height: 34px; padding: 0 26px 0 2px; border: 0; background-color: transparent; color: var(--color-text); font-size: var(--text-small); font-weight: 600; text-overflow: ellipsis; box-shadow: none; }
 .workbench.analyticsShell .datasetToolbar select:focus { box-shadow: none; outline: 0; }
-.datasetToolbar label:has(select:focus-visible) { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
-.datasetToolbar > details { margin: 0 0 0 auto; }
+.datasetToolbar > label:has(select:focus-visible) { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.datasetToolbar > details { margin: 0; }
 .datasetToolbar > details[open] { flex-basis: 100%; margin: var(--space-2) 0 0; }
 .sourceStats { margin-left: auto; color: var(--color-text-muted); font-size: var(--text-caption); white-space: nowrap; }
 .sourceStats strong { color: var(--color-text); font-size: var(--text-small); font-weight: 650; }
@@ -1271,10 +1278,10 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
 @media (max-width: 550px) {
   .workspaceHeader { align-items: flex-start; }
   .workspaceHeader h1 { font-size: 1.3125rem; }
-  .workbench.analyticsShell .datasetToolbar select { max-width: 150px; font-size: 16px; }
-  .datasetToolbar label > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .datasetToolbar label { padding-left: var(--space-2); }
-  .datasetToolbar > details { margin-left: 0; }
+  .datasetToolbar > label { flex: 1 1 auto; }
+  .workbench.analyticsShell .datasetToolbar select { flex: 1 1 auto; max-width: none; font-size: 16px; }
+  .datasetToolbar > label > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .datasetToolbar > label { padding-left: var(--space-2); }
   .panel, .uploadStart, .studioMemoryEditor, .workbench [aria-label="Guided data review"] { padding: var(--space-4); }
   .studioQuestionSpace, .discoveryIntro, .homeDataContext { padding: var(--space-4); }
   .discoveryFinding, .discoveryMetricGroup, .patternOverview, .patternFinding, .forecastAlternativeCard, .dailyScenarioResult, .forecastChart { padding: var(--space-4); }
@@ -1291,7 +1298,7 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
   .workbenchRail nav { mask-image: linear-gradient(to right, #000 85%, transparent); }
   .workbench[data-section="ask"] .workspaceHeader { display: none; }
   .workbench[data-section="ask"] .datasetToolbar { margin-top: 0; margin-bottom: var(--space-3); }
-  .workbench[data-section="ask"] .datasetToolbar label:not(:last-of-type) { display: none; }
+  .workbench[data-section="ask"] .datasetToolbar > label:not(:last-of-type) { display: none; }
   .workbench[data-section="ask"] .dedicatedConversation .analysisViewControls > div:first-child { display: none; }
   .workbench[data-section="ask"] .dedicatedConversation .analysisViewControls { justify-content: flex-end; margin-bottom: var(--space-2); }
   .workbench[data-section="ask"] .chatHeader { padding-block: var(--space-2); }
