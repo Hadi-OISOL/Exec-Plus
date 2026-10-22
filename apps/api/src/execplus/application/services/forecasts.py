@@ -21,13 +21,15 @@ from execplus.application.services.plans import admit
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
 from execplus.domain.advanced_forecasting import (
-    ENGINE as ADVANCED_ENGINE,
-)
-from execplus.domain.advanced_forecasting import (
+    CALIBRATED_ENGINE,
+    CALIBRATED_VERSION,
     METHOD_CATALOG,
     advanced_forecast,
     compare_advanced_forecast,
     minimum_history,
+)
+from execplus.domain.advanced_forecasting import (
+    ENGINE as ADVANCED_ENGINE,
 )
 from execplus.domain.advanced_forecasting import (
     VERSION as ADVANCED_VERSION,
@@ -50,6 +52,7 @@ from execplus.domain.models import CalculationLineage, QueryResult, WorkspaceSco
 from execplus.domain.profiling import TableData
 from execplus.domain.semantics import DatasetView
 
+ADVANCED_ENGINES = {ADVANCED_ENGINE: ADVANCED_VERSION, CALIBRATED_ENGINE: CALIBRATED_VERSION}
 T = TypeVar("T")
 
 
@@ -71,26 +74,30 @@ def digest(value: dict[str, Any]) -> str:
 
 def engine_version(raw: dict[str, Any]) -> str:
     engine = raw.get("engine", "basic-v1")
-    if engine not in {"basic-v1", ADVANCED_ENGINE}:
+    if engine != "basic-v1" and engine not in ADVANCED_ENGINES:
         raise IngestionError("forecast_engine", "Choose a supported forecast engine.", 422)
     if engine == "basic-v1" and raw.get("method_family", "auto") != "auto":
         raise IngestionError(
             "forecast_method", "Specific smoothing methods require Advanced forecasting.", 422
         )
-    if engine == ADVANCED_ENGINE:
+    if engine in ADVANCED_ENGINES:
         minimum_history(
             ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length")),
             raw.get("method_family", "auto"),
+            engine == CALIBRATED_ENGINE,
         )
-    return ADVANCED_VERSION if engine == ADVANCED_ENGINE else VERSION
+    return ADVANCED_ENGINES.get(engine, VERSION)
 
 
 def calculate_forecast(points: tuple[ForecastPoint, ...], raw: dict[str, Any]) -> dict[str, Any]:
     request = ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length"))
+    version = engine_version(raw)
     return (
-        advanced_forecast(points, request, raw.get("method_family", "auto"))
-        if engine_version(raw) == ADVANCED_VERSION
-        else forecast(points, request)
+        forecast(points, request)
+        if version == VERSION
+        else advanced_forecast(
+            points, request, raw.get("method_family", "auto"), version == CALIBRATED_VERSION
+        )
     ).to_record()
 
 
@@ -99,7 +106,7 @@ def calculate_comparison(
 ) -> dict[str, Any]:
     return (
         compare_advanced_forecast(result, points)
-        if result.get("version") == ADVANCED_VERSION
+        if result.get("version") in ADVANCED_ENGINES.values()
         else compare_forecast(result, points)
     )
 
@@ -113,9 +120,10 @@ def commentary(result: dict[str, Any], metric: str, unit: str) -> list[str]:
         context.prec = 128
         change = Decimal(last["actual"]) - Decimal(previous["actual"])
     direction = "increased by" if change > 0 else "decreased by" if change < 0 else "changed by"
-    range_label = (
-        "empirical validation-error" if result["version"] == ADVANCED_VERSION else "heuristic"
-    )
+    range_label = {
+        ADVANCED_VERSION: "empirical validation-error",
+        CALIBRATED_VERSION: "80% split-conformal calibration",
+    }.get(result["version"], "heuristic")
     return [
         f"The last complete period ({last['period']}) recorded "
         f"{last['actual']} {unit} for {metric}.",

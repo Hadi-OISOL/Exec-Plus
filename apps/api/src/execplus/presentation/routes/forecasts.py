@@ -45,7 +45,7 @@ class ForecastInput(CoverageInput):
     frequency: Literal["daily", "monthly"]
     horizon: int = Field(ge=1, le=30, strict=True)
     season_length: int | None = Field(default=None, ge=1, le=12, strict=True)
-    engine: Literal["basic-v1", "advanced-v2"] = "basic-v1"
+    engine: Literal["basic-v1", "advanced-v2", "advanced-v3"] = "basic-v1"
     method_family: Literal[
         "auto", "simple_exponential", "holt", "damped_holt", "holt_winters_additive"
     ] = "auto"

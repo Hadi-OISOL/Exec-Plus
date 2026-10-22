@@ -61,6 +61,21 @@ The result compares selected-model test MAE with last-value test MAE on identica
 
 The display range is estimate ± the nearest-rank 90th percentile of the selected candidate's pooled absolute validation errors. It uses the same width for every horizon. **This is not a calibrated 90% confidence or prediction interval.** Method selection and range construction reuse validation data, errors differ across horizons, and three origins provide limited evidence. Observed test coverage is reported separately without promising future coverage. Zero validation errors collapse the range but do not guarantee a correct future result.
 
+## Calibrated ranges (engine `advanced-v3`, record `forecast-v3`)
+
+The opt-in `advanced-v3` engine keeps v2 selection, test and future estimates and
+changes only the ranges. Nine extra one-period-apart calibration origins end before
+the first selection window, so calibration windows neither choose the method nor
+measure test error. For each horizon step the selected method's absolute errors are
+ranked and the 8th of 9 (split-conformal rank ⌈(n+1)·0.8⌉) becomes that step's
+half-width: a nominal 80% range. It needs `8 + H` more periods than v2. Exchangeable
+errors are assumed; trend breaks or seasonal shifts can lower coverage, so
+`coverage_guaranteed` stays false and observed test coverage is still reported.
+v2 records are byte-identical to the earlier release (pinned hashes in
+`apps/api/tests/test_calibrated_forecasting.py`). On 60 seeded random-walk series
+(240 test points) observed coverage was 76.7% for v3 (nominal 80%) and 80.4% for
+v2's 90th-percentile display width. This is synthetic evidence, not customer accuracy.
+
 ## Access, immutability and exports
 
 The forecast remains creator-private, including from workspace owners. Existing source revision, confirmed meaning, accepted refresh, byte-integrity and query-receipt checks remain. Opt-in dataset policies project allowed rows/columns before calculation; exact policy/actor references are retained in evidence. A changed policy blocks publication or opening old-scope results, and history omits inaccessible results. Exports reopen the same authorized saved result and perform the export service's final authorization check.

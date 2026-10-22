@@ -169,12 +169,14 @@ export function advancedMinimumHistory(
   frequency: "daily" | "monthly",
   horizon: number,
   method: string,
+  calibrated = false,
 ): number | null {
   if (!Number.isInteger(horizon) || horizon < 1) return null;
+  const holdout = Math.max(horizon, frequency === "daily" ? 4 : 3);
   const training = method === "holt_winters_additive"
     ? (frequency === "daily" ? 14 : 24)
     : (frequency === "daily" ? 14 : 6);
-  return training + 4 * Math.max(horizon, frequency === "daily" ? 4 : 3);
+  return training + 4 * holdout + (calibrated ? 8 + holdout : 0);
 }
 
 export function forecastRows(

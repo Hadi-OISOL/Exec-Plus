@@ -275,7 +275,8 @@ export function ForecastResults({
         {!result.uncertainty.coverage_guaranteed &&
           " This range has no guaranteed coverage probability."}
       </p>
-      {result.version === "forecast-v2" && <p className="chartCaption">Advanced comparison · Three earlier windows choose the method. A separate later window measures its error. The simple baseline can still be the best choice.</p>}
+      {result.version === "forecast-v3" && <p className="chartCaption">Calibrated ranges · Nine earlier windows, separate from method choice and testing, set an 80% range for each step ahead. Coverage can drop if the pattern changes.</p>}
+      {result.version !== "forecast-v1" && <p className="chartCaption">Advanced comparison · Three earlier windows choose the method. A separate later window measures its error. The simple baseline can still be the best choice.</p>}
       <ForecastChart
         key={`${run.id}-${comparison?.id ?? "forecast"}`}
         run={run}
