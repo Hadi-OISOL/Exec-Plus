@@ -117,6 +117,7 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
         "order",
         "limit",
         "period",
+        "times",
     }:
         return _unsupported("The model did not propose a usable query plan.")
     metric = plan.get("metric")
@@ -149,6 +150,11 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
         != 1
     ):
         return _unsupported("Use a calendar period only when grouping by one date field.")
+    times = plan.get("times")
+    if times is not None and (
+        aggregation not in ("sum", "avg") or times not in view.metrics or times == metric
+    ):
+        return _unsupported("Multiply two different measures only inside a sum or average.")
     filters = _parse_filters(plan.get("filters") or [], view)
     if filters is None:
         return _unsupported("The model proposed an invalid filter.")
@@ -162,6 +168,7 @@ def _parse_numerical(payload: dict[str, Any], view: DatasetView) -> RoutedIntent
         order=order,
         limit=limit,
         period=period,
+        times=times,
     )
     return RoutedIntent(QuestionKind.NUMERICAL, request=request)
 
@@ -181,6 +188,18 @@ _TREND = r"\b(trends?|trended|trending|over time|changed?|changes|over the)\b"
 _RANKING = r"\b(highest|lowest|most|least|top|bottom|best|worst|max|min|maximum|minimum)\b"
 
 
+_WEEKEND = r"\b(weekends?|week ends?|saturdays? and sundays?)\b"
+_WEEKDAY = r"\b(days? of (the )?week|weekdays?|week days?)\b"
+_DAY_NAMES = r"\b(mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b"
+
+
+def _day_part(text: str, period: str | None) -> str | None:
+    if re.search(_WEEKEND, text):
+        return "weekend"
+    named = re.search(_WEEKDAY, text) or (period is None and re.search(_DAY_NAMES, text))
+    return "weekday" if named else None
+
+
 def with_time_grain(
     question: str, routed: RoutedIntent, view: DatasetView, inherited: str | None = None
 ) -> RoutedIntent:
@@ -188,10 +207,19 @@ def with_time_grain(
     request = routed.request
     if routed.kind != QuestionKind.NUMERICAL or request is None:
         return routed
+    text = words(question)
     dated = [name for name in request.group_by if (c := view.column(name)) and c.type == "date"]
+    part = _day_part(text, request.period)
+    dates = sorted(
+        name for name in view.dimensions if (c := view.column(name)) and c.type == "date"
+    )
+    if part and not dated and len(dates) == 1 and len(request.group_by) < 10:
+        dated = [dates[0]]
+        request = replace(request, group_by=(*request.group_by, dates[0]))
     if len(dated) != 1:
         return routed
-    text = words(question)
+    if part:
+        return replace(routed, request=replace(request, period=cast(Any, part)))
     period = request.period
     if period is None:
         grains = re.sub(_WINDOW, " ", text)
@@ -211,6 +239,24 @@ def with_time_grain(
     if (period, order) == (request.period, request.order):
         return routed
     return replace(routed, request=replace(request, period=period, order=order))
+
+
+def with_product(question: str, routed: RoutedIntent, view: DatasetView) -> RoutedIntent:
+    """Apply a row-level product the question names explicitly, such as "units * unit_cost"."""
+    request = routed.request
+    if (
+        routed.kind != QuestionKind.NUMERICAL
+        or request is None
+        or request.times is not None
+        or request.aggregation not in (AggregationKind.SUM, AggregationKind.AVG)
+    ):
+        return routed
+    for other in sorted(view.metrics - {request.metric}, key=len, reverse=True):
+        for left, right in ((request.metric, other), (other, request.metric)):
+            pattern = rf"(?<!\w){re.escape(left)}\s*(?:\u00d7|\*|\btimes\b|\bmultiplied by\b)\s*"
+            if re.search(pattern + rf"{re.escape(right)}(?!\w)", question, re.IGNORECASE):
+                return replace(routed, request=replace(request, metric=left, times=right))
+    return routed
 
 
 def _unverified_conversation_claims(message: str) -> bool:
@@ -635,7 +681,9 @@ def canonical_question(question: str, view: DatasetView) -> RoutedIntent | None:
     def plan(kind: str, body: dict[str, Any]) -> RoutedIntent:
         return route_response(json.dumps({"kind": kind, **body}), view)
 
-    def metric(op: str, measure: str, group: str | None, order: str | None = None) -> RoutedIntent:
+    def metric(
+        op: str, measure: str, group: str | None, order: str | None = None, times: str = ""
+    ) -> RoutedIntent:
         body: dict[str, Any] = {
             "metric": name(measure),
             "aggregation": _OPERATIONS[op.casefold()],
@@ -643,8 +691,13 @@ def canonical_question(question: str, view: DatasetView) -> RoutedIntent | None:
         }
         if order:
             body["order"] = order
+        if times:
+            body["times"] = times
         return plan("numerical", {"plan": body})
 
+    product = rf"(?:what is|show) the (total|average) of {field} \* {field}(?: by {field})?"
+    if found := match(product):
+        return metric(found[0], found[1], found[3], times=name(found[2]))
     if found := match(rf"(?:what is|show) the {operation} of {field}(?: by {field})?"):
         return metric(*found)
     if found := match(rf"(?:what is the|show|compare) {operation} {field}(?: by {field})?"):

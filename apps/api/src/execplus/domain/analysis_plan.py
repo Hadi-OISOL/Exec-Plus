@@ -199,8 +199,12 @@ class AnalysisPlan:
                 else {"columns", "filters", "limit"}
             )
             if kind == "numerical":
-                keys = keys | ({"order", "limit", "period"} & set(plan))
+                keys = keys | ({"order", "limit", "period", "times"} & set(plan))
                 if "period" in plan and plan["period"] not in TIME_PERIODS:
+                    self._invalid()
+                if "times" in plan and (
+                    not isinstance(plan["times"], str) or not 1 <= len(plan["times"]) <= 200
+                ):
                     self._invalid()
                 if "order" in plan and (
                     plan["order"] not in ("asc", "desc")
@@ -323,7 +327,7 @@ def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...])
         optional = (
             ("extremum", "order_by")
             if data.kind == QuestionKind.ROWS
-            else ("order", "limit", "period")
+            else ("order", "limit", "period", "times")
         )
         parameters = {
             key: value

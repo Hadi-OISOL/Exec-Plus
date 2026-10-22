@@ -42,7 +42,50 @@ _ALLOWED = {
     exp.TimestampTrunc,
     exp.Cast,
     exp.DataType,
+    exp.TimeToStr,
+    exp.DayOfWeekIso,
+    exp.Case,
+    exp.If,
+    exp.Mul,
 }
+
+
+def _validate_calendar_parts(query: exp.Select) -> None:
+    if any(
+        not isinstance(node.this, exp.Column)
+        or not isinstance(node.args.get("format"), exp.Placeholder)
+        or any(
+            value is not None for key, value in node.args.items() if key not in {"this", "format"}
+        )
+        for node in query.find_all(exp.TimeToStr)
+    ):
+        raise UnsafeQueryError("Day-of-week grouping requires a source column and bound format")
+    if any(not isinstance(node.this, exp.Column) for node in query.find_all(exp.DayOfWeekIso)):
+        raise UnsafeQueryError("Weekday numbers require a source column")
+    for case in query.find_all(exp.Case):
+        ifs = case.args.get("ifs") or []
+        condition = ifs[0].this if len(ifs) == 1 else None
+        if (
+            case.this is not None
+            or not isinstance(condition, exp.GTE)
+            or not isinstance(condition.this, exp.DayOfWeekIso)
+            or not isinstance(condition.expression, exp.Placeholder)
+            or not isinstance(ifs[0].args.get("true"), exp.Placeholder)
+            or not isinstance(case.args.get("default"), exp.Placeholder)
+        ):
+            raise UnsafeQueryError("Only a bound weekday/weekend split is supported")
+    if any(
+        not isinstance(node.parent, exp.GTE) or not isinstance(node.parent.parent, exp.If)
+        for node in query.find_all(exp.DayOfWeekIso)
+    ) or any(not isinstance(node.parent, exp.Case) for node in query.find_all(exp.If)):
+        raise UnsafeQueryError("Only a bound weekday/weekend split is supported")
+    for product in query.find_all(exp.Mul):
+        if (
+            not isinstance(product.parent, (exp.Sum, exp.Avg))
+            or not isinstance(product.this, exp.Column)
+            or not isinstance(product.expression, exp.Column)
+        ):
+            raise UnsafeQueryError("Only a row-level product of two fields inside SUM or AVG")
 
 
 def _validate_extremum(query: exp.Select) -> None:
@@ -94,6 +137,7 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
     if any(type(node) not in _ALLOWED for node in query.walk()):
         raise UnsafeQueryError("The query contains an unsupported operation")
     _validate_extremum(query)
+    _validate_calendar_parts(query)
     if any(
         not isinstance(node.parent, exp.Count)
         or node.parent.this is not node

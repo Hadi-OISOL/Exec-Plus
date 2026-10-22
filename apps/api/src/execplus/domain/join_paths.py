@@ -92,7 +92,7 @@ def plan_join_query(
     ):
         raise AuthorizationError("Both joined datasets must be authorized for this scope")
     view = combined.view
-    if request.metric not in view.metrics:
+    if request.metric not in view.metrics or request.times is not None:
         raise UnsupportedQuestionError(f"{request.metric!r} is not a supported metric")
     for name in request.group_by:
         if name not in view.dimensions:

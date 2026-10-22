@@ -369,7 +369,7 @@ class AnalyticsService:
             dataset_id=dataset_id,
             dataset_name=dataset_name,
             records_analyzed=len(table.rows),
-            metric=request.metric,
+            metric=request.label,
             aggregation=request.aggregation.value,
             grouping=request.group_by,
             filters=tuple(
@@ -512,7 +512,7 @@ class AnalyticsService:
         if not result.rows or result.rows[0][0] is None:
             raise UnsupportedQuestionError("No matching numeric values were found for this request")
         return self.assembler.assemble_metric(
-            label="Records" if request.metric == RECORD_COUNT else request.metric,
+            label="Records" if request.metric == RECORD_COUNT else request.label,
             column=VALUE_ALIAS,
             result=result,
             lineage=lineage,

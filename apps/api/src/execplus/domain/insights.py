@@ -1124,3 +1124,47 @@ def default_next_actions(cards: list[Card]) -> list[dict[str, Any]]:
         if len(chosen) == 5:
             break
     return chosen
+
+
+_STEPS = (
+    ("outlier", "Review the unusual values"),
+    ("segment", "Look into the gap between groups"),
+    ("composition", "Start with the largest group"),
+    ("quality", "Close the data gaps first"),
+    ("relationship", "Check two fields that move together"),
+    ("distribution", "Know the typical range"),
+)
+_FIX_KINDS = frozenset({"check_missing", "review_duplicates"})
+
+
+def _step_question(card: dict[str, Any]) -> str:
+    for item in card["actions"]:
+        if item["payload"].get("type") == "ask":
+            return str(item["payload"]["question"])
+        if item["kind"] == "investigate_outliers":
+            return f"Show the 10 records with the highest {item['payload']['metric']}"
+        if item["kind"] == "explore_relationship":
+            left, right = item["payload"]["columns"]
+            return f"How does {left} relate to {right}?"
+    return ""
+
+
+def next_steps(
+    insights: list[dict[str, Any]], focus: tuple[str, ...] = (), limit: int = 5
+) -> list[tuple[str, str]]:
+    """Pick up to five (suggestion, follow-up question) pairs from verified analyst cards."""
+
+    def focused(card: dict[str, Any]) -> bool:
+        return any(name in card["id"].split(":") for name in focus)
+
+    steps: list[tuple[bool, int, str, str]] = []
+    for analyst, lead in _STEPS:
+        cards = [card for card in insights if card["analyst"] == analyst]
+        if analyst == "quality":
+            cards = [card for card in cards if {a["kind"] for a in card["actions"]} & _FIX_KINDS]
+        cards.sort(key=lambda card: not focused(card))
+        for rank, card in enumerate(cards[:2]):
+            if question := _step_question(card):
+                steps.append((focused(card), rank, f"{lead}: {card['summary']}", question))
+    steps.sort(key=lambda step: (not step[0], step[1]))
+    return [(text, question) for _, _, text, question in steps[:limit]]

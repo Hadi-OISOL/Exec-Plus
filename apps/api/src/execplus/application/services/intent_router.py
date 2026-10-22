@@ -25,6 +25,7 @@ from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.data_diagrams import DataDiagramService, DiagramAnswer
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import read_complete
+from execplus.application.services.insights import build_insights
 from execplus.application.services.patterns import PatternService
 from execplus.application.services.structured_reading import read_validated, reading_failure_notice
 from execplus.application.usage_context import attributed_operation
@@ -40,6 +41,7 @@ from execplus.domain.answer_presentation import follow_up_questions
 from execplus.domain.conversation_requirements import (
     asks_derived_measure,
     asks_for_ideal_conditions,
+    asks_for_next_steps,
     compound_covers_request,
     is_acknowledgement,
     is_contextual_reply,
@@ -48,6 +50,7 @@ from execplus.domain.conversation_requirements import (
     is_temporal_followup,
     loosely_named_metrics,
     preserves_followup_scope,
+    product_choices,
     request_requirements,
     requires_compound_data,
     starts_new_orientation,
@@ -80,6 +83,7 @@ from execplus.domain.guidance import (
     words,
 )
 from execplus.domain.ingestion import IngestionError, User
+from execplus.domain.insights import next_steps
 from execplus.domain.intent import (
     CONTRADICTORY_FILTERS,
     RoutedIntent,
@@ -88,6 +92,7 @@ from execplus.domain.intent import (
     canonical_records,
     cohort_scope_needs_clarification,
     route_response,
+    with_product,
     with_time_grain,
 )
 from execplus.domain.jobs import EventStatus, JobStage
@@ -147,6 +152,8 @@ ConversationAnswer = (
     NumericalAnswer | DatasetGuide | EvidenceAnswer | PatternAnswer | DiagramAnswer | ReportAnswer
 )
 
+NEXT_STEPS_ROUTE = "deterministic:next-steps-v1"
+
 _SYSTEM_PROMPT = (
     "You help someone explore one dataset. Classify their request and propose a "
     "structured plan for metrics or individual records. Never calculate or state a numeric answer "
@@ -156,7 +163,8 @@ _SYSTEM_PROMPT = (
     '"aggregation": "sum|avg|count|min|max", "group_by": ["<dimension column>", ...], '
     '"filters": [{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte", "value": ...}], '
     '"order": "desc|asc (optional, grouped only)", "limit": "<optional 1-1000, needs order>", '
-    '"period": "week|month|quarter|year (optional, one grouped date field)"}}\n'
+    '"period": "week|month|quarter|year|weekday|weekend (optional, one grouped date field)", '
+    '"times": "<optional second metric multiplied by metric in each row, sum or avg only>"}}\n'
     '{"kind": "rows", "plan": {"columns": [], "filters": '
     '[{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte", "value": "..."}], "limit": 100}}\n'
     '{"kind": "rows", "plan": {"columns": [], "filters": [], "limit": 100, '
@@ -309,7 +317,12 @@ _SYSTEM_PROMPT = (
     'For a trend or change over time group by the date field; add "period" with '
     "week, month, quarter or year when the user names that grain (monthly, by month, "
     "which month, yearly). Never set order for a trend: periods return in date order. "
-    "'Which month had the highest X' uses period month with order desc. Two equality "
+    "'Which month had the highest X' uses period month with order desc. For day of week "
+    "(busiest weekday, Mondays vs Fridays) group by the date field with period weekday; for "
+    "weekdays vs weekends use period weekend and avg when comparing typical days. "
+    "A value that is one field times another in each row (inventory value = units on hand "
+    "times unit cost, revenue = quantity times price) uses metric plus times with sum; never "
+    "total only the quantity for a value. Two equality "
     "filters on one field can never both match: for 'A vs B' group by that field instead. "
     "A rate, ratio, difference or 'X per Y' between two measures is not one aggregate: "
     "return ambiguous asking which part to calculate, never a single total as the rate. "
@@ -392,6 +405,10 @@ def _describe_profile(context: DescriptionContext) -> str:
 
 def prior_period(lineage: CalculationLineage | None) -> str | None:
     parameters = lineage.receipt.get("parameters") if lineage else None
+    if lineage is not None and "STRFTIME(" in lineage.sql:
+        return "weekday"
+    if lineage is not None and "ISODOW(" in lineage.sql:
+        return "weekend"
     if lineage is None or "DATE_TRUNC(?" not in lineage.sql or not isinstance(parameters, list):
         return None
     value = parameters[0].get("value") if parameters and isinstance(parameters[0], dict) else None
@@ -927,6 +944,13 @@ class IntentRouterService:
             return await self.diagrams.create(
                 actor, workspace_id, dataset_id, upload_id, description, diagram
             )
+        if self.patterns is not None and asks_for_next_steps(question):
+            require_current_context()
+            steps_guide = await self._next_steps(
+                actor, workspace_id, dataset_id, upload_id, description, question, self.patterns
+            )
+            if steps_guide is not None:
+                return steps_guide
         broad_goal = needs_goal_clarification(
             question, prior_guide.columns if prior_guide else ()
         ) and not (prior_guide and is_guidance_followup(question))
@@ -1372,11 +1396,15 @@ class IntentRouterService:
             return await self._execute_data(
                 actor, workspace_id, dataset_id, upload_id, fallback, view, OFFLINE_ROUTE, question
             )
-        routed = with_time_grain(
+        routed = with_product(
             question,
-            routed,
+            with_time_grain(
+                question,
+                routed,
+                view,
+                prior_period(prior_turn) if prior_turn and set(prior_turn.grouping) else None,
+            ),
             view,
-            prior_period(prior_turn) if prior_turn and set(prior_turn.grouping) else None,
         )
         await activity(JobStage.PLANNING, EventStatus.COMPLETED)
         await activity(JobStage.VALIDATING, EventStatus.STARTED)
@@ -1732,6 +1760,21 @@ class IntentRouterService:
                     derived_parts(routed.request, question, view),
                 )
             )
+        if (
+            routed.kind == QuestionKind.NUMERICAL
+            and routed.request is not None
+            and (choices := product_choices(question, routed.request, view))
+        ):
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    "That value is not a field in this file. I can multiply "
+                    f"{routed.request.metric} by a price or cost in each row and add the "
+                    f"results exactly, or show {routed.request.metric} alone. Choose one:",
+                    view.sources,
+                    choices,
+                )
+            )
         if routed.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}:
             return await self._execute_data(
                 actor, workspace_id, dataset_id, upload_id, routed, view, model_route, question
@@ -1903,6 +1946,55 @@ class IntentRouterService:
             ClarificationContext(
                 prior.question if prior else question, message, context.view.sources, choices
             )
+        )
+
+    async def _next_steps(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        description: DescriptionContext,
+        question: str,
+        patterns: PatternService,
+    ) -> DatasetGuide | None:
+        await planned(
+            conversation_plan(
+                RoutedIntent(QuestionKind.OVERVIEW, guide_focus="next_steps"),
+                description.view.sources,
+            )
+        )
+        payload = await build_insights(
+            self.analytics,
+            actor,
+            workspace_id,
+            dataset_id,
+            upload_id,
+            statistics=patterns.statistics,
+        )
+        if payload["sources"] != list(description.view.sources):
+            raise ClarificationRequiredError(
+                "The file or definitions changed. Ask again with the current version."
+            )
+        view = description.view
+        focus = (*mentioned_columns(question, view), *loosely_named_metrics(question, view))
+        steps = next_steps(payload["insights"], focus)
+        if not steps:
+            return None
+        lines = "\n".join(f"{index}. {text}" for index, (text, _) in enumerate(steps, 1))
+        return DatasetGuide(
+            f"Here are {len(steps)} suggested next steps for {description.name}, based on "
+            "checks I ran on the file. Each figure was calculated from the rows and "
+            "confirmed by a separate query:\n"
+            f"{lines}\n"
+            "These are suggestions from patterns in this file, not proof of what causes "
+            "results. Pick a question below to see the exact evidence.",
+            NEXT_STEPS_ROUTE,
+            (),
+            tuple(question for _, question in steps),
+            description.view.sources,
+            description.state,
+            "next_steps",
         )
 
     async def _overview(
