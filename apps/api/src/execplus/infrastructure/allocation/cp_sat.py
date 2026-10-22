@@ -14,6 +14,7 @@ from pathlib import Path
 
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.large_allocation import IntegerAllocation, SolverOutcome
+from execplus.domain.scheduled_allocation import ScheduledInteger, ScheduleOutcome
 
 
 class CpSatAllocationSolver:
@@ -24,7 +25,34 @@ class CpSatAllocationSolver:
         self._wall_seconds = 4.0
 
     async def solve(self, problem: IntegerAllocation) -> SolverOutcome:
-        payload = json.dumps(asdict(problem), separators=(",", ":")).encode()
+        output = await self._execute(asdict(problem))
+        if output is None:
+            return SolverOutcome("UNKNOWN", None, None, "hard_wall_limit")
+        return self._parse(output, set())[0]
+
+    async def solve_schedule(self, problem: ScheduledInteger) -> ScheduleOutcome:
+        output = await self._execute(asdict(problem))
+        if output is None:
+            return ScheduleOutcome(SolverOutcome("UNKNOWN", None, None, "hard_wall_limit"), None)
+        outcome, raw = self._parse(output, {"periods"})
+        periods = raw["periods"]
+        if (periods is None) != (outcome.quantities is None) or (
+            periods is not None
+            and (
+                not isinstance(periods, list)
+                or len(periods) != len(problem.period_costs)
+                or any(p is not None and (type(p) is not int or not 0 <= p < 12) for p in periods)
+            )
+        ):
+            raise IngestionError(
+                "allocation_solver_unavailable",
+                "The solver returned invalid evidence. No recommendation was saved.",
+                503,
+            )
+        return ScheduleOutcome(outcome, tuple(periods) if periods is not None else None)
+
+    async def _execute(self, value: dict[str, object]) -> bytes | None:
+        payload = json.dumps(value, separators=(",", ":")).encode()
         if len(payload) > 100_000:
             raise IngestionError(
                 "allocation_solver_input", "The bounded allocation input is too large.", 422
@@ -66,7 +94,7 @@ class CpSatAllocationSolver:
                 output = await asyncio.wait_for(asyncio.shield(task), self._wall_seconds)
             except asyncio.TimeoutError:
                 await self._stop(process, task)
-                return SolverOutcome("UNKNOWN", None, None, "hard_wall_limit")
+                return None
             except BaseException:
                 await self._stop(process, task)
                 raise
@@ -78,6 +106,9 @@ class CpSatAllocationSolver:
                 )
         finally:
             self._slots.release()
+        return output
+
+    def _parse(self, output: bytes, extra: set[str]) -> tuple[SolverOutcome, dict[str, object]]:
         try:
             raw = json.loads(output)
             if not isinstance(raw, dict) or set(raw) != {
@@ -85,6 +116,7 @@ class CpSatAllocationSolver:
                 "quantities",
                 "objective",
                 "termination",
+                *extra,
             }:
                 raise ValueError("Invalid solver output")
             values = raw["quantities"]
@@ -109,7 +141,7 @@ class CpSatAllocationSolver:
                 tuple(values) if values is not None else None,
                 raw["objective"],
                 raw["termination"],
-            )
+            ), raw
         except (ValueError, KeyError, TypeError):
             raise IngestionError(
                 "allocation_solver_unavailable",

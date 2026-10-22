@@ -57,19 +57,25 @@ from execplus.domain.evidence import receipt
 from execplus.domain.exploration_selection import anomaly_default
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.large_allocation import METHOD as LARGE_ALLOCATION_METHOD
-from execplus.domain.large_allocation import SENSITIVITY_METHOD as CAPACITY_METHOD
 from execplus.domain.large_allocation import (
+    SCHEDULE_METHOD,
     checked_allocation,
     is_large_allocation,
     prepare_allocation,
     reopen_allocation,
 )
+from execplus.domain.large_allocation import SENSITIVITY_METHOD as CAPACITY_METHOD
 from execplus.domain.models import CalculationLineage, QueryResult
 from execplus.domain.multivariate_anomalies import METHOD as MULTIVARIATE_METHOD
 from execplus.domain.multivariate_anomalies import detect_multivariate, is_multivariate
 from execplus.domain.scenario_constraints import METHOD as CONSTRAINED_SCENARIO_METHOD
 from execplus.domain.scenarios import COMPOUND_METHOD, DAILY_METHOD, alternatives, compare_scenarios
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
+from execplus.domain.scheduled_allocation import (
+    checked_schedule,
+    prepare_schedule,
+    reopen_schedule,
+)
 from execplus.domain.source_scenarios import METHOD as SOURCE_SCENARIO_METHOD
 from execplus.domain.source_scenarios import (
     compare_source_scenarios,
@@ -267,6 +273,8 @@ class DecisionAnalysisService:
             large_allocations=dict(
                 model=LARGE_ALLOCATION_METHOD,
                 sensitivity_model=CAPACITY_METHOD,
+                schedule_model=SCHEDULE_METHOD,
+                maximum_periods=12,
                 available=self.allocation_solver is not None,
                 maximum_actions=50,
                 maximum_resources=4,
@@ -275,6 +283,7 @@ class DecisionAnalysisService:
             extensions=[
                 LARGE_ALLOCATION_METHOD,
                 CAPACITY_METHOD,
+                SCHEDULE_METHOD,
                 CONSTRAINED_SCENARIO_METHOD,
                 SEGMENT_METHOD,
                 RESOURCE_METHOD,
@@ -498,6 +507,7 @@ class DecisionAnalysisService:
                 in {
                     LARGE_ALLOCATION_METHOD,
                     CAPACITY_METHOD,
+                    SCHEDULE_METHOD,
                     CONSTRAINED_SCENARIO_METHOD,
                     SEGMENT_METHOD,
                     RESOURCE_METHOD,
@@ -576,6 +586,11 @@ class DecisionAnalysisService:
                     )
                     outcomes.append(await self.allocation_solver.solve(problem.integers))
                 calculated = checked_sensitivity(raw, problems, tuple(outcomes))
+            elif raw["model"] == SCHEDULE_METHOD:
+                scheduled = prepare_schedule(raw, result.rows)
+                calculated = checked_schedule(
+                    scheduled, await self.allocation_solver.solve_schedule(scheduled.integers)
+                )
             else:
                 problem = prepare_allocation(raw, result.rows)
                 outcome = await self.allocation_solver.solve(problem.integers)
@@ -740,6 +755,10 @@ class DecisionAnalysisService:
             if is_large_allocation(run.request):
                 if run.request["model"] == CAPACITY_METHOD:
                     rebuilt = reopen_sensitivity(run.request, result.rows, run.result)
+                elif run.request["model"] == SCHEDULE_METHOD:
+                    rebuilt = reopen_schedule(
+                        prepare_schedule(run.request, result.rows), run.result
+                    )
                 else:
                     rebuilt = reopen_allocation(
                         prepare_allocation(run.request, result.rows), run.result

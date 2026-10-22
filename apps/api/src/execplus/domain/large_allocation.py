@@ -15,6 +15,7 @@ from execplus.domain.decision_analysis import checksum, encoded, fail, number
 
 METHOD = "cp-sat-integer-allocation-v1"
 SENSITIVITY_METHOD = "cp-sat-capacity-sensitivity-v2"
+SCHEDULE_METHOD = "cp-sat-scheduled-allocation-v1"
 VERSION = "multi-resource-allocation-v1"
 INTEGER_LIMIT = 2**53 - 1
 
@@ -62,6 +63,7 @@ def is_large_allocation(raw: dict[str, Any]) -> bool:
     return raw.get("kind") == "bounded_allocation" and raw.get("model") in {
         METHOD,
         SENSITIVITY_METHOD,
+        SCHEDULE_METHOD,
     }
 
 
