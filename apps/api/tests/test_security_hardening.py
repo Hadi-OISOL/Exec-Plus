@@ -71,7 +71,9 @@ def test_sign_in_revokes_the_session_cookie_the_browser_already_held(integration
     register(env)
     first_headers, first = login(env)
     assert env.client.cookies.get(COOKIE) == first["token"]
-    _second_headers, second = login(env)
+    second = env.client.post(
+        "/auth/login", json={"email": "native@example.test", "password": PASSWORD}
+    ).json()
     assert env.client.cookies.get(COOKIE) == second["token"]
     assert env.client.get("/auth/me", headers=first_headers).status_code == 401
     assert env.client.get("/auth/me", headers=GUARD).status_code == 200

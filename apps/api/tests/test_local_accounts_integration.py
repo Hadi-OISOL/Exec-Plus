@@ -34,6 +34,7 @@ def register(env, email="native@example.test"):
 
 
 def login(env, email="native@example.test", password=PASSWORD):
+    env.client.cookies.clear()
     response = env.client.post("/auth/login", json={"email": email, "password": password})
     assert response.status_code == 200, response.text
     body = response.json()

@@ -24,6 +24,7 @@ def test_connector_upgrade_preserves_existing_rows(integration):
     original = set(s.metadata.tables) - {
         "google_connections",
         "connector_connections",
+        "account_reset_codes",
         "oauth_attempts",
         "external_identities",
     }
