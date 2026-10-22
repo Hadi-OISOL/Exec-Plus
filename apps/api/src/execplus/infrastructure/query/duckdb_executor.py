@@ -20,14 +20,15 @@ from execplus.domain.compute import QueryBudget
 from execplus.domain.errors import AuthorizationError, QueryDataError, UnsafeQueryError
 from execplus.domain.join_paths import LEFT_VIEW_NAME, RIGHT_VIEW_NAME, JoinPath
 from execplus.domain.models import QueryPlan, QueryResult, Scalar, WorkspaceScope
-from execplus.domain.profiling import TableData
-from execplus.domain.semantics import VIEW_NAME, DatasetView, quote_identifier
+from execplus.domain.profiling import TableData, parse_datetime
+from execplus.domain.semantics import VIEW_NAME, DatasetView, SemanticColumn, quote_identifier
 from execplus.infrastructure.query.validation import validated_query
 
 _DUCKDB_TYPES = {
     "integer": "BIGINT",
     "decimal": "DECIMAL(38, 12)",
     "date": "DATE",
+    "datetime": "TIMESTAMP",
     "boolean": "BOOLEAN",
     "text": "VARCHAR",
     "empty": "VARCHAR",
@@ -70,6 +71,11 @@ def _coerce(value: str, kind: str, scale: int = 12) -> Scalar:
             return value.lower() == "true"
         if kind == "date":
             return date.fromisoformat(value)
+        if kind == "datetime":
+            parsed = parse_datetime(value)
+            if parsed is None:
+                raise ValueError("Invalid date-time")
+            return parsed[0]
     except (InvalidOperation, ValueError):
         raise UnsafeQueryError(
             "Correct conflicting or out-of-range values before querying"
@@ -115,6 +121,7 @@ def _column(table: TableData, name: str, kind: str) -> tuple[str, list[Scalar]]:
                 "integer": "a whole number in the signed 64-bit range",
                 "decimal": f"a decimal fitting 38 digits with {scale} decimal places",
                 "date": "a valid date in YYYY-MM-DD format",
+                "datetime": "a valid date-time such as YYYY-MM-DD HH:MM:SS",
                 "boolean": "true or false",
             }.get(kind, "the column's expected type")
             raise QueryDataError(
@@ -123,6 +130,10 @@ def _column(table: TableData, name: str, kind: str) -> tuple[str, list[Scalar]]:
             ) from None
     sql_type = f"DECIMAL(38, {scale})" if kind == "decimal" else _DUCKDB_TYPES[kind]
     return sql_type, converted
+
+
+def _kind(column: SemanticColumn) -> str:
+    return "datetime" if column.has_time and column.type == "date" else column.type
 
 
 def _project(table: TableData, query: exp.Select, table_name: str) -> TableData:
@@ -349,7 +360,7 @@ class DuckDBQueryExecutor:
         right_column = right_view.column(join_path.right_column)
         if right_column is None:
             raise UnsafeQueryError("The right join key is unavailable")
-        _, right_values = _column(right_table, right_column.name, right_column.type)
+        _, right_values = _column(right_table, right_column.name, _kind(right_column))
         keys = [value for value in right_values if value is not None]
         if len(keys) != len(set(keys)):
             raise UnsafeQueryError(
@@ -363,7 +374,7 @@ class DuckDBQueryExecutor:
             left_column = left_view.column(join_path.left_column)
             if left_column is None:
                 raise UnsafeQueryError("The left join key is unavailable")
-            _, left_values = _column(left_table, left_column.name, left_column.type)
+            _, left_values = _column(left_table, left_column.name, _kind(left_column))
             left_keys = [value for value in left_values if value is not None]
             if len(left_keys) != len(set(left_keys)):
                 raise UnsafeQueryError(
@@ -407,7 +418,7 @@ class DuckDBQueryExecutor:
             )
             return
         by_name = {column.name: column for column in view.columns}
-        prepared = [_column(table, name, by_name[name].type) for name in table.headers]
+        prepared = [_column(table, name, _kind(by_name[name])) for name in table.headers]
         types = [kind for kind, _ in prepared]
         columns_sql = ", ".join(
             f"{quote_identifier(name)} {kind}"

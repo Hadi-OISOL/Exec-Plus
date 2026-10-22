@@ -196,7 +196,8 @@ def with_time_grain(
     if period is None:
         grains = re.sub(_WINDOW, " ", text)
         named = [grain for grain, pattern in _GRAINS if re.search(pattern, grains)]
-        if len(named) == 1 and named[0] != "day":
+        timed = bool((column := view.column(dated[0])) and column.has_time)
+        if len(named) == 1 and (named[0] != "day" or timed):
             period = cast(Any, named[0])
         elif not named and inherited in TIME_PERIODS:
             period = cast(Any, inherited)

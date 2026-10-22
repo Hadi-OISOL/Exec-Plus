@@ -114,6 +114,20 @@ continue to replay their own original profiles. Existing v1 files are not upgrad
 in place; importing a new upload uses the new interpretation. Timestamp text still
 requires a separately supported date representation for time-based analysis.
 
+October 22 (D18/D24): new ordinary uploads now use **profile-v3**, which adds that
+representation. A dimension whose every nonempty value is an ISO date-time
+(`YYYY-MM-DD HH:MM[:SS[.ffffff]]`, space or `T`, optionally `Z` or `±HH:MM`) becomes
+a calendar field: `type: "date"`, `datetime: true`, tags `date`/`datetime`, and
+`timezone` set to `as_given` or `UTC`. DuckDB loads it as `TIMESTAMP`, so day, week,
+month, quarter and year periods, date filters (compared on the calendar day),
+forecasts and calendar anomalies work on hourly data. Time-zone rule: values without
+an offset are kept naive exactly as written; values with an offset are converted to
+UTC, so day buckets are UTC days. A column that mixes naive and offset values, contains
+any non-date-time value, or holds only plain dates keeps its v2 interpretation (usually
+text) — nothing is dropped or guessed. v1/v2 revisions, their cleaning/refresh
+successors and receipts are unchanged; existing files are not upgraded in place.
+An image older than this change cannot read v3 revisions.
+
 The FileParser protocol adds optional `stored_format` to validation so source readers
 do not redetect a historical dialect. No database migration is necessary; readiness
 stays on 0012. An older application image cannot read new v2 revisions: rollback must

@@ -8,7 +8,7 @@ from typing import Any, cast
 
 from execplus.domain.artifacts import ArtifactKind, ArtifactRef, content_checksum
 from execplus.domain.ingestion import IngestionError
-from execplus.domain.profiling import ALGORITHM, CURRENT_ALGORITHM, Revision
+from execplus.domain.profiling import ALGORITHMS, Revision
 
 QUALITY_VERSION = "quality-v1"
 QUALITY_PARAMETERS: dict[str, int | str] = {
@@ -18,7 +18,7 @@ QUALITY_PARAMETERS: dict[str, int | str] = {
 
 
 def quality_report(revision: Revision) -> dict[str, Any]:
-    if revision.algorithm not in {ALGORITHM, CURRENT_ALGORITHM}:
+    if revision.algorithm not in ALGORITHMS:
         raise IngestionError("unsupported_version", "This quality source is unsupported.", 409)
     source = revision.profile
     if source.get("algorithm") != revision.algorithm:
