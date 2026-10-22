@@ -1,0 +1,15 @@
+# Use case: Delivers due scheduled email reports once SMTP settings exist.
+# What it does: Serializes the bounded delivery run with backups and exposes no extra ports.
+
+[Unit]
+Description=ExecPlus scheduled report delivery
+After=docker.service
+RequiresMountsFor=/sdb-disk/OISOL_ExecPLUS
+
+[Service]
+Type=oneshot
+WorkingDirectory=/sdb-disk/OISOL_ExecPLUS/source
+ExecStart=/usr/bin/flock --nonblock --conflict-exit-code 75 /run/lock/execplus-maintenance.lock /usr/bin/docker compose -f deploy/vps/compose.yaml run --rm -T operator python -m execplus.manage deliver-reports
+SuccessExitStatus=75
+TimeoutStartSec=15min
+UMask=0077

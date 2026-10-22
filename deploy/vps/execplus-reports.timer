@@ -1,0 +1,14 @@
+# Use case: Rechecks scheduled email reports every five minutes.
+# What it does: Enable only after EXECPLUS_EMAIL_MODE=smtp is configured; due times control sending.
+
+[Unit]
+Description=ExecPlus scheduled report delivery schedule
+
+[Timer]
+OnBootSec=3min
+OnUnitInactiveSec=5min
+AccuracySec=30s
+Unit=execplus-reports.service
+
+[Install]
+WantedBy=timers.target
