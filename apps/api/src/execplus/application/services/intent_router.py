@@ -1985,8 +1985,8 @@ class IntentRouterService:
         return DatasetGuide(
             f"Here are {len(steps)} suggested next steps for {description.name}, based on "
             "checks I ran on the file. Each figure was calculated from the rows and "
-            "confirmed by a separate query:\n"
-            f"{lines}\n"
+            "confirmed by a separate query.\n\n"
+            f"Useful things to explore\n{lines}\n\n"
             "These are suggestions from patterns in this file, not proof of what causes "
             "results. Pick a question below to see the exact evidence.",
             NEXT_STEPS_ROUTE,
