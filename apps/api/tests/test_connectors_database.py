@@ -165,3 +165,21 @@ def test_the_session_is_read_only_so_writes_are_impossible(database):
                 connection.rollback()
     finally:
         guarded.dispose()
+
+
+def test_the_control_plane_database_is_never_an_eligible_source(database):
+    _, credentials, _ = database
+    own = (credentials["host"], int(credentials["port"]), credentials["database"])
+    guarded = PostgresConnector(HostPolicy(True), own)
+    with pytest.raises(ConnectorApiError) as refused:
+        guarded.validate(credentials)
+    assert refused.value.code == "control_plane_database"
+    with pytest.raises(ConnectorApiError):
+        guarded.validate(
+            {
+                **credentials,
+                "host": "127.0.0.1" if credentials["host"] == "localhost" else "localhost",
+            }
+        )
+    other = PostgresConnector(HostPolicy(True), (own[0], own[1], "some_other_database"))
+    assert other.validate(credentials)

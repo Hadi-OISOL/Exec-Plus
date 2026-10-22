@@ -242,6 +242,10 @@ class ConnectorService:
                 "connector_unexpected_response", "The platform sent an unexpected reply.", 502
             ),
         }
+        if error.code == "control_plane_database":
+            return IngestionError(
+                "connector_host_blocked", "ExecPlus's own database cannot be used as a source.", 422
+            )
         if error.status == 400:
             return (
                 rejected

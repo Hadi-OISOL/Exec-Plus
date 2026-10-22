@@ -45,7 +45,7 @@ class HostPolicy:
                 "connector_host_invalid", "That host could not be found.", 422
             ) from None
         for text in addresses:
-            address = ipaddress.ip_address(text.split("%")[0])
+            address = ipaddress.ip_address(str(text).split("%")[0])
             if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
                 address = address.ipv4_mapped
             if (

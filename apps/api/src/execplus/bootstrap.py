@@ -10,6 +10,7 @@ from pathlib import Path
 import boto3
 from botocore.config import Config
 from sqlalchemy import Engine, create_engine
+from sqlalchemy.engine import make_url
 
 from execplus import __version__
 from execplus.application.connector_ports import Connector
@@ -165,7 +166,10 @@ def build_connectors(settings: Settings) -> dict[str, Connector]:
     if settings.odoo_enabled:
         found["odoo"] = OdooConnector(policy)
     if settings.database_connector_enabled:
-        found["postgresql"] = PostgresConnector(policy)
+        own = make_url(settings.database_url)
+        found["postgresql"] = PostgresConnector(
+            policy, (own.host or "localhost", own.port or 5432, own.database or "")
+        )
     return found
 
 
@@ -186,7 +190,7 @@ def build_runtime(settings: Settings) -> "Runtime":
     storage = S3ObjectStorage(client, settings.object_store_bucket)
     identity: DatabaseSessionIdentity = (
         DatabaseSessionIdentity(engine)
-        if settings.google_enabled
+        if settings.google_enabled and settings.environment not in {"local", "test"}
         else LocalSessionIdentity(engine, settings.environment)
     )
     parser = StructuredFileParser()

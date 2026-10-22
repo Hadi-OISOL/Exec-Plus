@@ -3,7 +3,9 @@
 
 # Google sign-in and Google Sheets
 
-Users can sign in with Google and import a sheet they choose. Nothing changes unless
+Users can sign in with Google and import a sheet they choose. In local and test environments
+the existing local session adapter serves Google sign-in too, so `provision-user` keeps working;
+staging and production use the production-capable adapter. Nothing changes unless
 `EXECPLUS_GOOGLE_CLIENT_ID` is set; the development token sign-in keeps working beside it.
 
 ## Google Cloud setup

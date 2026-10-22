@@ -3,6 +3,7 @@
 What it does: Connects with the user's credentials, lists tables and copies a bounded table.
 """
 
+import socket
 from typing import Any, Literal
 from urllib.parse import quote, unquote
 
@@ -53,8 +54,27 @@ class PostgresConnector:
         ConnectorField("password", "Password", secret=True),
     )
 
-    def __init__(self, policy: HostPolicy) -> None:
+    def __init__(self, policy: HostPolicy, forbidden: tuple[str, int, str] | None = None) -> None:
         self.policy = policy
+        self.forbidden = forbidden
+
+    @staticmethod
+    def _addresses(host: str) -> set[str]:
+        try:
+            return {str(item[4][0]) for item in socket.getaddrinfo(host, None)}
+        except OSError:
+            return {host}
+
+    def _refuse_control_plane(self, host: str, port: int, database: str) -> None:
+        if self.forbidden is None:
+            return
+        own_host, own_port, own_database = self.forbidden
+        if (
+            port == own_port
+            and database == own_database
+            and self._addresses(host) & self._addresses(own_host)
+        ):
+            raise ConnectorApiError(422, "control_plane_database")
 
     def _engine(self, credentials: dict[str, str]) -> Engine:
         host = credentials.get("host", "").strip()
@@ -67,6 +87,7 @@ class PostgresConnector:
         for name in ("database", "user"):
             if not credentials.get(name, "").strip():
                 raise ConnectorApiError(422, "missing_field")
+        self._refuse_control_plane(host, int(port), credentials["database"])
         url = URL.create(
             "postgresql+psycopg",
             username=credentials["user"],
