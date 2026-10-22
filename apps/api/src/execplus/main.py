@@ -25,6 +25,7 @@ from execplus.domain.errors import (
     AuthorizationError,
     ClarificationRequiredError,
     ProviderUnavailableError,
+    QueryCapacityError,
     UnsafeQueryError,
     UnsupportedQuestionError,
     UnverifiedAnswerError,
@@ -242,6 +243,14 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
             status_code=422,
             content={"error": {"code": "unsupported_question", "message": str(error)}},
             headers={"Cache-Control": "no-store"},
+        )
+
+    @application.exception_handler(QueryCapacityError)
+    async def query_capacity_error(request: Request, error: QueryCapacityError) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"error": {"code": "query_capacity", "message": str(error)}},
+            headers={"Cache-Control": "no-store", "Retry-After": "5"},
         )
 
     @application.exception_handler(UnsafeQueryError)

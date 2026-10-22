@@ -14,7 +14,7 @@ import pytest
 
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
 from execplus.domain.compute import ComputeCapabilities, ComputeOperation, QueryBudget
-from execplus.domain.errors import AuthorizationError, UnsafeQueryError
+from execplus.domain.errors import AuthorizationError, QueryCapacityError, UnsafeQueryError
 from execplus.domain.join_paths import JoinPath, combine, plan_join_query
 from execplus.domain.models import QueryResult, WorkspaceScope
 from execplus.domain.profiling import TableData, profile
@@ -72,6 +72,11 @@ def broker(budget=None, executor=None, operations=None):
         {"input_cells": 2_000_001},
         {"result_rows": 100_001},
         {"memory_limit_mb": -1},
+        {"concurrent_queries": 0},
+        {"concurrent_queries": 65},
+        {"concurrent_queries": 2, "workspace_concurrent_queries": 3},
+        {"queue_seconds": -1},
+        {"queue_seconds": float("inf")},
     ],
 )
 def test_invalid_budgets_refuse_startup(changes):
@@ -226,3 +231,103 @@ async def test_join_broker_keeps_exact_aggregation_scope_and_combined_budget():
             right,
             right_view,
         )
+
+
+class HeldEngine:
+    def __init__(self):
+        self.release = asyncio.Event()
+        self.entered = 0
+
+    async def execute(self, plan, scope, table, view):
+        self.entered += 1
+        await self.release.wait()
+        return QueryResult(plan.query_id, ("__value",), ((Decimal("0.3"),),), len(table.rows))
+
+
+@pytest.mark.asyncio
+async def test_global_concurrency_limit_refuses_before_reaching_the_engine():
+    plan, scope, table, view = fixture()
+    engine = HeldEngine()
+    compute = broker(
+        QueryBudget(concurrent_queries=1, workspace_concurrent_queries=1, queue_seconds=0), engine
+    )
+    held = asyncio.create_task(compute.execute(plan, scope, table, view))
+    while engine.entered == 0:
+        await asyncio.sleep(0)
+    other = replace(scope, workspace_id=uuid4())
+    with pytest.raises(QueryCapacityError, match="concurrent query limit"):
+        await compute.execute(replace(plan, workspace_id=other.workspace_id), other, table, view)
+    assert engine.entered == 1
+    engine.release.set()
+    assert (await held).rows == ((Decimal("0.3"),),)
+    assert (await compute.execute(plan, scope, table, view)).rows == ((Decimal("0.3"),),)
+    assert compute._running == 0 and compute._workspace_running == {}
+
+
+@pytest.mark.asyncio
+async def test_workspace_limit_isolates_one_tenant_from_another():
+    plan, scope, table, view = fixture()
+    engine = HeldEngine()
+    compute = broker(
+        QueryBudget(concurrent_queries=2, workspace_concurrent_queries=1, queue_seconds=0), engine
+    )
+    held = asyncio.create_task(compute.execute(plan, scope, table, view))
+    while engine.entered == 0:
+        await asyncio.sleep(0)
+    with pytest.raises(QueryCapacityError):
+        await compute.execute(plan, scope, table, view)
+    other = replace(scope, workspace_id=uuid4(), allowed_dataset_ids=scope.allowed_dataset_ids)
+    second = asyncio.create_task(
+        compute.execute(replace(plan, workspace_id=other.workspace_id), other, table, view)
+    )
+    while engine.entered < 2:
+        await asyncio.sleep(0)
+    engine.release.set()
+    assert len({(await held).query_id, (await second).query_id}) == 1
+
+
+@pytest.mark.asyncio
+async def test_queued_query_waits_for_a_slot_then_runs_exactly():
+    plan, scope, table, view = fixture()
+    engine = HeldEngine()
+    compute = broker(
+        QueryBudget(concurrent_queries=1, workspace_concurrent_queries=1, queue_seconds=5), engine
+    )
+    held = asyncio.create_task(compute.execute(plan, scope, table, view))
+    while engine.entered == 0:
+        await asyncio.sleep(0)
+    queued = asyncio.create_task(compute.execute(plan, scope, table, view))
+    await asyncio.sleep(0.05)
+    assert engine.entered == 1 and not queued.done()
+    engine.release.set()
+    assert (await held).rows == (await queued).rows == ((Decimal("0.3"),),)
+    assert engine.entered == 2
+
+
+@pytest.mark.asyncio
+async def test_slot_is_released_when_the_engine_fails_or_is_cancelled():
+    plan, scope, table, view = fixture()
+
+    class Failing:
+        async def execute(self, *args):
+            raise UnsafeQueryError("engine failed")
+
+    compute = broker(
+        QueryBudget(concurrent_queries=1, workspace_concurrent_queries=1, queue_seconds=0),
+        Failing(),
+    )
+    for _ in range(3):
+        with pytest.raises(UnsafeQueryError, match="engine failed"):
+            await compute.execute(plan, scope, table, view)
+    assert compute._running == 0 and compute._workspace_running == {}
+    engine = HeldEngine()
+    compute = broker(
+        QueryBudget(concurrent_queries=1, workspace_concurrent_queries=1, queue_seconds=0), engine
+    )
+    task = asyncio.create_task(compute.execute(plan, scope, table, view))
+    while engine.entered == 0:
+        await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert compute._running == 0 and compute._workspace_running == {}
