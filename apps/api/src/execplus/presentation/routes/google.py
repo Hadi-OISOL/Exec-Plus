@@ -3,6 +3,7 @@
 What it does: Runs the browser redirects, returns non-secret configuration and delegates the work.
 """
 
+from dataclasses import asdict
 from typing import Annotated
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from execplus.application.services.google_access import GoogleAccessService
 from execplus.domain.ingestion import IngestionError
 from execplus.presentation.routes import oauth
 from execplus.presentation.routes.accounts import peer
+from execplus.presentation.routes.refresh import Refresh, StageInput
 from execplus.presentation.routes.workspaces import Actor, public_upload
 
 router = APIRouter(tags=["google"])
@@ -149,3 +151,34 @@ async def import_sheet(
         oauth.session_token(request),
     )
     return public_upload(upload)
+
+
+class RefreshInput(ImportInput):
+    options: StageInput
+
+
+@router.post(
+    "/workspaces/{workspace_id}/datasets/{dataset_id}/google-sheets/refresh-candidates",
+    status_code=201,
+)
+async def stage_refresh(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    body: RefreshInput,
+    request: Request,
+    actor: Actor,
+    service: Service,
+    refresh: Refresh,
+) -> object:
+    candidate = await run_in_threadpool(
+        service.stage_refresh,
+        actor,
+        workspace_id,
+        dataset_id,
+        body.spreadsheet_id,
+        body.sheet_id,
+        oauth.session_token(request),
+        refresh,
+        body.options.model_dump(),
+    )
+    return asdict(candidate)

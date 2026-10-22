@@ -27,11 +27,12 @@ from execplus.application.connector_ports import (
 from execplus.application.google_ports import TokenVault
 from execplus.application.oauth_ports import OAuthState
 from execplus.application.ports import WorkspaceRepository
+from execplus.application.services.refresh import RefreshService, editor
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.domain.connectors import connector_filename, records_to_csv, valid_provider
 from execplus.domain.google_oauth import new_pkce
 from execplus.domain.ingestion import AuditEvent, IngestionError, Upload, User
-from execplus.domain.profiling import Revision
+from execplus.domain.refresh import RefreshCandidate
 
 logger = logging.getLogger("execplus.connectors")
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
@@ -340,16 +341,9 @@ class ConnectorService:
         known = {item.id: item.label for item in connector.sources(session, None)}
         return known.get(source_id, source_id)
 
-    def import_source(
-        self,
-        actor: User,
-        workspace_id: UUID,
-        dataset_id: UUID,
-        provider: str,
-        source_id: str,
-        session_token: str,
-    ) -> Upload:
-        self.uploads.get_dataset(actor, workspace_id, dataset_id)
+    def _snapshot(
+        self, actor: User, provider: str, source_id: str, session_token: str
+    ) -> tuple[str, bytes, Callable[[WorkspaceRepository, str, UUID, UUID], None]]:
         connector, session, connection = self._session(actor, provider)
         records = self._call(lambda: connector.fetch(session, source_id, self.max_rows + 1))
         if len(records) > self.max_rows:
@@ -364,25 +358,41 @@ class ConnectorService:
         )
         self.oauth.assert_connection(actor.id, session_token, connector.id, connection.version)
 
-        def publish(repo: WorkspaceRepository, upload: Upload, _revision: Revision) -> None:
+        def publish(
+            repo: WorkspaceRepository, action: str, workspace_id: UUID, target: UUID
+        ) -> None:
             repo.require_provider_connection(
                 actor.id,
                 hashlib.sha256(session_token.encode()).hexdigest(),
                 connector.id,
                 connection.version,
             )
+            kind = "upload" if action == "connector.imported" else "refresh_candidate"
             repo.add(
                 AuditEvent(
                     uuid4(),
-                    upload.workspace_id,
+                    workspace_id,
                     actor.id,
-                    "connector.imported",
-                    "upload",
-                    upload.id,
+                    action,
+                    kind,
+                    target,
                     datetime.now(timezone.utc),
                 )
             )
 
+        return filename, content, publish
+
+    def import_source(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        provider: str,
+        source_id: str,
+        session_token: str,
+    ) -> Upload:
+        self.uploads.get_dataset(actor, workspace_id, dataset_id)
+        filename, content, publish = self._snapshot(actor, provider, source_id, session_token)
         upload = self.uploads.upload(
             actor,
             workspace_id,
@@ -390,9 +400,45 @@ class ConnectorService:
             filename,
             "text/csv",
             BytesIO(content),
-            _publication_guard=publish,
+            _publication_guard=lambda repo, upload, _revision: publish(
+                repo, "connector.imported", upload.workspace_id, upload.id
+            ),
         )
         logger.info(
             "connector_import provider=%s outcome=success upload_id=%s", provider, upload.id
         )
         return upload
+
+    def stage_refresh(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        provider: str,
+        source_id: str,
+        session_token: str,
+        refresh: RefreshService,
+        options: dict[str, Any],
+    ) -> RefreshCandidate:
+        with refresh.uow() as repo:
+            editor(repo, actor, workspace_id, dataset_id)
+        filename, content, publish = self._snapshot(actor, provider, source_id, session_token)
+        candidate = refresh.stage(
+            actor,
+            workspace_id,
+            dataset_id,
+            filename=filename,
+            content_type="text/csv",
+            content=content,
+            _publication_guard=lambda repo, staged: publish(
+                repo, "connector.refresh_staged", workspace_id, staged.id
+            ),
+            **options,
+        )
+        logger.info(
+            "connector_refresh provider=%s outcome=%s candidate_id=%s",
+            provider,
+            candidate.status,
+            candidate.id,
+        )
+        return candidate

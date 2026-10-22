@@ -3,6 +3,7 @@
 What it does: Runs the browser redirects and delegates browsing, credentials and imports.
 """
 
+from dataclasses import asdict
 from typing import Annotated
 from uuid import UUID
 
@@ -16,6 +17,7 @@ from execplus.domain.connectors import unconfigured_platforms
 from execplus.domain.ingestion import IngestionError
 from execplus.presentation.routes import oauth
 from execplus.presentation.routes.accounts import peer
+from execplus.presentation.routes.refresh import Refresh, StageInput
 from execplus.presentation.routes.workspaces import Actor, public_upload
 
 router = APIRouter(tags=["connectors"])
@@ -52,6 +54,10 @@ class CredentialsInput(BaseModel):
 class ImportInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source_id: str = Field(min_length=1, max_length=600)
+
+
+class RefreshInput(ImportInput):
+    options: StageInput
 
 
 @router.get("/connectors")
@@ -160,3 +166,31 @@ async def import_source(
         oauth.session_token(request),
     )
     return public_upload(upload)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/datasets/{dataset_id}/connectors/{provider}/refresh-candidates",
+    status_code=201,
+)
+async def stage_refresh(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    provider: str,
+    body: RefreshInput,
+    request: Request,
+    actor: Actor,
+    service: Service,
+    refresh: Refresh,
+) -> object:
+    candidate = await run_in_threadpool(
+        service.stage_refresh,
+        actor,
+        workspace_id,
+        dataset_id,
+        provider,
+        body.source_id,
+        oauth.session_token(request),
+        refresh,
+        body.options.model_dump(),
+    )
+    return asdict(candidate)
