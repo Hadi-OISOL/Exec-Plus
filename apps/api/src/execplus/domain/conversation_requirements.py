@@ -11,7 +11,7 @@ from execplus.domain.context_retrieval import references_earlier_result
 from execplus.domain.guidance import is_greeting, mentioned_columns, words
 from execplus.domain.intent import RoutedIntent
 from execplus.domain.models import CalculationLineage, QuestionKind
-from execplus.domain.semantics import DatasetView
+from execplus.domain.semantics import DatasetView, FilterOperator
 
 
 def is_guidance_followup(question: str) -> bool:
@@ -118,6 +118,13 @@ def is_contextual_reply(question: str, view: DatasetView) -> bool:
                 r"^(and|also|then|their|its|same|by|what about|show me only|only|compare those)\b",
                 normalized,
             )
+        )
+        or bool(re.match(r"^(break|split|divide) (it|this|that|these|those|them)\b", normalized))
+        or bool(re.search(r"\b(it|this|that|these|those|them) (down |up )?(by|per)\b", normalized))
+        or (
+            len(normalized.split()) <= 6
+            and bool(re.match(r"^(when|where|which|who|why|how)\b", normalized))
+            and bool(re.search(r"\b(they|them|it|those|these)\b", normalized))
         )
     )
 
@@ -238,8 +245,17 @@ def preserves_followup_scope(
         )
         if aggregation != prior.aggregation and not explicit_operation:
             return False
-        if not set(prior.grouping) <= set(groups) and not re.search(
-            r"\b(overall|ungrouped|without grouping|across all)\b", normalized
+        dropped = set(prior.grouping) - set(groups)
+        narrowed = {
+            item.column
+            for item in filters
+            if item.operator in (FilterOperator.EQ, FilterOperator.IEQ)
+        }
+        regrouped = bool((set(groups) & named) - set(prior.grouping))
+        if (
+            dropped
+            and not (dropped <= narrowed or regrouped)
+            and not re.search(r"\b(overall|ungrouped|without grouping|across all)\b", normalized)
         ):
             return False
     return True
@@ -335,3 +351,43 @@ def _compound_pairs_match(question: str, intent: RoutedIntent, view: DatasetView
         if not {(name, operation, kind) for name in targets} <= performed:
             return False
     return True
+
+
+def _stem(word: str) -> str:
+    return word[:-1] if len(word) > 3 and word.endswith("s") else word
+
+
+def loosely_named_metrics(question: str, view: DatasetView) -> tuple[str, ...]:
+    """Measures whose distinctive name words appear in the question, e.g. purchase -> purchases."""
+    asked = {_stem(word) for word in words(question).split()}
+    return tuple(
+        name
+        for name in sorted(view.metrics)
+        if any(len(token) > 3 and _stem(token) in asked for token in words(name).split())
+    )
+
+
+def asks_derived_measure(
+    question: str, metric: str, aggregation: str, grouped: bool, view: DatasetView
+) -> bool:
+    """A rate, ratio or difference needs arithmetic between results, not one aggregate."""
+    field_words = {token for column in view.columns for token in words(column.name).split()}
+    text = " ".join(word for word in words(question).split() if word not in field_words)
+    if re.search(
+        r"\b(minus|subtract|subtracted|net|divided by|margin)\b|\bdifference between\b", text
+    ):
+        return True
+
+    def stems(names: frozenset[str]) -> set[str]:
+        return {_stem(token) for name in names for token in words(name).split()}
+
+    metric_stems, dimension_stems = stems(view.metrics), stems(view.dimensions)
+    for match in re.finditer(r"\bper (\w+)", words(question)):
+        stem = _stem(match.group(1))
+        if stem in metric_stems and stem not in dimension_stems:
+            return True
+    if not (re.search(r"\b(rate|ratio|percentage|percent|proportion)\b", text) or "%" in question):
+        return False
+    if metric == "*":
+        return aggregation == "count" and not grouped
+    return aggregation in {"sum", "min", "max"}

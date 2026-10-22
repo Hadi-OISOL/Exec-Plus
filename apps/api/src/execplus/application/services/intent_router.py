@@ -38,6 +38,7 @@ from execplus.domain.analysis_plan import (
 )
 from execplus.domain.answer_presentation import follow_up_questions
 from execplus.domain.conversation_requirements import (
+    asks_derived_measure,
     asks_for_ideal_conditions,
     compound_covers_request,
     is_acknowledgement,
@@ -45,6 +46,7 @@ from execplus.domain.conversation_requirements import (
     is_guidance_followup,
     is_result_explanation,
     is_temporal_followup,
+    loosely_named_metrics,
     preserves_followup_scope,
     request_requirements,
     requires_compound_data,
@@ -79,12 +81,14 @@ from execplus.domain.guidance import (
 )
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.intent import (
+    CONTRADICTORY_FILTERS,
     RoutedIntent,
     canonical_cohort,
     canonical_question,
     canonical_records,
     cohort_scope_needs_clarification,
     route_response,
+    with_time_grain,
 )
 from execplus.domain.jobs import EventStatus, JobStage
 from execplus.domain.models import (
@@ -102,7 +106,7 @@ from execplus.domain.pattern_requests import (
     wants_patterns,
 )
 from execplus.domain.pdf_exports import ReportAnswer
-from execplus.domain.semantics import DatasetView
+from execplus.domain.semantics import DatasetView, MetricRequest
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,7 +155,8 @@ _SYSTEM_PROMPT = (
     '{"kind": "numerical", "plan": {"metric": "<metric column>", '
     '"aggregation": "sum|avg|count|min|max", "group_by": ["<dimension column>", ...], '
     '"filters": [{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte", "value": ...}], '
-    '"order": "desc|asc (optional, grouped only)", "limit": "<optional 1-1000, needs order>"}}\n'
+    '"order": "desc|asc (optional, grouped only)", "limit": "<optional 1-1000, needs order>", '
+    '"period": "week|month|quarter|year (optional, one grouped date field)"}}\n'
     '{"kind": "rows", "plan": {"columns": [], "filters": '
     '[{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte", "value": "..."}], "limit": 100}}\n'
     '{"kind": "rows", "plan": {"columns": [], "filters": [], "limit": 100, '
@@ -300,7 +305,15 @@ _SYSTEM_PROMPT = (
     "each other return rows with exactly those two columns. Use patterns for open questions "
     "about whether or how fields relate, move together or what is associated. A chart word "
     "such as pie, bar or line is a presentation preference: plan the same calculation; the "
-    "system selects the chart. 'Show it as a pie' after a result repeats that plan.\n"
+    "system selects the chart. 'Show it as a pie' after a result repeats that plan. "
+    'For a trend or change over time group by the date field; add "period" with '
+    "week, month, quarter or year when the user names that grain (monthly, by month, "
+    "which month, yearly). Never set order for a trend: periods return in date order. "
+    "'Which month had the highest X' uses period month with order desc. Two equality "
+    "filters on one field can never both match: for 'A vs B' group by that field instead. "
+    "A rate, ratio, difference or 'X per Y' between two measures is not one aggregate: "
+    "return ambiguous asking which part to calculate, never a single total as the rate. "
+    "Comparing two fields within each row (stock below reorder point) is unsupported.\n"
     "Examples with illustrative field names (always use this file's exact names):\n"
     'Q: average price by city -> {"kind":"numerical","plan":{"metric":"price",'
     '"aggregation":"avg","group_by":["city"]}}\n'
@@ -316,6 +329,8 @@ _SYSTEM_PROMPT = (
     '{"column":"amount","operator":"gt","value":500}]}}\n'
     'Q: 10 biggest orders -> {"kind":"rows","plan":{"columns":[],"filters":[],"limit":10,'
     '"order_by":{"column":"amount","direction":"desc"}}}\n'
+    'Q: monthly revenue trend -> {"kind":"numerical","plan":{"metric":"revenue",'
+    '"aggregation":"sum","group_by":["order_date"],"period":"month"}}\n'
     'Q: does discount relate to quantity? -> {"kind":"patterns",'
     '"columns":["discount","quantity"]}\n'
     "Q: (previous turn: avg of price grouped by city) and only for 2024 orders? -> keep "
@@ -375,12 +390,22 @@ def _describe_profile(context: DescriptionContext) -> str:
     )
 
 
+def prior_period(lineage: CalculationLineage | None) -> str | None:
+    parameters = lineage.receipt.get("parameters") if lineage else None
+    if lineage is None or "DATE_TRUNC(?" not in lineage.sql or not isinstance(parameters, list):
+        return None
+    value = parameters[0].get("value") if parameters and isinstance(parameters[0], dict) else None
+    return value if isinstance(value, str) else None
+
+
 def _describe_prior_turn(lineage: CalculationLineage) -> str:
     # A structured reference to the prior turn's resolved plan, not its raw
     # question text or the model's prose reply, so follow-ups are grounded in
     # what was actually executed rather than a growing transcript.
     grouping = ", ".join(lineage.grouping) or "(none)"
     filters = "; ".join(lineage.filters) or "(none)"
+    if period := prior_period(lineage):
+        grouping += f" per {period}"
     return (
         f"Previous turn: {lineage.aggregation} of {lineage.metric}, "
         f"grouped by {grouping}, filtered by {filters}."
@@ -400,6 +425,17 @@ def _relevant_categories(question: str, view: DatasetView) -> tuple[str, ...]:
         and "identifier" not in column.tags
         and (column.name in explicit or bool((set(words(column.name).split()) - generic) & tokens))
     )[:8]
+
+
+def derived_parts(request: MetricRequest, question: str, view: DatasetView) -> tuple[str, ...]:
+    group = f" by {request.group_by[0]}" if len(request.group_by) == 1 else ""
+    measures = dict.fromkeys(
+        name
+        for name in (request.metric, *loosely_named_metrics(question, view))
+        if name in view.metrics
+    )
+    choices = [f"What is the total of {name}{group}?" for name in list(measures)[:3]]
+    return (*choices, f"How many records are there{group}?")
 
 
 class IntentRouterService:
@@ -1257,6 +1293,14 @@ class IntentRouterService:
                     "requested filter and grouping. Never invent a field or value. "
                     "If any input remains unclear, return one focused ambiguous question."
                 )
+            elif proposal.validation_issue == CONTRADICTORY_FILTERS:
+                correction = (
+                    "Your plan required two different values of one field in the same row, "
+                    "so it can never match. To compare values such as A vs B, group by that "
+                    "field without filtering it. For a share of records with A or B, count "
+                    "records grouped by that field; the system adds each group's share. "
+                    "Propose a fresh JSON plan for the same question."
+                )
             elif proposal.kind == QuestionKind.DIAGRAM or (
                 proposal.kind == QuestionKind.UNSUPPORTED
                 and re.search(r"\b(diagram|chart|graph|plot|visuali[sz]e)\b", words(question))
@@ -1299,6 +1343,8 @@ class IntentRouterService:
                 corrected,
                 "count-plan correction"
                 if proposal.validation_issue == "count_plan"
+                else "filter-plan correction"
+                if proposal.validation_issue == CONTRADICTORY_FILTERS
                 else "visual-plan correction",
             )
 
@@ -1326,6 +1372,12 @@ class IntentRouterService:
             return await self._execute_data(
                 actor, workspace_id, dataset_id, upload_id, fallback, view, OFFLINE_ROUTE, question
             )
+        routed = with_time_grain(
+            question,
+            routed,
+            view,
+            prior_period(prior_turn) if prior_turn and set(prior_turn.grouping) else None,
+        )
         await activity(JobStage.PLANNING, EventStatus.COMPLETED)
         await activity(JobStage.VALIDATING, EventStatus.STARTED)
         if (
@@ -1658,6 +1710,28 @@ class IntentRouterService:
                 model_route,
                 prior_guide=prior_guide,
             )
+        if (
+            routed.kind == QuestionKind.NUMERICAL
+            and routed.request is not None
+            and asks_derived_measure(
+                question,
+                routed.request.metric,
+                routed.request.aggregation.value,
+                bool(routed.request.group_by),
+                view,
+            )
+        ):
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    "That needs arithmetic between two calculated values, such as a rate, "
+                    "ratio or difference. I calculate each part exactly but do not combine "
+                    "them into one number yet, so I will not show a single total as the "
+                    "answer. Choose a part to calculate:",
+                    view.sources,
+                    derived_parts(routed.request, question, view),
+                )
+            )
         if routed.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}:
             return await self._execute_data(
                 actor, workspace_id, dataset_id, upload_id, routed, view, model_route, question
@@ -1676,6 +1750,20 @@ class IntentRouterService:
                             if view.column(option) or option in category_options
                         )
                     )[:6],
+                )
+            )
+        if routed.validation_issue == CONTRADICTORY_FILTERS:
+            column = routed.options[0]
+            measures = [name for name in mentioned_columns(question, view) if name in view.metrics]
+            raise PlanningClarification(
+                ClarificationContext(
+                    prior_clarification.question if prior_clarification else question,
+                    f"{routed.message} I can show every {column} group side by side instead.",
+                    view.sources,
+                    (
+                        *(f"What is the total of {name} by {column}?" for name in measures[:2]),
+                        f"How many records are there by {column}?",
+                    ),
                 )
             )
         if routed.validation_issue == "count_plan":
@@ -1706,11 +1794,15 @@ class IntentRouterService:
         if description.state != "confirmed":
             return DatasetGuide(
                 "I can look for measured patterns after the current field meanings are "
-                "confirmed. Your saved answers are retained.",
+                "confirmed. Your saved answers are retained. The overview already shows how "
+                "the measures relate, without confirmation.",
                 "deterministic:pattern-readiness-v1",
                 sources=description.view.sources,
                 definition_state=description.state,
-                actions=({"tool": "prepare", "label": "Finish data review"},),
+                actions=(
+                    {"tool": "overview", "label": "See how measures relate"},
+                    {"tool": "prepare", "label": "Finish data review"},
+                ),
             )
         await planned(
             pattern_conversation_plan(columns, description.view.sources, group_by=group_by)

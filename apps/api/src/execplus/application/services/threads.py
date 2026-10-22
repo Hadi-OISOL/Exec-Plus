@@ -53,7 +53,7 @@ from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.jobs import EventStatus, JobStage
 from execplus.domain.models import VerifiedMetricAnswer
 from execplus.domain.pdf_exports import ReportAnswer, validate_pdf_export_request, wants_pdf_export
-from execplus.domain.response_synthesis import validate_saved_narrative
+from execplus.domain.response_synthesis import RANKED_VERSION, validate_saved_narrative
 from execplus.domain.threads import Thread, ThreadTurn
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
@@ -384,7 +384,7 @@ class ThreadService:
             wid,
             answer,
             current=True,
-            version="verified-narrative-v2",
+            version=RANKED_VERSION,
         )
         if packet is None:
             return {}

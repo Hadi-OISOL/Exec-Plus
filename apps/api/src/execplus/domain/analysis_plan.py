@@ -16,6 +16,7 @@ from execplus.domain.ingestion import IngestionError
 from execplus.domain.intent import RoutedIntent
 from execplus.domain.jobs import ResourceBudget
 from execplus.domain.models import QuestionKind
+from execplus.domain.semantics import TIME_PERIODS
 
 
 @dataclass(frozen=True)
@@ -198,7 +199,9 @@ class AnalysisPlan:
                 else {"columns", "filters", "limit"}
             )
             if kind == "numerical":
-                keys = keys | ({"order", "limit"} & set(plan))
+                keys = keys | ({"order", "limit", "period"} & set(plan))
+                if "period" in plan and plan["period"] not in TIME_PERIODS:
+                    self._invalid()
                 if "order" in plan and (
                     plan["order"] not in ("asc", "desc")
                     or (
@@ -318,7 +321,9 @@ def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...])
         else:
             raise IngestionError("invalid_analysis_plan", "The data step is invalid.", 422)
         optional = (
-            ("extremum", "order_by") if data.kind == QuestionKind.ROWS else ("order", "limit")
+            ("extremum", "order_by")
+            if data.kind == QuestionKind.ROWS
+            else ("order", "limit", "period")
         )
         parameters = {
             key: value

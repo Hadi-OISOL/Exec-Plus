@@ -194,3 +194,80 @@ replaces the hosted model. Route: `deterministic:offline-plan-v1`.
 "Any unusual / weird / odd rows or values", "outliers" and "anomalies" now return a guide
 whose action opens the automatic unusual-values scan. This applies with or without the
 model, and no confirmed meanings are needed.
+
+## October 22, 2026 — Live multi-dataset evaluation and harness repairs
+
+A fictional account asked 81 realistic questions about 12 generated datasets (retail,
+ledger, HR, clinic visits, hourly IoT, survey, inventory, marketing funnel, a messy
+semicolon file, a 62-column file, Urdu-script headers and an XLSX) on the private VPS
+with hosted DeepSeek, before these repairs. Every job finished (median 8.9 s, max 24.6 s)
+and every number that was executed matched an independent pandas check. The failures
+were all about *which* calculation ran or how the reply described it:
+36 PASS / 16 PARTIAL / 29 FAIL. The account was disabled afterwards. These repairs are
+local only; they are not deployed and have not been re-measured live.
+
+### Defect catalogue (live evidence → status in this checkout)
+
+| ID | Observed behaviour | Root cause | Status |
+| --- | --- | --- | --- |
+| D1 | "North vs South", "Agree or Strongly agree" returned an empty table as a success | Model emitted two equality filters on one field; nothing rejected an impossible AND | Fixed: parser flags `contradictory_filters`, one correction round, then a clarification with working grouped choices |
+| D2 | "Monthly trend", "which month", "by year", "weekly" grouped by raw day, often sorted by value | Plan grammar had no calendar grain; trends kept a value ordering | Fixed: optional `period` (week/month/quarter/year), explicit-grain inference, chronological trends, follow-ups inherit the period |
+| D3 | Defect rate → `COUNT(*)`; net income → credits only; conversion rate → `SUM(purchases)`; cost per purchase → `SUM(spend)` | Model substituted one aggregate for arithmetic between results | Fixed: derived-measure guard clarifies and offers each part as a working question |
+| D4 | Every sum on the messy file blocked: "Group or filter by Units…", even "Total units" | Numeric `Units` quantity treated as a per-row unit-label column | Fixed: numeric `unit`/`units` fields are quantities; text labels, currency fields and explicit mappings keep the guard |
+| D5 | Grouped sums/averages never named the leader ("A common confirmed unit is needed…") even though the table was ranked | v2 narrative refused all unit-less rankings | Fixed in new narrative v3 (one field, no unit-label grouping, no per-row unit mapping); v2 answers reopen unchanged |
+| D5b | "break it down by age band", "when did they happen?" lost the previous result | Pronoun follow-ups were not recognised as contextual | Fixed: pronoun/"break it down" follow-ups receive prior context and the scope check |
+| D6 | "and which region sells the most laptops?" rejected as changing an earlier condition, no choices | Scope check required the old grouping to survive even when it became a filter | Fixed: dropping a group is allowed when it becomes an equality filter or the user names the new grouping |
+| D7 | "Is humidity related to temperature?" → "your question also limits which rows" | "related to <field>" read as a row restriction | Fixed |
+| D8 | "Any unusual orders?" blocked by pattern readiness | Anomaly wording only matched "unusual values/rows/entries" | Fixed: unusual/abnormal/suspicious/spikes open the automatic scan |
+| D9 | Relationship question on inferred data offered only "Finish data review" | Chat patterns need confirmed meanings; the overview does not | Mitigated: guide now also offers the overview relationship card |
+| D10 | "SKUs below their reorder point" → "Use a valid numeric filter value" | Field-vs-field comparison unsupported; raw validation message leaked | Message fixed; capability still missing |
+| D11 | 0.265 displayed as 0.26 | Half-even display rounding | Fixed in v3 (half-up); v2 wording kept |
+| D12 | "Which plant has the highest X?" returned top-5 rows of 62 columns; three tied plants not named | Model chose `order_by` + limit instead of `extremum`; record narrative never names rows | Open |
+| D13 | "What should I do / HR focus on / grow sales" → orientation reading or bare refusal | No recommendation tool; refusal offers no clickable next step | Open |
+| D14 | "Which metrics have the most defects?" (compare totals across columns) → count clarification with no choices | Cross-column comparison unsupported | Open |
+| D15 | Forecast questions on unconfirmed files → "Confirm the current data meanings" | Forecasts require confirmed meanings and fixed units by design | Open (by design; zero-config forecast quick start exists only in the panel) |
+| D16 | "What are customers complaining about?" → document search with no documents | Free-text field questions routed as `textual` | Open |
+| D17 | Model clarification candidates ("Lowest average NPS score") are not clickable | Choices are filtered to real field names | Open |
+| D18 | Hourly `2025-03-01 00:00:00` timestamps profiled as text: no daily trend, no forecast | Profiler date detection is date-only | Open |
+| D19 | Exact zero serialized as `0E-12` | `str(Decimal)` at the HTTP boundary | Open (cosmetic; receipts unaffected) |
+| D20 | "Inventory value by warehouse" → `SUM(on_hand_units)` | Product of two fields unsupported; not caught by the derived-measure words | Open |
+| D21 | "Weekends vs weekdays" → daily ranking | No weekday grain | Open |
+| D22 | "Rows with missing sales" → "The model proposed an invalid filter" | No is-missing filter operator | Open |
+| D23 | Quality check missed `Store 1` / `" store 1 "` label variants | Profiler does not compare trimmed/case-folded labels | Open |
+
+### Behaviour contracts added
+
+- **Contradictory filters.** Two `eq`/`ieq` filters on one field with different values
+  (case-insensitive for `ieq`) make a plan invalid (`validation_issue =
+  contradictory_filters`) for both numerical and record plans. The model gets one
+  correction instruction (route suffix `filter-plan correction`). A second failure
+  becomes a clarification whose choices are offered templates (`What is the total of
+  <measure> by <field>?`, `How many records are there by <field>?`) that run without a model.
+- **Calendar period.** `"period": "week|month|quarter|year"` is valid only with exactly one
+  grouped date field. SQL is `CAST(DATE_TRUNC(?, "d") AS DATE) AS "d" … GROUP BY ALL`, with
+  the period as the first bound parameter; the execution validator allows `CAST` only to
+  `DATE` around a `DATE_TRUNC`. Receipts replay the stored SQL unchanged. After planning,
+  `with_time_grain` sets the period when the question names exactly one grain (monthly,
+  by month, which month, yearly, weekly, quarterly, Roman Urdu mahina/saal/hafta),
+  ignoring windows such as "last month" or "over the year". It drops a value ordering for
+  trend wording unless ranking words or a limit are present. A contextual follow-up inherits
+  the previous period; the previous-turn context says `grouped by <d> per <period>`.
+- **Derived measures.** A single numerical plan is not executed when the question asks for
+  arithmetic between results: minus/net/difference between/divided by/margin, "X per Y"
+  where Y is a measure, or rate/ratio/percentage wording answered by `SUM/MIN/MAX` or an
+  ungrouped record count. Averages (a 0/1 flag average is a rate) and grouped counts (shares)
+  still run. The clarification offers each part as an offered template.
+- **Follow-ups.** "break/split it down", "<it|this|that> by …" and short wh-questions with
+  they/them/it/those are contextual. A previous grouping may be dropped when it becomes an
+  equality filter or when the question names the new grouping field.
+- **Narrative v3** (`verified-narrative-v3`) is used for new answers. It names the leading
+  group of a single-field result without a confirmed unit and adds "No unit is confirmed
+  for <field>; groups are compared as recorded in that one field." It still refuses to rank
+  when grouping by currency/unit-label fields, for joins, or when a confirmed definition maps
+  the measure to a per-row unit column. Display rounding is half-up. v1/v2 saved answers are
+  rebuilt with their own builders, so their reopen validation is unchanged. The web renderer
+  accepts v3.
+
+Tests: `apps/api/tests/test_live_dataset_defects.py` replays the observed hosted plans
+through a scripted planner and the real thread, router, DuckDB and receipt services;
+`apps/api/tests/test_confirmed_quantity_units.py` covers the units rule.

@@ -6,6 +6,8 @@ from typing import Any
 
 VERSION = "verified-narrative-v1"
 INSIGHT_VERSION = "verified-narrative-v2"
+RANKED_VERSION = "verified-narrative-v3"
+INSIGHT_VERSIONS = (INSIGHT_VERSION, RANKED_VERSION)
 MAX_STATEMENTS = 20
 MAX_PACKET_CHARS = 18000
 
@@ -25,7 +27,7 @@ class FactPacket:
 
     def __post_init__(self) -> None:
         if (
-            self.version not in {VERSION, INSIGHT_VERSION}
+            self.version not in {VERSION, *INSIGHT_VERSIONS}
             or not 1 <= len(self.statements) <= MAX_STATEMENTS
             or len({s.id for s in self.statements}) != len(self.statements)
             or any(

@@ -74,7 +74,8 @@ def analysis_guidance(
         )
     elif re.search(
         r"\b(anomalies|anomaly|anomalous|outliers?)\b"
-        r"|\b(unusual|weird|odd|strange|abnormal|suspicious) (values?|rows?|entries)\b",
+        r"|\b(unusual|weird|strange|abnormal|suspicious|spikes?)\b"
+        r"|\bodd (values?|rows?|entries)\b",
         text,
     ):
         scan = dict(tool="anomalies", label="Scan for unusual values")
