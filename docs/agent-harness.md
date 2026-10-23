@@ -245,6 +245,14 @@ date field" leaks when the model asks for a day period on a text timestamp; D25 
 in a numeric column (previously hidden behind the Units guard) fails every sum of that column;
 D14 now leaks "Rank groups with order asc or desc…".
 
+**Run 3 on release 93d29ec6abe39458:** 54 PASS / 19 PARTIAL / 8 FAIL (8 better, 1 worse
+than run 2); see `verification-live-datasets-20261023.md`. Confirmed live: D13, D14 and D24
+messages, D17 clickable choices, D18 date-time profiling, D20 `times`, D21 weekday grouping.
+New: D26 offered choices are often irrelevant to the question (net income, cost per
+purchase, "when did they happen"); D27 "what should I reorder first" varies between plans
+(model variance). D21 sums weekdays against weekends instead of comparing per-day averages.
+D6, D16, D22 and D25 remain.
+
 ### Behaviour contracts added
 
 - **Contradictory filters.** Two `eq`/`ieq` filters on one field with different values
