@@ -40,6 +40,25 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 23 — chat quality release (clickable choices, date-times, next steps)
+
+- Release **93d29ec6abe39458** (commit 53e5eaf; test-only follow-up 4538882) is active on
+  unchanged **0030**. Checked backups 20261023T135133Z (pre) / 20261023T135225Z (post).
+  Kit: `data/verification/2026-10-23-claude-release/` (unchanged-0030 variant).
+- Adds clickable clarification choices and friendly plan-failure choices (D17/D14/D24),
+  profile-v3 date-time columns for new uploads only (D18; v1/v2 unchanged), grounded
+  next steps (D13), row products via plan key `times` (D20) and weekday/weekend periods (D21).
+- Evidence: backend full suite all pass after one outdated profile-v2 expectation was
+  updated; web 96/96; browser 123 pass / 2 model skips across a stalled full run plus a
+  rest run; `integrations.spec.ts` (embed) is flaky on this machine (2/3 on repeat, code
+  unchanged). Live sign-up/login/me/disable, Google config, loopback listeners pass.
+- Live 81-question run 3: **54 PASS / 19 PARTIAL / 8 FAIL** (run 1 36/16/29, run 2
+  48/22/11); every executed number matched pandas. See
+  `docs/verification-live-datasets-20261023.md`. Open: N/A-as-missing (D25) and
+  is-missing filter (D22), relevance of offered choices (D26), weekday totals vs per-day
+  averages, D6 follow-up scope, D16 free-text routing, D12 ties, D19 `0E-12`, D23 labels.
+- Browser tests need `WATCHPACK_POLLING=1` here when the OS file-watch limit is reached.
+
 ### October 22 (night) — multi-agent closure release and Google sign-in live
 
 - Release **f590a4a813287580** (commit b3ddc0a) is active on **0030** (additive
