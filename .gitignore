@@ -41,3 +41,6 @@ test-results/
 # Project-local agent integration; private tools and memory already live under data/.
 /.codex/config.toml
 /.agents/skills/reverse-engineer-anything/
+
+# Generated owner PDFs/DOCX reports (not tracked)
+docs/reports/
