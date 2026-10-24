@@ -39,7 +39,12 @@ Consolidated exports lock all contributing workspaces in order and admit one exp
 - `PUT /admin/workspaces/{workspace_id}/plan`: administrator, selected catalog key, expected assignment version and explicit start/end.
 - `GET /workspaces/{workspace_id}/plan`: workspace owner with full dataset access; actual remaining allowances. Membership alone cannot reveal hidden-resource counts.
 
-The owner opens **Usage & retention → Workspace allowances**. A platform administrator opens a workspace in **Admin console → Local workspace allowances**, selects a preset and explicitly assigns its window. Both views use protected backend responses and clear stale values when a refresh fails. The administrator UI does not process money.
+- `GET /workspaces/{workspace_id}/usage` (October 24): workspace owner or admin with full dataset access, or an active platform administrator (recorded as `plan.usage_viewed`). Returns the same allowances plus a per-allowance `state` (`ok`, `near` at 80% or more, `reached`), server-written `notices` that say what still works, and `daily` exact counts for the last 30 UTC days grouped from `plan_admissions` (processing, exports, forecasts, model attempts) and `uploads`. A staff administrator who lacks full dataset access sees operation counts but not stock counts (`access_limited`). Ordinary members receive 403.
+- `GET /admin/usage/workspaces?limit=` (October 24): active platform administrator only (`plan.usage_listed`). Lists every workspace with a current assignment, its exact period operation counts and limits, ranked by the highest share of any operation limit.
+
+No migration was needed: daily history and ranking read existing `plan_admissions`, `uploads` and `workspace_plans` rows. Connector imports count through the same upload/processing admissions. The `plan_limit` refusal now names what still works.
+
+Owners and admins see a notice on every workspace view when an allowance is near or reached. The owner opens **Usage & retention → Workspace allowances** for the full report and daily history; administrators open **Admin console → Usage by workspace** for the ranking. A platform administrator opens a workspace in **Admin console → Local workspace allowances**, selects a preset and explicitly assigns its window. Both views use protected backend responses and clear stale values when a refresh fails. The administrator UI does not process money.
 
 For local synthetic tests, the native-account grant command requires the actual account ID and an independent operator identity check:
 
