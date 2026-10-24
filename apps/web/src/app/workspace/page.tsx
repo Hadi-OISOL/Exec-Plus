@@ -136,8 +136,8 @@ const googleFailures: Record<string, string> = {
   google_state_invalid: "The Google sign-in expired. Please try again.",
   google_identity_invalid: "Google could not confirm your identity.",
   google_exchange_failed: "Google could not complete the request. Please try again.",
-  google_wrong_account: "Choose the Google account that matches your ExecPlus email.",
-  google_scope_missing: "Allow ExecPlus to open the sheets you choose, then try again.",
+  google_wrong_account: "Choose the Google account that matches your Syntelio email.",
+  google_scope_missing: "Allow Syntelio to open the sheets you choose, then try again.",
   connector_denied: "The connection was cancelled.",
   connector_state_invalid: "The connection expired. Please try again.",
   connector_credentials_rejected: "The platform did not accept the sign-in.",
@@ -291,7 +291,7 @@ export default function WorkspacePage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const filename = response.headers.get("Content-Disposition")?.match(/filename="([a-zA-Z0-9.-]+)"/)?.[1];
-    link.href = url; link.download = filename ?? `execplus-result.${format === "csv" ? "zip" : format}`;
+    link.href = url; link.download = filename ?? `syntelio-result.${format === "csv" ? "zip" : format}`;
     document.body.appendChild(link); link.click(); link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 10000);
   }, [authorizedResponse]);
@@ -899,7 +899,7 @@ export default function WorkspacePage() {
   const reviewing = ["overview", "ask"].includes(section) && (guidedActive || reviewOpen || (section === "overview" && briefActive && briefManual));
   const sections = [
     { id: "overview", name: "Overview", group: "Analyze" },
-    { id: "ask", name: "Ask ExecPlus", group: "Analyze" },
+    { id: "ask", name: "Ask Syntelio", group: "Analyze" },
     { id: "search", name: "Search data", group: "Analyze" },
     { id: "forecasts", name: "Forecasts", group: "Analyze" },
     { id: "decisions", name: "Anomalies & decisions", group: "Analyze" },
@@ -994,8 +994,8 @@ export default function WorkspacePage() {
     >
       <aside className="workbenchRail">
         <Link className="brand" href="/">
-          <span className="brandMark" aria-hidden="true">E+</span>
-          <span>ExecPlus</span>
+          <span className="brandMark" aria-hidden="true">S</span>
+          <span>Syntelio</span>
         </Link>
         <nav aria-label="Workspace navigation">
           {["Analyze", "Library", "Data"].map((group) => (
@@ -1019,7 +1019,7 @@ export default function WorkspacePage() {
       <div className="workbenchBody">
         <header className="workbenchTop">
           <span className="topBreadcrumb">
-            {current?.group ?? "ExecPlus"} <span aria-hidden="true">/</span> <strong>{current?.name}</strong>
+            {current?.group ?? "Syntelio"} <span aria-hidden="true">/</span> <strong>{current?.name}</strong>
           </span>
           {user && section !== "ask" && (
             <form className="topAsk" role="search" onSubmit={(event) => {
@@ -1772,7 +1772,7 @@ export default function WorkspacePage() {
                     <div className="analysisViewControls" hidden={reviewing}>
                       {section === "ask" ? <div><strong>Your conversation</strong></div> : !limitedUpload && !reviewOpen && guidedFor !== profileUpload ? (
                         <div className="reviewEntryActions">
-                          <button type="button" disabled={busy} onClick={openBrief}>Check what ExecPlus understood</button>
+                          <button type="button" disabled={busy} onClick={openBrief}>Check what Syntelio understood</button>
                           <details><summary>Other review options</summary><button type="button" disabled={busy} onClick={() => { setBriefFor(""); setGuidedFor(profileUpload); }}>Review this upload step by step</button></details>
                         </div>
                       ) : <span />}
@@ -2096,7 +2096,7 @@ export default function WorkspacePage() {
             </>
           )}
           <footer>
-            <span>ExecPlus · Clarity backed by evidence</span>
+            <span>Syntelio · Synthesized Enterprise Intelligence</span>
             <Link href="/">About this demo</Link>
           </footer>
         </div>

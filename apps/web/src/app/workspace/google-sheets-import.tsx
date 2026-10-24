@@ -183,7 +183,7 @@ export function GoogleSheetsImport({
     <section className={styles.google} aria-label="Import from Google Sheets">
       <h3>Or import from Google Sheets</h3>
       <p>
-        Pick a sheet in Google&apos;s own chooser. ExecPlus can open only the sheets you
+        Pick a sheet in Google&apos;s own chooser. Syntelio can open only the sheets you
         choose, and you can disconnect at any time.
       </p>
       {!status?.connected ? (

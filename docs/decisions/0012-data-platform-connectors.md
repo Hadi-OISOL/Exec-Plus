@@ -13,7 +13,7 @@ Local candidate only; live provider acceptance and production gates remain open.
   platforms add a validation step. A single service handles connecting, browsing and importing,
   so secrets, permissions, audit and errors behave identically everywhere.
 - **Snapshots.** A source is copied into a normal CSV upload and flows through the existing
-  profile, meaning, receipt and refresh paths. ExecPlus never queries a platform live, which
+  profile, meaning, receipt and refresh paths. Syntelio never queries a platform live, which
   keeps answers replayable from retained bytes.
 - **Credentials.** All secrets are sealed with the existing token vault in one table, one row per
   user and platform. Rotated tokens and cleanup use version-conditional writes so stale

@@ -79,7 +79,7 @@ claimed complete merely because its local implementation passed.
 
 ## Running and release boundaries
 
-Use [Start ExecPlus](start-project.md) and the
+Use [Start Syntelio](start-project.md) and the
 [two-phase local walkthrough](two-phase-local-walkthrough.md). They include
 fictional finance, sales, inventory, HR and company fixtures, dirty data, exact
 expected calculations and a reproducible held-back forecast/actual comparison.

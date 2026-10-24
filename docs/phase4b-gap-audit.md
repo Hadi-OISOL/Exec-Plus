@@ -21,7 +21,7 @@ Missing before implementation:
 - Existing variance compares scalar receipts but does not reconcile segment drivers.
 - No refresh UI, worker command, timer, integration tests or deployment evidence.
 
-Implementation boundary: schedules consume files deliberately staged in ExecPlus.
+Implementation boundary: schedules consume files deliberately staged in Syntelio.
 They cannot fetch a user's desktop file. Phase 4E connectors will use the same
 candidate contract. Replacements preserve originals; append and merge retain both
 the input delta and derived full snapshot. Invalid or unreviewed candidates never

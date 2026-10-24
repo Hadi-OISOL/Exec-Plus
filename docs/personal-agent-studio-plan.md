@@ -3,7 +3,7 @@
 
 # Personal data assistant and refreshed workspace
 
-The user requested data that demonstrates ExecPlus well, memory for each user,
+The user requested data that demonstrates Syntelio well, memory for each user,
 research into Google's data agents and a visibly better interface. This slice
 extends the existing private demo; it does not replace its model provider or
 enable a Google connector. The original 64 feature IDs and production gates remain.
@@ -41,7 +41,7 @@ enable a Google connector. The original 64 feature IDs and production gates rema
 
 ## Agent tools and research interpretation
 
-ExecPlus already has a bounded conversation plan containing profile inspection,
+Syntelio already has a bounded conversation plan containing profile inspection,
 validated queries, document retrieval, pattern exploration, group comparison and
 evidence assembly. Forecasts, scenarios, anomalies and allocation use dedicated
 validated services and explicit inputs. A tool's description does not authorize
@@ -62,7 +62,7 @@ establish private backend behavior or comparative answer quality.
 [Data Canvas](https://docs.cloud.google.com/bigquery/docs/data-canvas).
 
 Google ADK documents tools and longer-term memory as separate capabilities.
-ExecPlus retains its existing provider-neutral services and PostgreSQL rather
+Syntelio retains its existing provider-neutral services and PostgreSQL rather
 than adding a second orchestration framework or memory vendor for this slice.
 [ADK custom tools](https://adk.dev/tools-custom/),
 [ADK memory](https://adk.dev/sessions/memory/).

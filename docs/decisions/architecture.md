@@ -1,7 +1,7 @@
-> **File use case:** Technical source of truth for ExecPlus system structure and request flows.
+> **File use case:** Technical source of truth for Syntelio system structure and request flows.
 > **What it does:** Converts the product definition and reference diagram into enforceable components, boundaries, and data paths.
 
-# ExecPlus Architecture
+# Syntelio Architecture
 
 ## October 17 language and selected-group comparison repair
 
@@ -313,7 +313,7 @@ See [contracts](../scenario-planning.md) and [acceptance](../verification-scenar
 
 ## Architectural style
 
-ExecPlus begins as a modular monolith with independently testable modules and explicit infrastructure ports. This preserves transaction simplicity and delivery speed while allowing workers or high-load compute paths to be extracted when measurements justify it.
+Syntelio begins as a modular monolith with independently testable modules and explicit infrastructure ports. This preserves transaction simplicity and delivery speed while allowing workers or high-load compute paths to be extracted when measurements justify it.
 
 The deployable units are:
 
@@ -397,7 +397,7 @@ The query pipeline has discrete states: interpreted, needs clarification, valida
 
 ## Vector readiness
 
-The `EmbeddingStore` application protocol captures the stable capability needed by ExecPlus: upsert workspace-scoped chunks, permission-filtered search, and deletion by dataset. Vendor-specific collection names, filter syntax, indexes, and SDK types remain inside future infrastructure adapters.
+The `EmbeddingStore` application protocol captures the stable capability needed by Syntelio: upsert workspace-scoped chunks, permission-filtered search, and deletion by dataset. Vendor-specific collection names, filter syntax, indexes, and SDK types remain inside future infrastructure adapters.
 
 A production vendor will be selected only after evaluation of metadata filtering, multitenancy, hybrid search, local hosting, managed hosting, backup and restore, operational complexity, latency, and total cost. The initial Phase 3 reference ranker is not that selection; the mandatory production evidence was deferred to Phase 5. Slice 3C adds candidate evaluation without clearing that gate.
 
@@ -497,7 +497,7 @@ unavailable sources must produce an explicit limitation. A stale cache or
 embedding is never substitute source data.
 
 Connectors import approved data into the same governed snapshot flow. A customer's
-read-only PostgreSQL source is distinct from ExecPlus's control-plane PostgreSQL.
+read-only PostgreSQL source is distinct from Syntelio's control-plane PostgreSQL.
 Infrastructure adapters own provider SDKs, credentials and network validation;
 domain/application modules retain their existing dependency direction. The model
 never chooses arbitrary endpoints or writes to source systems. Schema drift,

@@ -67,7 +67,7 @@ copies tables through the table-data API, so no query runs and no query cost is 
 - Hosts on private networks (loopback, private ranges, link-local) are blocked outside local and
   test environments, and https is required for Odoo. The check resolves the name once, so it
   reduces but cannot remove DNS-rebinding risk. Set `EXECPLUS_CONNECTOR_ALLOW_PRIVATE_HOSTS`
-  only for a trusted deployment. Do not point the database connector at ExecPlus's own database.
+  only for a trusted deployment. Do not point the database connector at Syntelio's own database.
 
 ## Verification status
 

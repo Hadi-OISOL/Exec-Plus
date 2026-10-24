@@ -134,7 +134,7 @@ export function SourcesPanel({ workspaceId, datasetId, request, onImported, onRe
   </article>;
   return <section className={`panel ${styles.panel}`} aria-label="Database sources">
     <div className={styles.header}><div><p className="studioEyebrow">APPROVED CONNECTIONS</p><h2>Bring in database data</h2>
-      <p>Choose an approved table. ExecPlus saves a read-only copy for you to review.</p></div>
+      <p>Choose an approved table. Syntelio saves a read-only copy for you to review.</p></div>
       <button type="button" onClick={reload} disabled={pending || loading}>Refresh sources</button></div>
     {loading ? <p role="status">Loading approved sources…</p> : loadError ? <p role="alert" className="errorNotice">{loadError}</p> : <>
       {!sources.some(value => value.enabled) ? <p className={styles.notice}>No database source is connected yet. An operator can register a read-only PostgreSQL connection and approve the tables and fields you can import.</p> : <>

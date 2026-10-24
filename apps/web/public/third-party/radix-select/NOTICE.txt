@@ -1,7 +1,7 @@
-ExecPlus Workspace Select dependency notices
+Syntelio Workspace Select dependency notices
 
 The unmodified @radix-ui/react-select 2.3.8 package supplies accessible selection,
-keyboard/typeahead, focus management and viewport positioning. ExecPlus supplies
+keyboard/typeahead, focus management and viewport positioning. Syntelio supplies
 the controlled React wrapper, teal/navy styling and two original decorative SVGs.
 No external icon package is included. All new packages are MIT; the pre-existing
 tslib 2.8.1 helper is BSD-0-Clause and its full notices are retained here.

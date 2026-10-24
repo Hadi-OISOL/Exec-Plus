@@ -3,7 +3,7 @@
 
 # Security
 
-ExecPlus is pre-alpha and must not process production customer data yet.
+Syntelio is pre-alpha and must not process production customer data yet.
 
 Report suspected vulnerabilities privately to the repository owner. Do not include secrets, personal data, or exploitable production details in public issues.
 

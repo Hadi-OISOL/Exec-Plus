@@ -1,7 +1,7 @@
 > **File use case:** Phase-2 model plan for replacing hosted DeepSeek with a self-hosted model under USD 200/month.
 > **What it does:** Records the October 22 study, recommendation (Qwen3.6-35B-A3B), hardware/pricing, architecture options and go/no-go evaluation plan. Figures are estimates until benchmarked.
 
-# Replacing DeepSeek V4 Pro with a self-hosted model in ExecPlus (SLM study, phase-2 architecture)
+# Replacing DeepSeek V4 Pro with a self-hosted model in Syntelio (SLM study, phase-2 architecture)
 
 Date: 2026-10-22. This is research only, with no code or config changes. Every price and benchmark below comes from a public page on the date shown. Items marked **[unverified]** are estimates or have only one weak source.
 
@@ -97,7 +97,7 @@ Sources: `docs/agent-deepseek-architecture-for-review.md`, `docs/agent-harness.m
 - RAM: 125 GiB, with 117 GiB available. Disk: 857 GB free on `/sdb-disk`.
 - GPU: **Tesla P100 16 GB (Pascal, sm_60)**, driver 550 / CUDA 12.4.
   - **7.8 GB is already used by two other apps' Python processes**, so only about 8.5 GB is free.
-  - No ExecPlus/Ollama process was on the GPU at the time. The model may be idle-unloaded, or running on the CPU. **[unverified]:** I was limited to the listed commands, so `ollama ps` was not run.
+  - No Syntelio/Ollama process was on the GPU at the time. The model may be idle-unloaded, or running on the CPU. **[unverified]:** I was limited to the listed commands, so `ollama ps` was not run.
 - **What this means:**
   - vLLM has no practical Pascal path ([PyTorch 2.15 drops sm_60 wheels](https://dev-discuss.pytorch.org/t/notice-cuda-12-6-wheels-will-no-longer-be-published-from-pytorch-2-15-drops-maxwell-pascal-volta/3432); vLLM ≥0.20 reportedly dropped sm_70 too). llama.cpp or Ollama with CUDA is the only option.
   - In the free ~8.5 GB, the realistic ceiling is a 9B model at Q4.

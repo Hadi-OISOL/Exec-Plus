@@ -1,11 +1,11 @@
-> **File use case:** Assesses the data-analysis references requested for ExecPlus.
+> **File use case:** Assesses the data-analysis references requested for Syntelio.
 > **What it does:** Maps useful ideas to existing tools, records a project-local skill installation and separates supported behavior from future ML work.
 
 # Data tools: adoption review
 
 Reviewed October 16, 2026. These repositories provide useful numerical methods,
 analysis examples and development guidance. They do not supply a drop-in agent
-that knows the meaning of every uploaded file. ExecPlus still needs confirmed
+that knows the meaning of every uploaded file. Syntelio still needs confirmed
 field meaning, authorized tools and measured evidence for each supported method.
 
 ## Sources and reproducibility
@@ -17,7 +17,7 @@ field meaning, authorized tools and measured evidence for each supported method.
 | [Medical Research Skills](https://github.com/aipoch/medical-research-skills/tree/686e09dfdb45d9fa1a08664f06bb93769b3c9d91) | `686e09dfdb45d9fa1a08664f06bb93769b3c9d91` | MIT | `data/agent-tools/references/aipoch--medical-research-skills/` |
 
 The sources, downloaded datasets and third-party tools remain local and ignored.
-No upstream data is committed to ExecPlus. The original reference licenses are
+No upstream data is committed to Syntelio. The original reference licenses are
 retained. The new fictional demo has its own versioned generator and independent
 checks; it is not a renamed copy of the SQL project's sales data.
 
@@ -27,9 +27,9 @@ The SQL project has a clear progression: inspect structure, inspect categories a
 dates, check totals, compare groups, then investigate time and segments. Its
 [change-over-time example](https://github.com/DataWithBaraa/sql-data-analytics-project/blob/b99f16a26197ff0d36131867af319238aec23dd8/03_scripts/07_change_over_time_analysis.sql)
 also illustrates why displayed date labels and chronological ordering are distinct.
-We use this progression to organize the [ExecPlus walkthrough](demo-data-guide.md).
+We use this progression to organize the [Syntelio walkthrough](demo-data-guide.md).
 
-| Analytical question | ExecPlus route today | Boundary |
+| Analytical question | Syntelio route today | Boundary |
 | --- | --- | --- |
 | What does this file describe? | Upload reading; **Help me understand this data**; saved definitions and optional personal memory | Qualitative explanation, not a measured result |
 | Are values missing or repeated? | Profile and **Check data quality** | Consistency checks do not prove business correctness |
@@ -46,7 +46,7 @@ The SQL reference's running totals, rolling averages, year-over-year windows,
 custom customer segments and customer/product reports are useful future method
 specifications. They are **not all supported conversational operations today**.
 Its scripts use SQL Server features and a warehouse schema. Do not paste its
-initialization script or unrestricted SQL into the ExecPlus control-plane database.
+initialization script or unrestricted SQL into the Syntelio control-plane database.
 A future port must use the existing validated query/method boundary, typed source
 receipts and permission checks. A chart that sorts already returned groups is not
 an independently implemented ranking or cohort method.
@@ -60,7 +60,7 @@ decision forests, clustering, covariance and related methods. Its
 [system requirements](https://github.com/uxlfoundation/oneDAL/blob/eeb645077424fe8534060d74a044a120384db325/docs/source/system-requirements.rst)
 identify platform and compiler/runtime requirements for different interfaces.
 
-ExecPlus already has exact DuckDB aggregation and pinned SciPy/NumPy relationship
+Syntelio already has exact DuckDB aggregation and pinned SciPy/NumPy relationship
 statistics. Replacing those established paths would duplicate capability without
 an observed benefit. oneDAL has not been built, installed into application images
 or benchmarked on this workload. No speed or accuracy improvement is claimed.
@@ -86,15 +86,15 @@ The official skill-installer helper is used with this exact commit and destinati
 `.agents/skills/exploratory-data-analysis/`, within this checkout. This installs
 coding-agent guidance; it does not register a product agent tool, expand supported
 upload formats or install optional Python dependencies. The skill will be available
-for subsequent project turns after client discovery. ExecPlus runtime does not
+for subsequent project turns after client discovery. Syntelio runtime does not
 execute its bundled analyzer or arbitrary user/model-supplied Python.
 
-The upstream skill's broad format catalog is not evidence that ExecPlus accepts
+The upstream skill's broad format catalog is not evidence that Syntelio accepts
 those formats. The inspected bundled analyzer reads only the first 10,000 CSV/TSV
 rows with pandas; its generic analysis function has no XLSX branch despite the
 reference catalog describing Excel. Its ordinary floating-point summaries do not
-satisfy ExecPlus's exact-value receipt contract. Reading the first records does
-not make that subset representative. ExecPlus's existing complete-population limits
+satisfy Syntelio's exact-value receipt contract. Reading the first records does
+not make that subset representative. Syntelio's existing complete-population limits
 and explicit coverage remain authoritative. The reviewed statistical-analysis skill
 has useful assumption/effect-size guidance, but was not selected for installation:
 its additional inference dependencies and methods are outside this release.

@@ -14,7 +14,7 @@ See [the integration map](repository-integration.md),
 ## Implemented scope under verification
 
 - Actual pinned Lieflat G10 signed-bar code is adapted to governed returned rows,
-  the ExecPlus theme, React lifecycle and exact-value inspection.
+  the Syntelio theme, React lifecycle and exact-value inspection.
 - A separate attributed documd ECharts option handles eligible observed lines;
   ECharts 6.1.0 is installed as a real bundled dependency. Dots are a separate
   engine view. All returned rows remain accessible through selection and view

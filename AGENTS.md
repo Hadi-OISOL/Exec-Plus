@@ -40,6 +40,8 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+- October 24: product renamed to **Syntelio** ("Synthesized Enterprise Intelligence") in visible UI, API messages, exports and docs; code identifiers (`execplus` package, `EXECPLUS_*`, `execplus_session`, `X-ExecPlus-*`, storage keys, images, DB/VPS names) intentionally keep the old name. Entries below are historical.
+
 ### October 23 — chat quality release (clickable choices, date-times, next steps)
 
 - Release **93d29ec6abe39458** (commit 53e5eaf; test-only follow-up 4538882) is active on

@@ -50,7 +50,7 @@ with the release owner; these branches are local candidates until explicitly rel
    application memory. No application bearer appears in the URL or browser storage.
    New self-service workspaces receive the existing Demo allowances.
 3. In Data library, **Connect Google** asks once for `drive.file`. The user must use the
-   Google account that matches their ExecPlus email.
+   Google account that matches their Syntelio email.
 4. **Choose a Google Sheet** opens Google's picker, using the user's own short-lived token.
    If the sheet has several tabs the user picks one, then it is imported as a CSV upload.
 

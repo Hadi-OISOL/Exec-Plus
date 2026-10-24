@@ -11,12 +11,12 @@ governs this slice. The marketing website is outside this delivery.
 ## Reference and implemented scope
 
 Public ThoughtSpot documentation and screenshots were inspected on October 6,
-2026. No authenticated product account was accessed. Original ExecPlus components
+2026. No authenticated product account was accessed. Original Syntelio components
 use the observed navigation and data-presentation patterns; the external brand,
 screenshots and implementation code are not application assets. This work does not
 establish complete feature or visual parity with ThoughtSpot.
 
-| Public reference | Observed pattern | Verified ExecPlus presentation |
+| Public reference | Observed pattern | Verified Syntelio presentation |
 | --- | --- | --- |
 | [Home and navigation](https://docs.thoughtspot.com/cloud/26.9.0.cl/thoughtspot-homepage) | Grouped left navigation, compact top bar, prominent question composer | Analytics shell, source context, home shortcuts and scoped saved-work list |
 | [Conversational exploration](https://docs.thoughtspot.com/cloud/26.9.0.cl/spotter-getting-started) | Framed answers, visualization controls and follow-up input | Dedicated conversation view and reusable executed-result presentation |

@@ -24,11 +24,11 @@ for (const theme of ["light", "dark"]) {
     for (const width of [320, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 850 });
       await page.setContent(`<html data-theme="${theme}"><head><style>${css}</style></head><body>
-        <main class="workbench analyticsShell"><aside class="workbenchRail">ExecPlus</aside><div class="workbenchMain">
+        <main class="workbench analyticsShell"><aside class="workbenchRail">Syntelio</aside><div class="workbenchMain">
         <header class="workbenchTop"><div>Workspace</div><label class="themeControl">Appearance<select><option>${theme}</option></select></label><div class="sessionBar">Fictional tester<button>Sign out</button></div></header>
         <div class="workbenchContent"><div class="dedicatedConversation"><section class="askPanel panel"><header class="chatHeader">Your data conversation</header>
         <div class="conversationLog"><div class="conversationTurn"><div class="userMessage"><p>${"Long_recorded_field_".repeat(8)}</p></div>
-        <article class="assistantMessage"><span class="messageAuthor">ExecPlus</span>
+        <article class="assistantMessage"><span class="messageAuthor">Syntelio</span>
         <section class="dataExplanation" aria-label="Result explanation"><p class="explanationPlain">The total Revenue is 6 USD.</p><details><summary>Explanation evidence</summary><p>${"a".repeat(128)}</p></details></section>
         <div class="dataExplanation"><section class="explanationCard" data-kind="fields"><h3>How the fields fit together</h3><p>${"Long_recorded_field_".repeat(8)} measures a recorded condition.</p></section></div>
         <div class="tableScroll" tabindex="0" role="region" aria-label="Exact result table"><table><thead><tr>${Array.from({ length: 8 }, (_, index) => `<th>Recorded column ${index}</th>`).join("")}</tr></thead><tbody><tr>${Array.from({ length: 8 }, () => "<td>1234567890.123456789</td>").join("")}</tr></tbody></table></div>

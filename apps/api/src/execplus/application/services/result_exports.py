@@ -280,7 +280,7 @@ class ResultExportService:
                     AuditEvent(uuid4(), wid, actor.id, "result.exported", "export", target_id, now)
                 )
             extension, media_type = extensions[format]
-            return ExportDownload(f"execplus-result-{target_id}.{extension}", data, media_type)
+            return ExportDownload(f"syntelio-result-{target_id}.{extension}", data, media_type)
 
     @staticmethod
     def _study_record(value: Any) -> dict[str, Any]:

@@ -5,8 +5,8 @@ OR-Tools 9.15.6755; Google source 551ad10d94835c99e5e1e684500d3db398c0e345.
 https://github.com/google/or-tools/tree/551ad10d94835c99e5e1e684500d3db398c0e345
 Verified cp312 Linux x86_64 wheel SHA256: 033836c0eb33bc72697a299e0caedbb25fc9d1cee0b13832d69cb30405f57b3e.
 
-ExecPlus invokes only CP-SAT. The unmodified wheel also distributes other solver libraries.
-Those components retain their own licenses. No third-party solver source was modified by ExecPlus.
+Syntelio invokes only CP-SAT. The unmodified wheel also distributes other solver libraries.
+Those components retain their own licenses. No third-party solver source was modified by Syntelio.
 Upstream OR-Tools build patches and exact dependency declarations remain available at:
 https://github.com/google/or-tools/tree/551ad10d94835c99e5e1e684500d3db398c0e345/patches
 https://github.com/google/or-tools/blob/551ad10d94835c99e5e1e684500d3db398c0e345/cmake/dependencies/CMakeLists.txt
@@ -50,7 +50,7 @@ typing_extensions 4.16.0; typing_extensions-4.16.0.dist-info/licenses/LICENSE
 tzdata 2026.5; tzdata-2026.5.dist-info/licenses/LICENSE
 tzdata 2026.5; tzdata-2026.5.dist-info/licenses/licenses/LICENSE_APACHE
 immutabledict 4.3.1; immutabledict-4.3.1.dist-info/licenses/LICENSE
-NumPy2.2.6 is an existing ExecPlus dependency and retains its packaged BSD/bundled notices.
+NumPy2.2.6 is an existing Syntelio dependency and retains its packaged BSD/bundled notices.
 
 All copied license texts retain their original wording. These files and THIRD_PARTY_NOTICES.md
 are included in the API image and under the web /third-party/ path.

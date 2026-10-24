@@ -85,7 +85,7 @@ function UsageReport({ workspaceId, request, days, setDays, refresh }: {
         <div><dt>Requests still active</dt><dd>{report.counts.in_flight}</dd></div>
         <div><dt>Attempts with unknown cost</dt><dd>{report.counts.unknown_cost_attempts}</dd></div>
       </dl>
-      {report.counts.attempts === 0 && <p className={styles.notice}>No AI attempts were recorded in this window. Ask ExecPlus a question, then refresh this view.</p>}
+      {report.counts.attempts === 0 && <p className={styles.notice}>No AI attempts were recorded in this window. Ask Syntelio a question, then refresh this view.</p>}
       <p className={styles.caption}>One question can need several attempts, including retries. {report.counts.released_before_dispatch} attempts stopped before a request was sent.</p>
       <section className={styles.block} aria-label="Recorded model costs">
         <h3>Recorded costs</h3><p>These amounts use reported usage and configured rates. They are not an invoice. Unknown costs are not treated as free.</p>

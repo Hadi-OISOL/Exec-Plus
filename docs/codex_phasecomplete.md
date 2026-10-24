@@ -1,6 +1,6 @@
 OBJECTIVE
 
-Bring ExecPlus to a genuinely verified state for:
+Bring Syntelio to a genuinely verified state for:
 
 Phase 0 — Engineering Foundation
 Phase 1 Week 1 — Secure Workspace & Ingestion Foundation

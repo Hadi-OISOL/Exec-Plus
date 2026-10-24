@@ -8,7 +8,7 @@ PDF, named-chart and hosted-reading checks pass; the final responsive browser
 and backup evidence is recorded in the [verification ledger](verification-domain-agent-tools.md).
 The October 16 user example asked for a diagram of how data converges and received
 a generic profile. This slice adds tool selection, remembered preferences,
-simple upfront choices and PDF generation inside ExecPlus's existing boundaries.
+simple upfront choices and PDF generation inside Syntelio's existing boundaries.
 
 ## Requested behavior
 

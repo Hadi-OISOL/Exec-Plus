@@ -1,17 +1,17 @@
-> **File use case:** Gives users a clear walkthrough for the fictional ExecPlus starter kit.
+> **File use case:** Gives users a clear walkthrough for the fictional Syntelio starter kit.
 > **What it does:** Defines the data, review answers, supported questions and independently checked results.
 
-# Start here: your ExecPlus demo data
+# Start here: your Syntelio demo data
 
 Start with **Retail demo**. It is a made-up online shop with a full year of daily
-records. It gives ExecPlus enough information to show useful charts, find patterns,
+records. It gives Syntelio enough information to show useful charts, find patterns,
 compare groups, spot unusual values and try a forecast. Every value is fictional;
 the patterns were deliberately built into this example. It is a walkthrough, not
 proof that the same patterns exist in a real business.
 
 ## Open the data
 
-1. Open ExecPlus and go to **Prepare data** / the data library.
+1. Open Syntelio and go to **Prepare data** / the data library.
 2. Choose **Explore retail demo**. This creates a separate sample dataset.
 3. Review the meaning using the answers below, then explicitly confirm it.
 4. Go to Home and ask **Help me understand this data**.
@@ -22,7 +22,7 @@ The imported sample and the local CSV contain identical rows. Your existing file
 are not replaced. Sample imports still need your meaning review; downloading or
 importing a file does not confirm its definitions.
 
-## What to tell ExecPlus
+## What to tell Syntelio
 
 - **Business domain:** sales.
 - **One row represents:** other / record. In the description, say **one complete

@@ -56,7 +56,7 @@ unreviewed model prose are not promoted into shared facts.
 
 ## Browser behavior
 
-Ask ExecPlus presents executed data alongside document evidence, upload timestamps,
+Ask Syntelio presents executed data alongside document evidence, upload timestamps,
 source revisions and definition IDs. Open conversation citation rechecks the source.
 Private conversation history restores questions and loads each saved answer on demand.
 Retries after transport failure reuse the request ID. Sign-in remains memory-only:

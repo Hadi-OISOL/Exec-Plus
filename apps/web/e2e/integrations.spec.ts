@@ -178,7 +178,7 @@ test("owner keys and private embedded dashboards retain exact access and reject 
   expect(sampleGrantResponse.status()).toBe(201);
   const sampleGrant = await sampleGrantResponse.json();
   await embedded.goto(`${host}/sample/`);
-  await embedded.getByLabel("ExecPlus frame address").fill(`${web}/embed/${sampleGrant.grant.id}`);
+  await embedded.getByLabel("Syntelio frame address").fill(`${web}/embed/${sampleGrant.grant.id}`);
   await embedded.getByLabel("One-use embed secret", { exact: true }).fill(`epk_${"x".repeat(43)}`);
   await embedded.getByRole("button", { name: "Open private dashboard", exact: true }).click();
   await expect(embedded.getByRole("status")).toContainText("Account tokens and API keys are not accepted");

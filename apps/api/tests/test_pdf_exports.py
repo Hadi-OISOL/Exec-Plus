@@ -76,7 +76,7 @@ def test_download_has_exact_values_units_receipt_and_no_model_or_source_writes(
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["content-disposition"] == (
-        f'attachment; filename="execplus-answer-{answer["turn"]["id"]}.pdf"'
+        f'attachment; filename="syntelio-answer-{answer["turn"]["id"]}.pdf"'
     )
     assert context(env, owner, root) == before and len(model.requests) == 1
     assert (

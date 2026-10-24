@@ -965,7 +965,7 @@ def build_analysis_report(
             if kind == "forecast_comparison"
             else "Selected executed dashboard results"
         )
-        report = _Report(f"ExecPlus - {kind}: {name}", generated_at)
+        report = _Report(f"Syntelio - {kind}: {name}", generated_at)
         _overview(report, core, kind)
         if kind == "dashboard":
             _dashboard(report, record)

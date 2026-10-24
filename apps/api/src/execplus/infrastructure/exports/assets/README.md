@@ -1,4 +1,4 @@
-> **File use case:** Bundles the existing ExecPlus font for offline PDF output.
+> **File use case:** Bundles the existing Syntelio font for offline PDF output.
 > **What it does:** Records the unchanged font source, license, checksum and tested text boundary.
 
 # PDF font

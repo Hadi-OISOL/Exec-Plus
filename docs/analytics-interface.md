@@ -5,14 +5,14 @@
 
 The October 6 interface uses a grouped navigation rail, a compact header and a
 light analytics canvas. The [reference audit](interface-redesign-audit.md) records
-the public ThoughtSpot layouts reviewed. ExecPlus retains its own components,
+the public ThoughtSpot layouts reviewed. Syntelio retains its own components,
 branding, source contracts and supported methods.
 
 ## Where to start
 
 - **Overview:** choose your source, ask a question from the central composer, open
   saved work for that source, or continue to its calculated first findings.
-- **Ask ExecPlus:** continue the same private conversation in a wider view. Existing
+- **Ask Syntelio:** continue the same private conversation in a wider view. Existing
   history, real request activity, cancellation, explanations and evidence remain.
   A question submitted while another request is active stays as an explicit draft;
   send it after the current answer finishes.

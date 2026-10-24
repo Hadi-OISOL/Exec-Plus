@@ -1,5 +1,5 @@
 > **File use case:** Architecture decision record for the initial application shape.
-> **What it does:** Records why ExecPlus starts as a modular monolith and when services may be extracted.
+> **What it does:** Records why Syntelio starts as a modular monolith and when services may be extracted.
 
 # ADR 0001: Begin with a modular monolith
 

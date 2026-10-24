@@ -23,7 +23,7 @@ previously scanned reference copy byte-for-byte, including `LICENSE`,
 file hash. The older reference-installation receipt remains historical evidence.
 
 The first chart pass used general guidance for independently authored components.
-The owner subsequently confirmed that ExecPlus will remain **noncommercial** and
+The owner subsequently confirmed that Syntelio will remain **noncommercial** and
 explicitly requested actual template reuse. The current implementation adapts the
 G10 diverging-bar renderer into a bounded React/ECharts component; it retains the
 template license and attribution. The skill remains a coding tool, not an arbitrary
@@ -35,7 +35,7 @@ The repository contains a chart/report authoring skill, chart catalogs, HTML/SVG
 templates, design tokens and validation/smoke scripts. Some templates load Chart.js,
 ECharts or fonts from public CDNs. It is not a dataset-analysis backend, persistent
 memory service or permission-aware query tool. Its browser examples do not establish
-ExecPlus numerical accuracy or authorization behavior.
+Syntelio numerical accuracy or authorization behavior.
 
 The repository's
 [license](https://github.com/larashero3-dotcom/lieflat-charts/blob/ed436ba56b3cbeee20b9b9966b38a9a9689e239c/LICENSE)
@@ -52,7 +52,7 @@ separately identify Chart.js as MIT, ECharts as Apache-2.0 and Inter as SIL OFL-
 Those licenses do not make Lieflat's surrounding template code permissively licensed.
 No permission from the toolkit author is assumed.
 
-## Concrete ExecPlus adaptation
+## Concrete Syntelio adaptation
 
 The useful comparison is how readily a reader can identify the question, unit,
 series and source. The earlier studio release used original React/SVG components
@@ -70,7 +70,7 @@ adaptation is separate: `lieflat-chart-presets.ts` derives from
 `templates/glance-gallery.html`, the G10 card at lines 103–108 and renderer at
 lines 502–534 of the pinned source. It retains horizontal signed bars, a zero
 baseline, sign-specific rounded caps and the finite 900ms quartic-out/80ms stagger.
-ExecPlus replaces sample data, copy, colors and typography; caps automatic bar
+Syntelio replaces sample data, copy, colors and typography; caps automatic bar
 width at the original 16px, suppresses overlapping category labels and caps
 stagger duration; respects reduced motion; and supplies exact native inspection
 and view-only navigation. Geometry normalization cannot replace the original
@@ -84,7 +84,7 @@ records the three gallery images inspected, the seven-repository use map and the
 required behavior. That follow-up's implementation and release checks are recorded
 separately; the baseline table above is not a claim that newer changes have passed.
 
-ExecPlus keeps its own readable type sizes, keyboard interaction, reduced-motion
+Syntelio keeps its own readable type sizes, keyboard interaction, reduced-motion
 behavior and current palette. It does not adopt unusually tiny gallery text,
 decorative synthetic records, arbitrary axis cuts, inferred causal stories, or an
 HTML/code execution tool for the runtime agent. A chart-selection suggestion must
@@ -107,7 +107,7 @@ frontend checks. No upstream gallery script or optional installer is automatical
 executed. No additional model scan or provider call was made for installation. See
 [project skill adoption](project-skill-adoption.md).
 
-The UI change requires ExecPlus's exact-value, null/missing-point, responsive,
+The UI change requires Syntelio's exact-value, null/missing-point, responsive,
 keyboard and reduced-motion checks plus the normal build. Results belong in the
 current release verification ledger; this assessment alone is not a passing test
 or a claim that additional chart types, exports or arbitrary agent skills now run.

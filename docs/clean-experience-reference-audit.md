@@ -1,5 +1,5 @@
 > **File use case:** Reference evidence for the October 15 focused analytics experience.
-> **What it does:** Separates observed public interfaces, documented behavior, dependency research and ExecPlus design choices.
+> **What it does:** Separates observed public interfaces, documented behavior, dependency research and Syntelio design choices.
 
 # Clean experience reference audit — October 15, 2026
 
@@ -14,9 +14,9 @@ REA inspected five documentation illustrations in a separate project browser.
 These are observations of public documentation, not interactions with a licensed
 ThoughtSpot or Metabase tenant. The visible examples cannot establish backend
 implementation, private prompts, response quality, latency or actual animation
-timings. No ExecPlus source rows, credentials or sessions were sent to either site.
+timings. No Syntelio source rows, credentials or sessions were sent to either site.
 
-| Reference | Observed or documented behavior | ExecPlus adaptation |
+| Reference | Observed or documented behavior | Syntelio adaptation |
 | --- | --- | --- |
 | ThoughtSpot question composer, C1 | The source selector sits beside the question input; the main question is visually prominent. | Show the selected file compactly and keep changing it a deliberate action. |
 | ThoughtSpot answer, C2 | One large chart dominates the response. Chart/table and expand controls sit close to it; explanatory text and secondary actions surround the result. | Give the answer space. Keep exact values and chart controls together; reveal detailed evidence on demand. |
@@ -28,17 +28,17 @@ ThoughtSpot documents follow-up questions, resetting an analysis, source choice,
 chart/table switching and a stop action during an active question. These support
 reusing existing private threads and real job cancellation rather than adding a
 separate interaction system. Its accuracy and speed descriptions are vendor
-claims, not ExecPlus targets proven by this investigation.
+claims, not Syntelio targets proven by this investigation.
 [ThoughtSpot getting started](https://docs.thoughtspot.com/cloud/26.10.0.cl/spotter-getting-started).
 
 Metabase documents a sequence from data selection through filtering and summary
 to visualization. Each step can preview its first ten result rows. This is a
-design reference; ExecPlus continues using its authorized queries and existing
+design reference; Syntelio continues using its authorized queries and existing
 evidence limits. [Metabase query builder](https://www.metabase.com/docs/latest/questions/query-builder/editor).
 
 Its visualization guide connects chart choice to the question: rows for many
 categories, scatterplots for paired numerical values, and tables for records.
-ExecPlus should keep a readable exact table available even when a chart is the
+Syntelio should keep a readable exact table available even when a chart is the
 default. [Metabase visualization guide](https://www.metabase.com/docs/latest/questions/visualizations/visualizing-results).
 
 The embedding documentation distinguishes loading, error and empty states. We
@@ -101,7 +101,7 @@ already implement it without adding runtime dependencies.
 
 ## Implementation and verification obligations
 
-These are ExecPlus choices, not claims about competitor internals:
+These are Syntelio choices, not claims about competitor internals:
 
 - Keep one primary workspace task visible: Home, conversation, exploration or
   review. Maintain access to source selection and saved work through named controls.

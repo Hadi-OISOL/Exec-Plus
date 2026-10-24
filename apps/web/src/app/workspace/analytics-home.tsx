@@ -128,7 +128,7 @@ export function AnalyticsHome({
             <button type="button" onClick={onReview}>Review saved details</button>
           </div>
         </section> : <div className="homeDataContext"><span className="homeContextEyebrow">WORKING WITH</span><h3>{filename}</h3><p className="homeContextNotice" role="status">{contextError || "Loading your saved data context…"}</p></div>}
-      <button className="studioMemoryShortcut" type="button" onClick={() => onNavigate("memory")}><Icon name="memory" size={18} /><span><strong>Make it your data partner</strong><small>Set what ExecPlus remembers about you</small></span><Icon name="arrow" size={16} /></button>
+      <button className="studioMemoryShortcut" type="button" onClick={() => onNavigate("memory")}><Icon name="memory" size={18} /><span><strong>Make it your data partner</strong><small>Set what Syntelio remembers about you</small></span><Icon name="arrow" size={16} /></button>
       </aside>
       </div>
       <details className="homeMoreTools"><summary>Explore tools & saved work</summary>

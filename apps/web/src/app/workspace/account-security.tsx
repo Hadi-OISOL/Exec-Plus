@@ -55,7 +55,7 @@ export function AccountSecurity({ request, onSession, onDisabled }: { request: A
       <p>Your account ID: <code className={styles.identifier}>{account.user_id}</code></p>
       <p>Share this ID with your workspace manager when they check an invitation. An email address alone does not prove account ownership.</p>
       {account.kind === "operator" && <p>Your access is managed by the local operator. Password controls apply to local password accounts.</p>}
-      {account.kind === "external_google" && <p>You sign in with Google. Manage your password in your Google account; ExecPlus does not store a local password for this account.</p>}
+      {account.kind === "external_google" && <p>You sign in with Google. Manage your password in your Google account; Syntelio does not store a local password for this account.</p>}
       {account.kind === "local_password" && <>
         <details><summary>Change your password</summary>
           <form className={styles.form} onSubmit={event => void change(event, false)}>

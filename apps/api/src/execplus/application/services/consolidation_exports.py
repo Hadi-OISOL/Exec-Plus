@@ -102,4 +102,4 @@ class ConsolidationExportService:
                         )
                     )
             extension, media_type = formats[format]
-            return ExportDownload(f"execplus-consolidation-{rid}.{extension}", payload, media_type)
+            return ExportDownload(f"syntelio-consolidation-{rid}.{extension}", payload, media_type)

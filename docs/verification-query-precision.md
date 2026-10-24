@@ -72,7 +72,7 @@ node data/vps-private/query-fix-browser.mjs
 docker stop execplus-queryfix-postgres execplus-queryfix-minio
 ```
 
-Only ExecPlus-owned disposable containers are used; unrelated local services are
+Only Syntelio-owned disposable containers are used; unrelated local services are
 untouched. The patch is based on committed `phase2` baseline `c9560af`; deployed
 source digests were compared with that baseline before updating the four API files.
 Rollback source is `releases/pre-queryfix-20260930/` on the VPS, with API image

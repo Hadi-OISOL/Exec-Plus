@@ -86,10 +86,10 @@ def build_report(audit_path: Path, output: Path) -> None:
     field.set(qn("w:instr"), "NUMPAGES")
     footer._p.append(field)
     props = doc.core_properties
-    props.title = "ExecPlus — VC Feature Delivery Report"
+    props.title = "Syntelio — VC Feature Delivery Report"
     props.subject = "64-request audit, competitor comparison and remaining delivery work"
-    props.author = "ExecPlus product review"
-    props.keywords = "ExecPlus, VC checklist, feature audit, Polymer, ThoughtSpot"
+    props.author = "Syntelio product review"
+    props.keywords = "Syntelio, VC checklist, feature audit, Polymer, ThoughtSpot"
     props.comments = f"Product evidence updated {DATE}; competitor sources reviewed 5 October 2026."
     props.modified = datetime.datetime.now(datetime.timezone.utc)
 
@@ -202,7 +202,7 @@ def build_report(audit_path: Path, output: Path) -> None:
             para(text, "List Bullet")
 
     para("Purpose: explain what is delivered, partly delivered and still missing.", size=9)
-    doc.add_heading("ExecPlus", 0)
+    doc.add_heading("Syntelio", 0)
     para("VC feature delivery report", size=18, bold=True)
     para(
         f"As of {DATE}  •  Based on the current repository and recorded private-demo evidence",
@@ -286,7 +286,7 @@ def build_report(audit_path: Path, output: Path) -> None:
     SOURCES = AUDIT["comparison_sources"]
     COMPARISON = AUDIT["comparison_rows"]
     widths = [0.88, 1.86, 1.87, 2.35]
-    t = table(["Area", "Polymer", "ThoughtSpot", "ExecPlus today"], widths, 9.5)
+    t = table(["Area", "Polymer", "ThoughtSpot", "Syntelio today"], widths, 9.5)
     for values in COMPARISON:
         row = add_row(t, values, widths, 9.2)
         for cell in row.cells[1:3]:

@@ -1,4 +1,4 @@
-> **File use case:** Approval checklist for hosting the intended ExecPlus model and preparing for customers.
+> **File use case:** Approval checklist for hosting the intended Syntelio model and preparing for customers.
 > **What it does:** Separates immediate Qwen trial needs from mandatory pre-production resources and reviews.
 
 # CEO request: Qwen3-4B hosting
@@ -11,7 +11,7 @@ below remains useful for budget/privacy decisions, but hosting access is no long
 blocked. See the [current VPS runbook](vps-demo-runbook.md).
 
 Recorded 2026-09-17: the intended model candidate is `Qwen/Qwen3-4B`, with a
-hosting service still being arranged. It has not been tested in ExecPlus yet.
+hosting service still being arranged. It has not been tested in Syntelio yet.
 DeepSeek V4 Pro remains the current demo provider until the hosted Qwen service
 is connected and passes evaluation. This records a preference, not a production
 selection or authorization to purchase hosting.

@@ -158,7 +158,7 @@ export function ConnectorsPanel({
     <section className={styles.connectors} aria-label="Connect your data">
       <h3>Or connect an accounting system or database</h3>
       <p>
-        Pick a platform, sign in once, then choose what to copy. ExecPlus only reads
+        Pick a platform, sign in once, then choose what to copy. Syntelio only reads
         a snapshot and you can disconnect at any time.
       </p>
       {!ready.length && <p>No data platforms are set up on this server yet.</p>}

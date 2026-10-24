@@ -98,7 +98,7 @@ def token(request: Request) -> str:
 def embedding_origin(request: Request) -> None:
     if request.headers.get("origin") != request.app.state.web_origin:
         raise IngestionError(
-            "embed_origin", "Use the approved ExecPlus frame for this request.", 403
+            "embed_origin", "Use the approved Syntelio frame for this request.", 403
         )
 
 

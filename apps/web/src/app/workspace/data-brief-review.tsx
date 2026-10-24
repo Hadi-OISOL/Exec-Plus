@@ -363,7 +363,7 @@ export function DataBriefReview({
     } else if (lines.length) {
       const dataset = root.replace(/\/uploads\/[^/]+$/, "");
       const name = `data-reading-${root.split("/").pop()?.slice(0, 8) ?? "upload"}.md`;
-      const text = `# What the owner told ExecPlus about this data\n\n${lines.join("\n")}\n`;
+      const text = `# What the owner told Syntelio about this data\n\n${lines.join("\n")}\n`;
       try {
         await request(
           `${dataset}/documents?name=${encodeURIComponent(name)}&shared=${share}`,
@@ -528,7 +528,7 @@ export function DataBriefReview({
         <div>
           <span className={styles.eyebrow}>LET’S UNDERSTAND YOUR FILE</span>
           <h2>One small question at a time.</h2>
-          <p>Your answers help ExecPlus read this data properly.</p>
+          <p>Your answers help Syntelio read this data properly.</p>
         </div>
         <button
           type="button"

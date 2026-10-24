@@ -1,15 +1,15 @@
 > **File use case:** Research evidence for the personal data assistant and studio interface.
-> **What it does:** Separates documented Google capabilities, public REA observations and ExecPlus design choices.
+> **What it does:** Separates documented Google capabilities, public REA observations and Syntelio design choices.
 
 # Google data tools and personal assistant references
 
 Reviewed October 16, 2026. No Google account, private tenant, customer dataset or
 credential was supplied to the reference sites. This work does not connect
-ExecPlus to BigQuery, switch providers or demonstrate feature parity.
+Syntelio to BigQuery, switch providers or demonstrate feature parity.
 
 ## Documented behavior and adaptation
 
-| Primary reference | Documented behavior | ExecPlus adaptation and boundary |
+| Primary reference | Documented behavior | Syntelio adaptation and boundary |
 | --- | --- | --- |
 | [BigQuery conversational analytics](https://docs.cloud.google.com/bigquery/docs/conversational-analytics) | Data agents combine selected sources with metadata, instructions, business terms and verified queries. Conversations retain answers and source metadata. | Reuse confirmed dataset meanings, private goals and registered operations. Add explicit personal context for wording and suggestions. Personal memory cannot establish units, filters or permissions. |
 | [BigQuery data insights](https://docs.cloud.google.com/bigquery/docs/data-insights) | Generates suggested questions/queries and descriptions using metadata and available profile scans; inferred descriptions and relationships can be reviewed. | Keep real profiles, reviewable meaning and executable starter questions. Generated prose is not a measured finding. Existing pattern services supply calculations and coverage. |
@@ -39,7 +39,7 @@ The inspection browser was stopped afterward. Captures cover the visible page,
 not animation timings, active product interactions or an unseen backend.
 
 The light studio styling, optional personal-memory editor and sample launch cards
-are original ExecPlus design choices. Existing [ThoughtSpot and Metabase evidence](clean-experience-reference-audit.md)
+are original Syntelio design choices. Existing [ThoughtSpot and Metabase evidence](clean-experience-reference-audit.md)
 also informs task separation and chart/evidence placement. No new chart library,
 agent framework or third-party runtime dependency is required by this research.
 

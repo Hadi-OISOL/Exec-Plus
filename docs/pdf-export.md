@@ -109,7 +109,7 @@ The verified wheel SHA-256 is
 Local resolution uses Pillow 12.3.0 and charset-normalizer 3.5.2. Their license
 texts are shipped alongside ReportLab's; no optional browser, bidi, shaping or
 remote rendering extra was installed. The font and SIL OFL are copied unchanged
-from ExecPlus's existing Manrope asset; its checksum is in the adapter assets
+from Syntelio's existing Manrope asset; its checksum is in the adapter assets
 README. `pypdf==6.20.1` is a development-only independent PDF text extractor.
 
 The public [Anthropic PDF skill](https://github.com/anthropics/skills/blob/main/skills/pdf/SKILL.md)

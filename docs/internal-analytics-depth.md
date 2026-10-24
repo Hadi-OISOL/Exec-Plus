@@ -81,7 +81,7 @@ are shown approximately to six decimal places; directions use the unrounded scor
 A direction is highlighted only when its absolute coefficient is at least 0.5.
 A reversal marker needs opposite signs and that threshold for both the pooled and
 within-group coefficient of the same kind. Weak or unavailable scores remain
-explicit. This threshold, twenty-pair minimum and all resource limits are ExecPlus
+explicit. This threshold, twenty-pair minimum and all resource limits are Syntelio
 design decisions, not significance thresholds or guarantees endorsed by the sources.
 No p-values, causal effects, calibrated error rates or prediction accuracy are shown.
 

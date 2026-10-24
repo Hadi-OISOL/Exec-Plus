@@ -36,7 +36,7 @@ def create(destination: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate the fictional ExecPlus starter kit.")
+    parser = argparse.ArgumentParser(description="Generate the fictional Syntelio starter kit.")
     parser.add_argument(
         "--output",
         type=Path,

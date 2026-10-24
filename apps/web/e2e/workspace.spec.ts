@@ -167,7 +167,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
     timeout: 90_000,
   });
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask Syntelio", exact: true }).click();
   await page.getByLabel("Your question").scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Your question")).toBeInViewport({ ratio: 1 });
   await navigate(page, "Overview");

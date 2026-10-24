@@ -1,5 +1,5 @@
 > **File use case:** Audits the ThoughtSpot-referenced interface request before implementation.
-> **What it does:** Maps observable layouts and interactions to verified ExecPlus capabilities and records the acceptance boundary.
+> **What it does:** Maps observable layouts and interactions to verified Syntelio capabilities and records the acceptance boundary.
 
 # Analytics interface redesign — October 6, 2026
 
@@ -27,7 +27,7 @@ canvas, central question/source composer, recent-content panels, wide answer car
 with chart/table controls, and dashboard grids combining metric, chart and table
 cards. The public marketing site alone does not reveal every authenticated screen.
 The reference images remain ignored under `data/interface-reference/`; no external
-branding, screenshots, proprietary code or customer data becomes an ExecPlus asset.
+branding, screenshots, proprietary code or customer data becomes an Syntelio asset.
 
 ## Audited implementation map
 

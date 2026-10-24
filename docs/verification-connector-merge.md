@@ -1,4 +1,4 @@
-> **File use case:** Records integration of the teammate's connector branch with current ExecPlus.
+> **File use case:** Records integration of the teammate's connector branch with current Syntelio.
 > **What it does:** Preserves source ancestry, migration decisions, verification and remaining limits.
 
 # Connector branch integration — October 17, 2026

@@ -1,11 +1,11 @@
-> **File use case:** Shared visual-design reference for the October 19 ExecPlus web redesign (agents E ui-foundation and F ui-visuals).
-> **What it does:** Fixes concrete tokens (color, type, spacing, radius, elevation, motion, chart palettes) and screen layouts, and marks which parts are observed from public ThoughtSpot material versus ExecPlus's own design choices.
+> **File use case:** Shared visual-design reference for the October 19 Syntelio web redesign (agents E ui-foundation and F ui-visuals).
+> **What it does:** Fixes concrete tokens (color, type, spacing, radius, elevation, motion, chart palettes) and screen layouts, and marks which parts are observed from public ThoughtSpot material versus Syntelio's own design choices.
 
-# ExecPlus UI design reference (October 19, 2026)
+# Syntelio UI design reference (October 19, 2026)
 
 Status: **stage 2 (complete)**. Legend: **[TS-obs]** observed on public ThoughtSpot pages or
 public docs screenshots (no login, no tenant, nothing copied into the product);
-**[ours]** ExecPlus choice; **[ref]** idea from a named open-source project.
+**[ours]** Syntelio choice; **[ref]** idea from a named open-source project.
 Evidence locations are in §11. Never ship ThoughtSpot logos, images, copy or code.
 
 ## 1. Fonts

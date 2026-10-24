@@ -16,7 +16,7 @@ without changing how sessions, permissions, uploads, profiles, receipts or refre
   verified provider subject and email. Self-service Google identities have explicit
   account classification, Demo allowances, exact-account approval and active-account
   checks. Existing password/operator accounts are never linked by email alone.
-  ExecPlus issues its normal opaque, expiring session. A production-capable `DatabaseSessionIdentity`
+  Syntelio issues its normal opaque, expiring session. A production-capable `DatabaseSessionIdentity`
   now backs sessions; `LocalSessionIdentity` keeps its local/test restriction.
 - **Claims.** Issuer, audience, expiry, nonce and `email_verified` are checked. The ID token
   comes straight from Google's token endpoint over TLS, so its signature is not re-verified
@@ -34,7 +34,7 @@ without changing how sessions, permissions, uploads, profiles, receipts or refre
   memory; URL fragments and stored application sessions are refused.
 - **Import.** A chosen tab is copied into a normal CSV upload (raw numbers, formatted dates)
   and follows the existing profile, meaning, receipt and refresh paths. Answers still replay
-  from retained bytes; ExecPlus never queries Google live.
+  from retained bytes; Syntelio never queries Google live.
 
 ## Consequences
 
