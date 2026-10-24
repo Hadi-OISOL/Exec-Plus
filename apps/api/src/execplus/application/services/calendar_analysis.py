@@ -18,6 +18,7 @@ from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
 from execplus.domain.calendar_anomaly_requests import calculate_calendar, calendar_windows
 from execplus.domain.decision_analysis import AnalysisRun, checksum
+from execplus.domain.detector_calibration import ROLLING_CALIBRATED_METHOD
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.evidence import receipt
 from execplus.domain.forecast_series import series_plan, series_request
@@ -110,7 +111,7 @@ class CalendarAnalysis:
                 window_ids.append(str(plan.query_id))
             results.append(window_results)
             query_ids.append(window_ids)
-        if raw["model"] == ROLLING_METHOD:
+        if raw["model"] in {ROLLING_METHOD, ROLLING_CALIBRATED_METHOD}:
             self.service._admit_model(actor, wid, did, uid, raw, view.sources)
         calculated = await read_complete(lambda: calculate_calendar(raw, results))
         await read_complete(

@@ -53,6 +53,16 @@ test("private anomaly and allocation evidence survives replay and human review",
     await panel.getByLabel("Review note", { exact: true }).fill("Investigate the exceptional value with the data owner.");
     await panel.getByRole("button", { name: "Save finding feedback", exact: true }).click();
     await expect(result).toContainText("Investigate the exceptional value");
+    await panel.getByRole("combobox", { name: "False-alarm target · sets the threshold", exact: true }).selectOption("0.01");
+    await expect(panel.getByLabel("Unusualness threshold · 3 to 10", { exact: true })).toBeDisabled();
+    await panel.getByLabel("Analysis name", { exact: true }).fill("Calibrated anomaly sample");
+    const calibratedResponse = page.waitForResponse((r) => r.url().endsWith("/decision-analysis/anomalies") && r.request().method() === "POST");
+    await panel.getByRole("button", { name: "Calculate and save privately", exact: true }).click();
+    const calibrated = await (await calibratedResponse).json();
+    expect(calibrated.run.method_version).toBe("weighted-mad-iqr-calibrated-v2");
+    expect(calibrated.run.result.threshold).toBe("6");
+    await expect(result).toContainText("False-alarm target 0.01 → threshold 6");
+    await panel.getByRole("combobox", { name: "False-alarm target · sets the threshold", exact: true }).selectOption("");
     await nav.getByRole("button", { name: "Overview", exact: true }).click();
     await selectAnalysisFocus(page, "prescriptive");
     await expect(panel.getByRole("combobox", { name: "Analysis method", exact: true })).toHaveValue("allocations");

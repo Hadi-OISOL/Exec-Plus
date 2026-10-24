@@ -268,6 +268,62 @@ model-quality claims. Any optimization needs measured evidence before adoption.
   declared assumptions, not probabilities. Runs without `ranges` are unchanged.
   The web form and exports do not yet display these new fields.
 
+## October 24 additions: simulated scenarios and detector false-alarm targets
+
+### Probability-based source scenarios (`triangular-monte-carlo-v1`)
+
+Source scenarios accept an optional `simulation` block: one to four drivers, each
+with `low ≤ likely ≤ high` percent changes (low < high), `draws` 1,000–10,000
+(default 10,000), an integer `seed` 0–2³²−1 (default 20261024, stored in the request)
+and an optional `target` (`field`, `above`/`below`, `value`). Each draw takes one
+`random.Random(seed).random()` per declared driver in fixed driver order, maps it
+through the inverse triangular CDF in 50-digit Decimal arithmetic, rounds the
+percentage to six decimals and runs the existing exact `outcome` formula. Results:
+nearest-rank P10/P50/P90, minimum and maximum for every outcome field, and the share
+of draws strictly above/below the target with its Monte Carlo standard error
+√(p(1−p)/n). Drivers are independent; unlisted drivers stay at zero. Margin
+percentiles are unavailable when any draw has zero revenue. The block is labelled
+"Simulation under the stated assumptions, not a forecast or guarantee". Replay
+re-runs the stored seed and is byte-identical; requests without `simulation` keep
+their exact earlier shape and result. The web form offers it under step 2 and shows
+the percentiles and target share.
+
+Analytic validation (`apps/api/tests/test_scenario_simulation.py`): price triangular
+(−10, 0, 20) on the fixed two-row fixture gives remaining = 80(1+p/100) − 43, so
+P(remaining > 40) = (20 − 3.75)²/(30·20) = 0.4401 and P10/P50/P90 have closed forms.
+With 10,000 draws the simulated share lies within 4 standard errors (≈0.02) and each
+percentile within 0.4 of the closed form. A two-driver case is recomputed draw by
+draw with separate float/Fraction code: P10/P50/P90 agree to 1e-9 and the beating
+count is identical.
+
+### False-alarm targets for grouped, seasonal and rolling detectors
+
+`synthetic-detector-calibration-v1` (seed 20261024) runs the production detectors on
+synthetic data with no injected changes: grouped (40 trials, groups of 10/25/50/100
+with different centres and scales, minimum support 8) and seasonal/rolling
+(30 trials of 200 days, weekly sine amplitude 10 plus noise; seasonal trains on the
+first 140 days, rolling uses 20 earlier matching weekday phases). Both normal and
+Student-t(3) noise are measured. A target maps to the smallest registered threshold
+whose measured false-alarm rate is at most the target on both families:
+
+| Detector | Target 0.05 | Target 0.01 | Target 0.005 |
+| --- | --- | --- | --- |
+| Grouped (`segmented-mad-iqr-calibrated-v1`) | 3 (heavy 0.049189, normal 0.007830) | 6 (0.007838 / 0.000275) | 8 (0.003649 / 0.000137) |
+| Seasonal (`seasonal-residual-mad-iqr-calibrated-v1`) | 3 (0.022222 / 0.007778) | 5 (0.007222 / 0) | 6 (0.005000 / 0) |
+| Rolling (`rolling-reference-mad-iqr-calibrated-v1`) | 3.5 (0.045556 / 0.008889) | 8 (0.005000 / 0) | 8 (0.005000 / 0) |
+
+Heavy-tailed noise drives every choice; at the default 3.5 the rolling detector
+measured 0.045556 and grouped 0.031757 false alarms on heavy-tailed data. Grouped
+recall on injected 8-scale spikes falls from 1.0 at threshold 3 to 0.45 at 8.
+The grouped method is selected by `target_false_alarm_rate` plus `segment_column`
+(previously refused); seasonal and rolling use the new calibrated `model` names with
+a required target and the default threshold. Results carry a `calibration` block
+with the measured rates and the label "Synthetic calibration; not a customer
+false-alarm guarantee." Legacy requests keep their method versions and shapes.
+The snapshot, grouped, seasonal and rolling forms now offer the target, which
+disables the manual threshold. `test_detector_calibration.py` derives every table
+from a fresh report run and checks one seasonal trial against independent float code.
+
 ## Remaining boundaries
 
 No new schema, statistics library, model provider or external integration is needed

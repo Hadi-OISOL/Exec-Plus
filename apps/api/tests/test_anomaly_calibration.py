@@ -107,6 +107,7 @@ def test_calibrated_request_version_replays_and_legacy_requests_are_unchanged(in
     assert "target_false_alarm_rate" not in legacy.json()["run"]["request"]
     assert legacy.json()["run"]["method_version"] == "weighted-mad-iqr-v1"
     assert "calibration" not in legacy.json()["run"]["result"]
-    for extra in (dict(threshold="4"), dict(segment_column="city")):
-        refused = create(env, headers, root, target_false_alarm_rate="0.01", **extra)
-        assert refused.status_code == 422, refused.text
+    refused = create(env, headers, root, target_false_alarm_rate="0.01", threshold="4")
+    assert refused.status_code == 422, refused.text
+    grouped = create(env, headers, root, target_false_alarm_rate="0.01", segment_column="city")
+    assert grouped.json()["run"]["method_version"] == "segmented-mad-iqr-calibrated-v1"

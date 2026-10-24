@@ -11,6 +11,7 @@ import { CalendarAnomalyPanel } from "./calendar-anomaly-panel";
 import { isCalendarMethod } from "./calendar-anomaly-types";
 import { MultivariateAnomalyPanel, MULTIVARIATE_METHOD } from "./multivariate-anomaly-panel";
 import { UnusualValues } from "./unusual-values";
+import { CalibrationNote, FalseAlarmTargetSelect, type FalseAlarmTarget } from "./false-alarm-target";
 const post = (body: object): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 export function DecisionPanel({ root, request, onReview, initialMethod, initialMetric = "", initialOperation, initialAggregation }: {
     root: string;
@@ -37,6 +38,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
     const [resource, setResource] = useState("");
     const [capacity, setCapacity] = useState("");
     const [threshold, setThreshold] = useState("3.5");
+    const [falseAlarm, setFalseAlarm] = useState<FalseAlarmTarget>("");
     const [materiality, setMateriality] = useState("0");
     const [budget, setBudget] = useState("");
     const [quantum, setQuantum] = useState("");
@@ -107,7 +109,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
         await work("Calculating and preserving source evidence…", async (signal) => {
             const common = { name: name.trim() || (kind === "anomalies" ? "Unusual values" : "Budget allocation"), revision_id: options.revision_id, understanding_id: options.understanding_id, filters: filter ? [{ column: filter, operator: "eq", value: filterValue }] : [] };
             const declaredBounds = bounds.map((item) => ({ candidate: item.candidate, minimum: Number(item.minimum), maximum: Number(item.maximum) }));
-            const body = kind === "anomalies" ? { ...common, metric: metricName, threshold, materiality, segment_column: segment || null, minimum_segment_size: Number(minimumSupport) } : {
+            const body = kind === "anomalies" ? { ...common, metric: metricName, threshold: falseAlarm ? "3.5" : threshold, materiality, segment_column: segment || null, minimum_segment_size: Number(minimumSupport), ...(falseAlarm ? { target_false_alarm_rate: falseAlarm } : {}) } : {
                 ...common, entity_column: entityName, cost_column: costName, benefit_column: benefitName,
                 resource_column: resource || null, resource_capacity: resource ? capacity : null,
                 budget, quantum, maximum_quantity: Number(quantity), bounds: declaredBounds, assumptions_confirmed: confirmed,
@@ -164,7 +166,8 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
           {selector("Measure to inspect", metricName, setMetric, options.metrics.map((m) => m.name))}
           <label>Compare within group<select value={segment} onChange={e => setSegment(e.target.value)}><option value="">Whole population</option>{options.entities.map(item => <option key={item}>{item}</option>)}</select></label>
           {segment && <label>Minimum complete records per group<input type="number" min={8} max={1000} step={1} required value={minimumSupport} onChange={e => setMinimumSupport(e.target.value)} /></label>}
-          <label>Unusualness threshold · 3 to 10<input inputMode="decimal" required value={threshold} onChange={(e) => setThreshold(e.target.value)}/></label>
+          <FalseAlarmTargetSelect value={falseAlarm} onChange={setFalseAlarm} />
+          <label>Unusualness threshold · 3 to 10<input inputMode="decimal" required disabled={Boolean(falseAlarm)} value={falseAlarm ? "Set by target" : threshold} onChange={(e) => setThreshold(e.target.value)}/></label>
           <label>Minimum difference from median<input inputMode="decimal" required value={materiality} onChange={(e) => setMateriality(e.target.value)}/></label>
         </> : <>
           {selector("Candidate identifier", entityName, value => { setEntity(value); setPrerequisites([]); setExclusions([]); setConfirmed(false); }, options.entities)}
@@ -233,6 +236,7 @@ export function DecisionPanel({ root, request, onReview, initialMethod, initialM
       {anomaly && <><p>{anomaly.flagged_records} of {anomaly.sample_count} records flagged. Median reference: {anomaly.baseline ?? "Separate baseline for each group"}. Method: {anomaly.method}.</p>
         {anomaly.groups && <><p>{anomaly.covered_records} records evaluated; {anomaly.excluded_records} excluded. Excluded records were not judged normal.</p><div className="tableWrap"><table aria-label="Group coverage"><thead><tr><th>Group</th><th>Status</th><th>Complete records</th><th>Missing measures</th><th>Median</th></tr></thead><tbody>{anomaly.groups.map((g, i) => <tr key={i}><td>{g.segment ?? "Missing group"}</td><td>{g.status.replaceAll("_", " ")}</td><td>{g.sample_count}</td><td>{g.missing_records}</td><td>{g.baseline ?? "Not evaluated"}</td></tr>)}</tbody></table></div></>}
         <p>Threshold: {anomaly.threshold}; minimum difference: {anomaly.materiality}. Findings show repeated values, not individual row identities.</p>
+        <CalibrationNote value={anomaly.calibration} />
         <div className="tableWrap"><table><thead><tr>{anomaly.groups && <th>Group</th>}<th>Value</th><th>Records</th><th>Difference from median</th><th>Score · not probability</th></tr></thead><tbody>{anomaly.findings.map((f) => <tr key={f.id}>{anomaly.groups && <td>{f.segment}</td>}<td>{f.value}</td><td>{f.count}</td><td>{f.absolute_difference}</td><td>{f.score ?? "Unavailable · degenerate baseline"}</td></tr>)}</tbody></table></div>
         {!anomaly.findings.length && <p>No values flagged by this method. This does not prove the absence of other anomalies.</p>}
       </>}

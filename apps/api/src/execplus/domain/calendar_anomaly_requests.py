@@ -8,6 +8,12 @@ from datetime import date
 from typing import Any
 
 from execplus.domain.decision_analysis import fail
+from execplus.domain.detector_calibration import (
+    ROLLING_CALIBRATED_METHOD,
+    SEASONAL_CALIBRATED_METHOD,
+    detector_evidence,
+    detector_threshold,
+)
 from execplus.domain.distribution_drift import METHOD as DRIFT_METHOD
 from execplus.domain.distribution_drift import DriftRequest, compare_drift
 from execplus.domain.forecast_series import coverage, series_values
@@ -21,7 +27,11 @@ from execplus.domain.temporal_anomalies import (
     detect_seasonal,
 )
 
-CALENDAR_METHODS = frozenset({SEASONAL_METHOD, DRIFT_METHOD, ROLLING_METHOD})
+CALIBRATED_CALENDAR = {
+    SEASONAL_CALIBRATED_METHOD: (SEASONAL_METHOD, "seasonal"),
+    ROLLING_CALIBRATED_METHOD: (ROLLING_METHOD, "rolling"),
+}
+CALENDAR_METHODS = frozenset({SEASONAL_METHOD, DRIFT_METHOD, ROLLING_METHOD, *CALIBRATED_CALENDAR})
 
 
 def is_calendar_anomaly(raw: dict[str, Any]) -> bool:
@@ -32,7 +42,7 @@ def calendar_windows(raw: dict[str, Any]) -> tuple[dict[str, Any], ...]:
     if not is_calendar_anomaly(raw) or raw.get("aggregation") not in {"sum", "avg"}:
         fail("calendar_method", "Choose a supported calendar method and total or average.")
     windows: tuple[dict[str, Any], ...]
-    if raw.get("model") in {SEASONAL_METHOD, ROLLING_METHOD}:
+    if raw.get("model") in {SEASONAL_METHOD, ROLLING_METHOD, *CALIBRATED_CALENDAR}:
         windows = (dict(raw),)
     else:
         windows = tuple(
@@ -58,6 +68,19 @@ def calendar_windows(raw: dict[str, Any]) -> tuple[dict[str, Any], ...]:
 
 
 def calculate_calendar(raw: dict[str, Any], results: list[list[QueryResult]]) -> dict[str, Any]:
+    if raw.get("model") in CALIBRATED_CALENDAR:
+        base, detector = CALIBRATED_CALENDAR[raw["model"]]
+        target = raw.get("target_false_alarm_rate")
+        if raw.get("threshold") != "3.5":
+            fail("invalid_detector", "A false-alarm target sets the threshold.")
+        threshold = detector_threshold(detector, target)
+        return _calendar(raw | dict(model=base, threshold=threshold), results) | dict(
+            method_version=raw["model"], calibration=detector_evidence(detector, str(target))
+        )
+    return _calendar(raw, results)
+
+
+def _calendar(raw: dict[str, Any], results: list[list[QueryResult]]) -> dict[str, Any]:
     windows = calendar_windows(raw)
     if len(results) != len(windows):
         fail("calendar_evidence", "Each selected window needs complete calendar evidence.")

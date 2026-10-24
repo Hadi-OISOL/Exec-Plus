@@ -22,8 +22,31 @@ export type SourceScenarioRequest = {
   filters: { column: string; operator: string; value: string | number | boolean }[];
   alternatives: SourceAlternative[];
   sensitivity: { driver: ScenarioDriver; percent_changes: string[] } | null;
+  simulation?: ScenarioSimulationRequest | null;
   parent_run_id?: string | null;
 };
+export type TriangularRange = { low: string; likely: string; high: string };
+export type SimulationTarget = { field: AmountField; direction: "above" | "below"; value: string };
+export type ScenarioSimulationRequest = {
+  drivers: Partial<Record<ScenarioDriver, TriangularRange>>;
+  draws: number;
+  seed: number;
+  target: SimulationTarget | null;
+};
+export type ScenarioSimulationResult = {
+  method: string;
+  label: string;
+  seed: number;
+  draws: number;
+  drivers: Partial<Record<ScenarioDriver, TriangularRange>>;
+  percentiles: Record<AmountField, { p10: string; p50: string; p90: string; minimum: string; maximum: string } | null>;
+  target_probability: (SimulationTarget & { draws_beating: number; share: string; monte_carlo_standard_error: string }) | null;
+  assumptions: string[];
+  limitations: string[];
+};
+export function simulationDrivers(values: Record<ScenarioDriver, TriangularRange>): Partial<Record<ScenarioDriver, TriangularRange>> {
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => value.low.trim() && value.likely.trim() && value.high.trim()).map(([key, value]) => [key, { low: value.low.trim(), likely: value.likely.trim(), high: value.high.trim() }]));
+}
 export const amountFields = ["quantity", "revenue", "variable_cost", "fixed_cost", "total_cost", "contribution", "remaining", "margin_percent"] as const;
 export type AmountField = typeof amountFields[number];
 export type ScenarioConstraint = { field: AmountField; operator: "minimum" | "maximum"; value: string; unit: string };
@@ -45,6 +68,7 @@ export type SourceScenarioBody = {
       baseline: ScenarioAmounts;
       alternatives: { name: string; assumptions: Record<ScenarioDriver, string>; result: ScenarioAmounts; difference: Record<Exclude<AmountField, "margin_percent">, string>; constraints?: ScenarioConstraintCheck[] }[];
       sensitivity: { driver: ScenarioDriver; reference: string; points: { percent_change: string; result: ScenarioAmounts; constraints?: ScenarioConstraintCheck[] }[] } | null;
+      simulation?: ScenarioSimulationResult;
       parent_run_id: string | null;
       assumptions: string[]; limitations: string[]; warnings: string[];
     };

@@ -49,8 +49,8 @@ class AnomalyInput(SourceInput):
 
     @model_validator(mode="after")
     def calibrated_threshold(self) -> "AnomalyInput":
-        if self.target_false_alarm_rate and (self.segment_column or self.threshold != "3.5"):
-            raise ValueError("A false-alarm target sets the threshold for one ungrouped measure.")
+        if self.target_false_alarm_rate and self.threshold != "3.5":
+            raise ValueError("A false-alarm target sets the threshold.")
         return self
 
 
@@ -77,8 +77,32 @@ class CalendarInput(SourceInput):
     materiality: str = Field(min_length=1, max_length=100)
 
 
-class SeasonalAnomalyInput(CalendarInput):
-    model: Literal["seasonal-residual-mad-iqr-v1"] = "seasonal-residual-mad-iqr-v1"
+class CalibratedCalendar(CalendarInput):
+    model: str
+    threshold: str
+    target_false_alarm_rate: Literal["0.05", "0.01", "0.005"] | None = None
+
+    @model_validator(mode="after")
+    def calibrated_model(self) -> "CalibratedCalendar":
+        calibrated = self.model.endswith("-calibrated-v1")
+        if calibrated != (self.target_false_alarm_rate is not None) or (
+            calibrated and self.threshold != "3.5"
+        ):
+            raise ValueError("A calibrated method needs a target and sets the threshold.")
+        return self
+
+
+def calendar_raw(body: CalibratedCalendar) -> dict[str, object]:
+    raw = body.model_dump(mode="json")
+    if body.target_false_alarm_rate is None:
+        raw.pop("target_false_alarm_rate")
+    return raw
+
+
+class SeasonalAnomalyInput(CalibratedCalendar):
+    model: Literal["seasonal-residual-mad-iqr-v1", "seasonal-residual-mad-iqr-calibrated-v1"] = (
+        "seasonal-residual-mad-iqr-v1"
+    )
     coverage_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     coverage_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     training_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
@@ -86,8 +110,10 @@ class SeasonalAnomalyInput(CalendarInput):
     threshold: str = Field(default="3.5", min_length=1, max_length=50)
 
 
-class RollingAnomalyInput(CalendarInput):
-    model: Literal["rolling-reference-mad-iqr-v1"] = "rolling-reference-mad-iqr-v1"
+class RollingAnomalyInput(CalibratedCalendar):
+    model: Literal["rolling-reference-mad-iqr-v1", "rolling-reference-mad-iqr-calibrated-v1"] = (
+        "rolling-reference-mad-iqr-v1"
+    )
     coverage_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     coverage_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     evaluation_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
@@ -260,6 +286,36 @@ class SourceRange(Input):
     high: str = Field(min_length=1, max_length=100)
 
 
+class TriangularRange(Input):
+    low: str = Field(min_length=1, max_length=100)
+    likely: str = Field(min_length=1, max_length=100)
+    high: str = Field(min_length=1, max_length=100)
+
+
+class SimulationTarget(Input):
+    field: Literal[
+        "quantity",
+        "revenue",
+        "variable_cost",
+        "fixed_cost",
+        "total_cost",
+        "contribution",
+        "remaining",
+        "margin_percent",
+    ]
+    direction: Literal["above", "below"]
+    value: str = Field(min_length=1, max_length=100)
+
+
+class ScenarioSimulation(Input):
+    drivers: dict[Literal["price", "quantity", "variable_cost", "fixed_cost"], TriangularRange] = (
+        Field(min_length=1, max_length=4)
+    )
+    draws: int = Field(default=10000, ge=1000, le=10000, strict=True)
+    seed: int = Field(default=20261024, ge=0, le=2**32 - 1, strict=True)
+    target: SimulationTarget | None = None
+
+
 class ScenarioConstraint(Input):
     field: Literal[
         "quantity",
@@ -292,6 +348,7 @@ class SourceScenarioInput(SourceInput):
     ranges: (
         dict[Literal["price", "quantity", "variable_cost", "fixed_cost"], SourceRange] | None
     ) = Field(default=None, min_length=1, max_length=4)
+    simulation: ScenarioSimulation | None = None
     assumptions_confirmed: bool = Field(strict=True)
     row_basis_confirmed: bool = Field(strict=True)
     parent_run_id: UUID | None = None
@@ -306,9 +363,10 @@ async def source_scenarios(
     actor: Actor,
     analyses: Service,
 ) -> object:
-    return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-    )
+    raw = body.model_dump(mode="json")
+    if body.simulation is None:
+        raw.pop("simulation")
+    return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
 
 
 @router.post(SOURCE + "/scenarios", status_code=201)
@@ -395,9 +453,7 @@ async def seasonal_anomalies(
     actor: Actor,
     analyses: Service,
 ) -> object:
-    return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-    )
+    return await analyses.create(actor, workspace_id, dataset_id, upload_id, calendar_raw(body))
 
 
 @router.post(SOURCE + "/multivariate-anomalies", status_code=201)
@@ -423,9 +479,7 @@ async def rolling_anomalies(
     actor: Actor,
     analyses: Service,
 ) -> object:
-    return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-    )
+    return await analyses.create(actor, workspace_id, dataset_id, upload_id, calendar_raw(body))
 
 
 @router.post(SOURCE + "/distribution-drift", status_code=201)
