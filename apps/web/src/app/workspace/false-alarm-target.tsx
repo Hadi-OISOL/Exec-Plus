@@ -9,13 +9,13 @@ export type DetectorCalibration = {
   label: string;
 };
 
-export function FalseAlarmTargetSelect({ value, onChange, disabled }: { value: FalseAlarmTarget; onChange: (value: FalseAlarmTarget) => void; disabled?: boolean }) {
+export function FalseAlarmTargetSelect({ value, onChange, disabled, noun = "normal values" }: { value: FalseAlarmTarget; onChange: (value: FalseAlarmTarget) => void; disabled?: boolean; noun?: string }) {
   return <label>False-alarm target · sets the threshold
     <select value={value} disabled={disabled} onChange={event => onChange(event.target.value as FalseAlarmTarget)}>
       <option value="">No target · use my threshold</option>
-      <option value="0.05">About 5 in 100 normal values flagged</option>
-      <option value="0.01">About 1 in 100 normal values flagged</option>
-      <option value="0.005">About 1 in 200 normal values flagged</option>
+      <option value="0.05">{`About 5 in 100 ${noun} flagged`}</option>
+      <option value="0.01">{`About 1 in 100 ${noun} flagged`}</option>
+      <option value="0.005">{`About 1 in 200 ${noun} flagged`}</option>
     </select>
   </label>;
 }

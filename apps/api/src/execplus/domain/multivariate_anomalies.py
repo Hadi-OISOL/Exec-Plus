@@ -12,11 +12,15 @@ from execplus.domain.decision_analysis import checksum, encoded, fail, number
 from execplus.domain.distribution_drift import _fraction
 
 METHOD = "reference-mahalanobis-squared-v1"
+CALIBRATED_METHOD = "reference-mahalanobis-calibrated-v1"
 MAX_BITS = 8192
 
 
 def is_multivariate(raw: dict[str, Any]) -> bool:
-    return raw.get("kind") == "robust_distribution" and raw.get("model") == METHOD
+    return raw.get("kind") == "robust_distribution" and raw.get("model") in {
+        METHOD,
+        CALIBRATED_METHOD,
+    }
 
 
 def bounded(value: Fraction) -> Fraction:

@@ -14,6 +14,8 @@ from execplus.domain.detector_calibration import (
     detector_evidence,
     detector_threshold,
 )
+from execplus.domain.distance_calibration import calibrated_drift
+from execplus.domain.distribution_drift import CALIBRATED_METHOD as DRIFT_CALIBRATED_METHOD
 from execplus.domain.distribution_drift import METHOD as DRIFT_METHOD
 from execplus.domain.distribution_drift import DriftRequest, compare_drift
 from execplus.domain.forecast_series import coverage, series_values
@@ -31,7 +33,9 @@ CALIBRATED_CALENDAR = {
     SEASONAL_CALIBRATED_METHOD: (SEASONAL_METHOD, "seasonal"),
     ROLLING_CALIBRATED_METHOD: (ROLLING_METHOD, "rolling"),
 }
-CALENDAR_METHODS = frozenset({SEASONAL_METHOD, DRIFT_METHOD, ROLLING_METHOD, *CALIBRATED_CALENDAR})
+CALENDAR_METHODS = frozenset(
+    {SEASONAL_METHOD, DRIFT_METHOD, DRIFT_CALIBRATED_METHOD, ROLLING_METHOD, *CALIBRATED_CALENDAR}
+)
 
 
 def is_calendar_anomaly(raw: dict[str, Any]) -> bool:
@@ -118,6 +122,15 @@ def _calendar(raw: dict[str, Any], results: list[list[QueryResult]]) -> dict[str
                 raw["threshold"],
                 raw["materiality"],
             ),
+        )
+    if raw["model"] == DRIFT_CALIBRATED_METHOD:
+        if raw.get("minimum_cdf_separation") is not None:
+            fail("invalid_detector", "A false-alarm target sets the distribution separation.")
+        return calibrated_drift(
+            points[0],
+            points[1],
+            DriftRequest(raw["frequency"], "0", raw["materiality"]),
+            raw.get("target_false_alarm_rate"),
         )
     return compare_drift(
         points[0],

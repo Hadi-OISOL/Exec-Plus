@@ -33,6 +33,8 @@ for (const method of ["rolling", "multivariate"] as const) test(`${method} analy
   }else{
     await panel.getByRole("checkbox",{name:"a · units",exact:true}).check();await panel.getByRole("checkbox",{name:"b · units",exact:true}).check();
     await panel.getByLabel("Reference group equals",{exact:true}).fill("reference");await panel.getByLabel("Comparison group equals",{exact:true}).fill("comparison");
+    await panel.getByRole("combobox",{name:"False-alarm target · sets the threshold",exact:true}).selectOption("0.01");
+    await expect(panel.getByLabel("Squared-distance review threshold",{exact:true})).toBeDisabled();
     await panel.getByRole("checkbox",{name:"I chose this reference",exact:false}).check();
   }
   let posts=0;page.on("request",request=>{if(request.method()==="POST"&&request.url().endsWith(`/${method}-anomalies`))posts++;});
@@ -41,6 +43,7 @@ for (const method of ["rolling", "multivariate"] as const) test(`${method} analy
   const created=await save;expect(created.status()).toBe(201);const saved=await created.json();
   const result=panel.getByRole("region",{name:method==="rolling"?"Saved calendar result":"Saved combination result",exact:true});await expect(result).toBeVisible();
   expect(saved.run.result.findings.length).toBeGreaterThan(0);
+  if(method==="multivariate"){expect(saved.run.method_version).toBe("reference-mahalanobis-calibrated-v1");expect(saved.run.result.evaluation.calibrated).toBe(true);await expect(result).toContainText("False-alarm target 0.01 → threshold 30");}
   await result.getByLabel(method==="rolling"?"Reason for your review":"Reason",{exact:true}).fill("Synthetic fixture: investigate before changing any source.");
   await result.getByRole("button",{name:"Save private review",exact:true}).click();await expect(panel).toContainText("Review saved.");
   await result.getByText("Download result",{exact:true}).click();await result.getByRole("combobox",{name:"File type",exact:true}).selectOption("xlsx");

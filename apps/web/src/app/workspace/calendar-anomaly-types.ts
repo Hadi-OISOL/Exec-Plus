@@ -8,8 +8,9 @@ export const DRIFT_METHOD = "empirical-window-distance-v1";
 export const ROLLING_METHOD = "rolling-reference-mad-iqr-v1";
 export const SEASONAL_CALIBRATED_METHOD = "seasonal-residual-mad-iqr-calibrated-v1";
 export const ROLLING_CALIBRATED_METHOD = "rolling-reference-mad-iqr-calibrated-v1";
+export const DRIFT_CALIBRATED_METHOD = "empirical-window-distance-calibrated-v1";
 export type CalendarMethod = "seasonal" | "drift" | "rolling";
-export function isCalendarMethod(method?: string) { return [SEASONAL_METHOD, DRIFT_METHOD, ROLLING_METHOD, SEASONAL_CALIBRATED_METHOD, ROLLING_CALIBRATED_METHOD].includes(method ?? ""); }
+export function isCalendarMethod(method?: string) { return [SEASONAL_METHOD, DRIFT_METHOD, ROLLING_METHOD, SEASONAL_CALIBRATED_METHOD, ROLLING_CALIBRATED_METHOD, DRIFT_CALIBRATED_METHOD].includes(method ?? ""); }
 export type ExactFraction = { numerator: string; denominator: string; display: string; display_exact: boolean };
 export function fractionText(value: ExactFraction) { return `${value.display_exact ? "" : "≈ "}${value.display} (${value.numerator}/${value.denominator})`; }
 export type CalendarFinding = { id: string; period?: string; value?: string; baseline?: string; absolute_difference?: string; score?: string | null; kind?: string };
