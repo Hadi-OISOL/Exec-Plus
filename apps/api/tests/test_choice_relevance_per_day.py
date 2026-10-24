@@ -187,13 +187,13 @@ async def test_net_income_offers_the_entry_type_totals_and_the_click_matches_pan
         integration, content, "finance_ledger.csv", UNUSABLE, email="ledger@example.test"
     )
     thread = await threads.start_thread(actor, wid, did, uid)
-    answer, turn = await threads.ask(
-        actor, wid, thread.id, "What is our net income (credits minus debits)?"
-    )
+    answer, turn = await threads.ask(actor, wid, thread.id, "What is our net income?")
     assert answer is None and turn.kind == "ambiguous"
     choices = turn.evidence["clarification"]["choices"]
-    assert choices[0] == "What is the total of amount_pkr by entry_type?"
-    answer, turn = await threads.ask(actor, wid, thread.id, choices[0])
+    assert "What is the total of amount_pkr?" in choices
+    answer, turn = await threads.ask(
+        actor, wid, thread.id, "What is the total of amount_pkr by entry_type?"
+    )
     assert turn.model_route == "deterministic:offered-question-v1"
     result, _ = answer
     frame = pd.read_csv(io.BytesIO(content), dtype=str)
@@ -222,21 +222,18 @@ def _funnel_csv() -> bytes:
 async def test_cost_per_purchase_offers_both_components_by_channel(integration):
     content = _funnel_csv()
     actor, wid, did, uid, _, threads = _setup(
-        integration, content, "marketing_funnel.csv", UNUSABLE, email="funnel@example.test"
+        integration, content, "marketing_funnel.csv", email="funnel@example.test"
     )
     thread = await threads.start_thread(actor, wid, did, uid)
-    _, turn = await threads.ask(
+    answer, turn = await threads.ask(
         actor, wid, thread.id, "Which channel has the lowest cost per purchase?"
     )
-    choices = turn.evidence["clarification"]["choices"]
-    assert choices[:2] == [
-        "What is the total of spend_usd by channel?",
-        "What is the total of purchases by channel?",
-    ]
+    assert turn.model_route == "deterministic:derived-measure-v1"
     frame = pd.read_csv(io.BytesIO(content), dtype=str)
-    for choice, column in zip(choices[:2], ("spend_usd", "purchases"), strict=True):
-        answer, turn = await threads.ask(actor, wid, thread.id, choice)
-        result, _ = answer
+    for data, column in zip(
+        (answer.data, answer.additional_data[0]), ("spend_usd", "purchases"), strict=True
+    ):
+        result, _ = data
         expected = frame.groupby("channel")[column].apply(
             lambda values: sum(map(Decimal, values), Decimal(0))
         )
@@ -244,6 +241,7 @@ async def test_cost_per_purchase_offers_both_components_by_channel(integration):
         organic = next(row[1] for row in result.rows if row[0] == "Organic")
         if column == "spend_usd":
             assert decimal_text(organic) == "0"
+    assert answer.derived["rows"][0][:2] == ["Organic", "0"]
 
 
 def _restaurant_csv() -> bytes:

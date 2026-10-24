@@ -16,7 +16,7 @@ from typing import Any
 from uuid import UUID
 
 from execplus.application.contracts import ModelMessage, ModelRequest, ModelResponse
-from execplus.application.conversation import EvidenceAnswer, NumericalAnswer
+from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, component_rows
 from execplus.application.conversation_context import ResultContext, offer_follow_ups
 from execplus.application.memory_context import remember_usage
 from execplus.application.ports import LanguageModel
@@ -39,6 +39,7 @@ from execplus.domain.analysis_plan import (
 )
 from execplus.domain.answer_presentation import follow_up_questions
 from execplus.domain.conversation_requirements import (
+    SPENDING,
     asks_derived_measure,
     asks_for_ideal_conditions,
     asks_for_next_steps,
@@ -55,6 +56,7 @@ from execplus.domain.conversation_requirements import (
     product_choices,
     request_requirements,
     requires_compound_data,
+    spending_filter,
     starts_new_orientation,
 )
 from execplus.domain.data_diagram import DiagramClarification, DiagramRequest, diagram_request
@@ -63,6 +65,13 @@ from execplus.domain.dataset_reading import (
     parse_reading,
     reading_input,
     render_reading,
+)
+from execplus.domain.derived_measures import (
+    DERIVED_ROUTE,
+    DerivedChoices,
+    DerivedRequest,
+    combine,
+    derived_request,
 )
 from execplus.domain.errors import (
     ClarificationRequiredError,
@@ -108,6 +117,7 @@ from execplus.domain.intent import (
     with_time_grain,
 )
 from execplus.domain.jobs import EventStatus, JobStage
+from execplus.domain.label_matching import match_label, variants_note
 from execplus.domain.models import (
     CalculationLineage,
     ModelTier,
@@ -140,6 +150,8 @@ from execplus.domain.semantics import (
     RECORD_COUNT,
     AggregationKind,
     DatasetView,
+    FilterOperator,
+    MetricFilter,
     MetricRequest,
     RowOrder,
     RowRequest,
@@ -1010,6 +1022,26 @@ class IntentRouterService:
                 "deterministic:offered-question-v1",
                 question,
             )
+        if re.search(
+            r"\b(rates?|ratio|per|minus|divided|percentage)\b|[\u2212\u2013]| - ", question
+        ):
+            values = (
+                await self._category_values(actor, workspace_id, dataset_id, upload_id)
+                if re.search(r"\bminus\b|[\u2212\u2013]| - ", question)
+                else {}
+            )
+            derived = derived_request(question, description.view, values)
+            if isinstance(derived, DerivedChoices):
+                raise PlanningClarification(
+                    ClarificationContext(
+                        question, derived.message, description.view.sources, derived.choices
+                    )
+                )
+            if derived is not None:
+                require_current_context()
+                return await self._derived(
+                    actor, workspace_id, dataset_id, upload_id, derived, description.view
+                )
         try:
             diagram = diagram_request(question, description)
         except DiagramClarification as error:
@@ -1500,6 +1532,20 @@ class IntentRouterService:
             view,
         )
         routed = with_extremum(question, routed, view)
+        if (
+            routed.kind == QuestionKind.NUMERICAL
+            and routed.request is not None
+            and (
+                spent := spending_filter(
+                    question,
+                    routed.request,
+                    await self._category_values(actor, workspace_id, dataset_id, upload_id)
+                    if re.search(SPENDING, words(question))
+                    else {},
+                )
+            )
+        ):
+            routed = replace(routed, request=spent)
         await activity(JobStage.PLANNING, EventStatus.COMPLETED)
         await activity(JobStage.VALIDATING, EventStatus.STARTED)
         if (
@@ -1912,7 +1958,18 @@ class IntentRouterService:
             )
         if routed.validation_issue == CONTRADICTORY_FILTERS:
             column = routed.options[0]
-            measures = [name for name in mentioned_columns(question, view) if name in view.metrics]
+            measures = list(
+                dict.fromkeys(
+                    [
+                        *(
+                            name
+                            for name in mentioned_columns(question, view)
+                            if name in view.metrics
+                        ),
+                        *loosely_named_metrics(question, view),
+                    ]
+                )
+            )
             raise PlanningClarification(
                 ClarificationContext(
                     prior_clarification.question if prior_clarification else question,
@@ -1990,6 +2047,50 @@ class IntentRouterService:
             model_route,
             view.sources,
             additional_data=tuple(answers[1:]),
+        )
+
+    async def _derived(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        request: DerivedRequest,
+        view: DatasetView,
+    ) -> EvidenceAnswer:
+        """Both component totals with their own receipts, combined exactly in Decimal."""
+        steps = (
+            RoutedIntent(QuestionKind.NUMERICAL, request=request.left),
+            RoutedIntent(QuestionKind.NUMERICAL, request=request.right),
+        )
+        await planned(conversation_plan(steps[0], view.sources))
+        left, right = [
+            await self._run_data(
+                actor, workspace_id, dataset_id, upload_id, step, view, DERIVED_ROUTE
+            )
+            for step in steps
+        ]
+        current = await self._describe(actor, workspace_id, dataset_id, upload_id)
+        if current.view.sources != view.sources:
+            raise ClarificationRequiredError(
+                "The file changed during the calculations. Ask again for its current version."
+            )
+        return EvidenceAnswer(
+            "mixed",
+            left,
+            (),
+            "",
+            "data",
+            (),
+            DERIVED_ROUTE,
+            view.sources,
+            additional_data=(right,),
+            derived=combine(
+                request.spec(),
+                component_rows(left),
+                component_rows(right),
+                request.left.group_by[0] if request.left.group_by else None,
+            ),
         )
 
     async def _explore_patterns(
@@ -2285,7 +2386,26 @@ class IntentRouterService:
             return await self._interpret(
                 actor, workspace_id, dataset_id, upload_id, current, question, prior_guide
             )
-        return self._guide(current, columns, model_route, simplify=simplify, focus=focus)
+        guide = self._guide(current, columns, model_route, simplify=simplify, focus=focus)
+        if focus != "quality":
+            return guide
+        _, table, _ = await read_complete(
+            lambda: self.analytics.descriptive_snapshot(actor, workspace_id, dataset_id, upload_id)
+        )
+        view = current.view
+        note = variants_note(
+            table.headers,
+            table.rows,
+            columns
+            or tuple(
+                column.name
+                for column in view.columns
+                if column.type == "text"
+                and column.name in view.dimensions
+                and "identifier" not in column.tags
+            ),
+        )
+        return replace(guide, message=f"{guide.message}\n\n{note}") if note else guide
 
     def _guide(
         self,
@@ -2311,6 +2431,9 @@ class IntentRouterService:
         model_route: str,
         question: str = "",
     ) -> NumericalAnswer:
+        routed = await self._matched_values(
+            actor, workspace_id, dataset_id, upload_id, routed, view, question
+        )
         answer = await self._run_data(
             actor, workspace_id, dataset_id, upload_id, routed, view, model_route
         )
@@ -2318,6 +2441,90 @@ class IntentRouterService:
         rows = () if isinstance(answer, VerifiedMetricAnswer) else answer[0].rows
         offer_follow_ups(follow_up_questions(question, result, rows, view))
         return answer
+
+    async def _matched_values(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        routed: RoutedIntent,
+        view: DatasetView,
+        question: str,
+    ) -> RoutedIntent:
+        """Point typed category values at labels that exist ('laptops' -> 'Laptop', D28)."""
+        filters = (
+            routed.request.filters
+            if routed.request is not None
+            else routed.rows.filters
+            if routed.rows is not None
+            else ()
+        )
+        checked = {
+            FilterOperator.EQ,
+            FilterOperator.IEQ,
+            FilterOperator.NE,
+        }
+        if not any(
+            item.operator in checked
+            and isinstance(item.value, str)
+            and (column := view.column(item.column)) is not None
+            and column.type == "text"
+            for item in filters
+        ):
+            return routed
+        _, table, _ = await read_complete(
+            lambda: self.analytics.descriptive_snapshot(actor, workspace_id, dataset_id, upload_id)
+        )
+        resolved: list[MetricFilter] = []
+        for item in filters:
+            column = view.column(item.column)
+            if (
+                item.operator not in checked
+                or not isinstance(item.value, str)
+                or column is None
+                or column.type != "text"
+                or item.column not in table.headers
+            ):
+                resolved.append(item)
+                continue
+            index = table.headers.index(item.column)
+            labels = {row[index] for row in table.rows if row[index].strip()}
+            if item.value in labels or (
+                item.operator == FilterOperator.IEQ
+                and item.value.casefold() in {label.casefold() for label in labels}
+            ):
+                resolved.append(item)
+                continue
+            label, closest = match_label(item.value, labels)
+            if label is not None:
+                resolved.append(replace(item, value=label))
+                continue
+            if item.operator == FilterOperator.NE or not closest:
+                resolved.append(item)
+                continue
+            pattern = re.compile(re.escape(item.value), re.IGNORECASE)
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    f"No {item.column} value matches '{item.value}', so that would return "
+                    "nothing. The closest recorded values are "
+                    + ", ".join(f"'{value.strip()}'" for value in closest)
+                    + ". Which one did you mean?",
+                    view.sources,
+                    tuple(
+                        pattern.sub(value.strip(), question, count=1)
+                        if pattern.search(question)
+                        else value.strip()
+                        for value in closest
+                    ),
+                )
+            )
+        if routed.request is not None:
+            return replace(routed, request=replace(routed.request, filters=tuple(resolved)))
+        if routed.rows is not None:
+            return replace(routed, rows=replace(routed.rows, filters=tuple(resolved)))
+        return routed
 
     async def _run_data(
         self,

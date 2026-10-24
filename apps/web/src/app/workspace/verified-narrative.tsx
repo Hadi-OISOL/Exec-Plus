@@ -1,7 +1,7 @@
 /* Render only the server's verified statement segments; exact result controls stay separate. */
 
 export type VerifiedNarrativeValue = {
-  version: "verified-narrative-v1" | "verified-narrative-v2" | "verified-narrative-v3";
+  version: "verified-narrative-v1" | "verified-narrative-v2" | "verified-narrative-v3" | "verified-narrative-v4";
   mode: "selected" | "fallback";
   segments: {
     statement_id: string;
@@ -12,7 +12,7 @@ export type VerifiedNarrativeValue = {
 };
 
 export function VerifiedNarrative({ narrative }: { narrative: VerifiedNarrativeValue }) {
-  if (!["verified-narrative-v1", "verified-narrative-v2", "verified-narrative-v3"].includes(narrative.version) || !narrative.segments.length) return null;
+  if (!["verified-narrative-v1", "verified-narrative-v2", "verified-narrative-v3", "verified-narrative-v4"].includes(narrative.version) || !narrative.segments.length) return null;
   return (
     <section aria-label="Result explanation" className="dataExplanation">
       {narrative.segments.map(segment => (

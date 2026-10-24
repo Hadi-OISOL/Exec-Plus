@@ -300,3 +300,43 @@ through a scripted planner and the real thread, router, DuckDB and receipt servi
 `apps/api/tests/test_confirmed_quantity_units.py` covers the units rule;
 `apps/api/tests/test_next_steps_products_weekdays.py` covers D13, D20 and D21 against
 independent pandas/Decimal results. These are local repairs, not yet re-measured live.
+
+## October 24, 2026 — Run-4 PARTIAL repairs (local, not yet re-measured live)
+
+- **One-step derived measures (`derived-v1`).** Before the model is asked, a deterministic
+  parser recognises "rate from A to B", "A per B", "X rate" with exactly one paired field
+  (metric_01_defects / metric_01_output), "ratio of A to B", "A divided by B",
+  "A as a percentage of B" and "A minus B" (two measures, or one measure for two values of
+  one category such as credits minus debits). Both parts run as ordinary governed `SUM`
+  queries with the same grouping and their own receipts (route
+  `deterministic:derived-measure-v1`); the server divides or subtracts the returned values
+  in `Decimal` (ratios 6 places, percentages 4 places, differences exact). A zero
+  denominator or missing part is shown as "not defined", never as a number. Subtracting
+  measures with different confirmed/suggested units is refused. Any extra word that is not
+  filler (a filter value, a period, a year) makes the parser step aside, so the old
+  clarification behaviour stays for unknown measures and conditions it cannot express.
+  Several possible rates (30 defect fields) return clickable choices that each compute.
+  The answer is an `EvidenceAnswer` with `derived` (formula, columns, exact rows, message);
+  threads save only the spec under `evidence.derived` and recompute it from the replayed
+  receipts on reopen. Old turns have no `derived` key and replay unchanged.
+- **Measure names.** Currency suffixes and `amount` are unit tokens for offline matching
+  (`revenue` → `revenue_usd`, `sales` → `sales_amount`); the A-vs-B contradiction
+  clarification also uses loose token matching, so it offers the revenue comparison first.
+- **Scores average first.** Offered choices for score/rating/NPS/CSAT/satisfaction measures
+  use the average unless a total was asked for.
+- **Category values (D28).** Equality filters on text fields are checked against the file's
+  labels before execution: case, spacing, plural and 1–2 letter typos resolve to the one
+  recorded label; no match returns the three closest labels as clickable choices instead of
+  an empty result. `ne` filters are never forced.
+- **Label variants (D23).** The overview quality card and the chat quality answer name
+  labels that differ only by case or spacing and point to the existing 'Trim surrounding
+  whitespace' cleaning step (action `review_labels` → Prepare). Nothing is merged.
+- **Spending on a ledger.** A spending/expense question on a file with a debit/credit
+  category adds an explicit `entry_type = debit` filter (visible in the receipt) unless
+  that field is grouped or already filtered.
+- **Narrative v4** (`verified-narrative-v4`) names tied extremum records in the sentence
+  ("P004, P078 and P097 share the highest metric 05 defects: 30.") and leads derived answers
+  with their formula and result. v1–v3 saved narratives are rebuilt with their own wording.
+
+Tests: `apps/api/tests/test_derived_measures.py` (pandas/Decimal checks and scripted-planner
+replays of the live questions) and the label-variant case in `apps/api/tests/test_insights.py`.

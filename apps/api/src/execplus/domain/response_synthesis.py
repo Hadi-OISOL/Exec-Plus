@@ -7,7 +7,8 @@ from typing import Any
 VERSION = "verified-narrative-v1"
 INSIGHT_VERSION = "verified-narrative-v2"
 RANKED_VERSION = "verified-narrative-v3"
-INSIGHT_VERSIONS = (INSIGHT_VERSION, RANKED_VERSION)
+NAMED_VERSION = "verified-narrative-v4"
+INSIGHT_VERSIONS = (INSIGHT_VERSION, RANKED_VERSION, NAMED_VERSION)
 MAX_STATEMENTS = 20
 MAX_PACKET_CHARS = 18000
 

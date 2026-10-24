@@ -49,6 +49,7 @@ type Lineage = {
 type Answer = {
   narrative?: VerifiedNarrativeValue;
   additional_data?: AdditionalNumericalAnswer[];
+  derived?: { formula: string; columns: string[]; rows: Cell[][] };
   kind?: string;
   message?: string;
   label?: string;
@@ -816,6 +817,12 @@ export function AskPanel({
                     Try as a new request
                   </button>
                 )}
+              {turn.answer?.derived && (
+                <section aria-label="Combined result">
+                  <h4>{turn.answer.derived.formula}</h4>
+                  <RecordTable data={{ columns: turn.answer.derived.columns, rows: turn.answer.derived.rows, records_analyzed: turn.answer.records_analyzed ?? 0 }} />
+                </section>
+              )}
               {turn.answer?.rows && (
                 <>
                   <p>

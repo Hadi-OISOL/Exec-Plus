@@ -286,12 +286,10 @@ async def test_difference_question_never_publishes_one_side_as_the_answer(integr
     answer, turn = await threads.ask(
         actor, wid, thread.id, "What is the net revenue, North minus South?"
     )
-    assert answer is None
-    assert turn.kind == "ambiguous"
-    assert turn.query_id is None
-    choices = turn.evidence["clarification"]["choices"]
-    assert choices[0] == "What is the total of revenue by region?"
-    assert all("region" in choice for choice in choices)
+    assert answer.data.value == Decimal("150.000000000000")
+    assert answer.additional_data[0].value == Decimal("200.000000000000")
+    assert answer.derived["rows"] == [["-50.000000000000", "150.000000000000", "200.000000000000"]]
+    assert turn.model_route == "deterministic:derived-measure-v1"
 
 
 MONTHLY_CSV = (

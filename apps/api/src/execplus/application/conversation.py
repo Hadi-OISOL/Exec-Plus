@@ -22,6 +22,15 @@ class EvidenceAnswer:
     model_route: str
     sources: tuple[dict[str, str], ...]
     additional_data: tuple[NumericalAnswer, ...] = ()
+    derived: dict[str, Any] | None = None
+
+
+def component_rows(answer: NumericalAnswer) -> list[tuple[Any, Any]]:
+    """(group, value) pairs of one returned component, a single pair for a scalar answer."""
+    if isinstance(answer, VerifiedMetricAnswer):
+        return [(None, answer.value)]
+    result, _ = answer
+    return [(row[0], row[-1]) for row in result.rows]
 
 
 def answer_lineage(answer: NumericalAnswer) -> CalculationLineage:

@@ -244,8 +244,11 @@ def numerical_answer_body(
             "limitations": answer.limitations,
             "model_route": answer.model_route,
             "sources": answer.sources,
+            **({"derived": answer.derived} if answer.derived else {}),
             "message": (
-                "Weekdays and weekends have different numbers of days, so the first result is "
+                answer.derived["message"]
+                if answer.derived
+                else "Weekdays and weekends have different numbers of days, so the first result is "
                 "the average per calendar day: each group's exact total divided by the number "
                 "of distinct calendar days it contains. The totals follow."
                 if answer.data and answer_lineage(answer.data).metric.endswith(PER_DAY_LABEL)

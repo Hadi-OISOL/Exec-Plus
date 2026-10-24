@@ -11,7 +11,12 @@ from datetime import datetime, timezone
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
+from execplus.application.conversation import (
+    EvidenceAnswer,
+    NumericalAnswer,
+    answer_lineage,
+    component_rows,
+)
 from execplus.application.conversation_context import ResultContext, capture_follow_ups
 from execplus.application.export_ports import PdfDescriptorProvider
 from execplus.application.memory_context import capture_memory
@@ -42,6 +47,7 @@ from execplus.domain.analysis_plan import report_conversation_plan
 from execplus.domain.context_retrieval import references_earlier_result, retrieve_result
 from execplus.domain.conversation_requirements import is_contextual_reply, starts_new_orientation
 from execplus.domain.decision_analysis import checksum
+from execplus.domain.derived_measures import SPEC_KEYS, combine
 from execplus.domain.errors import (
     ClarificationRequiredError,
     ProviderUnavailableError,
@@ -53,7 +59,7 @@ from execplus.domain.ingestion import AuditEvent, IngestionError, User
 from execplus.domain.jobs import EventStatus, JobStage
 from execplus.domain.models import VerifiedMetricAnswer
 from execplus.domain.pdf_exports import ReportAnswer, validate_pdf_export_request, wants_pdf_export
-from execplus.domain.response_synthesis import RANKED_VERSION, validate_saved_narrative
+from execplus.domain.response_synthesis import NAMED_VERSION, validate_saved_narrative
 from execplus.domain.threads import Thread, ThreadSummary, ThreadTurn, valid_chat_title
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
@@ -202,6 +208,27 @@ class ThreadService:
             execution = repo.query_execution(wid, turn.query_id)
             authorize_sources(repo, actor, wid, execution.receipt.get("sources"), thread.dataset_id)
 
+    @staticmethod
+    def _replayed_derived(
+        evidence: dict[str, Any], data: NumericalAnswer, additional: list[NumericalAnswer]
+    ) -> dict[str, Any] | None:
+        spec = evidence.get("derived")
+        if not isinstance(spec, dict):
+            return None
+        if len(additional) != 1:
+            raise IngestionError("lineage_mismatch", "The saved result is incomplete.", 409)
+        try:
+            return combine(
+                {key: spec[key] for key in SPEC_KEYS},
+                component_rows(data),
+                component_rows(additional[0]),
+                spec["group"],
+            )
+        except (KeyError, ValueError):
+            raise IngestionError(
+                "lineage_mismatch", "The saved derived result is inconsistent.", 409
+            ) from None
+
     def _authorize_evidence(
         self, repo: WorkspaceRepository, actor: User, wid: UUID, evidence: dict[str, Any]
     ) -> None:
@@ -319,6 +346,7 @@ class ThreadService:
                 turn.model_route or "historical",
                 tuple(cast(list[dict[str, str]], turn.evidence["sources"])),
                 additional_data=tuple(additional),
+                derived=self._replayed_derived(turn.evidence, data, additional),
             )
         if turn.kind in {"textual", "mixed"} and turn.evidence:
             citations = []
@@ -430,7 +458,7 @@ class ThreadService:
             wid,
             answer,
             current=True,
-            version=RANKED_VERSION,
+            version=NAMED_VERSION,
         )
         if packet is None:
             return {}
@@ -911,6 +939,11 @@ class ThreadService:
                         {key: str(item[key]) for key in ("document_id", "chunk_id", "checksum")}
                         for item in answer.citations
                     ],
+                    **(
+                        {"derived": {key: answer.derived[key] for key in (*SPEC_KEYS, "group")}}
+                        if answer.derived
+                        else {}
+                    ),
                 )
                 turn = replace(
                     turn,
