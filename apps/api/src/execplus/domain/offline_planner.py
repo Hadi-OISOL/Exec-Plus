@@ -33,6 +33,7 @@ _COUNT = r"\b(how many|count|number of|kitne|kitni|common|frequent|popular)\b"
 _GROUP = r"\b(by|per|each|wise|across|vs|versus|compare|which|har)\b"
 _HIGH = r"\b(highest|most|top|largest|biggest|zyada)\b"
 _LOW = r"\b(lowest|least|bottom|smallest|kam)\b"
+_MISSING = r"\b(missing|blank|empty|no|without)\b"
 _RELATE = r"\b(relate|relates|related|relationship|correlat\w*|associated|depend\w*|affect\w*)\b"
 
 
@@ -77,8 +78,28 @@ def _plan(kind: str, body: dict[str, Any], view: DatasetView) -> RoutedIntent | 
     return None if routed.kind == QuestionKind.UNSUPPORTED else routed
 
 
+def _missing_plan(text: str, question: str, view: DatasetView) -> RoutedIntent | None:
+    if re.search(_GROUP, text) or re.search(r"\d", text):
+        return None
+    rest = re.sub(_MISSING + r"|\b(with|have|has|a|an|value|values)\b", " ", text)
+    if re.search(_RESTRICTION, rest):
+        return None
+    names = list(dict.fromkeys([*_matched(question, view), *loosely_named_metrics(question, view)]))
+    if len(names) != 1:
+        return None
+    filters = [{"column": names[0], "operator": "is_missing", "value": None}]
+    if re.search(_COUNT, text):
+        plan = {"metric": RECORD_COUNT, "aggregation": "count", "filters": filters}
+        return _plan("numerical", {"plan": plan}, view)
+    if re.search(r"\b(rows?|records?|show|list)\b", text):
+        return _plan("rows", {"plan": {"columns": [], "filters": filters, "limit": 100}}, view)
+    return None
+
+
 def offline_plan(question: str, view: DatasetView) -> RoutedIntent | None:
     text = " ".join(words(question).replace("for each", "each").split())
+    if re.search(_MISSING, text):
+        return _missing_plan(text, question, view)
     top = re.search(r"\btop (\d{1,3})\b", text)
     if re.search(_RESTRICTION, text) or re.search(r"\d", re.sub(r"\btop \d{1,3}\b", "", text)):
         return None

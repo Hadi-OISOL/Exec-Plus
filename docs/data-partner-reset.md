@@ -128,6 +128,15 @@ text) — nothing is dropped or guessed. v1/v2 revisions, their cleaning/refresh
 successors and receipts are unchanged; existing files are not upgraded in place.
 An image older than this change cannot read v3 revisions.
 
+October 24 (D25): new ordinary uploads use **profile-v4** = v3 plus missing-value
+placeholders. Per column, if ignoring the placeholders `N/A`, `NA`, `N.A.`, `#N/A`,
+`null`, `none`, `nan`, `—`, `–` (trimmed, case-insensitive) makes it integer,
+decimal, date or boolean, those cells count as missing (`missing_placeholders: n`) and the
+executor loads them as NULL. Text columns keep them as values. v3 is not extended because
+v3 revisions have been live since October 23 and restricted-access projections re-profile
+with the stored algorithm; changing v3 would change how those files read. An image older
+than this change cannot read v4 revisions.
+
 The FileParser protocol adds optional `stored_format` to validation so source readers
 do not redetect a historical dialect. No database migration is necessary; readiness
 stays on 0012. An older application image cannot read new v2 revisions: rollback must

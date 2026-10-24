@@ -193,12 +193,14 @@ _SYSTEM_PROMPT = (
     "with a single JSON object only, no prose, matching exactly one of these shapes:\n"
     '{"kind": "numerical", "plan": {"metric": "<metric column>", '
     '"aggregation": "sum|avg|count|min|max", "group_by": ["<dimension column>", ...], '
-    '"filters": [{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte", "value": ...}], '
+    '"filters": [{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte", "value": ...} or '
+    '{"column": "...", "operator": "is_missing|not_missing", "value": null}], '
     '"order": "desc|asc (optional, grouped only)", "limit": "<optional 1-1000, needs order>", '
     '"period": "week|month|quarter|year|weekday|weekend (optional, one grouped date field)", '
     '"times": "<optional second metric multiplied by metric in each row, sum or avg only>"}}\n'
     '{"kind": "rows", "plan": {"columns": [], "filters": '
-    '[{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte", "value": "..."}], "limit": 100}}\n'
+    '[{"column": "...", "operator": "eq|ieq|ne|lt|lte|gt|gte|is_missing|not_missing", '
+    '"value": "... or null for is_missing/not_missing"}], "limit": 100}}\n'
     '{"kind": "rows", "plan": {"columns": [], "filters": [], "limit": 100, '
     '"extremum": {"column": "<numeric measure>", "direction": "max|min"}}}\n'
     '{"kind": "rows", "plan": {"columns": [], "filters": [], "limit": 5, '
@@ -364,7 +366,9 @@ _SYSTEM_PROMPT = (
     "filters on one field can never both match: for 'A vs B' group by that field instead. "
     "A rate, ratio, difference or 'X per Y' between two measures is not one aggregate: "
     "return ambiguous asking which part to calculate, never a single total as the rate. "
-    "Comparing two fields within each row (stock below reorder point) is unsupported.\n"
+    "Comparing two fields within each row (stock below reorder point) is unsupported. "
+    "Rows where a field is blank or missing (no amount, missing sales, N/A) use operator "
+    "is_missing with value null; rows that have a value use not_missing.\n"
     "Examples with illustrative field names (always use this file's exact names):\n"
     'Q: average price by city -> {"kind":"numerical","plan":{"metric":"price",'
     '"aggregation":"avg","group_by":["city"]}}\n'
@@ -378,6 +382,9 @@ _SYSTEM_PROMPT = (
     '"aggregation":"count","filters":[{"column":"status","operator":"ieq","value":"paid"},'
     '{"column":"city","operator":"ieq","value":"Oslo"},'
     '{"column":"amount","operator":"gt","value":500}]}}\n'
+    'Q: how many orders have no amount? -> {"kind":"numerical","plan":{"metric":"*",'
+    '"aggregation":"count","filters":[{"column":"amount","operator":"is_missing",'
+    '"value":null}]}}\n'
     'Q: 10 biggest orders -> {"kind":"rows","plan":{"columns":[],"filters":[],"limit":10,'
     '"order_by":{"column":"amount","direction":"desc"}}}\n'
     'Q: monthly revenue trend -> {"kind":"numerical","plan":{"metric":"revenue",'

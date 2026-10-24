@@ -21,6 +21,7 @@ from execplus.domain.profiling import (
     ALGORITHM,
     CURRENT_ALGORITHM,
     PROFILE_V2,
+    PROFILE_V3,
     TableData,
     parse_datetime,
     profile_for,
@@ -67,7 +68,7 @@ def column(result, name):
 def test_profile_v3_detects_space_and_iso_date_times_while_v1_v2_stay_frozen():
     table = iot_table()
     current = column(profile_for(table, CURRENT_ALGORITHM), "timestamp")
-    assert CURRENT_ALGORITHM == "profile-v3"
+    assert profile_for(table, PROFILE_V3)["columns"][0] == current
     assert current["type"] == "date" and current["datetime"] is True
     assert current["timezone"] == "as_given" and current["role"] == "dimension"
     assert {"date", "datetime"} <= set(current["semantic_tags"])

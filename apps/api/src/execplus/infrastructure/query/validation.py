@@ -48,6 +48,9 @@ _ALLOWED = {
     exp.If,
     exp.Mul,
     exp.Distinct,
+    exp.Is,
+    exp.Null,
+    exp.Not,
 }
 DAYS_ALIAS = "__days"
 
@@ -178,6 +181,11 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
         for node in query.find_all(exp.In)
     ):
         raise UnsafeQueryError("Cohort selection requires exactly two bound values on one field")
+    if any(
+        not isinstance(node.this, exp.Column) or not isinstance(node.expression, exp.Null)
+        for node in query.find_all(exp.Is)
+    ) or any(not isinstance(node.this, exp.Is) for node in query.find_all(exp.Not)):
+        raise UnsafeQueryError("A missing-value check must test one field against NULL")
     if any(
         not isinstance(node.this, exp.Column)
         or not isinstance(node.args.get("unit"), exp.Placeholder)

@@ -17,8 +17,12 @@ from execplus.domain.ingestion import IngestionError
 
 ALGORITHM = "profile-v1"
 PROFILE_V2 = "profile-v2"
-CURRENT_ALGORITHM = "profile-v3"
-ALGORITHMS = frozenset({ALGORITHM, PROFILE_V2, CURRENT_ALGORITHM})
+PROFILE_V3 = "profile-v3"
+CURRENT_ALGORITHM = "profile-v4"
+ALGORITHMS = frozenset({ALGORITHM, PROFILE_V2, PROFILE_V3, CURRENT_ALGORITHM})
+MISSING_PLACEHOLDERS = frozenset(
+    {"n/a", "na", "n.a.", "null", "none", "nan", "#n/a", "\u2014", "\u2013"}
+)
 _DATETIME = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})?")
 
 
@@ -273,11 +277,47 @@ def _with_datetimes(table: TableData, result: dict[str, object]) -> None:
         )
 
 
+def is_missing_placeholder(value: str) -> bool:
+    return value.strip().casefold() in MISSING_PLACEHOLDERS
+
+
+def _blank_placeholders(table: TableData, indices: set[int]) -> TableData:
+    return TableData(
+        table.headers,
+        tuple(
+            tuple(
+                "" if index in indices and is_missing_placeholder(value) else value
+                for index, value in enumerate(row)
+            )
+            for row in table.rows
+        ),
+    )
+
+
+def _typed_placeholder_columns(table: TableData) -> dict[int, int]:
+    counts = {
+        index: sum(is_missing_placeholder(row[index]) for row in table.rows)
+        for index in range(len(table.headers))
+    }
+    counts = {index: count for index, count in counts.items() if count}
+    if not counts:
+        return {}
+    blanked = profile(_blank_placeholders(table, set(counts)))
+    columns = cast(list[dict[str, Any]], blanked["columns"])
+    return {
+        index: count
+        for index, count in counts.items()
+        if columns[index]["type"] in {"integer", "decimal", "date", "boolean"}
+    }
+
+
 def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
     if algorithm == ALGORITHM:
         return profile(table)
     if algorithm not in ALGORITHMS:
         raise IngestionError("unsupported_version", "This profiling version is unavailable.", 409)
+    placeholders = _typed_placeholder_columns(table) if algorithm == CURRENT_ALGORITHM else {}
+    table = _blank_placeholders(table, set(placeholders))
     result = profile(table)
     columns = cast(list[dict[str, Any]], result["columns"])
     for index, column in enumerate(columns):
@@ -298,8 +338,10 @@ def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
                 | {"identifier" if identifier else "calendar_component"}
             ),
         )
-    if algorithm == CURRENT_ALGORITHM:
+    if algorithm in {PROFILE_V3, CURRENT_ALGORITHM}:
         _with_datetimes(table, result)
+    for index, count in placeholders.items():
+        columns[index]["missing_placeholders"] = count
     counts = {
         "type_conflicts": sum(int(column["type_conflicts"]) for column in columns),
         "invalid_dates": sum(int(column["invalid_dates"]) for column in columns),

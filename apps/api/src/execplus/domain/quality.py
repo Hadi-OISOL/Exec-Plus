@@ -67,6 +67,15 @@ def quality_report(revision: Revision) -> dict[str, Any]:
         distinct = int(column["distinct_count"])
         present = rows - missing
         add("column_missing", "observed", missing, rows, "Empty cells in this column.", name)
+        if placeholders := int(column.get("missing_placeholders", 0)):
+            add(
+                "missing_placeholders",
+                "observed",
+                placeholders,
+                rows,
+                "Placeholder text such as N/A was read as missing; included in the empty cells.",
+                name,
+            )
         add(
             "column_distinct",
             "observed",
