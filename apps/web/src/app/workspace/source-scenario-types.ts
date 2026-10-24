@@ -32,7 +32,9 @@ export type ScenarioSimulationRequest = {
   draws: number;
   seed: number;
   target: SimulationTarget | null;
+  correlations?: DriverCorrelation[];
 };
+export type DriverCorrelation = { first: ScenarioDriver; second: ScenarioDriver; value: string };
 export type ScenarioSimulationResult = {
   method: string;
   label: string;
@@ -40,12 +42,20 @@ export type ScenarioSimulationResult = {
   draws: number;
   drivers: Partial<Record<ScenarioDriver, TriangularRange>>;
   percentiles: Record<AmountField, { p10: string; p50: string; p90: string; minimum: string; maximum: string } | null>;
+  correlations?: DriverCorrelation[];
   target_probability: (SimulationTarget & { draws_beating: number; share: string; monte_carlo_standard_error: string }) | null;
   assumptions: string[];
   limitations: string[];
 };
 export function simulationDrivers(values: Record<ScenarioDriver, TriangularRange>): Partial<Record<ScenarioDriver, TriangularRange>> {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value.low.trim() && value.likely.trim() && value.high.trim()).map(([key, value]) => [key, { low: value.low.trim(), likely: value.likely.trim(), high: value.high.trim() }]));
+}
+export function driverPairs(drivers: Partial<Record<ScenarioDriver, TriangularRange>>): [ScenarioDriver, ScenarioDriver][] {
+  const keys = scenarioDrivers.filter(key => drivers[key]);
+  return keys.flatMap((first, index) => keys.slice(index + 1).map(second => [first, second] as [ScenarioDriver, ScenarioDriver]));
+}
+export function simulationCorrelations(drivers: Partial<Record<ScenarioDriver, TriangularRange>>, values: Record<string, string>): DriverCorrelation[] {
+  return driverPairs(drivers).filter(([first, second]) => values[`${first}|${second}`]?.trim()).map(([first, second]) => ({ first, second, value: values[`${first}|${second}`].trim() }));
 }
 export const amountFields = ["quantity", "revenue", "variable_cost", "fixed_cost", "total_cost", "contribution", "remaining", "margin_percent"] as const;
 export type AmountField = typeof amountFields[number];

@@ -307,6 +307,12 @@ class SimulationTarget(Input):
     value: str = Field(min_length=1, max_length=100)
 
 
+class DriverCorrelation(Input):
+    first: Literal["price", "quantity", "variable_cost", "fixed_cost"]
+    second: Literal["price", "quantity", "variable_cost", "fixed_cost"]
+    value: str = Field(min_length=1, max_length=20)
+
+
 class ScenarioSimulation(Input):
     drivers: dict[Literal["price", "quantity", "variable_cost", "fixed_cost"], TriangularRange] = (
         Field(min_length=1, max_length=4)
@@ -314,6 +320,7 @@ class ScenarioSimulation(Input):
     draws: int = Field(default=10000, ge=1000, le=10000, strict=True)
     seed: int = Field(default=20261024, ge=0, le=2**32 - 1, strict=True)
     target: SimulationTarget | None = None
+    correlations: list[DriverCorrelation] | None = Field(default=None, min_length=1, max_length=6)
 
 
 class ScenarioConstraint(Input):
@@ -366,6 +373,8 @@ async def source_scenarios(
     raw = body.model_dump(mode="json")
     if body.simulation is None:
         raw.pop("simulation")
+    elif body.simulation.correlations is None:
+        raw["simulation"].pop("correlations")
     return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
 
 
