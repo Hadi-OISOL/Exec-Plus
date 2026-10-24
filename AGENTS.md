@@ -40,6 +40,24 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 24 — Syntelio rename, chat history and code-only feature closure live
+
+- Release **4028b7309e58531f** (commit 7933409) is active on **0031** (additive
+  `threads.title`/`hidden_at`). Checked backups 20261024T105921Z (pre) / 20261024T110011Z
+  (post). Kit: `data/verification/2026-10-24-claude-release/` (allows those two columns).
+- Product renamed **Syntelio — Synthesized Enterprise Intelligence** (visible text only;
+  `execplus` package, `EXECPLUS_*`, cookie/header, Docker/DB names unchanged).
+- Merged: chat history (owner-only list, reopen, continue, rename/hide), profile-v4
+  N/A-as-missing + is_missing filters, relevant clickable choices, per-day weekday
+  comparisons, named ties, zero display, follow-up measure scope, free-text word counts,
+  deterministic reorder rule, usage view (`/plan-usage`) + notices + staff ranking,
+  root-cause UI/exports/month picker, scheduling web form, calendar-effect forecasts
+  (advanced-v4), scenario simulation, calibrated targets for all detectors.
+- Evidence: backend full suite all pass except 4 hit by a `/usage` route shadow bug,
+  fixed (51/51 on fix); web 107/107; browser 122/5 fail/4 skip, all 5 fixed and the
+  7 affected specs rechecked 22 pass/2 model skips. Live: register/login/chats/usage,
+  "Syntelio API", Google on, loopback listeners. Reports in ignored `docs/reports/`.
+
 - October 24: product renamed to **Syntelio** ("Synthesized Enterprise Intelligence") in visible UI, API messages, exports and docs; code identifiers (`execplus` package, `EXECPLUS_*`, `execplus_session`, `X-ExecPlus-*`, storage keys, images, DB/VPS names) intentionally keep the old name. Entries below are historical.
 
 ### October 23 — chat quality release (clickable choices, date-times, next steps)
