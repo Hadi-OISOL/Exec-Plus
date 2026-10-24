@@ -143,6 +143,7 @@ test("multi-period schedule keeps ordering rules, shows each period and reopens 
   await panel.getByLabel("Maximum units per action", { exact: true }).fill("1");
   await panel.getByText("Schedule across periods", { exact: true }).click();
   await panel.getByRole("checkbox", { name: "Plan by period", exact: true }).check();
+  await panel.getByText("Compare alternative resource capacities", { exact: true }).click();
   await expect(panel.getByRole("checkbox", { name: "Include capacity comparison", exact: true })).toBeDisabled();
   await panel.getByLabel("Number of periods", { exact: true }).fill("3");
   await expect(panel.getByLabel("Period 3 budget", { exact: false })).toBeVisible();
