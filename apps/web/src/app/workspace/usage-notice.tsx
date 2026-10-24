@@ -18,9 +18,9 @@ export function UsageNotice({ workspaceId, view, request }: { workspaceId: strin
   }, [workspaceId, view, request]);
   if (notices?.workspaceId !== workspaceId || !notices.items.length) return null;
   const reached = notices.items.some(item => item.state === "reached");
-  return <aside className={styles.notice} aria-label="Workspace allowance notice" role={reached ? "alert" : "status"}>
+  return <aside className={styles.notice} aria-label="Workspace allowance notice"><div role={reached ? "alert" : "status"}>
     <strong>{reached ? "An allowance has been reached" : "An allowance is close to its limit"}</strong>
     {notices.items.map(item => <p key={item.kind}>{item.message}</p>)}
     <p>Open Usage &amp; retention → Workspace allowances for details.</p>
-  </aside>;
+  </div></aside>;
 }
