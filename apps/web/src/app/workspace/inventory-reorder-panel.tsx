@@ -30,7 +30,7 @@ export function InventoryReorderPanel({ root, request, onReview }: { root: strin
   const [pending, setPending] = useState(""); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const operation = useRef<AbortController | null>(null);
   const source = options?.inventory_reorder;
-  const date = dateColumn || source?.dates[0] || "", item = itemColumn || source?.items[0] || "", demand = demandColumn || options?.metrics[0]?.name || "";
+  const date = dateColumn || source?.dates[0] || "", itemChoices = source?.items.filter(value => !source.dates.includes(value)) ?? [], item = itemColumn || itemChoices[0] || "", demand = demandColumn || options?.metrics[0]?.name || "";
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([request<AnalysisOptions>(`${root}/decision-analysis/options`, { signal: controller.signal }), request<AnalysisSummary[]>(runsRoot, { signal: controller.signal })])
@@ -80,11 +80,11 @@ export function InventoryReorderPanel({ root, request, onReview }: { root: strin
   return <section className="panel decisionPanel" aria-label="Inventory reorder plan">
     <header><p className="eyebrow">PRIVATE PLAN · HUMAN REVIEW</p><h2>How much should I reorder?</h2><p>Uses your dated demand history to add lead-time demand and safety stock to each reorder point. Items with the fewest days of stock come first.</p></header>
     {error && <p role="alert" className="error">{error}</p>}{message && <p role="status">{message}</p>}{pending && <p role="status">{pending}</p>}
-    {!options ? <p>Loading source options…</p> : options.state !== "ready" || !source?.dates.length || !source.items.length ? <div><p>Confirm a complete date column, an item field and a demand quantity with a fixed unit first.</p><button type="button" onClick={onReview}>Review data meanings</button></div> : <form onSubmit={create} onChange={event => { if (!(event.target instanceof HTMLInputElement) || event.target.name !== "reorder-confirmation") setConfirmed(false); }}>
+    {!options ? <p>Loading source options…</p> : options.state !== "ready" || !source?.dates.length || !itemChoices.length ? <div><p>Confirm a complete date column, an item field and a demand quantity with a fixed unit first.</p><button type="button" onClick={onReview}>Review data meanings</button></div> : <form onSubmit={create} onChange={event => { if (!(event.target instanceof HTMLInputElement) || event.target.name !== "reorder-confirmation") setConfirmed(false); }}>
       <div className="formGrid">
         <label>Plan name<input maxLength={100} value={name} onChange={event => setName(event.target.value)} placeholder="Optional name" /></label>
         <label>History date<select value={date} onChange={event => setDateColumn(event.target.value)}>{source.dates.map(value => <option key={value}>{value}</option>)}</select></label>
-        <label>Item<select value={item} onChange={event => setItemColumn(event.target.value)}>{source.items.map(value => <option key={value}>{value}</option>)}</select></label>
+        <label>Item<select value={item} onChange={event => setItemColumn(event.target.value)}>{itemChoices.map(value => <option key={value}>{value}</option>)}</select></label>
         <label>Demand quantity<select value={demand} onChange={event => setDemandColumn(event.target.value)}>{options.metrics.map(value => <option key={value.name} value={value.name}>{value.name} · {value.unit}</option>)}</select></label>
         {reorderInputs.map(key => <label key={key}>{reorderLabels[key]} from<select value={columns[key] || ""} onChange={event => setColumns(previous => ({ ...previous, [key]: event.target.value }))}><option value="">Typed per item below</option>{options.metrics.filter(value => value.name !== demand).map(value => <option key={value.name} value={value.name}>{value.name} · {value.unit}</option>)}</select></label>)}
         {!columns.lead_time_days && <label>Default lead time (days)<input type="number" min={1} max={365} step={1} value={defaultLead} onChange={event => setDefaultLead(event.target.value)} placeholder="Optional" /></label>}

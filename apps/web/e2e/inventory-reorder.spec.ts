@@ -47,6 +47,8 @@ test("the chat reorder answer opens a budget-limited reorder plan with exact sav
   await turn.getByRole("button", { name: "Plan reorder quantities", exact: true }).click();
   const panel = page.getByRole("region", { name: "Inventory reorder plan", exact: true });
   await expect(panel).toBeVisible();
+  await panel.getByRole("combobox", { name: "History date", exact: true }).selectOption("day");
+  await panel.getByRole("combobox", { name: "Demand quantity", exact: true }).selectOption("sold");
   await panel.getByRole("combobox", { name: "Stock on hand from", exact: true }).selectOption("on_hand");
   await panel.getByRole("combobox", { name: "Reorder point from", exact: true }).selectOption("reorder_point");
   await panel.getByRole("combobox", { name: "Lead time (days) from", exact: true }).selectOption("lead_days");
