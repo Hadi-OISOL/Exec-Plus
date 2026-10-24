@@ -126,7 +126,21 @@ from execplus.domain.pattern_requests import (
     wants_patterns,
 )
 from execplus.domain.pdf_exports import ReportAnswer
-from execplus.domain.semantics import RECORD_COUNT, AggregationKind, DatasetView, MetricRequest
+from execplus.domain.reorder import (
+    REORDER_ROUTE,
+    ReorderFields,
+    asks_what_to_reorder,
+    reorder_fields,
+    reorder_message,
+)
+from execplus.domain.semantics import (
+    RECORD_COUNT,
+    AggregationKind,
+    DatasetView,
+    MetricRequest,
+    RowOrder,
+    RowRequest,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -963,6 +977,12 @@ class IntentRouterService:
             await planned(diagram_conversation_plan(diagram.columns, description.view.sources))
             return await self.diagrams.create(
                 actor, workspace_id, dataset_id, upload_id, description, diagram
+            )
+        stock_fields = reorder_fields(description.view)
+        if stock_fields is not None and asks_what_to_reorder(question):
+            require_current_context()
+            return await self._reorder(
+                actor, workspace_id, dataset_id, upload_id, description, stock_fields
             )
         if self.patterns is not None and asks_for_next_steps(question):
             require_current_context()
@@ -2009,6 +2029,39 @@ class IntentRouterService:
             ClarificationContext(
                 prior.question if prior else question, message, context.view.sources, choices
             )
+        )
+
+    async def _reorder(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        description: DescriptionContext,
+        fields: ReorderFields,
+    ) -> DatasetGuide:
+        """One stated reorder rule over exact returned rows, never a model-chosen ranking (D27)."""
+        measures = (fields.stock, *((fields.reorder,) if fields.reorder else ()))
+        limit = self.analytics.row_limit
+        result, _ = await self.analytics.query_records(
+            actor,
+            workspace_id,
+            dataset_id,
+            upload_id,
+            RowRequest(columns=(*fields.labels, *measures), order_by=RowOrder(fields.stock, "asc")),
+            limit,
+            REORDER_ROUTE,
+            description.view.sources,
+        )
+        return DatasetGuide(
+            reorder_message(
+                fields, result.rows, result.records_analyzed, len(result.rows) >= limit
+            ),
+            REORDER_ROUTE,
+            measures,
+            (),
+            description.view.sources,
+            description.state,
         )
 
     async def _free_text(

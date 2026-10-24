@@ -692,6 +692,7 @@ def canonical_question(question: str, view: DatasetView) -> RoutedIntent | None:
         group: str | None,
         order: str | None = None,
         times: str = "",
+        *,
         where: tuple[str, str] | None = None,
     ) -> RoutedIntent:
         body: dict[str, Any] = {
