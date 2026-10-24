@@ -55,7 +55,7 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   (advanced-v4), scenario simulation, calibrated targets for all detectors.
 - Evidence: backend full suite all pass except 4 hit by a `/usage` route shadow bug,
   fixed (51/51 on fix); web 107/107; browser 122/5 fail/4 skip, all 5 fixed and the
-  7 affected specs rechecked 22 pass/2 model skips. Live: register/login/chats/usage,
+  7 affected specs rechecked 22 pass/2 model skips. Live 81-question run 4: **62 PASS / 19 PARTIAL / 0 FAIL** (`docs/verification-live-datasets-20261024.md`). Live: register/login/chats/usage,
   "Syntelio API", Google on, loopback listeners. Reports in ignored `docs/reports/`.
 
 - October 24: product renamed to **Syntelio** ("Synthesized Enterprise Intelligence") in visible UI, API messages, exports and docs; code identifiers (`execplus` package, `EXECPLUS_*`, `execplus_session`, `X-ExecPlus-*`, storage keys, images, DB/VPS names) intentionally keep the old name. Entries below are historical.
