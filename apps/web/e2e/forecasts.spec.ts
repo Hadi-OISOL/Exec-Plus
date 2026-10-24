@@ -76,6 +76,30 @@ test("advanced smoothing keeps rolling evidence, exact saved estimates and porta
   expect((await (await reopened).json()).result).toEqual(run.result);
 });
 
+test("calendar effects are compared with the best smoothing method before use", async ({ page }) => {
+  test.setTimeout(150_000);
+  await signIn(page, session());
+  await upload(page, 50);
+  await selectAnalysisFocus(page, "predictive");
+  await review(page);
+  await page.getByRole("combobox", { name: "Period", exact: true }).selectOption("daily");
+  await page.getByRole("combobox", { name: "Forecast approach", exact: true }).selectOption("advanced-v4");
+  await expect(page.getByLabel("Known event column · optional, 0 or 1 per row")).toHaveValue("");
+  await page.getByLabel("I confirm the source covers every complete period in this range.").check();
+  const created = page.waitForResponse(response => response.request().method() === "POST" && /\/uploads\/[^/]+\/forecasts$/.test(new URL(response.url()).pathname));
+  await page.getByRole("button", { name: "Create forecast", exact: true }).click();
+  const response = await created;
+  expect(response.status()).toBe(201);
+  const run = await response.json();
+  expect(run.result.version).toBe("forecast-v4");
+  expect(run.request.event_column).toBeUndefined();
+  const comparison = page.getByRole("region", { name: "Calendar effects comparison", exact: true });
+  await expect(comparison).toContainText(run.result.regressors.best_without_regressors.validation_mae);
+  await expect(comparison).toContainText(run.result.regressors.selected === "calendar_regression" ? "so this forecast uses them" : "so they are not used");
+  await page.setViewportSize({ width: 320, height: 900 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
 function session() {
   return execFileSync(
     "python3",

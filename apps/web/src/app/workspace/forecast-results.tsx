@@ -11,6 +11,7 @@ import {
   type ForecastComparison,
   type ForecastMetrics,
   type ForecastPoint,
+  type ForecastRegressors,
   type ForecastRun,
 } from "./forecast-types";
 
@@ -233,6 +234,43 @@ export function ForecastChart({
   );
 }
 
+export function CalendarEffects({ value, unit }: { value: ForecastRegressors; unit: string }) {
+  const rows = [
+    ["Best without calendar effects", value.best_without_regressors],
+    ["Best with calendar effects", value.best_with_regressors],
+  ] as const;
+  return (
+    <section aria-label="Calendar effects comparison">
+      <h3>Calendar effects comparison</h3>
+      <p>
+        {value.selected === "calendar_regression"
+          ? "Calendar effects won on the earlier windows, so this forecast uses them."
+          : "Calendar effects did not beat the best smoothing method on the earlier windows, so they are not used."}{" "}
+        The later test window is shown for comparison only and never chooses the method.
+      </p>
+      <div className="tableWrap">
+        <table>
+          <thead><tr><th>Approach</th><th>Method</th><th>Earlier-window error ({unit})</th><th>Later test error ({unit})</th></tr></thead>
+          <tbody>
+            {rows.map(([label, item]) => <tr key={label}><td>{label}</td><td>{item ? item.method.replaceAll("_", " ") : "Not eligible"}</td><td>{item?.validation_mae ?? "—"}</td><td>{item?.test_mae ?? "—"}</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+      {value.effects && <details>
+        <summary>Fitted calendar and event effects</summary>
+        <p className="chartCaption">{value.effects_label}</p>
+        <div className="tableWrap">
+          <table aria-label="Fitted effects">
+            <thead><tr><th>Effect</th><th>Average difference ({unit})</th></tr></thead>
+            <tbody>{Object.entries(value.effects).map(([name, amount]) => <tr key={name}><td>{name}</td><td>{amount}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </details>}
+      {value.event_declared && <p className="chartCaption">Declared future event periods: {value.future_event_periods.length ? value.future_event_periods.join(", ") : "none"}. The event schedule is assumed known in advance.</p>}
+    </section>
+  );
+}
+
 export function ForecastResults({
   run,
   comparison,
@@ -276,6 +314,7 @@ export function ForecastResults({
           " This range has no guaranteed coverage probability."}
       </p>
       {result.version === "forecast-v3" && <p className="chartCaption">Calibrated ranges · Nine earlier windows, separate from method choice and testing, set an 80% range for each step ahead. Coverage can drop if the pattern changes.</p>}
+      {result.regressors && <CalendarEffects value={result.regressors} unit={run.evidence.unit} />}
       {result.version !== "forecast-v1" && <p className="chartCaption">Advanced comparison · Three earlier windows choose the method. A separate later window measures its error. The simple baseline can still be the best choice.</p>}
       <ForecastChart
         key={`${run.id}-${comparison?.id ?? "forecast"}`}

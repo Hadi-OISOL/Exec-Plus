@@ -174,9 +174,11 @@ def _overview(report: _Report, record: dict[str, Any], kind: str) -> None:
 def _forecast(report: _Report, record: dict[str, Any]) -> None:
     result = record["result"]
     history, predictions = result["history"], result["predictions"]
-    range_label = {"forecast-v2": "Empirical", "forecast-v3": "Calibrated 80%"}.get(
-        str(result.get("version")), "Heuristic"
-    )
+    range_label = {
+        "forecast-v2": "Empirical",
+        "forecast-v3": "Calibrated 80%",
+        "forecast-v4": "Empirical",
+    }.get(str(result.get("version")), "Heuristic")
     range_note = {
         "Empirical": "The reported ranges use validation errors, "
         "not calibrated confidence intervals.",

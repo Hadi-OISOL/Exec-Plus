@@ -276,8 +276,8 @@ def test_policy_change_during_advanced_fit_prevents_publication(integration, mon
     owner, member, _, _, _, root, policy_path, body = restricted_forecast_fixture(env)
     real = forecast_service.calculate_forecast
 
-    def change_access(points, raw):
-        result = real(points, raw)
+    def change_access(points, raw, *events):
+        result = real(points, raw, *events)
         body["expected_version"] = 1
         body["grants"][1]["conditions"][0]["value"] = "Lahore"
         changed = env.client.put(policy_path, headers=owner, json=body)
