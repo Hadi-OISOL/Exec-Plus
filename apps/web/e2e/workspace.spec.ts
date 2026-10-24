@@ -2,7 +2,7 @@
 What it does: Uses real authentication, invitations, storage, and parser errors without mocking the API. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview, openFindings, openConversation, navigateTo, showIndividualCalculations } from "./workspace-helpers";
+import { finishInitialReview, openFindings, openConversation, navigateTo, openLatestChat, showIndividualCalculations } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -432,15 +432,7 @@ test("column meanings use dataset evidence and retain understandable follow-ups"
   await page.reload();
   await signIn(page, session);
   await openConversation(page);
-  await page.getByText("Private conversation history", { exact: true }).click();
-  await page.getByLabel("Saved conversation").selectOption({ index: 1 });
-  await page
-    .getByRole("button", { name: "Open conversation", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Load saved answer", exact: true })
-    .first()
-    .click();
+  await openLatestChat(page);
   await expect(explanations.first()).toContainText(
     "Enterprise Resource Planning",
   );
@@ -530,17 +522,10 @@ test("combined data and document chat reopens private evidence after refresh", a
   await signIn(page, session);
   await finishInitialReview(page);
   await openConversation(page);
-  await page.getByText("Private conversation history", { exact: true }).click();
   await expect(
-    page.getByLabel("Saved conversation").locator("option"),
-  ).toHaveCount(2);
-  await page.getByLabel("Saved conversation").selectOption({ index: 1 });
-  await page
-    .getByRole("button", { name: "Open conversation", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Load saved answer", exact: true })
-    .click();
+    page.getByRole("list", { name: "Your chats", exact: true }).getByRole("listitem"),
+  ).toHaveCount(1);
+  await openLatestChat(page);
   await expect(page.locator(".answerCard .kpiValue")).toHaveText("0.3");
   await expect(
     page.getByRole("region", { name: "Document evidence" }),

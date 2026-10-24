@@ -57,7 +57,7 @@ from execplus.domain.studies import (
     StudyVersion,
     ViewDismissals,
 )
-from execplus.domain.threads import Thread, ThreadTurn
+from execplus.domain.threads import Thread, ThreadSummary, ThreadTurn
 from execplus.domain.understanding import DataPreference, Understanding
 
 
@@ -412,6 +412,12 @@ class WorkspaceRepository(
     def threads(
         self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID, owner_id: UUID
     ) -> tuple[Thread, ...]: ...
+
+    def owner_threads(
+        self, workspace_id: UUID, owner_id: UUID, search: str, limit: int
+    ) -> tuple[ThreadSummary, ...]: ...
+
+    def update_thread(self, thread: Thread) -> None: ...
 
     def thread_turns(self, workspace_id: UUID, thread_id: UUID) -> tuple[ThreadTurn, ...]: ...
 

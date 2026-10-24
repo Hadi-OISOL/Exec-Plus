@@ -605,10 +605,10 @@ def test_restricted_metadata_and_source_mutations_fail_closed_without_leaking(in
 
 
 def test_policy_migration_preserves_existing_tables_and_refuses_nonempty_downgrade(integration):
-    import json
-
     from alembic import command
     from sqlalchemy import inspect
+
+    from test_usage_migration import snapshots
 
     env = integration
     owner, _, wid, did, _, root = prepare(env, CONTENT)
@@ -647,14 +647,7 @@ def test_policy_migration_preserves_existing_tables_and_refuses_nonempty_downgra
     }
 
     def snapshot():
-        with env.engine.connect() as connection:
-            return {
-                name: sorted(
-                    json.dumps(dict(row), sort_keys=True, default=str)
-                    for row in connection.execute(select(s.metadata.tables[name])).mappings()
-                )
-                for name in names
-            }
+        return snapshots(env, names)
 
     before = snapshot()
     with env.engine.begin() as connection:

@@ -8,13 +8,13 @@ or why it was not.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from execplus.application.services.intent_router import ConversationAnswer
 from execplus.application.services.threads import ThreadService
 from execplus.domain.ingestion import User
-from execplus.domain.threads import Thread, ThreadTurn
+from execplus.domain.threads import Thread, ThreadSummary, ThreadTurn
 from execplus.presentation.routes.analytics import numerical_answer_body
 from execplus.presentation.routes.workspaces import Actor
 
@@ -69,6 +69,24 @@ def _thread_body(thread: Thread) -> dict[str, object]:
         "upload_id": str(thread.upload_id),
         "owner_id": str(thread.owner_id),
         "created_at": thread.created_at.isoformat(),
+        "title": thread.title,
+    }
+
+
+class RenameChatInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=120)
+
+
+def _chat_body(summary: ThreadSummary) -> dict[str, object]:
+    return {
+        **_thread_body(summary.thread),
+        "title": summary.display_title,
+        "named": summary.thread.title is not None,
+        "dataset_name": summary.dataset_name,
+        "filename": summary.filename,
+        "last_activity": summary.last_activity.isoformat(),
+        "turn_count": summary.turn_count,
     }
 
 
@@ -116,6 +134,32 @@ async def list_threads(
         _thread_body(thread)
         for thread in service.list_threads(actor, workspace_id, dataset_id, upload_id)
     ]
+
+
+@router.get("/workspaces/{workspace_id}/threads")
+async def list_chats(
+    workspace_id: UUID,
+    actor: Actor,
+    service: Service,
+    q: Annotated[str, Query(max_length=100)] = "",
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+) -> object:
+    return [_chat_body(item) for item in service.list_chats(actor, workspace_id, q, limit)]
+
+
+@router.patch("/workspaces/{workspace_id}/threads/{thread_id}")
+async def rename_chat(
+    workspace_id: UUID, thread_id: UUID, body: RenameChatInput, actor: Actor, service: Service
+) -> object:
+    return _thread_body(service.rename_chat(actor, workspace_id, thread_id, body.title))
+
+
+@router.delete("/workspaces/{workspace_id}/threads/{thread_id}", status_code=204)
+async def hide_chat(
+    workspace_id: UUID, thread_id: UUID, actor: Actor, service: Service
+) -> Response:
+    service.hide_chat(actor, workspace_id, thread_id)
+    return Response(status_code=204)
 
 
 @router.get("/workspaces/{workspace_id}/threads/{thread_id}/turns/{turn_id}/answer")

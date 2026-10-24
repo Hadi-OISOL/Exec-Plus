@@ -2,7 +2,7 @@
 What it does: Checks saved evidence, explicit daily assumptions, exact returned values and narrow layouts. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview } from "./workspace-helpers";
+import { finishInitialReview, openLatestChat } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -82,13 +82,8 @@ test("measured patterns replay privately and no-date forecasts lead to explicit 
     await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole("button", { name: "New conversation", exact: true }).click();
-  await page.locator(".conversationHistory summary").click();
-  await page.getByRole("button", { name: "Refresh history", exact: true }).click();
-  await expect(page.getByLabel("Saved conversation").locator("option")).toHaveCount(2);
-  await page.getByLabel("Saved conversation").selectOption({ index: 1 });
-  await page.getByRole("button", { name: "Open conversation", exact: true }).click();
-  await page.getByRole("button", { name: "Load saved answer", exact: true }).click();
+  await page.getByRole("button", { name: "New chat", exact: true }).click();
+  await openLatestChat(page);
   await expect(patterns.getByRole("heading", { name: "Here is what stands out", exact: true })).toBeVisible();
   await nav.getByRole("button", { name: "Forecasts", exact: true }).click();
   await page.getByRole("button", { name: "Try a daily what-if", exact: false }).click();

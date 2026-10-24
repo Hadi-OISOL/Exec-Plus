@@ -20,6 +20,7 @@ from test_data_brief import BriefModel, good_reply, uploaded
 from test_dataset_guidance import ask
 from test_dataset_reading import READING, prepare
 from test_unified_conversation import setup
+from test_usage_migration import snapshots as table_snapshots
 from test_workspace_integration import accept, dataset, identity, invite, upload, workspace
 
 
@@ -368,49 +369,44 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
     assert env.client.get(root + "/profile", headers=owner).status_code == 200
 
     def snapshots():
-        with env.engine.connect() as connection:
-            return {
-                name: sorted(
-                    json.dumps(dict(row), sort_keys=True, default=str)
-                    for row in connection.execute(select(table)).mappings()
-                )
-                for name, table in s.metadata.tables.items()
-                if name
-                not in {
-                    "agent_memories",
-                    "dataset_access_policies",
-                    "incidents",
-                    "incident_occurrences",
-                    "usage_prices",
-                    "usage_policies",
-                    "usage_attempts",
-                    "model_usage_events",
-                    "integration_keys",
-                    "integration_request_windows",
-                    "embed_grants",
-                    "webhook_subscriptions",
-                    "webhook_deliveries",
-                    "registered_sources",
-                    "source_imports",
-                    "consolidation_runs",
-                    "google_connections",
-                    "connector_connections",
-                    "account_reset_codes",
-                    "external_identities",
-                    "oauth_attempts",
-                    "local_accounts",
-                    "account_events",
-                    "account_rate_windows",
-                    "invitation_identity_approvals",
-                    "onboarding_progress",
-                    "plan_catalog",
-                    "workspace_plans",
-                    "plan_admissions",
-                    "request_metrics",
-                    "request_metric_batches",
-                    "incident_alert_policies",
-                }
-            }
+        return table_snapshots(
+            env,
+            set(s.metadata.tables)
+            - {
+                "agent_memories",
+                "dataset_access_policies",
+                "incidents",
+                "incident_occurrences",
+                "usage_prices",
+                "usage_policies",
+                "usage_attempts",
+                "model_usage_events",
+                "integration_keys",
+                "integration_request_windows",
+                "embed_grants",
+                "webhook_subscriptions",
+                "webhook_deliveries",
+                "registered_sources",
+                "source_imports",
+                "consolidation_runs",
+                "google_connections",
+                "connector_connections",
+                "account_reset_codes",
+                "external_identities",
+                "oauth_attempts",
+                "local_accounts",
+                "account_events",
+                "account_rate_windows",
+                "invitation_identity_approvals",
+                "onboarding_progress",
+                "plan_catalog",
+                "workspace_plans",
+                "plan_admissions",
+                "request_metrics",
+                "request_metric_batches",
+                "incident_alert_policies",
+            },
+        )
 
     before = snapshots()
     with env.engine.begin() as connection:

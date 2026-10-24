@@ -20,6 +20,7 @@ import type { ChatHandle } from "./ask-panel";
 import { CatalogPanel } from "./catalog-panel";
 import { DatasetMap, Icon } from "./explore-components";
 import { AskPanel } from "./ask-panel";
+import type { ChatSummary } from "./chat-history-values";
 import { DatasetAccessNotice } from "./dataset-access-notice";
 import { UsageNotice } from "./usage-notice";
 import { ExportDownloadContext, type ExportDownload } from "./result-export-actions";
@@ -177,6 +178,7 @@ export default function WorkspacePage() {
   const [section, setSection] = useState("overview");
   const [nativeAccount, setNativeAccount] = useState(false);
   const [savedSelection, setSavedSelection] = useState<{ root: string; id: string } | null>(null);
+  const [chatSelection, setChatSelection] = useState<{ root: string; id: string } | null>(null);
   const chat = useRef<ChatHandle>(null);
   const reviewDisclosure = useRef<HTMLDetailsElement>(null);
   const [revisionTick, setRevisionTick] = useState(0);
@@ -525,6 +527,17 @@ export default function WorkspacePage() {
     setUploads(available);
     setProfileUpload(available[0]?.id ?? "");
     setSection(available.length ? "overview" : "data");
+  }
+
+  async function openChat(chat: ChatSummary) {
+    if (!workspace) return;
+    const workspaceId = workspace.id;
+    await run(async () => {
+      await selectDataset(workspaceId, chat.dataset_id);
+      setProfileUpload(chat.upload_id);
+      setChatSelection({ root: `/workspaces/${workspaceId}/datasets/${chat.dataset_id}/uploads/${chat.upload_id}`, id: chat.id });
+      setSection("ask");
+    });
   }
 
   async function loadSession(sessionRequest: ApiRequest) {
@@ -1874,6 +1887,8 @@ export default function WorkspacePage() {
                         downloadPdf={downloadPdf}
                         filename={selectedUpload?.filename ?? "Selected upload"}
                         starterQuestions={starterQuestions}
+                        openThread={chatSelection?.root === root ? chatSelection.id : ""}
+                        onOpenChat={chat => void openChat(chat)}
                         onTool={action => {
                           setToolSelection({root, ...action});
                           if (action.tool === "forecasts") setSection("forecasts");

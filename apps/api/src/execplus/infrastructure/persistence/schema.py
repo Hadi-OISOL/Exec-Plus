@@ -437,6 +437,8 @@ threads = Table(
     Column("upload_id", Uuid, nullable=False),
     Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("title", String(120), nullable=True),
+    Column("hidden_at", DateTime(timezone=True), nullable=True),
     ForeignKeyConstraint(
         ["workspace_id", "dataset_id", "upload_id"],
         ["uploads.workspace_id", "uploads.dataset_id", "uploads.id"],

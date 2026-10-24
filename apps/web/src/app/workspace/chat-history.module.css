@@ -1,0 +1,17 @@
+/* Use case: Styles the private "Your chats" list inside Ask ExecPlus.
+What it does: Uses shared design tokens so the list works in light/dark themes from 320 to 1440 pixels. */
+
+.history { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.search input { width: 100%; }
+.empty { margin: 0; color: var(--color-text-muted); }
+.list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.item { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; padding: var(--space-1); border: 1px solid transparent; border-radius: var(--radius-md); }
+.item[data-active] { border-color: var(--color-border); background: var(--color-surface-sunken); }
+.open { display: grid; flex: 1 1 200px; justify-content: stretch; justify-items: start; gap: 2px; min-width: 0; padding: var(--space-2); border: 0; background: transparent; color: var(--color-text); text-align: left; cursor: pointer; }
+.open:hover { background: var(--color-surface-sunken); }
+.title { max-width: 100%; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.meta { max-width: 100%; overflow: hidden; color: var(--color-text-muted); font-size: var(--text-caption); text-overflow: ellipsis; white-space: nowrap; }
+.actions { display: flex; gap: var(--space-1); }
+.rename { display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: var(--space-2); }
+.rename label { flex: 1 1 180px; margin: 0; }
+.rename input { width: 100%; }

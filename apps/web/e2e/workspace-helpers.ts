@@ -47,6 +47,11 @@ export async function openConversation(page: Page) {
   await expect(page.getByLabel("Your question", { exact: true })).toBeVisible();
 }
 
+export async function openLatestChat(page: Page) {
+  const chats = page.getByRole("list", { name: "Your chats", exact: true });
+  await chats.getByRole("listitem").first().getByRole("button").first().click();
+}
+
 export async function navigateTo(page: Page, name: string) {
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
   const more = nav.getByRole("button", { name: "More", exact: true });

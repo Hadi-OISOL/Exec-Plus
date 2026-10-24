@@ -2,7 +2,7 @@
 What it does: Exercises recorded actions, explicit cancellation races, network recovery and presentation-only evidence views. */
 
 import { execFileSync } from "node:child_process";
-import { finishInitialReview, openFindings, openConversation } from "./workspace-helpers";
+import { finishInitialReview, openFindings, openConversation, openLatestChat } from "./workspace-helpers";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -162,14 +162,7 @@ test("durable conversation shows actual actions and Expert changes only the evid
   await page.reload();
   await signIn(page, token);
   await openConversation(page);
-  await page.getByText("Private conversation history", { exact: true }).click();
-  await page.getByLabel("Saved conversation").selectOption({ index: 1 });
-  await page
-    .getByRole("button", { name: "Open conversation", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Load saved answer", exact: true })
-    .click();
+  await openLatestChat(page);
   await expect(chat.locator(".datasetGuidance")).toContainText(
     "3 rows and 2 columns",
   );
@@ -314,7 +307,7 @@ test("explicit cancellation reports the actual terminal outcome and remains usab
       page.getByRole("button", { name: "Cancel request", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "New conversation", exact: true }),
+      page.getByRole("button", { name: "New chat", exact: true }),
     ).toBeEnabled();
   } finally {
     releaseCancel();

@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { finishInitialReview, openAnalysisAdvanced, openHomeTools } from "./workspace-helpers";
+import { finishInitialReview, openAnalysisAdvanced, openHomeTools, openLatestChat } from "./workspace-helpers";
 
 test.use({ actionTimeout: 20_000 });
 
@@ -90,13 +90,8 @@ test("group comparisons explain a reversal on the same rows and privately replay
   await expect(result.getByRole("table", { name: "Every group and its returned scores", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await result.getByText("Coverage, method and source evidence", { exact: true }).click();
-  await page.getByRole("button", { name: "New conversation", exact: true }).click();
-  await page.locator(".conversationHistory summary").click();
-  await page.getByRole("button", { name: "Refresh history", exact: true }).click();
-  await expect(page.getByLabel("Saved conversation").locator("option")).toHaveCount(2);
-  await page.getByLabel("Saved conversation").selectOption({ index: 1 });
-  await page.getByRole("button", { name: "Open conversation", exact: true }).click();
-  await page.getByRole("button", { name: "Load saved answer", exact: true }).click();
+  await page.getByRole("button", { name: "New chat", exact: true }).click();
+  await openLatestChat(page);
   await expect(result).toContainText(computed.pooled.statistics.pearson);
   await expect(result).toContainText("Straight-line direction reverses here");
   await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Data library", exact: true }).click();

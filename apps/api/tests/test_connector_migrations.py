@@ -3,7 +3,6 @@
 What it does: Checks additive upgrades and refuses downgrades that would discard connections.
 """
 
-import json
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -12,6 +11,7 @@ from alembic import command
 from sqlalchemy import inspect, select
 
 from execplus.infrastructure.persistence import schema as s
+from test_usage_migration import snapshots
 from test_workspace_integration import dataset, identity, upload, workspace
 
 
@@ -30,14 +30,7 @@ def test_connector_upgrade_preserves_existing_rows(integration):
     }
 
     def snapshot():
-        with env.engine.connect() as connection:
-            return {
-                name: sorted(
-                    json.dumps(dict(row), sort_keys=True, default=str)
-                    for row in connection.execute(select(s.metadata.tables[name])).mappings()
-                )
-                for name in original
-            }
+        return snapshots(env, original)
 
     before = snapshot()
     with env.engine.begin() as connection:
