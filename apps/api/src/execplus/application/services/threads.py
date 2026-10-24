@@ -54,7 +54,7 @@ from execplus.domain.jobs import EventStatus, JobStage
 from execplus.domain.models import VerifiedMetricAnswer
 from execplus.domain.pdf_exports import ReportAnswer, validate_pdf_export_request, wants_pdf_export
 from execplus.domain.response_synthesis import RANKED_VERSION, validate_saved_narrative
-from execplus.domain.threads import Thread, ThreadTurn
+from execplus.domain.threads import Thread, ThreadSummary, ThreadTurn, valid_chat_title
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 
@@ -74,7 +74,7 @@ class ThreadService:
     def _thread(self, repo: WorkspaceRepository, actor: User, wid: UUID, tid: UUID) -> Thread:
         repo.membership(wid, actor.id)
         thread = repo.thread(wid, tid)
-        if thread.owner_id != actor.id:
+        if thread.owner_id != actor.id or thread.hidden_at is not None:
             raise IngestionError("not_found", "The conversation is unavailable.", 404)
         dataset_access(repo, actor, wid, thread.dataset_id)
         repo.upload(wid, thread.dataset_id, thread.upload_id)
@@ -131,6 +131,52 @@ class ThreadService:
                 else:
                     visible.append(thread)
             return tuple(visible)
+
+    def list_chats(
+        self, actor: User, wid: UUID, search: str = "", limit: int = 50
+    ) -> tuple[ThreadSummary, ...]:
+        """Owner-only chats across the workspace, hiding ones current access no longer allows."""
+        with self.uow() as repo:
+            repo.membership(wid, actor.id)
+            visible = []
+            # shortcut: rechecks every turn of each listed chat; cache access checks if slow.
+            for summary in repo.owner_threads(wid, actor.id, search.strip()[:100], limit):
+                try:
+                    self._thread(repo, actor, wid, summary.thread.id)
+                    for turn in repo.thread_turns(wid, summary.thread.id):
+                        self._authorize_turn(repo, actor, wid, summary.thread, turn)
+                except IngestionError as error:
+                    if error.status not in {403, 404}:
+                        raise
+                else:
+                    visible.append(summary)
+            return tuple(visible)
+
+    def rename_chat(self, actor: User, wid: UUID, tid: UUID, title: str) -> Thread:
+        try:
+            name = valid_chat_title(title)
+        except ValueError as error:
+            raise IngestionError("invalid_title", str(error), 422) from None
+        return self._change_chat(actor, wid, tid, "conversation.renamed", title=name)
+
+    def hide_chat(self, actor: User, wid: UUID, tid: UUID) -> Thread:
+        return self._change_chat(
+            actor, wid, tid, "conversation.hidden", hidden_at=datetime.now(timezone.utc)
+        )
+
+    def _change_chat(
+        self, actor: User, wid: UUID, tid: UUID, action: str, **changes: Any
+    ) -> Thread:
+        with self.uow() as repo:
+            repo.workspace(wid, lock=True)
+            thread = replace(self._thread(repo, actor, wid, tid), **changes)
+            repo.update_thread(thread)
+            repo.add(
+                AuditEvent(
+                    uuid4(), wid, actor.id, action, "thread", tid, datetime.now(timezone.utc)
+                )
+            )
+        return thread
 
     async def get_thread(
         self, actor: User, workspace_id: UUID, thread_id: UUID

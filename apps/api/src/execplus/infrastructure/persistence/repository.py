@@ -19,6 +19,7 @@ from sqlalchemy import (
     cast,
     delete,
     exists,
+    func,
     or_,
     select,
     update,
@@ -62,7 +63,7 @@ from execplus.domain.studies import (
     StudyVersion,
     ViewDismissals,
 )
-from execplus.domain.threads import Thread, ThreadTurn
+from execplus.domain.threads import Thread, ThreadSummary, ThreadTurn
 from execplus.domain.understanding import DataPreference, Understanding
 from execplus.infrastructure.persistence import schema as s
 from execplus.infrastructure.persistence.jobs import SQLJobRepository
@@ -894,11 +895,95 @@ class SQLWorkspaceRepository(
                 dataset_id=dataset_id,
                 upload_id=upload_id,
                 owner_id=owner_id,
+                hidden_at=None,
             )
             .order_by(s.threads.c.created_at.desc(), s.threads.c.id)
             .limit(50)
         ).mappings()
         return tuple(Thread(**row) for row in rows)
+
+    def owner_threads(
+        self, workspace_id: UUID, owner_id: UUID, search: str, limit: int
+    ) -> tuple[ThreadSummary, ...]:
+        t, turns = s.threads, s.thread_turns
+        activity = (
+            select(
+                turns.c.thread_id,
+                func.max(turns.c.created_at).label("last_turn"),
+                func.count().label("turn_count"),
+            )
+            .group_by(turns.c.thread_id)
+            .subquery()
+        )
+        first_question = (
+            select(turns.c.question)
+            .where(turns.c.thread_id == t.c.id)
+            .order_by(turns.c.created_at, turns.c.id)
+            .limit(1)
+            .scalar_subquery()
+        )
+        last_activity = func.coalesce(activity.c.last_turn, t.c.created_at)
+        statement = (
+            select(
+                t,
+                first_question.label("first_question"),
+                last_activity.label("last_activity"),
+                func.coalesce(activity.c.turn_count, 0).label("turn_count"),
+                s.datasets.c.name.label("dataset_name"),
+                s.uploads.c.filename,
+            )
+            .join(activity, activity.c.thread_id == t.c.id, isouter=True)
+            .join(
+                s.datasets,
+                and_(
+                    s.datasets.c.workspace_id == t.c.workspace_id, s.datasets.c.id == t.c.dataset_id
+                ),
+            )
+            .join(
+                s.uploads,
+                and_(
+                    s.uploads.c.workspace_id == t.c.workspace_id,
+                    s.uploads.c.dataset_id == t.c.dataset_id,
+                    s.uploads.c.id == t.c.upload_id,
+                ),
+            )
+            .where(
+                t.c.workspace_id == workspace_id, t.c.owner_id == owner_id, t.c.hidden_at.is_(None)
+            )
+            .order_by(last_activity.desc(), t.c.id)
+            .limit(limit)
+        )
+        if search:
+            statement = statement.where(
+                or_(
+                    t.c.title.icontains(search, autoescape=True),
+                    s.datasets.c.name.icontains(search, autoescape=True),
+                    s.uploads.c.filename.icontains(search, autoescape=True),
+                    exists().where(
+                        turns.c.thread_id == t.c.id,
+                        turns.c.question.icontains(search, autoescape=True),
+                    ),
+                )
+            )
+        fields = {column.name for column in t.columns}
+        return tuple(
+            ThreadSummary(
+                Thread(**{key: row[key] for key in fields}),
+                row["first_question"],
+                row["last_activity"],
+                row["turn_count"],
+                row["dataset_name"],
+                row["filename"],
+            )
+            for row in self.connection.execute(statement).mappings()
+        )
+
+    def update_thread(self, thread: Thread) -> None:
+        self.connection.execute(
+            update(s.threads)
+            .where(s.threads.c.workspace_id == thread.workspace_id, s.threads.c.id == thread.id)
+            .values(title=thread.title, hidden_at=thread.hidden_at)
+        )
 
     def thread_turns(self, workspace_id: UUID, thread_id: UUID) -> tuple[ThreadTurn, ...]:
         self.thread(workspace_id, thread_id)

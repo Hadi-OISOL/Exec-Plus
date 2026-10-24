@@ -22,6 +22,7 @@ from test_forecast_integration import create as create_forecast
 from test_forecast_integration import daily
 from test_operations import setup
 from test_studies import prepare
+from test_usage_migration import snapshots
 from test_workspace_integration import identity, workspace
 
 
@@ -118,15 +119,7 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
     original_tables = set(s.metadata.tables) - added - later_added
 
     def snapshot():
-        with env.engine.connect() as connection:
-            return {
-                name: sorted(
-                    json.dumps(dict(row), sort_keys=True, default=str)
-                    for row in connection.execute(select(table)).mappings()
-                )
-                for name, table in s.metadata.tables.items()
-                if name in original_tables
-            }
+        return snapshots(env, original_tables)
 
     before = snapshot()
     with env.engine.begin() as connection:
