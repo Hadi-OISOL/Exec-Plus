@@ -1,5 +1,5 @@
 {
-  "file_use_case": "Maintains the original 64-item VC checklist after verified ExecPlus deliveries.",
+  "file_use_case": "Maintains the original 64-item VC checklist after verified Syntelio deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
   "date": "2026-10-24",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
@@ -743,7 +743,7 @@
       "section": "Growth-plan features",
       "feature": "Scheduled data refresh",
       "status": "done",
-      "note": "Can schedule checks and activation of files already staged in ExecPlus. Users must supply the new file; it does not yet pull fresh data from other systems.",
+      "note": "Can schedule checks and activation of files already staged in Syntelio. Users must supply the new file; it does not yet pull fresh data from other systems.",
       "evidence": [
         "apps/api/src/execplus/application/services/refresh.py",
         "deploy/vps/execplus-refresh.service",
@@ -1166,7 +1166,7 @@
       "section": "Integration with other Solutions",
       "feature": "Database/BigQuery connector",
       "status": "partial",
-      "note": "PostgreSQL currently stores ExecPlus’s own metadata. It is not an external customer-data connector. Read-only PostgreSQL and BigQuery connectors are still unbuilt. October 22 (private release f590a4a813287580 on 0030): the read-only PostgreSQL connector passes an end-to-end test against a real server with a SELECT-only role, encrypted credentials and the control-plane database refused; BigQuery is mock-tested only.",
+      "note": "PostgreSQL currently stores Syntelio’s own metadata. It is not an external customer-data connector. Read-only PostgreSQL and BigQuery connectors are still unbuilt. October 22 (private release f590a4a813287580 on 0030): the read-only PostgreSQL connector passes an end-to-end test against a real server with a SELECT-only role, encrypted credentials and the control-plane database refused; BigQuery is mock-tested only.",
       "evidence": [
         "ROADMAP.md",
         "apps/api/src/execplus/application/ports.py",
@@ -1864,7 +1864,7 @@
     "p05": "We count the VC’s original 64 feature lines, retaining overlaps such as billing and onboarding. Combined requests are not split to inflate the score. These are feature counts, not a percentage of engineering effort or competitor parity. The instruction about predictive/prescriptive claims is assessed separately.",
     "p06": "“Company registration” means software account signup, not legal incorporation.",
     "p07": "Guided reading preserves answers. Pattern requests calculate measured associations and show weak evidence honestly. AI explanations remain fallible; daily assumptions are not learned forecasts.",
-    "p08": "ExecPlus overlaps with parts of the upload → question → dashboard experience. It has not reached the connected-data breadth or commercial completeness of either target.",
+    "p08": "Syntelio overlaps with parts of the upload → question → dashboard experience. It has not reached the connected-data breadth or commercial completeness of either target.",
     "p09": "This documents capabilities, not hands-on performance or percentage parity. Editions and setup differ. The comparison was reviewed on 5 October 2026; the separate October 6 interface-reference review is recorded in E13.",
     "p10": "Conversational analytics, AI dashboards and governed queries are shared capabilities, not proven unique advantages. Our strongest current demonstration is the combination of retained files, reviewed meanings, exact calculations, replayable answers, document citations and visible request activity. A shared evaluation would be needed to claim better quality or speed.",
     "p11": "Do not assume every vendor catalog tile is live: Polymer labels some connectors “Coming Soon”. The VC requested accounting and advanced-analysis features are not automatically capabilities of both target products. [P1]",
