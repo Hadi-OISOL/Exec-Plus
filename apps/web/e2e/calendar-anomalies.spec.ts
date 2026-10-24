@@ -120,7 +120,7 @@ for (const method of ["seasonal", "drift"] as const) test(`${method} calendar ch
   expect(errors).toEqual([]);
 });
 
-test("a false-alarm target selects the measured seasonal threshold and replays", async ({ page }) => {
+for (const method of ["seasonal", "drift"] as const) test(`a false-alarm target selects the measured ${method} threshold and replays`, async ({ page }) => {
   test.setTimeout(120_000);
   const token = execFileSync("python3", ["-m", "execplus.manage", "provision-user", "--email", `calendar-target-${randomUUID()}@example.test`], { cwd: "../..", encoding: "utf8" }).trim();
   const headers = { Authorization: `Bearer ${token}` };
@@ -142,24 +142,31 @@ test("a false-alarm target selects the measured seasonal threshold and replays",
   expect(savedMeaning.status()).toBe(201);
   await page.getByRole("radio", { name: "Expert", exact: true }).check();
   await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
-  await page.getByRole("combobox", { name: "Analysis method", exact: true }).selectOption("seasonal");
+  await page.getByRole("combobox", { name: "Analysis method", exact: true }).selectOption(method);
   const panel = page.getByRole("region", { name: "Calendar analysis", exact: true });
   await panel.getByRole("combobox", { name: "Measure", exact: true }).selectOption("amount");
   await panel.getByRole("combobox", { name: "Date field", exact: true }).selectOption("day");
-  await panel.getByLabel("Coverage starts", { exact: true }).fill("2020-01-01");
-  await panel.getByLabel("Coverage ends", { exact: true }).fill("2020-02-18");
-  await panel.getByLabel("Last training period", { exact: true }).fill("2020-01-28");
+  await panel.getByLabel(method === "seasonal" ? "Coverage starts" : "Reference window starts", { exact: true }).fill("2020-01-01");
+  await panel.getByLabel(method === "seasonal" ? "Coverage ends" : "Reference window ends", { exact: true }).fill(method === "seasonal" ? "2020-02-18" : "2020-01-14");
+  if (method === "seasonal") await panel.getByLabel("Last training period", { exact: true }).fill("2020-01-28");
+  else {
+    await panel.getByLabel("Comparison window starts", { exact: true }).fill("2020-01-29");
+    await panel.getByLabel("Comparison window ends", { exact: true }).fill("2020-02-11");
+  }
   await panel.getByRole("combobox", { name: "False-alarm target · sets the threshold", exact: true }).selectOption("0.01");
-  await expect(panel.getByLabel("Unusualness threshold · 3 to 10", { exact: true })).toBeDisabled();
+  await expect(panel.getByLabel(method === "seasonal" ? "Unusualness threshold · 3 to 10" : "Minimum cumulative share separation · 0 to 1", { exact: true })).toBeDisabled();
   await panel.getByRole("checkbox", { name: "I confirm these windows", exact: false }).check();
-  const created = page.waitForResponse(response => response.url().endsWith("/decision-analysis/seasonal-anomalies") && response.request().method() === "POST");
+  const route = method === "seasonal" ? "seasonal-anomalies" : "distribution-drift";
+  const created = page.waitForResponse(response => response.url().endsWith(`/decision-analysis/${route}`) && response.request().method() === "POST");
   await panel.getByRole("button", { name: "Calculate and save privately", exact: true }).click();
   const body = await (await created).json();
-  expect(body.run.method_version).toBe("seasonal-residual-mad-iqr-calibrated-v1");
-  expect(body.run.result.threshold).toBe("5");
+  const threshold = method === "seasonal" ? "5" : "1.63";
+  expect(body.run.method_version).toBe(method === "seasonal" ? "seasonal-residual-mad-iqr-calibrated-v1" : "empirical-window-distance-calibrated-v1");
+  if (method === "seasonal") expect(body.run.result.threshold).toBe("5");
+  else expect(body.run.result.evaluation).toMatchObject({ calibrated: true, false_alarm_rate: { normal: "0.005000", heavy_tailed: "0.007500" } });
   const result = panel.getByRole("region", { name: "Saved calendar result", exact: true });
-  await expect(result).toContainText("False-alarm target 0.01 → threshold 5");
-  await expect(panel.getByRole("region", { name: "Saved calendar checks", exact: true })).toContainText("Seasonal unusual values");
+  await expect(result).toContainText(`False-alarm target 0.01 → threshold ${threshold}`);
+  await expect(panel.getByRole("region", { name: "Saved calendar checks", exact: true })).toContainText(method === "seasonal" ? "Seasonal unusual values" : "Two-window comparison");
   await result.getByRole("button", { name: "Replay original calendar evidence", exact: true }).click();
   await expect(panel).toContainText("The original result and every receipt were verified.");
   expect(errors).toEqual([]);

@@ -7,7 +7,8 @@ import type { ApiRequest } from "./profile-panel";
 import { ForecastResults } from "./forecast-results";
 import { UnusualValues } from "./unusual-values";
 import styles from "./forecast.module.css";
-import { advancedMinimumHistory, eventPeriods } from "./forecast-types";
+import { advancedMinimumHistory, declaredRegressors, eventPeriods } from "./forecast-types";
+import type { PredictorDraft } from "./forecast-types";
 import type {
   ComparisonSummary,
   ForecastEngine,
@@ -68,6 +69,9 @@ export function ForecastPanel({
   const [engine, setEngine] = useState<ForecastEngine>("basic-v1");
   const [eventColumn, setEventColumn] = useState("");
   const [futureEvents, setFutureEvents] = useState("");
+  const [holidayCalendar, setHolidayCalendar] = useState("");
+  const [holidayDates, setHolidayDates] = useState("");
+  const [predictors, setPredictors] = useState<PredictorDraft[]>([0, 1, 2].map(() => ({ column: "", aggregation: "avg", future: "" })));
   const [methodFamily, setMethodFamily] = useState("auto");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -180,9 +184,10 @@ export function ForecastPanel({
       horizon,
       season_length: seasonal ? (frequency === "daily" ? 7 : 12) : null,
       ...(engine !== "basic-v1" ? { engine, method_family: methodFamily } : {}),
-      ...(engine === "advanced-v4" && eventColumn
+      ...((engine === "advanced-v4" || engine === "advanced-v5") && eventColumn
         ? { event_column: eventColumn, future_event_periods: eventPeriods(futureEvents) }
         : {}),
+      ...(engine === "advanced-v5" ? declaredRegressors(holidayCalendar, holidayDates, predictors) : {}),
       coverage_start: start,
       coverage_end: end,
     });
@@ -419,9 +424,45 @@ export function ForecastPanel({
                       <option value="advanced-v2" disabled={!options.advanced_methods?.length}>Advanced — compare smoothing and trends</option>
                       <option value="advanced-v3" disabled={!options.advanced_methods?.length}>Advanced with calibrated 80% ranges — needs longer history</option>
                       <option value="advanced-v4" disabled={!options.advanced_methods?.length}>Advanced with calendar effects — day of week or month of year</option>
+                      <option value="advanced-v5" disabled={!options.advanced_methods?.length}>Advanced with holidays and outside predictors</option>
                     </select>
                   </label>
-                  {engine === "advanced-v4" && <>
+                  {engine === "advanced-v5" && <fieldset className="forecastFields" aria-label="Holidays and outside predictors">
+                    <legend>Holidays and outside predictors</legend>
+                    <p>These are tried after smoothing and calendar effects and are used only if they beat all of them on the earlier windows. The comparison is shown with the result.</p>
+                    <label className="checkLabel">
+                      <input type="checkbox" checked={Boolean(holidayCalendar)} disabled={!!pending} onChange={event => setHolidayCalendar(event.target.checked ? options.holiday_calendars?.[0]?.id ?? "" : "")} />
+                      Use the built-in {options.holiday_calendars?.[0]?.label ?? "holiday table"} ({options.holiday_calendars?.[0]?.first_year}–{options.holiday_calendars?.[0]?.last_year}). Eid and other moon-sighting holidays are not included.
+                    </label>
+                    <label>
+                      Holiday or closure dates · history and forecast periods
+                      <input value={holidayDates} disabled={!!pending} placeholder="Example: 2024-04-10, 2024-04-11" onChange={event => setHolidayDates(event.target.value)} />
+                    </label>
+                    {predictors.map((item, index) => <div key={index} className="forecastFields">
+                      <label>
+                        {`Outside predictor ${index + 1} · optional`}
+                        <select value={item.column} disabled={!!pending} onChange={event => setPredictors(current => current.map((value, position) => position === index ? { ...value, column: event.target.value } : value))}>
+                          <option value="">None</option>
+                          {(options.predictor_columns ?? []).filter(name => name !== metricName && name !== eventColumn).map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      </label>
+                      {item.column && <>
+                        <label>
+                          {`Predictor ${index + 1} per period`}
+                          <select value={item.aggregation} disabled={!!pending} onChange={event => setPredictors(current => current.map((value, position) => position === index ? { ...value, aggregation: event.target.value as "sum" | "avg" } : value))}>
+                            <option value="avg">Average</option>
+                            <option value="sum">Total</option>
+                          </select>
+                        </label>
+                        <label>
+                          {`Predictor ${index + 1} future values · one per forecast period (${horizon})`}
+                          <input value={item.future} disabled={!!pending} placeholder="Example: 120, 118, 130" onChange={event => setPredictors(current => current.map((value, position) => position === index ? { ...value, future: event.target.value } : value))} />
+                        </label>
+                      </>}
+                    </div>)}
+                    <p>Future predictor values are your assumptions. If they are wrong, the forecast will be wrong too.</p>
+                  </fieldset>}
+                  {(engine === "advanced-v4" || engine === "advanced-v5") && <>
                     <p>Also tries a fitted {frequency === "daily" ? "day-of-week" : "month-of-year"} pattern. It is used only when it beats the best smoothing method on the earlier windows; the comparison is shown with the result.</p>
                     <label>
                       Known event column · optional, 0 or 1 per row

@@ -16,6 +16,7 @@ from execplus.domain.forecasting import next_period
 from execplus.domain.temporal_anomalies import MAX_PERIODS, TemporalPoint
 
 METHOD = "empirical-window-distance-v1"
+CALIBRATED_METHOD = "empirical-window-distance-calibrated-v1"
 VERSION = "calendar-distribution-drift-v1"
 MIN_WINDOW = 8
 

@@ -56,7 +56,9 @@ class AnomalyInput(SourceInput):
 
 class MultivariateInput(SourceInput):
     kind: Literal["robust_distribution"] = "robust_distribution"
-    model: Literal["reference-mahalanobis-squared-v1"] = "reference-mahalanobis-squared-v1"
+    model: Literal["reference-mahalanobis-squared-v1", "reference-mahalanobis-calibrated-v1"] = (
+        "reference-mahalanobis-squared-v1"
+    )
     metrics: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(
         min_length=2, max_length=4
     )
@@ -65,6 +67,16 @@ class MultivariateInput(SourceInput):
     reference_label: str = Field(min_length=1, max_length=200)
     comparison_label: str = Field(min_length=1, max_length=200)
     threshold: str = Field(default="9", min_length=1, max_length=50)
+    target_false_alarm_rate: Literal["0.05", "0.01", "0.005"] | None = None
+
+    @model_validator(mode="after")
+    def calibrated_model(self) -> "MultivariateInput":
+        calibrated = self.model.endswith("-calibrated-v1")
+        if calibrated != (self.target_false_alarm_rate is not None) or (
+            calibrated and self.threshold != "9"
+        ):
+            raise ValueError("A calibrated method needs a target and sets the threshold.")
+        return self
 
 
 class CalendarInput(SourceInput):
@@ -123,12 +135,35 @@ class RollingAnomalyInput(CalibratedCalendar):
 
 
 class DriftInput(CalendarInput):
-    model: Literal["empirical-window-distance-v1"] = "empirical-window-distance-v1"
+    model: Literal["empirical-window-distance-v1", "empirical-window-distance-calibrated-v1"] = (
+        "empirical-window-distance-v1"
+    )
     reference_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     reference_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     comparison_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     comparison_end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    minimum_cdf_separation: str = Field(min_length=1, max_length=100)
+    minimum_cdf_separation: str | None = Field(default=None, min_length=1, max_length=100)
+    target_false_alarm_rate: Literal["0.05", "0.01", "0.005"] | None = None
+
+    @model_validator(mode="after")
+    def calibrated_model(self) -> "DriftInput":
+        calibrated = self.model.endswith("-calibrated-v1")
+        if calibrated != (self.target_false_alarm_rate is not None) or calibrated == (
+            self.minimum_cdf_separation is not None
+        ):
+            raise ValueError(
+                "A calibrated method needs a target instead of a separation; "
+                "other comparisons need a separation."
+            )
+        return self
+
+
+def optional_raw(body: BaseModel, *names: str) -> dict[str, object]:
+    raw = body.model_dump(mode="json")
+    for name in names:
+        if raw[name] is None:
+            raw.pop(name)
+    return raw
 
 
 class QuantityBound(Input):
@@ -466,7 +501,7 @@ async def multivariate_anomalies(
     analyses: Service,
 ) -> object:
     return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+        actor, workspace_id, dataset_id, upload_id, optional_raw(body, "target_false_alarm_rate")
     )
 
 
@@ -491,9 +526,8 @@ async def distribution_drift(
     actor: Actor,
     analyses: Service,
 ) -> object:
-    return await analyses.create(
-        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
-    )
+    raw = optional_raw(body, "target_false_alarm_rate", "minimum_cdf_separation")
+    return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
 
 
 @router.get(RUNS)

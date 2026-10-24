@@ -36,6 +36,18 @@ class CoverageInput(BaseModel):
     coverage_confirmed: Literal[True]
 
 
+DateText = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]
+
+
+class PredictorInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    column: str = Field(min_length=1, max_length=200)
+    aggregation: Literal["sum", "avg"] = "avg"
+    future_values: list[
+        Annotated[str, Field(min_length=1, max_length=40, pattern=r"^-?\d+(\.\d+)?$")]
+    ] = Field(min_length=1, max_length=30)
+
+
 class ForecastInput(CoverageInput):
     name: str = Field(min_length=1, max_length=100)
     time_column: str = Field(min_length=1, max_length=200)
@@ -45,19 +57,30 @@ class ForecastInput(CoverageInput):
     frequency: Literal["daily", "monthly"]
     horizon: int = Field(ge=1, le=30, strict=True)
     season_length: int | None = Field(default=None, ge=1, le=12, strict=True)
-    engine: Literal["basic-v1", "advanced-v2", "advanced-v3", "advanced-v4"] = "basic-v1"
+    engine: Literal["basic-v1", "advanced-v2", "advanced-v3", "advanced-v4", "advanced-v5"] = (
+        "basic-v1"
+    )
     method_family: Literal[
         "auto", "simple_exponential", "holt", "damped_holt", "holt_winters_additive"
     ] = "auto"
     event_column: str | None = Field(default=None, min_length=1, max_length=200)
-    future_event_periods: list[Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]] = Field(
-        default_factory=list, max_length=30
-    )
+    future_event_periods: list[DateText] = Field(default_factory=list, max_length=30)
+    holiday_dates: list[DateText] = Field(default_factory=list, max_length=400)
+    holiday_calendar: Literal["pk-public-fixed-v1"] | None = None
+    predictors: list[PredictorInput] = Field(default_factory=list, max_length=3)
 
     @model_validator(mode="after")
     def compatible_engine(self) -> "ForecastInput":
-        if (self.event_column or self.future_event_periods) and self.engine != "advanced-v4":
+        if (self.event_column or self.future_event_periods) and self.engine not in {
+            "advanced-v4",
+            "advanced-v5",
+        }:
             raise ValueError("Event columns require the calendar-effects engine.")
+        declared = bool(self.holiday_dates or self.holiday_calendar or self.predictors)
+        if declared != (self.engine == "advanced-v5"):
+            raise ValueError("Declared holidays or predictors need the declared-regressors engine.")
+        if any(len(item.future_values) != self.horizon for item in self.predictors):
+            raise ValueError("Give one future predictor value per forecast period.")
         if self.future_event_periods and not self.event_column:
             raise ValueError("Choose the event column before future event periods.")
         if self.engine == "basic-v1" and self.method_family != "auto":
@@ -94,6 +117,9 @@ async def create(
     if body.event_column is None:
         raw.pop("event_column")
         raw.pop("future_event_periods")
+    for key, empty in (("holiday_dates", []), ("holiday_calendar", None), ("predictors", [])):
+        if raw[key] == empty:
+            raw.pop(key)
     return asdict(await forecasts.create(actor, workspace_id, dataset_id, upload_id, raw))
 
 

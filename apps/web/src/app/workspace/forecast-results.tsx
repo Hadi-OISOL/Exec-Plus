@@ -237,7 +237,7 @@ export function ForecastChart({
 export function CalendarEffects({ value, unit }: { value: ForecastRegressors; unit: string }) {
   const rows = [
     ["Best without calendar effects", value.best_without_regressors],
-    ["Best with calendar effects", value.best_with_regressors],
+    ["Best with calendar effects", value.best_with_regressors ?? value.best_calendar_only ?? null],
   ] as const;
   return (
     <section aria-label="Calendar effects comparison">
@@ -245,6 +245,8 @@ export function CalendarEffects({ value, unit }: { value: ForecastRegressors; un
       <p>
         {value.selected === "calendar_regression"
           ? "Calendar effects won on the earlier windows, so this forecast uses them."
+          : value.selected === "declared_regressors"
+          ? "Holidays and outside predictors won on the earlier windows; see their comparison below."
           : "Calendar effects did not beat the best smoothing method on the earlier windows, so they are not used."}{" "}
         The later test window is shown for comparison only and never chooses the method.
       </p>
@@ -266,7 +268,44 @@ export function CalendarEffects({ value, unit }: { value: ForecastRegressors; un
           </table>
         </div>
       </details>}
+      {value.best_with_declared && <DeclaredRegressors value={value} unit={unit} />}
       {value.event_declared && <p className="chartCaption">Declared future event periods: {value.future_event_periods.length ? value.future_event_periods.join(", ") : "none"}. The event schedule is assumed known in advance.</p>}
+    </section>
+  );
+}
+
+function DeclaredRegressors({ value, unit }: { value: ForecastRegressors; unit: string }) {
+  const rows = [
+    ["Best smoothing method", value.best_without_regressors],
+    ["Best with calendar effects only", value.best_calendar_only],
+    ["Best with holidays and predictors", value.best_with_declared],
+  ] as const;
+  return (
+    <section aria-label="Holidays and predictors comparison">
+      <h4>Holidays and outside predictors</h4>
+      <p>
+        {value.selected === "declared_regressors"
+          ? "Holidays and outside predictors beat every other method on the earlier windows, so this forecast uses them."
+          : "Holidays and outside predictors did not beat the best other method on the earlier windows, so they are not used."}
+      </p>
+      <div className="tableWrap">
+        <table aria-label="Declared regressor comparison">
+          <thead><tr><th>Approach</th><th>Method</th><th>Earlier-window error ({unit})</th><th>Later test error ({unit})</th></tr></thead>
+          <tbody>
+            {rows.map(([label, item]) => <tr key={label}><td>{label}</td><td>{item ? item.method.replaceAll("_", " ") : "Not eligible"}</td><td>{item?.validation_mae ?? "—"}</td><td>{item?.test_mae ?? "—"}</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+      <div className="tableWrap">
+        <table aria-label="Fitted holiday and predictor effects">
+          <thead><tr><th>Input</th><th>Fitted effect ({unit})</th><th>Future values used</th></tr></thead>
+          <tbody>
+            {value.holidays && <tr><td>Holiday days ({value.holidays.history_periods_with_holidays} past periods)</td><td>{value.holidays.effect} {value.holidays.effect_unit}</td><td>{value.holidays.future_holiday_periods.map(item => item.period).join(", ") || "none"}</td></tr>}
+            {value.predictors?.map(item => <tr key={item.name}><td>{item.name}</td><td>{item.effect} · {item.effect_unit}</td><td>{item.future_values.join(", ")}</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+      <p className="chartCaption">{value.effects_label}</p>
     </section>
   );
 }

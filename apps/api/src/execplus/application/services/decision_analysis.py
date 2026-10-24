@@ -57,6 +57,12 @@ from execplus.domain.detector_calibration import (
     detector_evidence,
     detector_threshold,
 )
+from execplus.domain.distance_calibration import (
+    TARGETS as DISTANCE_TARGETS,
+)
+from execplus.domain.distance_calibration import (
+    calibrated_multivariate,
+)
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt
 from execplus.domain.exploration_selection import anomaly_default
@@ -71,6 +77,9 @@ from execplus.domain.large_allocation import (
 )
 from execplus.domain.large_allocation import SENSITIVITY_METHOD as CAPACITY_METHOD
 from execplus.domain.models import CalculationLineage, QueryResult
+from execplus.domain.multivariate_anomalies import (
+    CALIBRATED_METHOD as MULTIVARIATE_CALIBRATED_METHOD,
+)
 from execplus.domain.multivariate_anomalies import METHOD as MULTIVARIATE_METHOD
 from execplus.domain.multivariate_anomalies import detect_multivariate, is_multivariate
 from execplus.domain.scenario_constraints import METHOD as CONSTRAINED_SCENARIO_METHOD
@@ -129,7 +138,7 @@ def scenario_successor_compatible(
 
 def method_version(raw: dict[str, Any]) -> str:
     if is_multivariate(raw):
-        return MULTIVARIATE_METHOD
+        return str(raw["model"])
     if is_large_allocation(raw):
         return str(raw["model"])
     if is_calendar_anomaly(raw):
@@ -156,6 +165,8 @@ def method_version(raw: dict[str, Any]) -> str:
 
 
 def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
+    if is_multivariate(raw) and raw["model"] == MULTIVARIATE_CALIBRATED_METHOD:
+        return calibrated_multivariate(raw, value.rows)
     if is_multivariate(raw):
         return detect_multivariate(raw, value.rows)
     if raw["kind"] == "scenario_comparison":
@@ -280,6 +291,8 @@ class DecisionAnalysisService:
             calendar_anomalies={**forecast_options(context), "methods": sorted(CALENDAR_METHODS)},
             multivariate_anomalies=dict(
                 model=MULTIVARIATE_METHOD,
+                calibrated_model=MULTIVARIATE_CALIBRATED_METHOD,
+                false_alarm_targets=list(DISTANCE_TARGETS),
                 identifiers=[c["name"] for c in columns if c["role"] == "identifier"],
                 groups=[c["name"] for c in columns if c["role"] == "dimension"],
                 maximum_records=1000,
@@ -309,6 +322,7 @@ class DecisionAnalysisService:
                 SOURCE_SCENARIO_METHOD,
                 *sorted(CALENDAR_METHODS),
                 MULTIVARIATE_METHOD,
+                MULTIVARIATE_CALIBRATED_METHOD,
                 CALIBRATED_METHOD,
                 SEGMENT_CALIBRATED_METHOD,
             ],
@@ -533,6 +547,7 @@ class DecisionAnalysisService:
                     DAILY_METHOD,
                     SOURCE_SCENARIO_METHOD,
                     MULTIVARIATE_METHOD,
+                    MULTIVARIATE_CALIBRATED_METHOD,
                     CALIBRATED_METHOD,
                     SEGMENT_CALIBRATED_METHOD,
                 }
@@ -614,7 +629,11 @@ class DecisionAnalysisService:
                 outcome = await self.allocation_solver.solve(problem.integers)
                 calculated = checked_allocation(problem, outcome)
         else:
-            if raw.get("model") in {CONSTRAINED_SCENARIO_METHOD, MULTIVARIATE_METHOD}:
+            if raw.get("model") in {
+                CONSTRAINED_SCENARIO_METHOD,
+                MULTIVARIATE_METHOD,
+                MULTIVARIATE_CALIBRATED_METHOD,
+            }:
                 self._admit_model(actor, wid, did, uid, raw, view.sources)
             calculated = await read_complete(lambda: calculate(raw, result))
         await read_complete(

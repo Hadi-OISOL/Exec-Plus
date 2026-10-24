@@ -9,7 +9,7 @@ import json
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, localcontext
 from typing import Any, TypeVar
 from uuid import UUID, uuid4, uuid5
@@ -23,6 +23,8 @@ from execplus.application.services.workspaces import checked_name
 from execplus.domain.advanced_forecasting import (
     CALIBRATED_ENGINE,
     CALIBRATED_VERSION,
+    DECLARED_ENGINE,
+    DECLARED_VERSION,
     METHOD_CATALOG,
     REGRESSION_ENGINE,
     REGRESSION_VERSION,
@@ -44,6 +46,8 @@ from execplus.domain.forecast_defaults import quick_start
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
 from execplus.domain.forecast_series import (
     event_flags,
+    predictor_spec,
+    predictor_values,
     series_kinds,
     series_plan,
     series_request,
@@ -59,6 +63,9 @@ from execplus.domain.forecasting import (
 )
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, WorkspaceScope
+from execplus.domain.pakistan_holidays import CALENDAR_ID as HOLIDAY_CALENDAR
+from execplus.domain.pakistan_holidays import catalog as holiday_catalog
+from execplus.domain.pakistan_holidays import holidays as table_holidays
 from execplus.domain.profiling import TableData
 from execplus.domain.semantics import DatasetView
 
@@ -66,7 +73,10 @@ ADVANCED_ENGINES = {
     ADVANCED_ENGINE: ADVANCED_VERSION,
     CALIBRATED_ENGINE: CALIBRATED_VERSION,
     REGRESSION_ENGINE: REGRESSION_VERSION,
+    DECLARED_ENGINE: DECLARED_VERSION,
 }
+DECLARED_KEYS = ("holiday_dates", "holiday_calendar", "predictors")
+MAX_PREDICTOR_VALUE = Decimal("1e15")
 T = TypeVar("T")
 
 
@@ -94,10 +104,20 @@ def engine_version(raw: dict[str, Any]) -> str:
         raise IngestionError(
             "forecast_method", "Specific smoothing methods require Advanced forecasting.", 422
         )
-    if engine != REGRESSION_ENGINE and ("event_column" in raw or "future_event_periods" in raw):
+    if engine not in {REGRESSION_ENGINE, DECLARED_ENGINE} and (
+        "event_column" in raw or "future_event_periods" in raw
+    ):
         raise IngestionError(
             "forecast_regressors", "Event columns require the calendar-effects engine.", 422
         )
+    if engine != DECLARED_ENGINE and any(key in raw for key in DECLARED_KEYS):
+        raise IngestionError(
+            "forecast_regressors",
+            "Holidays and outside predictors require the declared-regressors engine.",
+            422,
+        )
+    if engine == DECLARED_ENGINE:
+        declared_inputs(raw)
     if engine in ADVANCED_ENGINES:
         minimum_history(
             ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length")),
@@ -107,8 +127,87 @@ def engine_version(raw: dict[str, Any]) -> str:
     return ADVANCED_ENGINES.get(engine, VERSION)
 
 
+def declared_inputs(raw: dict[str, Any]) -> None:
+    invalid = IngestionError(
+        "forecast_regressors",
+        "Declare holidays or one to three distinct outside predictors, each with one exact "
+        "future value per forecast period.",
+        422,
+    )
+    dates = raw.get("holiday_dates", [])
+    predictors = raw.get("predictors", [])
+    if (
+        not isinstance(dates, list)
+        or not isinstance(predictors, list)
+        or len(dates) > 400
+        or len(set(dates)) != len(dates)
+        or raw.get("holiday_calendar", HOLIDAY_CALENDAR) != HOLIDAY_CALENDAR
+        or len(predictors) > 3
+        or not (dates or raw.get("holiday_calendar") or predictors)
+    ):
+        raise invalid
+    columns = [item.get("column") if isinstance(item, dict) else None for item in predictors]
+    if len(set(columns)) != len(columns) or raw.get("event_column") in columns:
+        raise invalid
+    for item in predictors:
+        future = item.get("future_values")
+        if (
+            set(item) != {"column", "aggregation", "future_values"}
+            or not isinstance(future, list)
+            or len(future) != raw["horizon"]
+        ):
+            raise invalid
+        for value in future:
+            try:
+                number = Decimal(value) if isinstance(value, str) and len(value) <= 40 else None
+            except ArithmeticError:
+                number = None
+            if number is None or not number.is_finite() or abs(number) >= MAX_PREDICTOR_VALUE:
+                raise invalid
+    try:
+        for value in dates:
+            date.fromisoformat(value)
+    except (TypeError, ValueError):
+        raise invalid from None
+
+
+def holiday_counts(
+    periods: tuple[date, ...], frequency: str, raw: dict[str, Any]
+) -> tuple[int, ...] | None:
+    if "holiday_dates" not in raw and "holiday_calendar" not in raw:
+        return None
+    last = periods[-1]
+    if frequency == "monthly":
+        last = next_period(last, frequency) - timedelta(days=1)
+    declared = {date.fromisoformat(value) for value in raw.get("holiday_dates", [])}
+    if any(not periods[0] <= value <= last for value in declared):
+        raise IngestionError(
+            "forecast_holidays",
+            "Holiday dates must fall inside the history or forecast periods.",
+            422,
+        )
+    if raw.get("holiday_calendar"):
+        try:
+            declared |= set(table_holidays(periods[0], last))
+        except ValueError:
+            raise IngestionError(
+                "forecast_holidays",
+                "The built-in holiday table covers 2020 to 2030 only; declare dates instead.",
+                422,
+            ) from None
+    if frequency == "daily":
+        return tuple(int(period in declared) for period in periods)
+    return tuple(
+        sum(1 for value in declared if (value.year, value.month) == (p.year, p.month))
+        for p in periods
+    )
+
+
 def calendar_inputs(
-    points: tuple[ForecastPoint, ...], raw: dict[str, Any], events: tuple[int, ...] | None
+    points: tuple[ForecastPoint, ...],
+    raw: dict[str, Any],
+    events: tuple[int, ...] | None,
+    predictors: tuple[tuple[Decimal, ...], ...] = (),
 ) -> CalendarInputs:
     future = []
     period = points[-1].period
@@ -126,11 +225,19 @@ def calendar_inputs(
         raise IngestionError(
             "forecast_regressors", "Choose the event column before future event periods.", 422
         )
+    periods = (*(point.period for point in points), *future)
+    specs = raw.get("predictors", [])
     return CalendarInputs(
-        (*(point.period for point in points), *future),
+        periods,
         None
         if events is None
         else (*events, *(int(period.isoformat() in declared) for period in future)),
+        holiday_counts(periods, raw["frequency"], raw),
+        tuple(
+            (*history, *(Decimal(value) for value in spec["future_values"]))
+            for history, spec in zip(predictors, specs, strict=True)
+        ),
+        tuple(spec["column"] for spec in specs),
     )
 
 
@@ -138,6 +245,7 @@ def calculate_forecast(
     points: tuple[ForecastPoint, ...],
     raw: dict[str, Any],
     events: tuple[int, ...] | None = None,
+    predictors: tuple[tuple[Decimal, ...], ...] = (),
 ) -> dict[str, Any]:
     request = ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length"))
     version = engine_version(raw)
@@ -149,19 +257,26 @@ def calculate_forecast(
             request,
             raw.get("method_family", "auto"),
             version == CALIBRATED_VERSION,
-            calendar_inputs(points, raw, events) if version == REGRESSION_VERSION else None,
+            calendar_inputs(points, raw, events, predictors)
+            if version in {REGRESSION_VERSION, DECLARED_VERSION}
+            else None,
         )
     ).to_record()
 
 
 def series_inputs(
     results: list[QueryResult], raw: dict[str, Any]
-) -> tuple[tuple[ForecastPoint, ...], tuple[int, ...] | None]:
+) -> tuple[tuple[ForecastPoint, ...], tuple[int, ...] | None, tuple[tuple[Decimal, ...], ...]]:
     points = tuple(
         ForecastPoint(period, value) for period, value in series_values(results[:3], raw)
     )
     events = event_flags(results[3], points) if raw.get("event_column") else None
-    return points, events
+    first = 4 if raw.get("event_column") else 3
+    predictors = tuple(
+        predictor_values(results[index], results[index + 1], results[2], points)
+        for index in range(first, len(results), 2)
+    )
+    return points, events, predictors
 
 
 def calculate_comparison(
@@ -186,6 +301,7 @@ def commentary(result: dict[str, Any], metric: str, unit: str) -> list[str]:
     range_label = {
         ADVANCED_VERSION: "empirical validation-error",
         REGRESSION_VERSION: "empirical validation-error",
+        DECLARED_VERSION: "empirical validation-error",
         CALIBRATED_VERSION: "80% split-conformal calibration",
     }.get(result["version"], "heuristic")
     return [
@@ -236,6 +352,12 @@ class ForecastService:
                 for column in context.view.columns
                 if column.type == "integer" and column.role != "identifier"
             ],
+            "predictor_columns": [
+                column.name
+                for column in context.view.columns
+                if column.type in {"integer", "decimal"} and column.role != "identifier"
+            ],
+            "holiday_calendars": [holiday_catalog()],
             "quick_start": quick_start(context, options),
         }
 
@@ -336,7 +458,14 @@ class ForecastService:
         kind: str,
     ) -> QueryResult:
         plan = series_plan(
-            scope, did, view, request, raw["frequency"], kind, raw.get("event_column")
+            scope,
+            did,
+            view,
+            request,
+            raw["frequency"],
+            kind,
+            raw.get("event_column"),
+            predictor_spec(raw, kind),
         )
         lineage = CalculationLineage(
             plan.query_id,
@@ -436,8 +565,8 @@ class ForecastService:
                 {"dataset": did, "upload": uid, "request": raw},
             )
         results, evidence = await self._series(actor, wid, did, uid, raw)
-        points, events = series_inputs(results, raw)
-        result = await read_complete(lambda: calculate_forecast(points, raw, events))
+        points, events, predictors = series_inputs(results, raw)
+        result = await read_complete(lambda: calculate_forecast(points, raw, events, predictors))
         result["commentary"] = commentary(result, raw["metric"], evidence["unit"])
         evidence["result_checksum"] = digest(result)
         value = ForecastRun(
@@ -536,6 +665,7 @@ class ForecastService:
                     raw["frequency"],
                     kind,
                     raw.get("event_column"),
+                    predictor_spec(raw, kind),
                 ),
                 query_id=query_id,
             )
@@ -582,8 +712,10 @@ class ForecastService:
                 "lineage_mismatch", "The saved forecast method is inconsistent.", 409
             )
         results = await self._replay(actor, value, value.request)
-        points, events = series_inputs(results, value.request)
-        rebuilt = await read_complete(lambda: calculate_forecast(points, value.request, events))
+        points, events, predictors = series_inputs(results, value.request)
+        rebuilt = await read_complete(
+            lambda: calculate_forecast(points, value.request, events, predictors)
+        )
         rebuilt["commentary"] = commentary(rebuilt, value.request["metric"], value.evidence["unit"])
         if digest(rebuilt) != value.evidence["result_checksum"] or rebuilt != value.result:
             raise IngestionError(

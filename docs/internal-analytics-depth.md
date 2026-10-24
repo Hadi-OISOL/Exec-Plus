@@ -347,6 +347,42 @@ The snapshot, grouped, seasonal and rolling forms now offer the target, which
 disables the manual threshold. `test_detector_calibration.py` derives every table
 from a fresh report run and checks one seasonal trial against independent float code.
 
+### False-alarm targets for drift and multi-measure detectors (October 24)
+
+`synthetic-distance-calibration-v1` (seed 20261024, `execplus.domain.distance_calibration`)
+runs the production detectors on unchanged synthetic data under normal and
+Student-t(3) noise; a target maps to the smallest registered threshold whose measured
+rate is at most the target on both families.
+
+- **Drift** (`empirical-window-distance-calibrated-v1`). 400 window pairs for each of
+  8/8, 14/14, 30/30, 60/60 and 90/30 independent daily values (2,000 per family). The
+  separation threshold scales like a two-sample Kolmogorov-Smirnov test:
+  `coefficient × √((n+m)/(n·m))`, capped at 1, computed from the chosen windows.
+  The request carries the target instead of `minimum_cdf_separation`.
+- **Multi-measure** (`reference-mahalanobis-calibrated-v1`). Per measure count 2/3/4,
+  reference cohorts of 30/100/300 records, 20 trials each with 50 comparison records
+  drawn from the reference distribution (3,000 per family and count). The squared-
+  distance threshold depends on the number of measures. The request carries the
+  target with the default threshold.
+
+| Target | Drift coefficient (normal / heavy) | 2 measures | 3 measures | 4 measures |
+| --- | --- | --- | --- | --- |
+| 0.05 | 1.36 (0.030500 / 0.033500) | 10 (0.011667 / 0.045333) | 14 (0.007333 / 0.043000) | 20 (0.003667 / 0.037000) |
+| 0.01 | 1.63 (0.005000 / 0.007500) | 30 (0 / 0.009667) | 40 (0 / 0.008667) | 50 (0 / 0.008333) |
+| 0.005 | 1.73 (0.003000 / 0.005000) | 75 (0 / 0.003333) | 75 (0 / 0.003333) | 75 (0 / 0.003333) |
+
+Drift rates are close to the asymptotic KS values (1.36/1.63/1.73) because the test
+is distribution-free for independent values; autocorrelation, seasonality or a
+different weekday mix will raise them. Heavy tails drive every multi-measure choice:
+under normal noise the 0.01 thresholds flagged nothing, so the method is conservative
+for well-behaved data and loses sensitivity. No detection (recall) rate was measured
+for these two detectors. Results carry `calibration` evidence and
+`evaluation.calibrated=True` with `false_alarm_rate` set to the measured rates;
+legacy requests keep their versions, shapes and `calibrated=False`. The drift and
+multi-measure forms now offer the target. `test_distance_calibration.py` derives all
+tables from a fresh run and checks one drift trial (KS statistic) and one
+multi-measure trial (numpy Mahalanobis distances) with independent float code.
+
 ## Remaining boundaries
 
 No new schema, statistics library, model provider or external integration is needed

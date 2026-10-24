@@ -79,13 +79,18 @@ export type ForecastRegressors = {
   event_declared: boolean;
   future_event_periods: string[];
   best_without_regressors: RegressorSummary | null;
-  best_with_regressors: RegressorSummary | null;
-  selected: "calendar_regression" | "smoothing";
+  best_with_regressors?: RegressorSummary | null;
+  selected: "calendar_regression" | "smoothing" | "declared_regressors";
   rule: string;
-  effects: Record<string, string> | null;
+  effects?: Record<string, string> | null;
   effects_label: string;
+  best_calendar_only?: RegressorSummary | null;
+  best_with_declared?: RegressorSummary;
+  holidays?: { history_periods_with_holidays: number; future_holiday_periods: { period: string; holidays: number }[]; effect: string; effect_unit: string } | null;
+  predictors?: { name: string; future_values: string[]; effect: string; effect_unit: string }[];
 };
-export type ForecastEngine = "basic-v1" | "advanced-v2" | "advanced-v3" | "advanced-v4";
+export type ForecastEngine = "basic-v1" | "advanced-v2" | "advanced-v3" | "advanced-v4" | "advanced-v5";
+export type PredictorDraft = { column: string; aggregation: "sum" | "avg"; future: string };
 export type ForecastEvidence = {
   query_ids: string[];
   sources: object[];
@@ -107,6 +112,9 @@ export type ForecastRun = {
     method_family?: string;
     event_column?: string;
     future_event_periods?: string[];
+    holiday_dates?: string[];
+    holiday_calendar?: string;
+    predictors?: { column: string; aggregation: string; future_values: string[] }[];
     metric: string;
     time_column: string;
     aggregation: string;
@@ -153,6 +161,8 @@ export type ComparisonSummary = Pick<
 export type ForecastOptions = {
   advanced_methods?: { id: string; label: string; requires_season: boolean }[];
   event_columns?: string[];
+  predictor_columns?: string[];
+  holiday_calendars?: { id: string; label: string; first_year: number; last_year: number; source: string; limitations: string[] }[];
   meaning_state?: string;
   blockers?: { code: string; message: string }[];
   state: "ready" | "needs_review" | "unsupported";
@@ -204,6 +214,17 @@ export function advancedMinimumHistory(
 
 export function eventPeriods(text: string): string[] {
   return text.split(/[\s,]+/).filter(Boolean);
+}
+
+export function declaredRegressors(holidayCalendar: string, holidayDates: string, predictors: PredictorDraft[]) {
+  const chosen = predictors.filter((item) => item.column);
+  return {
+    ...(holidayCalendar ? { holiday_calendar: holidayCalendar } : {}),
+    ...(eventPeriods(holidayDates).length ? { holiday_dates: eventPeriods(holidayDates) } : {}),
+    ...(chosen.length
+      ? { predictors: chosen.map((item) => ({ column: item.column, aggregation: item.aggregation, future_values: eventPeriods(item.future) })) }
+      : {}),
+  };
 }
 
 export function forecastRows(
