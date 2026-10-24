@@ -801,6 +801,7 @@ class ThreadService:
                     ),
                     timeout=100,
                 )
+            assert answer is not None
             evidence: dict[str, Any] = {}
             data = None
             if isinstance(answer, ReportAnswer):
