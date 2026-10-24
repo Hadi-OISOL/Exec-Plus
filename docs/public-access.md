@@ -222,3 +222,21 @@ Public access makes the private demo reachable; it does not make it a production
 - Anything already listening on `127.0.0.1` (including SSH tunnel users) can claim any visitor IP to
   the sign-in rate limiter, because the API trusts `X-Forwarded-For` from `127.0.0.1`. Only trusted
   operators have tunnels today.
+
+## What was verified before handing over (2026-10-24)
+
+- **Local rehearsal** with the same Caddyfile and pinned Caddy image, the production website image
+  built with `NEXT_PUBLIC_API_URL=https://syntelio.localhost:36443/api`, the API (`--no-proxy-headers`,
+  the five public settings) and a jobs worker, using Caddy's own test certificate (`tls internal`):
+  sign-up in Chrome, reload keeps the session, cookie is HttpOnly + Secure + SameSite=Lax on the one
+  host and no token in browser storage, CSV upload, chat question answered, no page errors. Also:
+  `http://` redirects (308) to `https://`, foreign-origin sign-in is refused (403), cookie requests
+  without the app header are refused (401), a 28 MB upload is refused with 413 (with and without a
+  declared size), a spoofed `X-Forwarded-For` is replaced by the real client IP, `/api` is removed
+  before the API sees the path, and access logs drop query strings and cookies.
+- `caddy validate` and `caddy fmt` pass; `docker compose config` merges `compose.public.yaml` as
+  intended; shellcheck 0.10.0 passes for both scripts; `apps/api/tests/test_public_access_scripts.py`
+  rehearses dry run, go-public → go-private round trip, rebuild-on-newer-release and refusals.
+- **Not verified:** a real Let's Encrypt certificate for the sslip.io name, reachability of ports
+  80/443 through the provider's network, Google sign-in on the new address, and the scripts on the
+  VPS itself (only read-only inspection was done there).
