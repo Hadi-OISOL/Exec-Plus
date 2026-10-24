@@ -266,7 +266,30 @@ model-quality claims. Any optimization needs measured evidence before adoption.
   multilinear or, for margin, monotone in every driver, so corner extremes are exact
   bounds; margin bounds are unavailable if any corner has zero revenue. Ranges are
   declared assumptions, not probabilities. Runs without `ranges` are unchanged.
-  The web form and exports do not yet display these new fields.
+  The web form and exports do not yet display these scenario ranges.
+
+## October 24 additions: root-cause display, month comparisons and period scheduling UI
+
+- The study result shows the `root_cause` block under “Where the change is
+  concentrated”: ranked fields with exact concentration, the drilldown inside the
+  top member, and an adds-back line that requires both the server's `reconciled`
+  flag and an independent BigInt fraction sum in the browser. It is labelled
+  “Accounting attribution, not cause”. Missing amounts and no-movement states are
+  stated instead of ranked.
+- “Explain a change” adds up to three optional “also rank by” fields per side and a
+  quick month picker that fills inclusive windows for the month before or the same
+  month last year. It reuses period mode, the same receipts and
+  `segment-contribution-v1`; no new method or schema.
+- Contribution PDF/Excel exports add the ranked fields (exact concentration
+  numerator/denominator), the top-member drilldown and its adds-back status. Studies
+  without ranked fields export exactly as before.
+- “Choose actions within several limits” adds **Plan by period**
+  (`cp-sat-scheduled-allocation-v1`): 2–12 period budgets plus ordering rules
+  (“B only after A”). It cannot be combined with the capacity comparison. Results
+  show a per-period table (actions that start, budget, used, remaining), the
+  ordering rules and the independent verification list. Saved runs reopen from
+  retained evidence without re-solving. Allocation exports add per-period budgets
+  and ordering rules.
 
 ## Remaining boundaries
 
