@@ -3,7 +3,7 @@
 
 # Try the two phases locally
 
-Use [Start ExecPlus, section B](start-project.md#b-run-on-your-own-computer).
+Use [Start Syntelio, section B](start-project.md#b-run-on-your-own-computer).
 This walkthrough targets local schema **0029** on `http://localhost:3000` and
 `http://localhost:8000`. The private VPS is a separate **0029** deployment;
 see [its release evidence](verification-codex-private-release.md). These commands

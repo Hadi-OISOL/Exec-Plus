@@ -8,7 +8,7 @@ includes the independently developed 0024). Nothing in this report establishes a
 customer connection, production TLS acceptance or a VPS source-import deployment.
 
 The adapter reads a separate disposable PostgreSQL database through a dedicated
-SELECT-only role. Its test table is not the ExecPlus metadata database. Fixtures
+SELECT-only role. Its test table is not the Syntelio metadata database. Fixtures
 verify exact decimal/UTC values, source preservation, a concurrent commit inside
 repeatable-read extraction, quoted identifiers, schema changes, unsafe roles,
 types, empty text, complete-row/byte/cell limits and content-free failures.

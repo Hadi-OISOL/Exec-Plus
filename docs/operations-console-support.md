@@ -123,7 +123,7 @@ Period usage includes uploads, retained-byte events, completed/failed query even
 and created forecasts. Background computations can contribute to query counts;
 they cannot thereby create human retention. These are not billing entitlements,
 payment/customer retention or comprehensive telemetry for uninstrumented legacy
-queries, passive views and activity outside ExecPlus. No per-person activity
+queries, passive views and activity outside Syntelio. No per-person activity
 history, source values, questions or private ticket text are returned in the report.
 
 ## Performance and compatibility

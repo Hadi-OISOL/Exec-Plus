@@ -8,7 +8,7 @@ repositories to affect the product's actual data display. Downloading references
 does not satisfy that request. This work changes the dashboard, shared calculated
 answer charts, measured-pattern cards and forecast results. The first original implementation is deployed as `879d90f`; a later local
 layout repair is `47977a8`. The user then explicitly clarified that actual upstream
-code/tool reuse is required and confirmed that ExecPlus will remain noncommercial.
+code/tool reuse is required and confirmed that Syntelio will remain noncommercial.
 The active follow-up integrates Lieflat G10, a separate documd line preset, bundled
 ECharts and attributed reading recipes. The chart integration is deployed at `7b46db2`; a hosted reading fallback remains open. See the
 [current ledger](verification-repository-integration.md); the

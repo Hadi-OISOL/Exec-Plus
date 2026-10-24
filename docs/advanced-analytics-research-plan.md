@@ -12,7 +12,7 @@ not authorize activating all of Phase 6 or
 evidence that new features are implemented. The existing eight production gates
 remain mandatory. No application or VPS change is part of this planning slice.
 
-ExecPlus should connect supported analyses through one governed evidence lifecycle:
+Syntelio should connect supported analyses through one governed evidence lifecycle:
 confirmed data meaning, an explicit question, an eligible versioned method,
 reproducible computation, an inspectable result and a human decision. Methods can
 expand independently; a single detector or solver must not be advertised as
@@ -337,5 +337,5 @@ initial fixtures remain fictional and cannot clear production acceptance.
 
 Primary references above were checked October 13, 2026. Method/library APIs must be
 rechecked at adoption time. The proposed limits, architecture and delivery sequence
-are ExecPlus design choices; the linked sources establish the specific method and
+are Syntelio design choices; the linked sources establish the specific method and
 browser/security facts cited, not product acceptance or universal coverage.

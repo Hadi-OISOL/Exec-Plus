@@ -47,7 +47,7 @@ season     = gamma * (y - projection) + (1 - gamma) * old_season
 forecast(h)= level + (phi + ... + phi^h) * trend + future_season
 ```
 
-Nonseasonal methods omit `season`; simple smoothing has no trend. Additive methods can produce negative values and these are never clipped. This fixed initialization and grid are ExecPlus's declared bounded choices; they are not a claim to reproduce another package's fitted parameters.
+Nonseasonal methods omit `season`; simple smoothing has no trend. Additive methods can produce negative values and these are never clipped. This fixed initialization and grid are Syntelio's declared bounded choices; they are not a claim to reproduce another package's fitted parameters.
 
 Calculations run in a private 128-digit Decimal context with half-even rounding. Retained source actuals keep their original exact decimal strings. Predictions and error summaries use the existing declared 18-significant-digit estimate representation. Accuracy is computed from those serialized estimates, so it scores the number the user can inspect. Candidate ties at reported validation-MAE precision use stable registry order, favoring baselines first.
 

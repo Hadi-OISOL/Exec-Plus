@@ -1,7 +1,7 @@
 > **File use case:** Canonical delivery plan and phase-completion ledger.
 > **What it does:** Defines scope, exit criteria, dependencies, and verified status for each professional delivery phase.
 
-# ExecPlus Delivery Roadmap
+# Syntelio Delivery Roadmap
 
 Statuses are limited to `Complete`, `In progress`, `Planned`, and `Frozen`. A phase becomes complete only when its exit criteria are demonstrated by automated checks or an explicitly recorded operational review.
 
@@ -14,7 +14,7 @@ authorization to commercialize code restricted to noncommercial use.
 - The September 2026 delivery window prioritizes the core product and activation capabilities allocated to Phases 1 through 3, plus enabling work for the export, metering, and billing capabilities in Phases 4 and 5. Full growth, commercial-hardening, and integration capabilities remain sequenced behind their required security and data foundations.
 - A capability listed in this roadmap is planned scope, not evidence that it is implemented, production-ready, or included in a customer plan.
 - Conversational analytics cannot begin until workspace isolation, upload validation, and deterministic profiling pass the Phase 1 acceptance criteria.
-- ExecPlus may describe verified descriptive analytics and, after slice 4C acceptance, limited basic time-series forecasting within its tested scope. It must not advertise full predictive or prescriptive analytics.
+- Syntelio may describe verified descriptive analytics and, after slice 4C acceptance, limited basic time-series forecasting within its tested scope. It must not advertise full predictive or prescriptive analytics.
 - Broader advanced forecasting, scenarios, calibrated anomaly detection and prescriptive methods remain frozen until their gates pass. The explicitly authorized October 10 private-demo exception delivers only the bounded methods documented below.
 - The product direction is a persistent data partner with editable business definitions, reproducible answers, source freshness, and permission-aware memory. "Understands all data" and "connects to anything" are goals, not supported-capability claims.
 - Encoding serves separate purposes: typed analytical snapshots for exact queries, embeddings plus keyword indexes for evidence discovery, and versioned statistical features for approved analyses. Preserve original data; embeddings never replace records, calculations, permissions, or privacy controls.
@@ -473,7 +473,7 @@ The interface now has a question-led Home, grouped navigation, dedicated chat,
 authorized data search/dashboard, chart/table and expansion controls, visible
 applied filters and searchable saved-answer/study/dashboard libraries. Existing
 exact receipts, private conversations and six-pin immutable boards remain binding.
-This is an adaptation of publicly observable ThoughtSpot patterns with ExecPlus
+This is an adaptation of publicly observable ThoughtSpot patterns with Syntelio
 branding, not complete feature or visual parity with its authenticated product.
 
 The [reference/gap audit](docs/interface-redesign-audit.md),
@@ -618,7 +618,7 @@ requirements remain mandatory in Phase 5. See [closure evidence](docs/verificati
 Two initial read-only connector deliveries, Google Sheets and PostgreSQL, move
 from Phase 6 into Phase 4E. They depend on confirmed dataset meaning and tested
 refresh/permission contracts. The remaining integrations and advanced capabilities
-stay in Phase 6. A source connector does not grant access to the ExecPlus
+stay in Phase 6. A source connector does not grant access to the Syntelio
 control-plane database or permission to expose the private demo publicly.
 
 The target is to make as much verified progress as possible on September 30, not

@@ -1,9 +1,9 @@
 > **File use case:** Primary onboarding guide for developers and operators.
-> **What it does:** Explains ExecPlus, the repository layout, and the shortest path to a working local environment.
+> **What it does:** Explains Syntelio, the repository layout, and the shortest path to a working local environment.
 
-# ExecPlus
+# Syntelio
 
-ExecPlus is a self-serve analytics platform that turns structured business data into traceable answers and charts. Numerical output is computed by a query engine; language models may plan, explain, and summarize, but never invent business figures.
+Syntelio (Synthesized Enterprise Intelligence; formerly ExecPlus, whose name remains in code identifiers such as the `execplus` package) is a self-serve analytics platform that turns structured business data into traceable answers and charts. Numerical output is computed by a query engine; language models may plan, explain, and summarize, but never invent business figures.
 
 ## Current status
 
@@ -131,7 +131,7 @@ and private KPI notifications. That slice introduced migration 0012; the current
 application requires **0018**. See the
 [4A guide](docs/phase4-studies.md), [4B guide](docs/phase4-refresh-monitoring.md) and
 [4B verification](docs/verification-phase4b.md). Schedules process files staged in
-ExecPlus. Forecast comparisons can use an accepted refresh without changing the
+Syntelio. Forecast comparisons can use an accepted refresh without changing the
 original forecast. Phase 4D now has bounded saved-answer PDF export; broader reports
 and other formats remain unfinished. Live connectors remain Phase 4E.
 All eight production gates remain blocked; private-demo evidence does not clear them.
@@ -184,7 +184,7 @@ The backend starts as a modular monolith. Its ports keep compute, language-model
 ## Local setup
 
 For simple numbered instructions, including the VPS tunnel, local sign-in and
-common startup fixes, use [Start ExecPlus](docs/start-project.md).
+common startup fixes, use [Start Syntelio](docs/start-project.md).
 
 ```bash
 cp .env.example .env

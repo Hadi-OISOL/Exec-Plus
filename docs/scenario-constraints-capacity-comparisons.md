@@ -83,7 +83,7 @@ answer.
 Approval applies only to the original capacity model. An alternative needs a
 separately saved model and review. Current source/meaning checks still invalidate
 effective approval after inputs change, while preserving original review history.
-Approval never executes an action outside ExecPlus.
+Approval never executes an action outside Syntelio.
 
 ## Authorization, accounting and exports
 

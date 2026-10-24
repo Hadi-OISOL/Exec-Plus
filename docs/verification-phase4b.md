@@ -76,7 +76,7 @@ Failures found and fixed during verification:
 
 ## Reproduction commands and retained evidence
 
-Only ExecPlus-owned disposable containers were used. Existing Sync-IO services were
+Only Syntelio-owned disposable containers were used. Existing Sync-IO services were
 left alone. The actual command surface used was:
 
 ```bash

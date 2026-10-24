@@ -1,4 +1,4 @@
-> **File use case:** Operating guide for the private eight-user ExecPlus demonstration.
+> **File use case:** Operating guide for the private eight-user Syntelio demonstration.
 > **What it does:** Records server layout, access, recovery, repeatable checks and expansion boundaries.
 
 # Private VPS demo
@@ -40,7 +40,7 @@ walkthrough and rollback boundary. Historical release sections retain their orig
 migration/checkpoint details.
 
 The analytics interface opens at the same `/workspace` address: **Overview** starts
-questions, **Ask ExecPlus** continues the conversation, **Search data** opens the
+questions, **Ask Syntelio** continues the conversation, **Search data** opens the
 authorized catalog and dashboard, and the two library views browse saved answers
 and study dashboards. Hard-refresh an already-open tab after the web release.
 See [interface usage](analytics-interface.md) and
@@ -88,11 +88,11 @@ and do not downgrade or restore the database. Checked pre-release backup:
 Host: `173.208.151.137`. Inspection found Ubuntu 22.04, 32 logical CPU cores,
 125 GiB RAM and a Tesla P100 with 16 GiB GPU memory. The mounted `/sdb-disk` has
 over 860 GiB available after initial deployment. Other applications share this host
-and GPU; they were not stopped, reconfigured or reused as ExecPlus data services.
+and GPU; they were not stopped, reconfigured or reused as Syntelio data services.
 
 | Location | Responsibility |
 | --- | --- |
-| `/sdb-disk/AIML-Models/OISOL_ExecPLUS/models` | ExecPlus model weights, isolated from other models |
+| `/sdb-disk/AIML-Models/OISOL_ExecPLUS/models` | Syntelio model weights, isolated from other models |
 | `/sdb-disk/AIML-Models/OISOL_ExecPLUS/evaluations` | Sanitized model evaluation reports |
 | `/sdb-disk/OISOL_ExecPLUS/source` | Application snapshot and deployment definitions |
 | `/sdb-disk/OISOL_ExecPLUS/postgres` | Dedicated PostgreSQL control-plane data |
@@ -129,7 +129,7 @@ ssh -i demo1 -o IdentitiesOnly=yes -N -o ExitOnForwardFailure=yes \
 ```
 
 Visit `http://localhost:18400/workspace`. The original tunnel from local port
-18310 to VPS port 18300 belongs to another application, not ExecPlus.
+18310 to VPS port 18300 belongs to another application, not Syntelio.
 Each browser user needs their own tunnel or an approved private network path.
 Keep the tunnel open. The `execplus-demo` SSH identity permits only these two
 local forwards; shells, password login, database forwarding and reverse forwarding
@@ -176,7 +176,7 @@ with the seat limit changed deliberately by the workspace owner.
 1. Sign in and choose the fictional investor-demo workspace.
 2. Select **City sales sample v1**, or open **Data library** and choose **Try cities sample**.
 3. Open the column map, focus chart points and click a breakdown to inspect records.
-4. In **Ask ExecPlus**, ask “Show all records of Karachi,” then “Their total revenue?”
+4. In **Ask Syntelio**, ask “Show all records of Karachi,” then “Their total revenue?”
    The fictional result is eight matching records and exact revenue of 11502.00.
 5. Generate an AI summary. Qwen selects evidence; the server supplies every number.
 6. Open answer evidence or a card's **Evidence & save** controls to save/share it.
@@ -280,7 +280,7 @@ disabled: every due slot would be recorded as failed.
 ## Backups and restoration
 
 `execplus-backup.timer` runs daily at 03:00 UTC (08:00 Pakistan time). It briefly
-stops the ExecPlus API and conversation worker before the object store, captures a
+stops the Syntelio API and conversation worker before the object store, captures a
 PostgreSQL dump and MinIO files, verifies SHA-256 checksums, and restarts only the
 services previously running, including on failure. The maintenance lock also
 excludes the scheduled refresh worker. Do not run another writer outside this

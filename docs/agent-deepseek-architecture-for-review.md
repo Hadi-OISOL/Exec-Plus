@@ -1,6 +1,6 @@
-# ExecPlus agent and DeepSeek architecture — standalone review handoff
+# Syntelio agent and DeepSeek architecture — standalone review handoff
 
-> **Purpose:** Give another engineer or Claude enough context to review how ExecPlus understands questions, sends information to its models, runs tools, and returns answers. This describes the implemented system, including its limits, rather than the intended future product.
+> **Purpose:** Give another engineer or Claude enough context to review how Syntelio understands questions, sends information to its models, runs tools, and returns answers. This describes the implemented system, including its limits, rather than the intended future product.
 >
 > **Prepared:** 18 October 2026, from local source checkpoint `6bca30e` on `phase2`. Last verified private runtime: release `c34536b8540f7c6d`, schema `0029`, checked on 17 October. This document did not re-inspect the server, call a model, or deploy anything. Runtime configuration below is historical observed configuration, explicitly separated from source defaults.
 >
@@ -10,7 +10,7 @@
 
 The owner wants a conversational data analyst: understand everyday English/Roman Urdu, remember relevant user context, ask only necessary questions, choose the right analysis, explain actual findings naturally, draw appropriate visuals, and export reports.
 
-**Today, ExecPlus implements a bounded, application-controlled analysis workflow.** It uses language models for certain interpretation and reading tasks. Python services select and execute authorized operations, calculate results, validate evidence, and construct much of the final answer.
+**Today, Syntelio implements a bounded, application-controlled analysis workflow.** It uses language models for certain interpretation and reading tasks. Python services select and execute authorized operations, calculate results, validate evidence, and construct much of the final answer.
 
 It does not currently run an open-ended collection of specialist agents that discuss a problem, repeatedly call tools, inspect their results, and compose a final researched response. A stronger model alone does not expand the allowed tools, context, output contracts, or number of analysis steps.
 
@@ -25,7 +25,7 @@ The current division of responsibility is:
 | Analytical services | Perform the actual queries, statistics, forecasts, scenarios and bounded optimization. |
 | PostgreSQL and object storage | Retain metadata, permissions, definitions, private context, jobs, evidence and source files. |
 
-“Agent tools” in this document means trusted ExecPlus service operations. It does **not** mean the model has shell access, arbitrary SQL access, downloaded skills execution, unrestricted internet access, or direct database credentials.
+“Agent tools” in this document means trusted Syntelio service operations. It does **not** mean the model has shell access, arbitrary SQL access, downloaded skills execution, unrestricted internet access, or direct database credentials.
 
 ## 2. Request architecture
 
@@ -215,7 +215,7 @@ Illustrative body, with abbreviated fictional content:
 
 The value `1024` above is the source default, not a newly verified live setting. Configured JSON mode adds `"response_format":{"type":"json_object"}`; configured reasoning effort adds `reasoning_effort`. The selector is explicitly built with JSON mode, 512 output tokens and reasoning effort `none`.
 
-There are **no provider `tools`, `tool_choice` or `tool_calls` fields**. The model returns JSON in `choices[0].message.content`; Python parses it and dispatches a trusted operation. No provider-managed conversation ID is used. Each HTTP attempt constructs a new client; conversation context is assembled by ExecPlus.
+There are **no provider `tools`, `tool_choice` or `tool_calls` fields**. The model returns JSON in `choices[0].message.content`; Python parses it and dispatches a trusted operation. No provider-managed conversation ID is used. Each HTTP attempt constructs a new client; conversation context is assembled by Syntelio.
 
 Byte limits: 1 MiB serialized request and 2 MiB response. The adapter streams response bytes into a bounded buffer; that is transport reading, **not token streaming to the chat UI**. Non-identity compressed responses are refused. Input tokens are not counted in advance by a tokenizer, and byte limits do not establish compatibility with a model's context window.
 

@@ -44,7 +44,7 @@ The selected skill's public-source observation, explicit uncertainty and
 reference-only screenshot rules fit the authorized work. Local instructions
 preserve the established target/scope instead of repeating confirmation, use the
 pinned project REA browser and separate profile, keep captures ignored, preserve
-ExecPlus's existing feature IDs/gates, and prevent automatic architecture,
+Syntelio's existing feature IDs/gates, and prevent automatic architecture,
 provider, deployment or memory-write changes. The remaining ten skills stay
 uninstalled. Design/test/diff instructions were read as inert workflow references.
 
@@ -55,7 +55,7 @@ contract derived from Replica's recon, design, test and diff workflows. It is no
 a claim that ThoughtSpot's authenticated screens or internal backend were seen.
 Root's separate REA capture ledger owns actual observations and screenshots.
 
-| Flow | ExecPlus implementation target | Observation needed before a comparison claim | Verification |
+| Flow | Syntelio implementation target | Observation needed before a comparison claim | Verification |
 | --- | --- | --- | --- |
 | F01 Ask a question and inspect the answer | Existing conversation composer, verified result and explanation hierarchy | The referenced public demonstration or authorized screen, its route/state and source URL | A synthetic question yields its exact calculation and accessible explanation; actual steps are recorded. |
 | F02 Inspect evidence and return | Existing source/receipt details with visible scope and freshness | Evidence interaction observed in a public walkthrough or authorized account; otherwise mark unknown | Keyboard open/close, focus return, exact values and current permissions. |
@@ -66,7 +66,7 @@ Use stable screen IDs under these flows and connect them to existing feature IDs
 do not substitute an upstream feature CSV for the canonical 64-row ledger. For
 each screen record its purpose, entry route, components, states actually seen and
 source. For an inferred behavior, record the evidence and confidence separately.
-Reuse ExecPlus's current tokens, components and original copy/assets.
+Reuse Syntelio's current tokens, components and original copy/assets.
 
 Compare layouts only at matched viewport and state, using 1440×900 and 390×844
 where useful, with equivalent data shape and the same selected view. Check long

@@ -91,7 +91,7 @@ finding IDs use the method and period, not a claimed individual source-row ident
 
 The seasonal comparison follows the basic earlier-season idea in
 [Forecasting: Principles and Practice](https://otexts.com/fpp3/toolbox.html#seasonal-naïve-method).
-The frozen robust residual correction and fallback rules above are ExecPlus's
+The frozen robust residual correction and fallback rules above are Syntelio's
 explicit versioned contract, not a claim to implement STL. The modified-MAD
 statistic and conventional 3.5 screening threshold are described by
 [NIST](https://itl.nist.gov/div898/handbook/eda/section3/eda35h.htm); our fixed

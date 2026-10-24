@@ -9,7 +9,7 @@ and the remaining proposal slices are separate.
 
 ## Context
 
-ExecPlus already retains source revisions, definitions, query receipts, document
+Syntelio already retains source revisions, definitions, query receipts, document
 passages and study versions. Its conversation endpoint originally waited for the
 entire answer in one HTTP request. A richer analysis platform needs typed outputs,
 bounded work, cancellation and understandable progress while keeping those existing

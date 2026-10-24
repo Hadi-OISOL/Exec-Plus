@@ -40,7 +40,7 @@ retrieval and AlphaGBM comparability rules to the backend implementer. Applicati
 implementation and tests belong to the intelligence feature ledger; these source
 reviews alone do not prove application integration or live behavior.
 
-| Reference | Appropriate use in ExecPlus | Boundary / status |
+| Reference | Appropriate use in Syntelio | Boundary / status |
 | --- | --- | --- |
 | Oil UI | Use existing tokens, one dominant action per section, evidence and state before decoration; remove nested containers/redundant borders; inspect long content, narrow screen, focus and 200% zoom. | Selected inert `references/visual-language.md` and `layout-and-viewport.md` reviewed and communicated. Original updater, promotion, media and browser scripts remain unexecuted. |
 | UIUX Pro Max | Apply current local accessibility, keyboard focus, readable type and responsive guidance to actionable insight rows. | Existing reviewed skill preserved at matching upstream pin. No new Tailwind/shadcn CLI or expanded skill bundle installed. |
@@ -79,7 +79,7 @@ and a hard item cap. `packages/mcp/src/format.ts` returns compact summaries befo
 body expansion and explicitly separates historical superseded nodes. Its token
 estimate is characters/4, not a verified tokenizer guarantee for arbitrary text.
 
-ExecPlus can adopt the *bounded retrieval design* using only existing
+Syntelio can adopt the *bounded retrieval design* using only existing
 actor/workspace-private, explicitly saved memory records. Permission filtering
 must happen before ranking; forgetting, revocation and source changes must remain
 effective at use/publication time. Derived relevance is not numerical evidence or
@@ -88,7 +88,7 @@ model inference into confirmed business meaning. No graph traversal should cross
 ownership/source boundaries.
 
 Trellis's MCP footer actively encourages automatic memory writes and its wiring
-can add agent instructions/hooks. Those are unsuitable for ExecPlus's explicit
+can add agent instructions/hooks. Those are unsuitable for Syntelio's explicit
 save contract. A type comment describes reconfirming timestamps on retrieval;
 inspected current search/expand handlers do **not** implement such a write. Do not
 claim that read-time mutation was observed. The current application should retain
@@ -98,7 +98,7 @@ its own explicit lifecycle rather than copying the tool's broad write-back polic
 
 AlphaGBM `skills/core/alphagbm-investment-review/references/investment-review.md`
 and `scripts/review_engine.py` provide a concrete before/after comparability
-contract. For ExecPlus, bind each finding to dataset/revision/meaning/receipt
+contract. For Syntelio, bind each finding to dataset/revision/meaning/receipt
 identity; do not interpret a changed publication timestamp as new source data.
 One directly applicable instruction is: “Separate changed evidence from changed
 writing, methodology, candidate selection or timestamps.” For narrative-v2, render
@@ -111,7 +111,7 @@ question worth exploring; it cannot establish cause, crop advice or a future
 outcome. Existing governed calculation tools remain responsible for numbers.
 
 The runner's local review accepts only its own versioned financial JSON workflows;
-it is not a general ExecPlus dataset analyzer. Copying that runner would add
+it is not a general Syntelio dataset analyzer. Copying that runner would add
 irrelevant APIs and schema assumptions. Source-level design adaptation is the
 appropriate reuse, with explicit mapping in the implementation ledger.
 
@@ -167,7 +167,7 @@ page through an isolated local Chrome profile. Evidence
 records the DOM/accessibility structure and scope limits. A compact private capture
 is under `data/verification/2026-10-18/intelligence-upgrade/thoughtspot-rea.json`.
 Observed presentation progresses from search to insights and Liveboards, with
-role-specific entry points. ExecPlus adapts that interaction idea through visible
+role-specific entry points. Syntelio adapts that interaction idea through visible
 findings, question entry and contextual actions using its existing authorized services.
 This is public product-page evidence, not access to ThoughtSpot's private application
 or backend. Marketing capability claims were not independently verified. No ThoughtSpot

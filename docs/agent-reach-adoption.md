@@ -1,5 +1,5 @@
 > **File use case:** Assistant-side Agent Reach review and future-project handoff.
-> **What it does:** Records the installed local scope, security findings, reproducible commands and observed checks. It does not add an ExecPlus runtime dependency.
+> **What it does:** Records the installed local scope, security findings, reproducible commands and observed checks. It does not add an Syntelio runtime dependency.
 
 # Agent Reach adoption — October 18, 2026
 
@@ -27,7 +27,7 @@ From any current local project:
 
 The wrapper rejects unsupported schemes, userinfo, localhost/private literal addresses, non-global resolved addresses, fragments and common credential/signature query keys before fetching. Its urllib opener explicitly disables ambient HTTP proxies; it adds no authorization, cookie or API-key header and never opens account configuration or `.netrc`. It does not change `HOME`, company settings, system packages, browser profiles or model providers. DNS checks are a practical public-target guard, not a universal DNS-rebinding or third-party redirect guarantee. Sensitive tokens with unusual names or embedded in URL paths cannot be recognized reliably; the caller must still supply a genuinely public URL.
 
-Installation commands used from the ExecPlus root, after reviewing the pinned source:
+Installation commands used from the Syntelio root, after reviewing the pinned source:
 
 ```bash
 uv venv --clear --python /home/hadiabbasisdev/Desktop/OISOL/.venv/bin/python data/agent-tools/agent-reach/venv
@@ -74,7 +74,7 @@ The scoped skill scan had **0 findings / score 0**, but still reported partial c
 - **79 upstream WebChannel/URL-security tests pass**, using the upstream pytest configuration.
 - **Four local wrapper tests pass**: ten invalid-URL cases stop before DNS/fetch; private DNS resolution stops before fetch; synthetic ambient proxy/API credentials are not passed to the reader; five unavailable command names are rejected. Negative checks are offline and do not contact private endpoints.
 - Package version is `1.5.0`; local status reports public-reader/RSS library availability without claiming network checks. RSS live retrieval and other platforms were not tested.
-- Initial default Python 3.14 venv creation lacked `ensurepip`; the isolated environment was rebuilt using existing Python 3.12/uv. Initial package/archive DNS failures resolved on bounded retries/Git fallback. Initial upstream-test execution inherited ExecPlus pytest options and failed configuration; rerunning with the upstream `pyproject.toml` passed. These runner failures are recorded separately from functional success.
+- Initial default Python 3.14 venv creation lacked `ensurepip`; the isolated environment was rebuilt using existing Python 3.12/uv. Initial package/archive DNS failures resolved on bounded retries/Git fallback. Initial upstream-test execution inherited Syntelio pytest options and failed configuration; rerunning with the upstream `pyproject.toml` passed. These runner failures are recorded separately from functional success.
 
 Commands to repeat the relevant offline checks:
 

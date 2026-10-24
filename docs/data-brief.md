@@ -3,7 +3,7 @@
 
 # Data reading
 
-After a CSV or XLSX upload is selected, ExecPlus asks the configured language model what the
+After a CSV or XLSX upload is selected, Syntelio asks the configured language model what the
 file appears to contain and what it is unsure about. The owner confirms or corrects that
 reading one question at a time. Confirmed answers become the dataset's shared meaning, so
 the planner already receives them as saved definitions on later questions.
@@ -12,7 +12,7 @@ the planner already receives them as saved definitions on later questions.
 
 1. The reading opens at the top of Overview when an upload is added or selected and has no
    confirmed meaning. It shows a short "Reading your data" state while the model runs.
-   While it is loading or open, **Ask ExecPlus**, the home question box and the insight
+   While it is loading or open, **Ask Syntelio**, the home question box and the insight
    canvas are hidden, so the owner confirms meaning before asking questions. Skip for now
    always releases them. If the reading cannot load, nothing is hidden.
 2. Cards ask, in order: what the data is about, what one row represents, each column the model
@@ -26,7 +26,7 @@ the planner already receives them as saved definitions on later questions.
    returns for every unconfirmed upload when the data is uploaded, selected or the page is
    reloaded. Finishing the review (Continue to my insights) stores a per-browser marker so it
    is not shown again for that upload. A confirmed upload never opens it automatically.
-5. **Check what ExecPlus understood** reopens it at any time, from Overview and from the
+5. **Check what Syntelio understood** reopens it at any time, from Overview and from the
    Prepare data panel. For an already confirmed upload it asks only about missing meanings or units, retaining
    all other answers. A complete definition says it is already confirmed.
 

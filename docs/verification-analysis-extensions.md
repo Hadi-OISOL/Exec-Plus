@@ -101,7 +101,7 @@ that exact origin. No CORS relaxation or VPS configuration change was needed.
   listeners remain loopback-only; hosted/local model selection is unchanged.
 - Use `http://localhost:18400/workspace`. New or unconfirmed uploads open data
   reading automatically. Already-confirmed data does not repeat the questionnaire;
-  use Prepare data → Check what ExecPlus understood about this data to reopen it.
+  use Prepare data → Check what Syntelio understood about this data to reopen it.
 
 Detailed release logs, table fingerprints and the fictional browser screenshot
 are ignored under `data/verification/2026-10-14/release/`. The first operator

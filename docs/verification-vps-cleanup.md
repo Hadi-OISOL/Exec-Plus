@@ -4,10 +4,10 @@ User-authorized maintenance; no application deployment or restart.
 
 - Main filesystem observed usage: 185,562,488,832 → 163,675,869,184 bytes (83% → 73%). Net decrease **21.887 GB / 20.38 GiB**. Available space afterward: 60,934,197,248 bytes.
 - Secondary filesystem observed decrease: 222,400,512 bytes. Filesystem deltas include concurrent normal server activity; they are not a sum of Docker logical layer sizes.
-- Removed 147 old ExecPlus image tags across 95 unused images. Preserved every container-referenced image, active release 9ce1f703b13b957f and previous release 0d6af5f7b68d02d3 images. No force removal or global image/container/volume prune.
+- Removed 147 old Syntelio image tags across 95 unused images. Preserved every container-referenced image, active release 9ce1f703b13b957f and previous release 0d6af5f7b68d02d3 images. No force removal or global image/container/volume prune.
 - Two build-cache prunes matched only descriptions containing execplus, apps/api or apps/web and last use older than 24 hours. Reported reclaim: 558.6 MB and 2.616 GB. Second pass followed image removal. Other shared/unattributed cache remains intentionally; remaining cache is not all classified as unrelated or safe to delete.
 - Removed 62 redundant intraday backups. Retained 25: latest backup for every represented day, plus current/previous releases' pre/post backups. All retained backup manifests passed checksums before removal. Latest post-release backup passed again afterward. No restore performed; checksums are not a fresh restore rehearsal.
-- Removed 25 ExecPlus staging tar archives older than 48 hours using explicit filename patterns. No general /tmp purge.
+- Removed 25 Syntelio staging tar archives older than 48 hours using explicit filename patterns. No general /tmp purge.
 - Preserved live database/object storage, secrets, current source, release source snapshots, operational documentation and audit evidence. Small historical source/docs were not treated as junk without evidence. No scheduled retention policy changed.
 
 ## Verification

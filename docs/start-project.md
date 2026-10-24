@@ -1,7 +1,7 @@
-> **File use case:** Simple startup guide for ExecPlus developers and demo users.
+> **File use case:** Simple startup guide for Syntelio developers and demo users.
 > **What it does:** Gives step-by-step commands for opening the private VPS demo or running the project locally.
 
-# Start ExecPlus
+# Start Syntelio
 
 Choose **A** to use the existing VPS demo. Choose **B** to run a separate copy on your computer.
 
@@ -257,4 +257,4 @@ This preserves database/storage volumes. Do not add `-v` if you want to keep you
 | New account is unavailable | Check the local `EXECPLUS_LOCAL_REGISTRATION_ENABLED` setting. Do not use token provisioning to replace an existing native account. |
 | New work hits an allowance | Open **Usage & retention → Workspace allowances**. A local platform administrator can assign a valid internal allowance; saved evidence remains retained. This is not a payment flow. |
 | Sign-in does nothing through a LAN address | Configure the browser API address, CORS origin and allowed dev host as shown in [LAN setup](week1-api.md#access-through-a-network-address), then restart API/web. |
-| Port `3000` or `8000` is occupied | Check whether your earlier ExecPlus process is still running. Reuse or stop that process before starting another copy. |
+| Port `3000` or `8000` is occupied | Check whether your earlier Syntelio process is still running. Reuse or stop that process before starting another copy. |

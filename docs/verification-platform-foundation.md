@@ -159,7 +159,7 @@ seconds. The run is a functional rehearsal, not a sustained-load benchmark.
 Independent read-only release checks matched **172/172 executable/config files**
 and **98/98 API modules** in both the image source and installed package to local
 files. Startup logs had zero error indicators, API/jobs had no unexpected restarts,
-and all six existing ExecPlus listeners remained loopback-only. The new worker
+and all six existing Syntelio listeners remained loopback-only. The new worker
 opened no port. The changed-file check found no known credentials, private keys or
 unintended generated/data artifacts. Existing model/private environment checksums
 were unchanged.

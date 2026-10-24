@@ -18,7 +18,7 @@ Section entrances and dropdown transitions are finite; reduced-motion preference
 disable them.
 
 Analysis focus uses the actual pinned **Radix Select 2.3.8** component, themed for
-ExecPlus, with managed focus, keyboard selection, typeahead, Escape dismissal,
+Syntelio, with managed focus, keyboard selection, typeahead, Escape dismissal,
 selected indicators and viewport-aware positioning. Its source is the
 [official Select documentation](https://www.radix-ui.com/primitives/docs/components/select).
 The wrapper adds explicit labels and explanatory option text. Other form controls

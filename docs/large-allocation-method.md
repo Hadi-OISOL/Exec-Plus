@@ -98,7 +98,7 @@ views. No protected values are supplied by the browser or recalculated by a mode
 
 - [OR-Tools CP-SAT documentation](https://developers.google.com/optimization/cp/cp_solver)
   specifies integer models and distinguishes optimal, feasible, infeasible and
-  unknown outcomes. ExecPlus uses the real solver behind an application port.
+  unknown outcomes. Syntelio uses the real solver behind an application port.
 - [OR-Tools v9.15 source](https://github.com/google/or-tools/tree/551ad10d94835c99e5e1e684500d3db398c0e345)
   is the reviewed upstream revision. Runtime package: `ortools==9.15.6755`;
   `pandas==2.3.3` preserves the project's Python 3.10 compatibility boundary and

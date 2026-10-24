@@ -1,11 +1,11 @@
-> **File use case:** Records the project-local skills and reference repositories requested for ExecPlus.
+> **File use case:** Records the project-local skills and reference repositories requested for Syntelio.
 > **What it does:** Preserves source pins, license boundaries, static-scan evidence and practical limits before future use.
 
 # Project skill adoption
 
 Reviewed October 16, 2026. The selected skills help the coding agent design,
 inspect and document this project. They are not unrestricted executable tools
-available to ExecPlus's product agent. The subsequent implementation explicitly
+available to Syntelio's product agent. The subsequent implementation explicitly
 adapts two chart templates and two bounded analysis-guidance sources, as recorded
 in the [repository integration map](repository-integration.md). Installing a skill
 alone does not change a model provider, production gate or supported upload format.
@@ -144,7 +144,7 @@ renderer. Its optional unpinned `npx @markdown-viewer/documd` examples would fet
 and execute a separate package; that command was not run. The skill package's
 CC-BY-4.0 license does not cover the separate GPL-3.0-only export/rendering tools.
 Keep upstream attribution when sharing copied package examples. Plain Markdown
-viewers do not necessarily render its custom fences, and ExecPlus does not gain a
+viewers do not necessarily render its custom fences, and Syntelio does not gain a
 document-export feature from these files.
 
 The EDA skill supplies development guidance and a small attributed runtime recipe
@@ -157,10 +157,10 @@ first 10,000 rows, uses ordinary floating-point summaries and does not implement
 every format named in its catalog. In particular, its generic reader has no XLSX
 branch. No bundled analyzer or extra scientific dependency was run or installed.
 See [the data-tool adoption review](data-tool-adoption-review.md) for supported
-ExecPlus methods and the conditions for a future evaluated ML adapter.
+Syntelio methods and the conditions for a future evaluated ML adapter.
 
 Lieflat is an installed project coding skill. The owner's subsequent explicit
-confirmation that ExecPlus will remain noncommercial supersedes the earlier
+confirmation that Syntelio will remain noncommercial supersedes the earlier
 commercial-use assumption. Its actual G10 renderer is now adapted into the
 application, retaining the source pin and license/notices. It receives governed
 returned rows through compiled React/ECharts code; no whole gallery is opened as
@@ -188,7 +188,7 @@ paths were checked; unchanged targets were not rescanned merely to add the wrapp
 ## Domain-agent runtime tools
 
 The [domain-agent slice](domain-agent-tools.md) exposes only configured, registered
-ExecPlus operations to planning. The ECharts tree draws source-backed field maps;
+Syntelio operations to planning. The ECharts tree draws source-backed field maps;
 ReportLab creates authenticated PDFs from supported immutable saved answers.
 [PDF research and licenses](pdf-export.md#research-and-dependencies) distinguish
 reviewed upstream workflow guidance from the BSD library actually integrated.

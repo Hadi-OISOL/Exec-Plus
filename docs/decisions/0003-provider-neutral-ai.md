@@ -8,7 +8,7 @@
 
 ## Context
 
-ExecPlus must evaluate local models, hosted language models, and vector databases. The final providers depend on privacy, quality, latency, cost, and operational tests that have not occurred.
+Syntelio must evaluate local models, hosted language models, and vector databases. The final providers depend on privacy, quality, latency, cost, and operational tests that have not occurred.
 
 ## Decision
 

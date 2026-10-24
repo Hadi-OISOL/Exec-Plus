@@ -1,5 +1,5 @@
 > **File use case:** Evidence ledger for the requested agent and dashboard enhancement.
-> **What it does:** Separates observed ThoughtSpot presentation, documented behavior and ExecPlus design choices without claiming private implementation access.
+> **What it does:** Separates observed ThoughtSpot presentation, documented behavior and Syntelio design choices without claiming private implementation access.
 
 # Meaning-first reference audit — October 14, 2026
 
@@ -24,7 +24,7 @@ Used the existing project-only REA CLI and `data/agent-tools/browser.py` with it
 separate Chrome profile. Browser navigation and scrolling were performed through
 the helper/CDP and Playwright; REA only observed the resulting pages. Discovery
 preceded inspection. No credentials, customer tenant, trial signup or uploaded
-ExecPlus data were supplied to ThoughtSpot.
+Syntelio data were supplied to ThoughtSpot.
 
 | ID | Public target and retained evidence | Result |
 | --- | --- | --- |
@@ -46,12 +46,12 @@ model prompts, tenant permissions or calculation accuracy. The public documentat
 contained an unresolved `spotter-user-interface` reference; direct web access to
 that page failed, so no finding depends on it.
 
-## ExecPlus enhancement map
+## Syntelio enhancement map
 
 These are implementation choices informed by the reference, not claims that
 ThoughtSpot uses the same code or architecture.
 
-| Existing experience | Reusable ExecPlus components | Achievable enhancement | Explicit limit |
+| Existing experience | Reusable Syntelio components | Achievable enhancement | Explicit limit |
 | --- | --- | --- | --- |
 | Understand my data | Governed description/column meanings, private reading notes, actor goal, `DatasetGuide`, deterministic profile | Lead with the dataset's purpose in everyday language. Group relevant fields by meaning. Clearly identify saved facts, tentative interpretation and the few unanswered details. | Do not invent measured outcomes, domain thresholds, units, row meaning or cause-and-effect. A model-generated interpretation remains fallible. |
 | Use my answers | `KnowledgeService.reading_context`, intent routing, private threads and current-source checks | Reuse the current upload's authorized notes and confirmed definitions; make the context used inspectable. Ask only about material missing or conflicting details. | Notes cannot override permissions or confirmed units/required filters. Stale and other-user context must not leak. |
@@ -67,4 +67,4 @@ bounded enhancement. Implementation acceptance still requires context/privacy an
 staleness tests, missing-definition behavior, honest unsupported-analysis messages,
 desktop/mobile browser checks and exact-result regression checks. This audit alone
 does not mark implementation, deployment, model quality or any product feature as
-complete. No external assets or branding should be copied into ExecPlus.
+complete. No external assets or branding should be copied into Syntelio.

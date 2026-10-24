@@ -135,7 +135,7 @@ login remains the host application's responsibility.
 GET lists current owner grants; DELETE `.../embeds/{id}` revokes. The frame URL is
 `/embed/{grant_id}` and contains only the grant ID. The frame announces
 `{type:"execplus:ready",grantId}` to its exact parent origin. The approved parent sends
-`{type:"execplus:open",grantId,secret}` to the exact ExecPlus origin. The frame checks
+`{type:"execplus:open",grantId,secret}` to the exact Syntelio origin. The frame checks
 both `event.origin` and `event.source === window.parent` before exchanging the token.
 It never executes received HTML, SQL, chart options or arbitrary script.
 
