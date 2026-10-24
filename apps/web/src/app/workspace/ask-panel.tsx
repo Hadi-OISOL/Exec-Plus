@@ -6,7 +6,7 @@ import type { AdditionalNumericalAnswer } from "./compound-results";
 import { VerifiedNarrative } from "./verified-narrative";
 import type { VerifiedNarrativeValue } from "./verified-narrative";
 import { ResultExportActions } from "./result-export-actions";
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
 import { Icon, RecordTable } from "./explore-components";
 import { displayMetric } from "./visualization-values";
@@ -23,6 +23,9 @@ import { PatternResults } from "./pattern-results";
 import { DiagramResults } from "./diagram-results";
 import type { DatasetDiagram } from "./diagram-results";
 import { AnswerPdfDownload } from "./answer-pdf-download";
+import { ChatHistory } from "./chat-history";
+import { belongsToSource } from "./chat-history-values";
+import type { ChatSummary } from "./chat-history-values";
 import type { PdfDownload } from "./answer-pdf-download";
 import type { PatternResult, PatternEvidence } from "./pattern-results";
 import {
@@ -94,7 +97,6 @@ type Turn = {
   unavailable?: boolean;
   clarification?: { choices: string[] } | null;
 };
-type History = { id: string; created_at: string };
 type SavedTurn = {
   id: string;
   question: string;
@@ -138,6 +140,8 @@ export function AskPanel({
   expert = false,
   onTool,
   downloadPdf,
+  openThread = "",
+  onOpenChat,
   ref,
 }: {
   root: string;
@@ -147,6 +151,8 @@ export function AskPanel({
   expert?: boolean;
   onTool?: (action: { tool: string; metric?: string; scenario_mode?: "daily_change" }) => void;
   downloadPdf?: PdfDownload;
+  openThread?: string;
+  onOpenChat?: (chat: ChatSummary) => void;
   ref?: Ref<ChatHandle>;
 }) {
   const [threadId, setThreadId] = useState("");
@@ -155,8 +161,6 @@ export function AskPanel({
   const [pending, setPending] = useState("");
   const [draftNotice, setDraftNotice] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [history, setHistory] = useState<History[]>([]);
-  const [selectedThread, setSelectedThread] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [activeJob, setActiveJob] = useState<ConversationJob | null>(null);
   const [activityEvents, setActivityEvents] = useState<JobEvent[]>([]);
@@ -173,7 +177,10 @@ export function AskPanel({
   const input = useRef<HTMLTextAreaElement>(null);
   const workspaceRoot = root.split("/datasets/")[0];
 
-  useEffect(() => () => operation.current?.abort(), [root, request]);
+  useEffect(() => () => {
+    operation.current?.abort();
+    inFlight.current = false;
+  }, [root, request]);
 
   function beginOperation() {
     const controller = new AbortController();
@@ -315,19 +322,41 @@ export function AskPanel({
     }
   }
 
-  useEffect(() => {
-    let active = true;
-    request<History[]>(`${root}/threads`)
-      .then((items) => {
-        if (active) setHistory(items);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
+  async function savedAnswer(turn: Turn, thread: string, signal: AbortSignal): Promise<Turn> {
+    const answer = await request<Answer | null>(
+      `${workspaceRoot}/threads/${thread}/turns/${turn.serverId}/answer`,
+      { signal },
+    );
+    const activity = turn.jobId
+      ? await request<JobEvents>(`${workspaceRoot}/jobs/${turn.jobId}/events?after=0`, { signal })
+      : null;
+    const job = turn.jobId
+      ? await request<ConversationJob>(`${workspaceRoot}/jobs/${turn.jobId}`, { signal })
+      : null;
+    return {
+      ...turn,
+      answer: flatten(answer),
+      answerLoaded: true,
+      failed: false,
+      job: job ?? undefined,
+      events: activity?.events,
+      message: answer
+        ? "Reopened historical evidence. A follow-up will check for source changes."
+        : turn.message,
     };
-  }, [root, request, threadId]);
+  }
 
-  async function openHistory() {
+  function chooseChat(chat: ChatSummary) {
+    if (belongsToSource(chat, root) || !onOpenChat) void openHistory(chat.id);
+    else onOpenChat(chat);
+  }
+
+  const openRequested = useEffectEvent((id: string) => void openHistory(id));
+  useEffect(() => {
+    if (openThread) openRequested(openThread);
+  }, [openThread]);
+
+  async function openHistory(selectedThread: string) {
     if (!selectedThread || inFlight.current) return;
     const controller = beginOperation();
     setHistoryError("");
@@ -356,6 +385,19 @@ export function AskPanel({
             : "Saved answer — load its evidence below."),
       }));
       setTurns(savedTurns);
+      const reopenable = savedTurns
+        .filter((turn) => ["complete", "partial"].includes(turn.status ?? "") && !["ambiguous", "unsupported"].includes(turn.kind ?? ""))
+        .slice(-10);
+      for (const turn of reopenable) {
+        try {
+          const loaded = await savedAnswer(turn, selectedThread, controller.signal);
+          if (controller.signal.aborted) return;
+          setTurns((items) => items.map((item) => (item.id === turn.id ? loaded : item)));
+        } catch (cause) {
+          if (controller.signal.aborted) return;
+          setTurns((items) => items.map((item) => item.id === turn.id ? { ...item, failed: true, message: cause instanceof Error ? cause.message : "The evidence is unavailable." } : item));
+        }
+      }
       const running = savedTurns.find(
         (turn) => turn.status === "running" && turn.jobId,
       );
@@ -387,41 +429,9 @@ export function AskPanel({
     if (!turn.serverId || inFlight.current) return;
     const controller = beginOperation();
     try {
-      const answer = await request<Answer | null>(
-        `${workspaceRoot}/threads/${threadId}/turns/${turn.serverId}/answer`,
-        { signal: controller.signal },
-      );
+      const loaded = await savedAnswer(turn, threadId, controller.signal);
       if (controller.signal.aborted) return;
-      const activity = turn.jobId
-        ? await request<JobEvents>(
-            `${workspaceRoot}/jobs/${turn.jobId}/events?after=0`,
-            { signal: controller.signal },
-          )
-        : null;
-      const job = turn.jobId
-        ? await request<ConversationJob>(
-            `${workspaceRoot}/jobs/${turn.jobId}`,
-            { signal: controller.signal },
-          )
-        : null;
-      if (controller.signal.aborted) return;
-      setTurns((items) =>
-        items.map((item) =>
-          item.id === turn.id
-            ? {
-                ...item,
-                answer: flatten(answer),
-                answerLoaded: true,
-                failed: false,
-                job: job ?? undefined,
-                events: activity?.events,
-                message: answer
-                  ? "Reopened historical evidence. A follow-up will check for source changes."
-                  : item.message,
-              }
-            : item,
-        ),
-      );
+      setTurns((items) => items.map((item) => (item.id === turn.id ? loaded : item)));
     } catch (cause) {
       if (controller.signal.aborted) return;
       setTurns((items) =>
@@ -595,47 +605,28 @@ export function AskPanel({
             setDraftNotice(false);
           }}
         >
-          New conversation
+          New chat
         </button>
       </header>
-      <details className="conversationHistory">
-        <summary>Private conversation history</summary>
+      <details className="conversationHistory" open>
+        <summary>Your chats</summary>
         <p>
-          Only your conversations for this upload appear here. Reopened answers
-          retain their original sources and definitions.
+          Only you can see these chats. Open one to see its full history and
+          keep asking in the same chat; saved answers reopen unchanged.
         </p>
-        <label>
-          Saved conversation
-          <select
-            value={selectedThread}
-            onChange={(event) => setSelectedThread(event.target.value)}
-          >
-            <option value="">Choose a conversation</option>
-            {history.map((item) => (
-              <option key={item.id} value={item.id}>
-                {new Date(item.created_at).toLocaleString()}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          disabled={busy || !selectedThread}
-          onClick={() => void openHistory()}
-        >
-          Open conversation
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            request<History[]>(`${root}/threads`)
-              .then(setHistory)
-              .catch((cause) => setHistoryError(cause.message))
-          }
-        >
-          Refresh history
-        </button>
+        <ChatHistory
+          workspaceRoot={workspaceRoot}
+          request={request}
+          activeThread={threadId}
+          refreshKey={`${threadId}:${turns.length}`}
+          busy={busy}
+          onOpen={chooseChat}
+          onRemoved={(id) => {
+            if (id !== threadId) return;
+            setThreadId("");
+            setTurns([]);
+          }}
+        />
         {historyError && <p role="alert">{historyError}</p>}
       </details>
       <div className="chatSource">

@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { openLatestChat } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 const question = 'Compare records where "Crop_Growth_Stage" equals "Harvest" with other records';
@@ -124,14 +125,9 @@ for (const numeric of [true, false]) {
     await expect(result).toContainText(saved.answer.pattern_evidence.query_id);
     if (!numeric) await expect(result).toContainText("Fields left out");
     await result.getByText("Scope, method and source evidence", { exact: true }).click();
-    await page.getByRole("button", { name: "New conversation", exact: true }).click();
-    await page.locator(".conversationHistory summary").click();
-    await page.getByRole("button", { name: "Refresh history", exact: true }).click();
-    await expect(page.getByLabel("Saved conversation").locator("option")).toHaveCount(2);
-    await page.getByLabel("Saved conversation").selectOption({ index: 1 });
-    await page.getByRole("button", { name: "Open conversation", exact: true }).click();
+    await page.getByRole("button", { name: "New chat", exact: true }).click();
     const reopenedResponse = page.waitForResponse(value => value.url().endsWith(`/turns/${saved.turn.id}/answer`));
-    await page.getByRole("button", { name: "Load saved answer", exact: true }).click();
+    await openLatestChat(page);
     expect((await (await reopenedResponse).json()).patterns).toEqual(computed);
     await expect(result).toContainText("Harvest");
     if (numeric) {
