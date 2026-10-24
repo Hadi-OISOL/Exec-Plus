@@ -1,0 +1,44 @@
+# Use case: Public HTTPS front door for Syntelio on the VPS, one hostname for website and API.
+# What it does: Gets certificates automatically, sends /api/* to the loopback API with the prefix
+# removed, everything else to the loopback website, caps request size and logs without query strings.
+{
+	email {$SYNTELIO_ACME_EMAIL}
+	admin off
+}
+
+{$SYNTELIO_PUBLIC_HOST} {
+	{$SYNTELIO_TLS}
+
+	request_body {
+		max_size {$SYNTELIO_MAX_REQUEST_BYTES:26214400}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+		-X-Powered-By
+	}
+
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "\?.*$" "?"
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+
+	handle_path /api/* {
+		reverse_proxy {$SYNTELIO_API_UPSTREAM:127.0.0.1:18401}
+	}
+
+	handle {
+		reverse_proxy {$SYNTELIO_WEB_UPSTREAM:127.0.0.1:18400}
+	}
+}
