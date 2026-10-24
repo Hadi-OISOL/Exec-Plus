@@ -128,6 +128,59 @@ guarantee test wins. With no seasonality the regression was never selected and v
 matched v2 exactly. Real calendars (holidays, moving events, structural breaks)
 are not represented; this is not customer accuracy evidence.
 
+## Holidays and outside predictors (engine `advanced-v5`, record `forecast-v5`)
+
+The opt-in `advanced-v5` engine keeps every v4 candidate (smoothing, then the
+calendar-only regressions with the optional event column) and appends
+declared-regressor candidates (`declared-regressor-least-squares-v1`, the same
+Decimal normal equations): `calendar_regression` and `calendar_profile` plus the
+declared inputs, and `regressor_trend` (baseline + trend + declared inputs, no
+calendar indicators; available even when two calendar cycles are not).
+
+- **Holidays.** `holiday_dates` (up to 400 distinct ISO dates inside the history or
+  forecast periods) and/or `holiday_calendar: "pk-public-fixed-v1"`. The built-in
+  table (`execplus.domain.pakistan_holidays`) is offline, checked in and versioned:
+  Kashmir Day (5 Feb), Pakistan Day (23 Mar), Labour Day (1 May), Youm-e-Takbeer
+  (28 May, from 2024), Independence Day (14 Aug), Iqbal Day (9 Nov, from 2022) and
+  Quaid-e-Azam Day/Christmas (25 Dec) for 2020–2030, citing the Cabinet Division
+  annual circulars (2025 circular dated 23 December 2024). Moon-sighting holidays
+  (Eid-ul-Fitr, Eid-ul-Adha, Ashura, Eid Milad-un-Nabi) are **not** included and must
+  be declared as dates; years after the latest checked circular assume the same
+  fixed dates. The feature is 0/1 per day, or the count of holiday days per month.
+  The existing 0/1 `event_column` is also accepted by v5 for a column-based schedule.
+- **Outside predictors.** Up to three `predictors`, each `{column, aggregation
+  (sum|avg), future_values}` from the same dataset: a numerical, non-identifier
+  column other than the measure, date or event column, with exactly one decimal
+  future value per forecast period (|value| < 10¹⁵). Two extra governed receipts per
+  predictor (`SUM/AVG` and `COUNT` per period) are retained; any period where the
+  predictor is missing on an included record is refused rather than averaged over.
+- **Selection.** Declared candidates sit after smoothing and calendar-only ones, so
+  under the unchanged `(validation MAE, registry order)` rule they are chosen only
+  when strictly better than all of them. `regressors` shows best smoothing, best
+  calendar-only and best declared candidate with validation and test MAE, the fitted
+  holiday and per-unit predictor effects (approximate, associations only), the
+  future predictor values and future holiday periods.
+- **Compatibility.** Requests without these keys keep their exact v1–v4 shapes and
+  results; v4 records stay byte-identical (existing pinned hashes pass).
+
+Seeded synthetic measurement (`execplus.domain.declared_regressor_evaluation`, seed
+20261024, 10 daily series of 140 days per scenario, horizon 7, 7-day cycle declared).
+"Test" is the untouched final holdout; "future" scores the 7 forecast periods against
+generated later actuals. Mean MAE:
+
+| Scenario | v2 test | v4 test | v5 test | v2 future | v4 future | v5 future | v5 picked declared |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Holiday closures (−35 on PK fixed holidays + 5% declared days) | 7.673 | 6.634 | 2.562 | 6.270 | 5.997 | 2.960 | 10/10 |
+| Predictor-driven, true future values | 6.594 | 6.594 | 1.661 | 6.777 | 6.777 | 1.789 | 10/10 |
+| Same series, future values wrong by N(0, 3²) | 6.594 | 6.594 | 1.661 | 6.777 | 6.777 | **7.420** | 10/10 |
+| Unrelated predictor (random walk) | 4.918 | 5.170 | 5.170 | 5.095 | 5.285 | 5.285 | 0/10 |
+
+The series are built in exactly the additive form v5 fits, so they favour it by
+construction. With wrong future predictor values v5 is **worse** than v4 on the
+future periods (7.420 vs 6.777) even though validation still chose it: validation
+uses true historical predictors and cannot see future-value error. An unrelated
+predictor was never selected and v5 matched v4 exactly. Not customer accuracy.
+
 ## Access, immutability and exports
 
 The forecast remains creator-private, including from workspace owners. Existing source revision, confirmed meaning, accepted refresh, byte-integrity and query-receipt checks remain. Opt-in dataset policies project allowed rows/columns before calculation; exact policy/actor references are retained in evidence. A changed policy blocks publication or opening old-scope results, and history omits inaccessible results. Exports reopen the same authorized saved result and perform the export service's final authorization check.
@@ -136,4 +189,4 @@ Replay dispatches by the saved engine version and recomputes the recorded determ
 
 ## Remaining boundaries
 
-This slice does not implement ARIMA, probabilistic ETS likelihood fitting, multiplicative seasonality, multiple seasonal cycles, learned or external regressors, automatic holiday calendars, hierarchical reconciliation, causal effects or automatic refresh scheduling. It does not establish calibrated uncertainty, representative customer quality or production throughput. Those need their own explicit method and acceptance evidence, not a more confident label.
+This slice does not implement ARIMA, probabilistic ETS likelihood fitting, multiplicative seasonality, multiple seasonal cycles, learned regressors, forecasts of the outside predictors themselves, moon-sighting holiday dates, hierarchical reconciliation, causal effects or automatic refresh scheduling. It does not establish calibrated uncertainty, representative customer quality or production throughput. Those need their own explicit method and acceptance evidence, not a more confident label.

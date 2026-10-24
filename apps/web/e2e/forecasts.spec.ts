@@ -100,6 +100,34 @@ test("calendar effects are compared with the best smoothing method before use", 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 
+test("holidays are tried only after smoothing and calendar effects and their comparison is shown", async ({ page }) => {
+  test.setTimeout(150_000);
+  await signIn(page, session());
+  await upload(page, 50);
+  await selectAnalysisFocus(page, "predictive");
+  await review(page);
+  await page.getByRole("combobox", { name: "Period", exact: true }).selectOption("daily");
+  await page.getByRole("combobox", { name: "Forecast approach", exact: true }).selectOption("advanced-v5");
+  const declared = page.getByRole("group", { name: "Holidays and outside predictors", exact: true });
+  await declared.getByRole("checkbox", { name: "Use the built-in", exact: false }).check();
+  await declared.getByLabel("Holiday or closure dates · history and forecast periods").fill("2024-01-20, 2024-02-01");
+  await expect(declared.getByRole("combobox", { name: "Outside predictor 1 · optional", exact: true })).toHaveValue("");
+  await page.getByLabel("I confirm the source covers every complete period in this range.").check();
+  const created = page.waitForResponse(response => response.request().method() === "POST" && /\/uploads\/[^/]+\/forecasts$/.test(new URL(response.url()).pathname));
+  await page.getByRole("button", { name: "Create forecast", exact: true }).click();
+  const response = await created;
+  expect(response.status()).toBe(201);
+  const run = await response.json();
+  expect(run.result.version).toBe("forecast-v5");
+  expect(run.request).toMatchObject({ engine: "advanced-v5", holiday_calendar: "pk-public-fixed-v1", holiday_dates: ["2024-01-20", "2024-02-01"] });
+  expect(run.request.predictors).toBeUndefined();
+  const comparison = page.getByRole("region", { name: "Holidays and predictors comparison", exact: true });
+  await expect(comparison).toContainText(run.result.regressors.best_with_declared.validation_mae);
+  await expect(comparison).toContainText(run.result.regressors.selected === "declared_regressors" ? "so this forecast uses them" : "so they are not used");
+  await page.setViewportSize({ width: 320, height: 900 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
 function session() {
   return execFileSync(
     "python3",

@@ -178,6 +178,7 @@ def _forecast(report: _Report, record: dict[str, Any]) -> None:
         "forecast-v2": "Empirical",
         "forecast-v3": "Calibrated 80%",
         "forecast-v4": "Empirical",
+        "forecast-v5": "Empirical",
     }.get(str(result.get("version")), "Heuristic")
     range_note = {
         "Empirical": "The reported ranges use validation errors, "

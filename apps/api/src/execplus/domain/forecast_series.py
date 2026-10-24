@@ -111,7 +111,25 @@ def series_request(raw: dict[str, Any], table: TableData, view: DatasetView) -> 
 
 
 def series_kinds(raw: dict[str, Any]) -> tuple[str, ...]:
-    return ("value", "present", "samples", *(("event",) if raw.get("event_column") else ()))
+    return (
+        "value",
+        "present",
+        "samples",
+        *(("event",) if raw.get("event_column") else ()),
+        *(
+            f"predictor{index}{suffix}"
+            for index in range(len(raw.get("predictors", [])))
+            for suffix in ("", "_present")
+        ),
+    )
+
+
+def predictor_spec(raw: dict[str, Any], kind: str) -> dict[str, Any] | None:
+    if not kind.startswith("predictor"):
+        return None
+    index = kind.removeprefix("predictor").removesuffix("_present")
+    spec: dict[str, Any] = raw["predictors"][int(index)]
+    return spec
 
 
 def series_plan(
@@ -122,6 +140,7 @@ def series_plan(
     frequency: str,
     kind: str,
     event_column: str | None = None,
+    predictor: dict[str, Any] | None = None,
 ) -> QueryPlan:
     time_column = quote_identifier(request.group_by[0])
     metric = quote_identifier(request.metric)
@@ -140,6 +159,22 @@ def series_plan(
                 "forecast_event_column", "Choose a numerical 0/1 event column.", 422
             )
         aggregation, operand = "MAX", quote_identifier(column.name)
+    if predictor is not None:
+        column = view.column(predictor.get("column", ""))
+        if (
+            column is None
+            or column.type not in {"integer", "decimal"}
+            or column.role == "identifier"
+            or column.name in {request.metric, request.group_by[0], event_column}
+            or predictor.get("aggregation") not in {"sum", "avg"}
+        ):
+            raise IngestionError(
+                "forecast_predictor_column",
+                "Choose a different numerical, non-identifier column as an outside predictor.",
+                422,
+            )
+        operand = quote_identifier(column.name)
+        aggregation = "COUNT" if kind.endswith("_present") else predictor["aggregation"].upper()
     clauses, parameters = build_where(view, request.filters)
     sql = (
         f'SELECT {period} AS {grouped}, {aggregation}({operand}) AS "__value" '
@@ -156,6 +191,49 @@ def series_plan(
         sql,
         (unit, *((1,) if kind == "samples" else ()), *parameters),
     )
+
+
+def predictor_values(
+    result: QueryResult,
+    present: QueryResult,
+    samples: QueryResult,
+    points: tuple[Any, ...],
+) -> tuple[Decimal, ...]:
+    def period_of(value: Any) -> Any:
+        return value.date() if isinstance(value, datetime) else value
+
+    if {period_of(r[0]): r[1] for r in present.rows} != {
+        period_of(r[0]): r[1] for r in samples.rows
+    }:
+        raise IngestionError(
+            "forecast_predictor_values",
+            "Every included record needs a predictor value; resolve missing values first.",
+            422,
+        )
+    values: dict[date, Decimal] = {}
+    for row in result.rows:
+        if len(row) != 2:
+            raise IngestionError("invalid_series", "The predictor evidence is malformed.", 422)
+        period, value = row
+        if isinstance(period, datetime):
+            period = period.date()
+        if (
+            not isinstance(period, date)
+            or isinstance(value, bool)
+            or not isinstance(value, (int, Decimal))
+            or not Decimal(value).is_finite()
+        ):
+            raise IngestionError(
+                "forecast_predictor_values",
+                "Every included record needs an exact predictor value in every period.",
+                422,
+            )
+        values[period] = Decimal(value)
+    if set(values) != {point.period for point in points}:
+        raise IngestionError(
+            "forecast_predictor_values", "Every forecast period needs a predictor value.", 422
+        )
+    return tuple(values[point.period] for point in points)
 
 
 def event_flags(result: QueryResult, points: tuple[Any, ...]) -> tuple[int, ...]:
