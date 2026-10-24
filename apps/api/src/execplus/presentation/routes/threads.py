@@ -5,10 +5,11 @@ lineage rather than raw prompt history, and always records what was executed
 or why it was not.
 """
 
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from execplus.application.services.intent_router import ConversationAnswer
@@ -143,8 +144,20 @@ async def list_chats(
     service: Service,
     q: Annotated[str, Query(max_length=100)] = "",
     limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    after: Annotated[str, Query(max_length=100)] = "",
 ) -> object:
-    return [_chat_body(item) for item in service.list_chats(actor, workspace_id, q, limit)]
+    cursor = None
+    if after:
+        try:
+            moment, _, identifier = after.partition("|")
+            cursor = (datetime.fromisoformat(moment), UUID(identifier))
+            if cursor[0].tzinfo is None:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(
+                422, "Use the last chat's 'last_activity|id' as the cursor."
+            ) from None
+    return [_chat_body(item) for item in service.list_chats(actor, workspace_id, q, limit, cursor)]
 
 
 @router.patch("/workspaces/{workspace_id}/threads/{thread_id}")

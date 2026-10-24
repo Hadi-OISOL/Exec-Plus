@@ -53,18 +53,59 @@ def test_owner_lists_chats_newest_first_with_titles_sources_and_search(integrati
     body = chats.json()
     assert [item["id"] for item in body] == [older, empty, newer]
     first = body[0]
-    assert first["title"] == "What is total revenue?"
+    assert first["title"] == "Total revenue — Sales"
     assert first["named"] is False
     assert first["dataset_name"] == "Sales"
     assert first["filename"] == "revenue.csv"
     assert first["turn_count"] == 2
     assert body[1]["title"] == "New chat"
-    assert body[2]["title"] == "What is total revenue by region?"
+    assert body[2]["title"] == "Total revenue — Sales"
     assert first["last_activity"] > body[2]["last_activity"]
+    assert env.client.get(f"/workspaces/{wid}/threads", headers=owner).json() == body
     found = env.client.get(f"/workspaces/{wid}/threads?q=by%20region", headers=owner).json()
     assert {item["id"] for item in found} == {older, newer}
     assert env.client.get(f"/workspaces/{wid}/threads?q=100%25", headers=owner).json() == []
     assert len(env.client.get(f"/workspaces/{wid}/threads?limit=1", headers=owner).json()) == 1
+
+
+def test_chat_pages_follow_last_activity_with_a_stable_cursor(integration):
+    env = integration
+    owner, _ = identity(env, "owner@example.test")
+    wid = workspace(env, owner)
+    did, uid = uploaded_dataset(env, owner, wid)
+    _wire_fake_thread_service(env)
+    created = [_chat(env, owner, wid, did, uid, ["What is total revenue?"])[0] for _ in range(5)]
+    hidden = created[1]
+    assert env.client.delete(f"/workspaces/{wid}/threads/{hidden}", headers=owner).status_code
+    root = f"/workspaces/{wid}/threads"
+
+    seen, cursor = [], ""
+    while True:
+        page = env.client.get(root, headers=owner, params={"limit": 2, "after": cursor})
+        assert page.status_code == 200, page.text
+        seen += page.json()
+        if len(page.json()) < 2:
+            break
+        cursor = f"{page.json()[-1]['last_activity']}|{page.json()[-1]['id']}"
+
+    assert [item["id"] for item in seen] == [item for item in reversed(created) if item != hidden]
+    assert env.client.get(root, headers=owner, params={"after": "yesterday"}).status_code == 422
+    naive = f"2026-10-24T10:00:00|{created[0]}"
+    assert env.client.get(root, headers=owner, params={"after": naive}).status_code == 422
+
+
+def test_untitled_chat_without_a_calculation_uses_its_first_question(integration):
+    env = integration
+    owner, _ = identity(env, "owner@example.test")
+    wid = workspace(env, owner)
+    did, uid = uploaded_dataset(env, owner, wid)
+    _wire_fake_thread_service(env)
+    _chat(env, owner, wid, did, uid, ["Please explain what this file is about for my team"])
+
+    listed = env.client.get(f"/workspaces/{wid}/threads", headers=owner).json()
+
+    assert listed[0]["title"] == "Please explain what this file is about…"
+    assert listed[0]["named"] is False
 
 
 def test_other_members_cannot_list_open_continue_rename_or_hide_a_chat(integration):

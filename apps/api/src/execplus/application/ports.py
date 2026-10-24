@@ -414,7 +414,12 @@ class WorkspaceRepository(
     ) -> tuple[Thread, ...]: ...
 
     def owner_threads(
-        self, workspace_id: UUID, owner_id: UUID, search: str, limit: int
+        self,
+        workspace_id: UUID,
+        owner_id: UUID,
+        search: str,
+        limit: int,
+        after: tuple[datetime, UUID] | None = None,
     ) -> tuple[ThreadSummary, ...]: ...
 
     def update_thread(self, thread: Thread) -> None: ...

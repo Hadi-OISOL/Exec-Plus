@@ -25,6 +25,8 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.selectable import ScalarSelect
 
 from execplus.application.ports import WorkspaceRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
@@ -903,9 +905,14 @@ class SQLWorkspaceRepository(
         return tuple(Thread(**row) for row in rows)
 
     def owner_threads(
-        self, workspace_id: UUID, owner_id: UUID, search: str, limit: int
+        self,
+        workspace_id: UUID,
+        owner_id: UUID,
+        search: str,
+        limit: int,
+        after: tuple[datetime, UUID] | None = None,
     ) -> tuple[ThreadSummary, ...]:
-        t, turns = s.threads, s.thread_turns
+        t, turns, q = s.threads, s.thread_turns, s.query_executions
         activity = (
             select(
                 turns.c.thread_id,
@@ -915,24 +922,35 @@ class SQLWorkspaceRepository(
             .group_by(turns.c.thread_id)
             .subquery()
         )
-        first_question = (
-            select(turns.c.question)
-            .where(turns.c.thread_id == t.c.id)
-            .order_by(turns.c.created_at, turns.c.id)
-            .limit(1)
-            .scalar_subquery()
-        )
+
+        def first(column: ColumnElement[object]) -> ScalarSelect[object]:
+            return (
+                select(column)
+                .where(turns.c.thread_id == t.c.id)
+                .order_by(turns.c.created_at, turns.c.id)
+                .limit(1)
+                .scalar_subquery()
+            )
+
         last_activity = func.coalesce(activity.c.last_turn, t.c.created_at)
         statement = (
             select(
                 t,
-                first_question.label("first_question"),
+                first(turns.c.question).label("first_question"),
                 last_activity.label("last_activity"),
                 func.coalesce(activity.c.turn_count, 0).label("turn_count"),
                 s.datasets.c.name.label("dataset_name"),
                 s.uploads.c.filename,
+                q.c.metric.label("first_metric"),
+                q.c.aggregation.label("first_aggregation"),
+                q.c.grouping.label("first_grouping"),
             )
             .join(activity, activity.c.thread_id == t.c.id, isouter=True)
+            .join(
+                q,
+                and_(q.c.workspace_id == t.c.workspace_id, q.c.id == first(turns.c.query_id)),
+                isouter=True,
+            )
             .join(
                 s.datasets,
                 and_(
@@ -953,6 +971,13 @@ class SQLWorkspaceRepository(
             .order_by(last_activity.desc(), t.c.id)
             .limit(limit)
         )
+        if after:
+            statement = statement.where(
+                or_(
+                    last_activity < after[0],
+                    and_(last_activity == after[0], t.c.id > after[1]),
+                )
+            )
         if search:
             statement = statement.where(
                 or_(
@@ -974,6 +999,9 @@ class SQLWorkspaceRepository(
                 row["turn_count"],
                 row["dataset_name"],
                 row["filename"],
+                row["first_metric"],
+                row["first_aggregation"],
+                tuple(str(item) for item in row["first_grouping"] or ()),
             )
             for row in self.connection.execute(statement).mappings()
         )
