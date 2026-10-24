@@ -8,6 +8,7 @@ import { ProductUsagePanel } from "./product-usage";
 import { IncidentPanel } from "./incident-panel";
 import { PlanAssignmentPanel } from "./plan-entitlements-panel";
 import { SupportPanel } from "./support-panel";
+import { UsageRanking } from "./usage-ranking";
 import type { StaffRole } from "./support-panel";
 
 type WorkspaceSummary = {
@@ -165,9 +166,10 @@ export function AdminPanel({
             Support queue
           </button>
           {role === "admin" && <button type="button" aria-pressed={tab === "incidents"} onClick={() => setTab("incidents")}>Service alerts</button>}
+          {role === "admin" && <button type="button" aria-pressed={tab === "usage"} onClick={() => setTab("usage")}>Usage by workspace</button>}
         </div>
       </section>
-      {tab === "incidents" && role === "admin" ? <IncidentPanel request={request} /> : tab === "support" ? (
+      {tab === "usage" && role === "admin" ? <UsageRanking request={request} /> : tab === "incidents" && role === "admin" ? <IncidentPanel request={request} /> : tab === "support" ? (
         <SupportPanel staff request={request} />
       ) : (
         role === "admin" && (

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from execplus.application.services.plans import PlanService
@@ -64,3 +64,13 @@ def summary(workspace_id: UUID, actor: Actor, plans: Service) -> object:
 @router.get("/admin/workspaces/{workspace_id}/plan")
 def assigned(workspace_id: UUID, actor: Actor, plans: Service) -> object:
     return plans.assigned(actor, workspace_id)
+
+
+@router.get("/workspaces/{workspace_id}/usage")
+def usage(workspace_id: UUID, actor: Actor, plans: Service) -> object:
+    return plans.usage(actor, workspace_id)
+
+
+@router.get("/admin/usage/workspaces")
+def overview(actor: Actor, plans: Service, limit: int = Query(50, ge=1, le=200)) -> object:
+    return plans.overview(actor, limit)

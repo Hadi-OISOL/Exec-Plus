@@ -5,13 +5,17 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { WorkspaceSelect } from "./workspace-select";
+import { dailyHistory, usedShare } from "./usage-values";
+import type { DailyUsage } from "./usage-values";
 import styles from "./model-usage-panel.module.css";
 
 type Assignment = { id: string; version: number; plan_key: string; starts_at: string; ends_at: string };
-type Allowance = { used: number | null; limit: number | null; remaining: number | null; basis: string };
-type Summary = { assignment: Assignment | null; active: boolean; allowances: Record<string, Allowance>; billing: string; counting: string };
+type Allowance = { used: number | null; limit: number | null; remaining: number | null; basis: string; state: "ok" | "near" | "reached" };
+type Notice = { kind: string; state: "near" | "reached"; message: string };
+type Summary = { assignment: Assignment | null; active: boolean; allowances: Record<string, Allowance>; notices: Notice[]; daily: DailyUsage; access_limited: boolean; counting: string };
 type Catalog = { key: string; name: string; version: number; limits: Record<string, number | null> };
-const labels: Record<string, string> = { seats: "Team seats", datasets: "Datasets", file_bytes: "Maximum file size", storage_bytes: "Retained upload storage", saved_studies: "Saved studies", processing: "Processing operations", exports: "Exports", forecasts: "Forecast operations", model_attempts: "AI attempts" };
+const labels: Record<string, string> = { seats: "Team seats", datasets: "Datasets", file_bytes: "Maximum file size", storage_bytes: "Retained upload storage", saved_studies: "Saved studies", processing: "Processing operations", exports: "Exports", forecasts: "Forecast operations", model_attempts: "AI attempts", uploads: "Uploads" };
+const stateLabel = { ok: "", near: " · Close to limit", reached: " · Limit reached" };
 const amount = (key: string, value: number) => key.endsWith("bytes") ? `${value.toLocaleString()} bytes` : value.toLocaleString();
 const period = (value: Assignment) => `${new Date(value.starts_at).toUTCString()} to ${new Date(value.ends_at).toUTCString()}`;
 
@@ -26,21 +30,26 @@ function AllowanceReport({ workspaceId, request, refresh }: { workspaceId: strin
   const [pending, setPending] = useState(true);
   useEffect(() => {
     const controller = new AbortController();
-    request<Summary>(`/workspaces/${workspaceId}/plan`, { signal: controller.signal })
+    request<Summary>(`/workspaces/${workspaceId}/usage`, { signal: controller.signal })
       .then(value => { if (!controller.signal.aborted) setReport(value); })
       .catch(cause => { if (!controller.signal.aborted) { setReport(null); setError(cause instanceof Error ? cause.message : "Allowances could not be loaded."); } })
       .finally(() => { if (!controller.signal.aborted) setPending(false); });
     return () => controller.abort();
   }, [workspaceId, request]);
   return <section className={`panel ${styles.panel}`} aria-label="Workspace allowances" aria-busy={pending}>
-    <div className={styles.header}><div><p className="studioEyebrow">WORKSPACE OWNER</p><h2>Workspace allowances</h2><p>See how much room this workspace has for new work.</p></div><button type="button" disabled={pending} onClick={refresh}>Refresh allowances</button></div>
+    <div className={styles.header}><div><p className="studioEyebrow">OWNERS AND ADMINS</p><h2>Workspace allowances</h2><p>See this period&apos;s usage against its allowance, daily history and anything close to its limit.</p></div><button type="button" disabled={pending} onClick={refresh}>Refresh allowances</button></div>
     {pending && <p role="status">Loading allowances…</p>}
     {error && <p role="alert" className="errorNotice">{error}</p>}
     {report && <>
       <p className={styles.notice}>{report.assignment ? `${report.assignment.plan_key} · ${report.active ? "Active" : "Not active — ask an administrator to review the period"}` : "No local plan assigned. Existing global safety limits still apply."}</p>
       {report.assignment && <p className={styles.caption}>{period(report.assignment)}</p>}
-      <dl className={styles.allowance}>{Object.entries(report.allowances).map(([key, value]) => <div key={key}><dt>{labels[key] ?? key}</dt><dd>{value.basis === "per_file" ? value.limit === null ? "No plan limit" : amount(key, value.limit) : <>{value.remaining === null ? "No plan limit" : `${amount(key, value.remaining)} remaining`}<small>{value.used === null ? "No assigned reporting period" : `${amount(key, value.used)} used`}{value.limit !== null && ` of ${amount(key, value.limit)}`}</small></>}</dd></div>)}</dl>
-      <p>{report.counting}</p><p className={styles.caption}>{report.billing} Existing work is retained when an allowance is reduced.</p>
+      {report.notices.length > 0 && <ul aria-label="Allowance notices">{report.notices.map(item => <li key={item.kind} role={item.state === "reached" ? "alert" : "status"} className={item.state === "reached" ? "errorNotice" : styles.notice}>{item.message}</li>)}</ul>}
+      <dl className={styles.allowance}>{Object.entries(report.allowances).map(([key, value]) => <div key={key}><dt>{labels[key] ?? key}{stateLabel[value.state]}</dt><dd>{value.basis === "per_file" ? value.limit === null ? "No plan limit" : amount(key, value.limit) : <>{value.remaining === null ? "No plan limit" : `${amount(key, value.remaining)} remaining`}<small>{value.used === null ? report.access_limited && value.basis === "current_resources" ? "Hidden: restricted datasets" : "No assigned reporting period" : `${amount(key, value.used)} used`}{value.limit !== null && ` of ${amount(key, value.limit)}`}{value.used !== null && value.limit !== null && ` (${usedShare(value.used, value.limit)})`}</small></>}</dd></div>)}</dl>
+      <details className={styles.details} open><summary>Daily history, last 30 days (UTC)</summary>
+        <div className={styles.tableScroll}><table aria-label="Daily usage history"><thead><tr><th scope="col">Day</th>{report.daily.kinds.map(kind => <th scope="col" key={kind}>{labels[kind] ?? kind}</th>)}</tr></thead>
+          <tbody>{dailyHistory(report.daily).map(row => <tr key={row.day}><th scope="row">{row.day}</th>{report.daily.kinds.map(kind => <td key={kind}>{row.counts[kind].toLocaleString()}</td>)}</tr>)}</tbody></table></div>
+      </details>
+      <p>{report.counting}</p><p className={styles.caption}>No billing or payment activation. Existing work is retained when an allowance is reduced.</p>
     </>}
   </section>;
 }

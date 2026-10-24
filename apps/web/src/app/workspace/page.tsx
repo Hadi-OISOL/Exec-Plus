@@ -21,6 +21,7 @@ import { CatalogPanel } from "./catalog-panel";
 import { DatasetMap, Icon } from "./explore-components";
 import { AskPanel } from "./ask-panel";
 import { DatasetAccessNotice } from "./dataset-access-notice";
+import { UsageNotice } from "./usage-notice";
 import { ExportDownloadContext, type ExportDownload } from "./result-export-actions";
 import { UnderstandingPanel, domains } from "./understanding-panel";
 import { DiscoveryPanel } from "./discovery-panel";
@@ -1237,6 +1238,7 @@ export default function WorkspacePage() {
                   )}
                 </section>
               )}
+              {workspace && manager && !["admin", "usage"].includes(section) && <UsageNotice workspaceId={workspace.id} view={section} request={request} />}
               {workspace && dataset && !["admin", "memory", "team"].includes(section) && <DatasetAccessNotice root={`/workspaces/${workspace.id}/datasets/${dataset}`} view={section} request={request} />}
               <div hidden={section !== "data"} className="dataLibraryGrid">
                 <section
