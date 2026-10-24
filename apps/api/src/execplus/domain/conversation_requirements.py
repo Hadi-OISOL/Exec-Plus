@@ -5,7 +5,7 @@ an overview cannot fulfill, without requiring explanation requests to match a ph
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from execplus.domain.context_retrieval import references_earlier_result
 from execplus.domain.guidance import is_greeting, mentioned_columns, words
@@ -13,6 +13,8 @@ from execplus.domain.intent import RoutedIntent
 from execplus.domain.models import CalculationLineage, QuestionKind
 from execplus.domain.semantics import (
     PRODUCT_SIGN,
+    RECORD_COUNT,
+    AggregationKind,
     DatasetView,
     FilterOperator,
     MetricRequest,
@@ -265,6 +267,71 @@ def preserves_followup_scope(
         ):
             return False
     return True
+
+
+_OPERATION_WORDS = (
+    r"\b(totals?|sums?|averages?|avg|mean|counts?|min|minimums?|max|maximums?|how many)\b"
+)
+
+
+def keeps_prior_measure(
+    question: str, intent: RoutedIntent, prior: CalculationLineage, view: DatasetView
+) -> RoutedIntent:
+    """A follow-up that narrows to a category value keeps the earlier measure unless renamed."""
+    request = intent.request
+    if (
+        intent.kind != QuestionKind.NUMERICAL
+        or request is None
+        or prior.aggregation not in {kind.value for kind in AggregationKind}
+        or (prior.metric, prior.aggregation) == (request.label, request.aggregation.value)
+    ):
+        return intent
+    metric, _, times = prior.metric.partition(PRODUCT_SIGN)
+    named = set(mentioned_columns(question, view)) | set(loosely_named_metrics(question, view))
+    added = {
+        f"{item.column} {item.operator.value} {item.value!r}"
+        for item in request.filters
+        if item.operator in (FilterOperator.EQ, FilterOperator.IEQ)
+        and item.column in view.dimensions
+    } - set(prior.filters)
+    if (
+        not added
+        or request.label in named
+        or request.metric in named
+        or re.search(_OPERATION_WORDS, words(question))
+        or not (metric == RECORD_COUNT or metric in view.metrics)
+        or (times and times not in view.metrics)
+    ):
+        return intent
+    kept = replace(
+        request,
+        metric=metric,
+        aggregation=AggregationKind(prior.aggregation),
+        times=times or None,
+    )
+    return replace(intent, request=kept)
+
+
+def followup_choices(intent: RoutedIntent, prior: CalculationLineage) -> tuple[str, ...]:
+    """Complete questions restating the follow-up with the earlier measure, for clicking."""
+    request = intent.request
+    operation = {"sum": "total", "avg": "average", "min": "minimum", "max": "maximum"}.get(
+        prior.aggregation
+    )
+    if request is None or operation is None or PRODUCT_SIGN in prior.metric:
+        return ()
+    groups = request.group_by or prior.grouping
+    values = [
+        item for item in request.filters if item.operator in (FilterOperator.EQ, FilterOperator.IEQ)
+    ][:1]
+    where = "".join(f" where {item.column} equals {item.value}" for item in values)
+    if len(groups) != 1:
+        return (f"What is the {operation} of {prior.metric}?",)
+    direction = "lowest" if request.order == "asc" else "highest"
+    return (
+        f"Which {groups[0]} has the {direction} {operation} {prior.metric}{where}?",
+        f"Which {groups[0]} has the {direction} {operation} {prior.metric}?",
+    )
 
 
 def compound_covers_request(question: str, intent: RoutedIntent, view: DatasetView) -> bool:

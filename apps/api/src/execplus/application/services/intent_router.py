@@ -43,11 +43,13 @@ from execplus.domain.conversation_requirements import (
     asks_for_ideal_conditions,
     asks_for_next_steps,
     compound_covers_request,
+    followup_choices,
     is_acknowledgement,
     is_contextual_reply,
     is_guidance_followup,
     is_result_explanation,
     is_temporal_followup,
+    keeps_prior_measure,
     loosely_named_metrics,
     preserves_followup_scope,
     product_choices,
@@ -1442,6 +1444,8 @@ class IntentRouterService:
                     view.sources,
                 )
             )
+        if self.context_enabled and contextual_reply and prior_turn is not None:
+            routed = keeps_prior_measure(question, routed, prior_turn, view)
         if (
             self.context_enabled
             and contextual_reply
@@ -1449,12 +1453,18 @@ class IntentRouterService:
             and routed.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}
             and not preserves_followup_scope(question, routed, prior_turn, view)
         ):
+            choices = (*followup_choices(routed, prior_turn), *working_choices(question, view))
             raise PlanningClarification(
                 ClarificationContext(
                     question,
-                    "The proposed follow-up changed an earlier condition or calculation "
-                    "you did not ask to change. Please state the complete question and conditions.",
+                    "That follow-up would change an earlier condition or calculation you did "
+                    "not ask to change. Choose a complete question, or ask with every condition:",
                     view.sources,
+                    tuple(
+                        choice
+                        for choice in dict.fromkeys(choices)
+                        if executable_choice(choice, view)
+                    )[:3],
                 )
             )
         if routed.data_steps and not self.orchestration_enabled:
