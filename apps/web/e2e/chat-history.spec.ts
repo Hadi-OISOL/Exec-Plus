@@ -60,7 +60,7 @@ test("a chat is listed, reopens after reload and continues in the same thread", 
   const thread = await ask(page, "How many records are there by branch?");
   await expect(chat.locator(".conversationTurn").last().locator(".verifiedBadge")).toBeVisible();
   await expect(chats.getByRole("listitem")).toHaveCount(1);
-  await expect(chats).toContainText("How many records are there by branch?");
+  await expect(chats.getByRole("listitem").first().locator("span").first()).toHaveText(/by branch/);
   await expect(chats).toContainText("first-branches.csv");
 
   await page.reload();
@@ -73,7 +73,7 @@ test("a chat is listed, reopens after reload and continues in the same thread", 
   await expect(reopened.locator(".verifiedBadge")).toBeVisible();
   await expect(reopened).toContainText("North");
   await expect(reopened.getByRole("button", { name: "Load saved answer", exact: true })).toHaveCount(0);
-  await expect(chats.getByRole("button", { name: /^How many records/ })).toHaveAttribute("aria-current", "true");
+  await expect(chats.getByRole("button", { name: /^(?!Chat options).*by branch/ })).toHaveAttribute("aria-current", "true");
 
   expect(await ask(page, "What is the total of amount?")).toBe(thread);
   await expect(chat.locator(".conversationTurn")).toHaveCount(2);
@@ -82,12 +82,13 @@ test("a chat is listed, reopens after reload and continues in the same thread", 
 
   await upload(page, "second-branches.csv");
   await expect(chat.locator(".conversationTurn")).toHaveCount(0);
-  await chats.getByRole("button", { name: /^How many records/ }).click();
+  await chats.getByRole("button", { name: /^(?!Chat options).*by branch/ }).click();
   await expect(page.locator(".chatSource")).toContainText("first-branches.csv");
   await expect(chat.locator(".conversationTurn")).toHaveCount(2);
   await expect(chat.locator(".conversationTurn").last().locator(".kpiValue")).toHaveText("0.6");
 
-  await chats.getByRole("button", { name: "Rename How many records are there by branch?", exact: true }).click();
+  await chats.getByRole("button", { name: /^Chat options for / }).click();
+  await chats.getByRole("button", { name: "Rename", exact: true }).click();
   await chats.getByLabel("Chat name", { exact: true }).fill("Branch check");
   await chats.getByRole("button", { name: "Save", exact: true }).click();
   await expect(chats.getByRole("button", { name: /^Branch check/ })).toBeVisible();
@@ -104,7 +105,8 @@ test("a chat is listed, reopens after reload and continues in the same thread", 
     }
   }
   page.once("dialog", (dialog) => dialog.accept());
-  await chats.getByRole("button", { name: "Remove Branch check", exact: true }).click();
+  await chats.getByRole("button", { name: "Chat options for Branch check", exact: true }).click();
+  await chats.getByRole("button", { name: "Remove", exact: true }).click();
   await expect(chats.getByRole("listitem")).toHaveCount(0);
   await expect(chat.locator(".conversationTurn")).toHaveCount(0);
   const hidden = await page.request.get(`http://127.0.0.1:8001/workspaces/${await workspaceId(page, token)}/threads/${thread}`, {

@@ -776,8 +776,8 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
 .assistantAvatar { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: var(--radius-md); background: var(--color-primary-subtle); color: var(--color-primary-text); }
 .workbench.analyticsShell .chatHeader .quietButton { margin-left: auto; min-height: 36px; padding: 0 var(--space-3); font-size: var(--text-small); }
 .chatSource { display: none; }
-.conversationHistory { flex-shrink: 0; max-height: 30dvh; margin: 0; padding: var(--space-3) var(--space-6); overflow: auto; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: var(--text-small); }
-.conversationHistory select { max-width: 100%; margin: var(--space-2) 0; }
+.workbench .askPanel[data-history="open"] { position: relative; min-height: 520px; padding-left: 260px; }
+.workbench.analyticsShell .chatHeader .chatSidebarToggle { flex-shrink: 0; margin: 0 0 0 calc(-1 * var(--space-2)); padding: 0; }
 .conversationLog { flex: 1 1 auto; min-height: 0; height: max(440px, calc(100vh - 400px)); max-height: min(70vh, 780px); padding: var(--space-6); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scroll-behavior: smooth; background: var(--color-surface); }
 .askPanel:not(:has(.conversationTurn)) .conversationLog { height: auto; min-height: 240px; max-height: none; }
 .welcomeMessage { margin: 0 0 var(--space-5); padding-top: var(--space-2); }
@@ -1267,7 +1267,7 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
   .askPanel .conversationLog, .dedicatedConversation .conversationLog { flex: none; height: auto; max-height: none; padding: var(--space-3) var(--space-2); }
   .assistantMessage { padding-left: var(--space-3); }
   .dataExplanation[aria-label="Result explanation"] { padding: var(--space-3); }
-  .chatHeader, .conversationHistory { padding-inline: var(--space-4); }
+  .chatHeader { padding-inline: var(--space-4); }
   .chatComposer { padding: var(--space-3); }
   .userMessage { max-width: calc(100% - 12px); }
   .discoveryMetricRange { grid-template-columns: minmax(0, 1fr); }

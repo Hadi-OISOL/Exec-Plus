@@ -1,17 +1,33 @@
-/* Use case: Styles the private "Your chats" list inside Ask ExecPlus.
-What it does: Uses shared design tokens so the list works in light/dark themes from 320 to 1440 pixels. */
+/* Use case: Styles the private chat-history sidebar beside Ask Syntelio.
+What it does: Docks it left on desktop, slides it in as a drawer on phones and uses shared tokens for light/dark themes. */
 
-.history { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.sidebar { position: absolute; inset: 0 auto 0 0; z-index: 2; display: flex; flex-direction: column; gap: var(--space-2); width: 260px; padding: var(--space-3); border-right: 1px solid var(--color-border); background: var(--color-surface-sunken); font-size: var(--text-small); }
+.sidebar[data-phone] { position: fixed; z-index: 1001; width: min(320px, 86vw); border-right: 0; box-shadow: var(--shadow-3); animation: slideIn var(--dur-base) var(--ease-emphasized) both; }
+.backdrop { position: fixed; inset: 0; z-index: 1000; background: var(--color-overlay); animation: fadeIn var(--dur-base) var(--ease-standard) both; }
+.top { display: flex; align-items: center; gap: var(--space-2); }
+.newChat { display: inline-flex; flex: 1; align-items: center; justify-content: flex-start; gap: var(--space-2); }
+.iconButton { display: inline-grid; flex-shrink: 0; place-items: center; padding: 0; border-color: transparent; background: transparent; color: var(--color-text-secondary); }
 .search input { width: 100%; }
-.empty { margin: 0; color: var(--color-text-muted); }
-.list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-.item { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; padding: var(--space-1); border: 1px solid transparent; border-radius: var(--radius-md); }
-.item[data-active] { border-color: var(--color-border); background: var(--color-surface-sunken); }
-.open { display: grid; flex: 1 1 200px; justify-content: stretch; justify-items: start; gap: 2px; min-width: 0; padding: var(--space-2); border: 0; background: transparent; color: var(--color-text); text-align: left; cursor: pointer; }
-.open:hover { background: var(--color-surface-sunken); }
-.title { max-width: 100%; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.empty { margin: var(--space-2) 0; color: var(--color-text-muted); }
+.list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.group { margin: var(--space-3) 0 var(--space-1); padding: 0 var(--space-2); color: var(--color-text-muted); font-size: var(--text-overline); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.group:first-child { margin-top: 0; }
+.item { position: relative; display: flex; align-items: center; min-width: 0; border-radius: var(--radius-md); }
+.item:hover, .item:focus-within { background: var(--color-surface-hover); }
+.item[data-active] { background: var(--color-primary-subtle); }
+.item[data-active] .title { color: var(--color-primary-text); }
+.open { display: grid; flex: 1 1 auto; justify-items: start; gap: 2px; min-width: 0; padding: var(--space-2); border: 0; background: transparent; color: var(--color-text); text-align: left; cursor: pointer; }
+.open:hover:not(:disabled) { background: transparent; }
+.title { max-width: 100%; overflow: hidden; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
 .meta { max-width: 100%; overflow: hidden; color: var(--color-text-muted); font-size: var(--text-caption); text-overflow: ellipsis; white-space: nowrap; }
-.actions { display: flex; gap: var(--space-1); }
-.rename { display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: var(--space-2); }
-.rename label { flex: 1 1 180px; margin: 0; }
+.menu { position: absolute; top: calc(100% - 4px); right: 0; z-index: 3; display: grid; min-width: 140px; padding: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-raised); box-shadow: var(--shadow-2); }
+.menu button { justify-content: flex-start; border-color: transparent; background: transparent; color: var(--color-text); }
+.rename { display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1); }
+.rename label { flex: 1 1 100%; margin: 0; }
 .rename input { width: 100%; }
+.more { width: 100%; margin-top: var(--space-2); }
+.note { margin: 0; color: var(--color-text-muted); font-size: var(--text-caption); }
+
+@keyframes slideIn { from { transform: translateX(-100%); } }
+@keyframes fadeIn { from { opacity: 0; } }

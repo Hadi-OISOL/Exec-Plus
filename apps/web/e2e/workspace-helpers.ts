@@ -49,6 +49,8 @@ export async function openConversation(page: Page) {
 
 export async function openLatestChat(page: Page) {
   const chats = page.getByRole("list", { name: "Your chats", exact: true });
+  const show = page.getByRole("button", { name: "Show chat history", exact: true });
+  if (await show.isVisible()) await show.click();
   await chats.getByRole("listitem").first().getByRole("button").first().click();
 }
 

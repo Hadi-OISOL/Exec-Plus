@@ -23,7 +23,7 @@ import { PatternResults } from "./pattern-results";
 import { DiagramResults } from "./diagram-results";
 import type { DatasetDiagram } from "./diagram-results";
 import { AnswerPdfDownload } from "./answer-pdf-download";
-import { ChatHistory } from "./chat-history";
+import { ChatSidebar, useChatSidebar } from "./chat-history";
 import { belongsToSource } from "./chat-history-values";
 import type { ChatSummary } from "./chat-history-values";
 import type { PdfDownload } from "./answer-pdf-download";
@@ -175,6 +175,8 @@ export function AskPanel({
   } | null>(null);
   const conversation = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const sidebarToggle = useRef<HTMLButtonElement>(null);
+  const sidebar = useChatSidebar();
   const workspaceRoot = root.split("/datasets/")[0];
 
   useEffect(() => () => {
@@ -344,6 +346,13 @@ export function AskPanel({
         ? "Reopened historical evidence. A follow-up will check for source changes."
         : turn.message,
     };
+  }
+
+  function startNewChat() {
+    setThreadId("");
+    setTurns([]);
+    setQuestion("");
+    setDraftNotice(false);
   }
 
   function chooseChat(chat: ChatSummary) {
@@ -584,8 +593,41 @@ export function AskPanel({
   }
 
   return (
-    <section className="panel askPanel" aria-label="Ask a question">
+    <section className="panel askPanel" aria-label="Ask a question" data-history={sidebar.open && !sidebar.phone ? "open" : undefined}>
+      {sidebar.open && (
+        <ChatSidebar
+          workspaceRoot={workspaceRoot}
+          request={request}
+          activeThread={threadId}
+          refreshKey={`${threadId}:${turns.length}:${turns.filter((turn) => turn.answer).length}`}
+          busy={busy}
+          phone={sidebar.phone}
+          onOpen={chooseChat}
+          onNewChat={startNewChat}
+          onClose={() => {
+            sidebar.setOpen(false);
+            sidebarToggle.current?.focus();
+          }}
+          onRemoved={(id) => {
+            if (id !== threadId) return;
+            setThreadId("");
+            setTurns([]);
+          }}
+        />
+      )}
       <header className="chatHeader">
+        <button
+          ref={sidebarToggle}
+          type="button"
+          className="quietButton chatSidebarToggle"
+          aria-label={sidebar.open ? "Hide chat history" : "Show chat history"}
+          aria-expanded={sidebar.open}
+          aria-controls="chat-sidebar"
+          title={sidebar.open ? "Hide chat history" : "Show chat history"}
+          onClick={sidebar.toggle}
+        >
+          <Icon name="sidebar" />
+        </button>
         <div className="assistantAvatar">
           <Icon name="sparkle" />
         </div>
@@ -593,42 +635,13 @@ export function AskPanel({
           <h2>Ask Syntelio</h2>
           <span>Your data, in conversation</span>
         </div>
-        <button
-          className="quietButton"
-          type="button"
-          title="Start a new conversation"
-          disabled={busy}
-          onClick={() => {
-            setThreadId("");
-            setTurns([]);
-            setQuestion("");
-            setDraftNotice(false);
-          }}
-        >
-          New chat
-        </button>
+        {!sidebar.open && (
+          <button className="quietButton" type="button" title="Start a new conversation" disabled={busy} onClick={startNewChat}>
+            New chat
+          </button>
+        )}
       </header>
-      <details className="conversationHistory" open>
-        <summary>Your chats</summary>
-        <p>
-          Only you can see these chats. Open one to see its full history and
-          keep asking in the same chat; saved answers reopen unchanged.
-        </p>
-        <ChatHistory
-          workspaceRoot={workspaceRoot}
-          request={request}
-          activeThread={threadId}
-          refreshKey={`${threadId}:${turns.length}`}
-          busy={busy}
-          onOpen={chooseChat}
-          onRemoved={(id) => {
-            if (id !== threadId) return;
-            setThreadId("");
-            setTurns([]);
-          }}
-        />
-        {historyError && <p role="alert">{historyError}</p>}
-      </details>
+      {historyError && <p role="alert" className="errorNotice">{historyError}</p>}
       <div className="chatSource">
         <span className="liveDot" />
         <span>{filename}</span>
