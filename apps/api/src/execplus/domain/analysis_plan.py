@@ -16,7 +16,10 @@ from execplus.domain.ingestion import IngestionError
 from execplus.domain.intent import RoutedIntent
 from execplus.domain.jobs import ResourceBudget
 from execplus.domain.models import QuestionKind
-from execplus.domain.semantics import TIME_PERIODS
+from execplus.domain.semantics import MISSING_OPERATORS, TIME_PERIODS
+
+_COMPARISONS = frozenset({"eq", "ieq", "ne", "lt", "lte", "gt", "gte"})
+_MISSING = frozenset(item.value for item in MISSING_OPERATORS)
 
 
 @dataclass(frozen=True)
@@ -249,11 +252,14 @@ class AnalysisPlan:
                     or set(item) != {"column", "operator", "value"}
                     or not isinstance(item["column"], str)
                     or not isinstance(item["operator"], str)
-                    or item["operator"] not in {"eq", "ieq", "ne", "lt", "lte", "gt", "gte"}
+                    or item["operator"] not in {*_COMPARISONS, *_MISSING}
                 ):
                     self._invalid()
                 value = item["value"]
-                if not isinstance(value, (str, int, float, bool)) or (
+                if item["operator"] in _MISSING:
+                    if value is not None:
+                        self._invalid()
+                elif not isinstance(value, (str, int, float, bool)) or (
                     isinstance(value, float) and not math.isfinite(value)
                 ):
                     self._invalid()

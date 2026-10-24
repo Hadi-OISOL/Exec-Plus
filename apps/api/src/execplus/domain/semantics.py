@@ -67,7 +67,12 @@ class FilterOperator(str, Enum):
     LTE = "lte"
     GT = "gt"
     GTE = "gte"
+    IS_MISSING = "is_missing"
+    NOT_MISSING = "not_missing"
 
+
+MISSING_OPERATORS = frozenset({FilterOperator.IS_MISSING, FilterOperator.NOT_MISSING})
+_MISSING_SQL = {FilterOperator.IS_MISSING: "IS NULL", FilterOperator.NOT_MISSING: "IS NOT NULL"}
 
 _OPERATOR_SQL = {
     FilterOperator.EQ: "=",
@@ -135,6 +140,7 @@ class SemanticColumn:
     role: str
     tags: frozenset[str] = frozenset()
     has_time: bool = False
+    missing_placeholders: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +165,7 @@ def dataset_view(profile: dict[str, Any]) -> DatasetView:
             | frozenset(re.findall(r"[a-z]+", str(entry["name"]).lower()))
             & {"headcount", "salary", "tenure", "turnover", "hires"},
             entry.get("datetime") is True,
+            "missing_placeholders" in entry,
         )
         for entry in profile["columns"]
     )
@@ -248,6 +255,9 @@ def build_where(
         column = view.column(clause.column)
         if column is None:
             raise UnsupportedQuestionError(f"{clause.column!r} is not a filterable column")
+        if clause.operator in _MISSING_SQL:
+            where_clauses.append(f"{qualify(clause.column)} {_MISSING_SQL[clause.operator]}")
+            continue
         if (
             isinstance(clause.value, str)
             and clause.value != clause.column

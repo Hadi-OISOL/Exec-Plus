@@ -14,6 +14,7 @@ from typing import Any, cast
 from execplus.domain.guidance import GUIDANCE_FOCUSES, mentioned_columns, words
 from execplus.domain.models import QuestionKind
 from execplus.domain.semantics import (
+    MISSING_OPERATORS,
     RECORD_COUNT,
     TIME_PERIODS,
     AggregationKind,
@@ -65,6 +66,16 @@ def _parse_filters(raw: Any, view: DatasetView) -> tuple[MetricFilter, ...] | No
         if not isinstance(item, dict):
             return None
         column, operator, value = item.get("column"), item.get("operator"), item.get("value")
+        if operator in MISSING_OPERATORS:
+            if (
+                not isinstance(column, str)
+                or view.column(column) is None
+                or value not in (None, "")
+                or not set(item) <= {"column", "operator", "value"}
+            ):
+                return None
+            filters.append(MetricFilter(column, FilterOperator(operator), None))
+            continue
         if (
             not isinstance(column, str)
             or view.column(column) is None

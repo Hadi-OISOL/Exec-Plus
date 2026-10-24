@@ -232,7 +232,7 @@ local only; they are not deployed and have not been re-measured live.
 | D19 | Exact zero serialized as `0E-12` | `str(Decimal)` at the HTTP boundary | Open (cosmetic; receipts unaffected) |
 | D20 | "Inventory value by warehouse" → `SUM(on_hand_units)` | Product of two fields unsupported; not caught by the derived-measure words | Fixed locally: optional plan key `times` gives `SUM/AVG(a * b)` (validated at the DuckDB boundary, exact Decimal, overflow errors instead of rounding); quantity x money stays in that currency, money x money and mixed currencies are refused; a named value on a summed quantity clarifies with clickable product choices. Old plans compile to identical SQL |
 | D21 | "Weekends vs weekdays" → daily ranking | No weekday grain | Fixed locally: `period` `weekday` (`STRFTIME(date, '%u %A')`, ISO 1 Monday..7 Sunday) and `weekend` (ISO day >= 6), inferred from day-of-week and weekend wording; follow-ups inherit them |
-| D22 | "Rows with missing sales" → "The model proposed an invalid filter" | No is-missing filter operator | Open |
+| D22 | "Rows with missing sales" → "The model proposed an invalid filter" | No is-missing filter operator | Fixed locally: filter operators `is_missing` / `not_missing` (value `null`) compile to `IS NULL` / `IS NOT NULL` on the bound field; the DuckDB validator accepts only `field IS [NOT] NULL`. Planner prompt and the offline planner ("how many rows have missing sales?", "rows with missing sales") use it; old plans compile unchanged |
 | D23 | Quality check missed `Store 1` / `" store 1 "` label variants | Profiler does not compare trimmed/case-folded labels | Open |
 | D24 | "Use a calendar period only when grouping by one date field" / "Rank groups with order asc or desc…" shown to users | Plan-validator text was raised as the refusal | Fixed: every plan-parser failure is marked `invalid_plan`, gets one correction round with the validator reason, then becomes a friendly clarification with 2–3 clickable working questions. Social/clarification reply checks and execution-time guards keep their existing messages |
 
@@ -252,6 +252,14 @@ New: D26 offered choices are often irrelevant to the question (net income, cost 
 purchase, "when did they happen"); D27 "what should I reorder first" varies between plans
 (model variance). D21 sums weekdays against weekends instead of comparing per-day averages.
 D6, D16, D22 and D25 remain.
+
+**D25 (fixed locally, profile-v4):** new ordinary uploads use profile-v4. In a column that is
+numeric, date or boolean once placeholders are ignored, the cells `N/A`, `NA`, `N.A.`, `#N/A`,
+`null`, `none`, `nan`, em dash and en dash (trimmed, case-insensitive) are read as missing,
+like empty cells: aggregates skip them and `is_missing` counts them. The column records
+`missing_placeholders` and the quality report adds a `missing_placeholders` finding. Any
+other text (e.g. `abc`) still fails with the column/row error. A lone `-` is still refused
+at upload by the formula-cell guard. v1/v2/v3 revisions and receipts are unchanged.
 
 ### Behaviour contracts added
 
