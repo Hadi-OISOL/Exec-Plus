@@ -1,0 +1,43 @@
+# Use case: Optional public HTTPS layer for the VPS deployment, used together with compose.yaml.
+# What it does: Adds the Caddy front door on ports 80/443 and builds the website for the public API address.
+# Run as: docker compose -f compose.yaml -f compose.public.yaml --env-file <secrets>/public.env ...
+
+services:
+  web:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: https://${SYNTELIO_PUBLIC_HOST:?set SYNTELIO_PUBLIC_HOST in public.env}/api
+
+  caddy:
+    image: public.ecr.aws/docker/library/caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      SYNTELIO_PUBLIC_HOST: ${SYNTELIO_PUBLIC_HOST:?set SYNTELIO_PUBLIC_HOST in public.env}
+      SYNTELIO_ACME_EMAIL: ${SYNTELIO_ACME_EMAIL:?set SYNTELIO_ACME_EMAIL in public.env}
+      SYNTELIO_MAX_REQUEST_BYTES: ${SYNTELIO_MAX_REQUEST_BYTES:-26214400}
+      SYNTELIO_TLS: ${SYNTELIO_TLS:-}
+    volumes:
+      - type: bind
+        source: ${SYNTELIO_CADDY_ROOT:-/sdb-disk/OISOL_ExecPLUS/caddy}/Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${SYNTELIO_CADDY_ROOT:-/sdb-disk/OISOL_ExecPLUS/caddy}/data
+        target: /data
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${SYNTELIO_CADDY_ROOT:-/sdb-disk/OISOL_ExecPLUS/caddy}/config
+        target: /config
+        bind: {create_host_path: false}
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    mem_limit: 512m
+    cpus: 2
+    logging:
+      driver: local
+      options: {max-size: 10m, max-file: "5"}
