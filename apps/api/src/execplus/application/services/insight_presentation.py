@@ -3,6 +3,7 @@
 Historical v1 wording stays in its original builder. Display rounding never changes receipts.
 """
 
+import re
 from collections.abc import Mapping
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
 from typing import Any
@@ -13,6 +14,7 @@ from execplus.application.services.response_synthesis import build_fact_packet
 from execplus.domain.models import VerifiedMetricAnswer
 from execplus.domain.response_synthesis import (
     INSIGHT_VERSION,
+    NAMED_VERSION,
     RANKED_VERSION,
     FactPacket,
     FactStatement,
@@ -52,7 +54,8 @@ def build_insight_packet(
     if legacy is None:
         return None
     facts: list[FactStatement] = []
-    ranked = version == RANKED_VERSION
+    ranked = version in (RANKED_VERSION, NAMED_VERSION)
+    named = version == NAMED_VERSION
 
     def display(value: object) -> str:
         return display_number(value, half_up=ranked)
@@ -155,6 +158,33 @@ def build_insight_packet(
                         )
                 else:
                     add("No nonmissing group values are available to rank.", ref, "limitation")
+            elif (
+                named
+                and (extreme := re.search(r'= \(SELECT (MAX|MIN)\("([^"]+)"\)', line.sql))
+                and result.rows
+                and len(result.rows) <= 10
+            ):
+                tied_measure = extreme.group(2)
+                spot = result.columns.index(tied_measure) if tied_measure in result.columns else -1
+                key = next(
+                    (i for i, name in enumerate(result.columns) if name != tied_measure), None
+                )
+                tied = [
+                    "missing" if key is None or row[key] is None else str(row[key])
+                    for row in result.rows
+                ]
+                listed = tied[0] if len(tied) == 1 else ", ".join(tied[:-1]) + " and " + tied[-1]
+                shown = (
+                    f": {display(result.rows[0][spot])}{suffix}"
+                    if spot >= 0 and result.rows[0][spot] is not None
+                    else ""
+                )
+                add(
+                    f"{listed} {'share' if len(tied) > 1 else 'has'} the "
+                    f"{'highest' if extreme.group(1) == 'MAX' else 'lowest'} "
+                    f"{field_label(tied_measure)}{shown}.",
+                    ref,
+                )
             else:
                 add(
                     f"I found {len(result.rows)} returned records. "
@@ -212,6 +242,10 @@ def build_insight_packet(
                 "limitation",
             )
         elif isinstance(answer, EvidenceAnswer):
+            if answer.derived and answer.data is not None:
+                ref = str(answer_lineage(answer.data).query_id)
+                add(f"{answer.derived['formula']}, from the two verified totals.", ref, "scope")
+                add(answer.derived["summary"], ref)
             for data in (
                 (answer.data,) if answer.data is not None else ()
             ) + answer.additional_data:

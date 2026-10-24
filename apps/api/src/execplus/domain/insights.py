@@ -16,6 +16,7 @@ from execplus.domain.discovery import category_candidates, measure_candidates, r
 from execplus.domain.errors import UnsafeQueryError
 from execplus.domain.guidance import DescriptionContext
 from execplus.domain.ingestion import IngestionError
+from execplus.domain.label_matching import label_variants
 from execplus.domain.models import QueryPlan, Scalar, WorkspaceScope
 from execplus.domain.patterns import Correlation, approximate, normalized, ranks
 from execplus.domain.semantics import (
@@ -58,6 +59,7 @@ ACTION_KINDS = frozenset(
         "explore_relationship",
         "what_if",
         "review_meaning",
+        "review_labels",
         "ask",
     }
 )
@@ -381,6 +383,22 @@ def _quality(
         checks.append(
             Check("Repeated rows", str(duplicates), "duplicates", method="duckdb-group-count")
         )
+    for category in selection.categories:
+        for group in label_variants(columns.get(category, ()))[:1]:
+            statements.append(
+                f"{category} has labels that differ only by capital letters or spaces ("
+                + " and ".join(f"'{label}'" for label in group[:3])
+                + "), so they count as separate groups. Nothing is merged automatically."
+            )
+            actions.append(
+                action(
+                    "review_labels",
+                    f"Clean up {category} labels",
+                    category,
+                    type="prepare",
+                    column=category,
+                )
+            )
     if constant and rows > 1:
         statements.append(
             f"{', '.join(constant[:3])} {'has' if len(constant) == 1 else 'have'} "

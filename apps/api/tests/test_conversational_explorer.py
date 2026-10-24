@@ -212,16 +212,28 @@ def test_record_queries_work_for_text_only_files_and_bind_injection(integration)
             "kind": "rows",
             "plan": {
                 "filters": [
+                    {"column": "city", "operator": "ne", "value": "Karachi' OR 1=1 --"},
+                ]
+            },
+        },
+        {
+            "kind": "rows",
+            "plan": {
+                "filters": [
                     {"column": "city", "operator": "ieq", "value": "Karachi' OR 1=1 --"},
                 ]
             },
-        }
+        },
     )
     owner, _, root = prepare(integration, primary, content=b"city,customer\nKarachi,A\nLahore,B\n")
     result = integration.client.post(
         f"{root}/ask", headers=owner, json={"question": "show records"}
     )
     assert result.status_code == 200, result.text
-    assert result.json()["rows"] == []
-    assert result.json()["matched_records"] == 0
+    assert result.json()["matched_records"] == 2
     assert "OR 1" not in result.json()["lineage"]["sql"]
+    unmatched = integration.client.post(
+        f"{root}/ask", headers=owner, json={"question": "show records"}
+    )
+    assert unmatched.status_code == 422
+    assert unmatched.json()["error"]["code"] == "clarification_required"

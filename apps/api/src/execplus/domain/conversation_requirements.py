@@ -17,6 +17,7 @@ from execplus.domain.semantics import (
     AggregationKind,
     DatasetView,
     FilterOperator,
+    MetricFilter,
     MetricRequest,
 )
 from execplus.domain.understanding import measure_unit
@@ -505,6 +506,32 @@ def product_choices(question: str, request: MetricRequest, view: DatasetView) ->
         if priced
         else ()
     )
+
+
+SPENDING = r"\b(spend\w*|spent|expenses?|expenditures?)\b"
+
+
+def spending_filter(
+    question: str, request: MetricRequest, values: dict[str, tuple[str, ...]]
+) -> MetricRequest | None:
+    """Spending on a ledger with debit/credit entries means debits only, never both summed."""
+    if not re.search(SPENDING, words(question)) or re.search(SPENDING, words(request.metric)):
+        return None
+    for column, labels in values.items():
+        named = {label.strip().casefold(): label for label in labels}
+        if (
+            {"debit", "credit"} <= set(named)
+            and column not in request.group_by
+            and not any(item.column == column for item in request.filters)
+        ):
+            return replace(
+                request,
+                filters=(
+                    *request.filters,
+                    MetricFilter(column, FilterOperator.IEQ, named["debit"]),
+                ),
+            )
+    return None
 
 
 _ADVICE = (

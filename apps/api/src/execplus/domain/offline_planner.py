@@ -15,9 +15,27 @@ from execplus.domain.guidance import words
 from execplus.domain.intent import RoutedIntent, canonical_question, route_response
 from execplus.domain.models import QuestionKind
 from execplus.domain.semantics import RECORD_COUNT, DatasetView
+from execplus.domain.understanding import CURRENCY_TOKENS
 
 ROUTE = "deterministic:offline-plan-v1"
-_UNIT_TOKENS = {"mm", "c", "kmh", "km", "cm", "kg", "ha", "hectare", "hours", "used", "type"}
+_UNIT_TOKENS = {
+    "mm",
+    "c",
+    "kmh",
+    "km",
+    "cm",
+    "kg",
+    "ha",
+    "hectare",
+    "hours",
+    "used",
+    "type",
+    "amount",
+    *CURRENCY_TOKENS,
+}
+_SCORES = frozenset(
+    {"score", "scores", "rating", "ratings", "nps", "csat", "satisfaction", "stars"}
+)
 _RESTRICTION = (
     r"\b(in|where|only|with|without|above|below|over|under|than|except|excluding|between|"
     r"during|after|before|since|not|mein|sirf|when|if)\b|[<>=]"
@@ -45,7 +63,7 @@ def _matched(question: str, view: DatasetView) -> list[str]:
         if "identifier" in column.tags:
             continue
         parts = set(words(column.name).split())
-        core = parts - _UNIT_TOKENS or parts
+        core = parts - _UNIT_TOKENS or parts - CURRENCY_TOKENS or parts
         if core <= tokens:
             hits[column.name] = parts & tokens
     return [
@@ -260,6 +278,13 @@ def _denominator(numerator: str, named: list[str], view: DatasetView) -> str | N
     return best[1] if best[0] else None
 
 
+def _for_measure(operation: str, name: str, derived: bool) -> str:
+    """Scores and ratings are compared by their average, never by a sum that favours volume."""
+    if operation == "total" and not derived and _SCORES & set(words(name).split()):
+        return "average"
+    return operation
+
+
 def working_choices(
     question: str,
     view: DatasetView,
@@ -311,7 +336,10 @@ def working_choices(
         if re.search(_AGGREGATIONS[0][1], text) and not derived
         else "total"
     )
-    candidates += [f"What is the {operation} of {name}{group}?" for name in named[:3]]
+    candidates += [
+        f"What is the {_for_measure(operation, name, derived)} of {name}{group}?"
+        for name in named[:3]
+    ]
     if categories and not named:
         candidates.append(f"How many records are there{group}?")
     relevant = {*named, *categories}

@@ -270,6 +270,19 @@ def test_quality_analyst_reports_missing_duplicates_and_negatives():
     assert body["insights"][0]["id"] == "quality:file"
 
 
+def test_quality_analyst_flags_case_and_space_label_variants_without_merging():
+    table = table_from(
+        "store,sales\nStore 1,5\n store 1 ,3\nStore 2,4\nStore 1,2\nStore 2,7\nStore 3,1\n"
+    )
+    body, _ = payload(table)
+    card = cards(body)["quality:file"]
+    text = " ".join(card["statements"])
+    assert "store has labels that differ only by capital letters or spaces" in text
+    assert "('Store 1' and 'store 1')" in text and "Nothing is merged automatically" in text
+    labels = next(action for action in card["actions"] if action["kind"] == "review_labels")
+    assert labels["payload"] == {"type": "prepare", "column": "store"}
+
+
 def test_cross_checker_drops_disagreeing_or_unchecked_cards():
     good = engine.Check("Rows", "3", "count", secondary="3")
     wrong = engine.Check("Rows", "3", "count", secondary="4")
