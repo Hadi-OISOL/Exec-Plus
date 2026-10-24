@@ -95,7 +95,7 @@ def test_usage_view_counts_exact_daily_history_and_flags_limits(integration):
                     created_at=when,
                 )
             )
-    response = env.client.get(f"/workspaces/{wid}/usage", headers=headers)
+    response = env.client.get(f"/workspaces/{wid}/plan-usage", headers=headers)
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["allowances"]["exports"] == {
@@ -141,16 +141,16 @@ def test_usage_view_permissions_and_staff_ranking(integration):
     consume(env, actor, wid, "exports", 2)
     admin, _ = add_member(env, headers, wid, "admin")
     member, _ = add_member(env, headers, wid)
-    assert env.client.get(f"/workspaces/{wid}/usage", headers=admin).status_code == 200
-    assert env.client.get(f"/workspaces/{wid}/usage", headers=member).status_code == 403
+    assert env.client.get(f"/workspaces/{wid}/plan-usage", headers=admin).status_code == 200
+    assert env.client.get(f"/workspaces/{wid}/plan-usage", headers=member).status_code == 403
     outsider, _ = identity(env, f"usage-outsider-{uuid4().hex}@example.test")
-    assert env.client.get(f"/workspaces/{wid}/usage", headers=outsider).status_code == 404
+    assert env.client.get(f"/workspaces/{wid}/plan-usage", headers=outsider).status_code == 404
     assert env.client.get("/admin/usage/workspaces", headers=headers).status_code == 403
 
     quiet = workspace(env, headers, "Quiet usage workspace")
     assign(env, staff, quiet, exports=100)
     consume(env, actor, quiet, "exports", 1)
-    viewed = env.client.get(f"/workspaces/{wid}/usage", headers=staff_headers)
+    viewed = env.client.get(f"/workspaces/{wid}/plan-usage", headers=staff_headers)
     assert viewed.status_code == 200, viewed.text
     assert viewed.json()["allowances"]["exports"]["used"] == 2
     listed = env.client.get("/admin/usage/workspaces?limit=200", headers=staff_headers)

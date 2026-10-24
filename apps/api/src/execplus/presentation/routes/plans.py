@@ -66,7 +66,7 @@ def assigned(workspace_id: UUID, actor: Actor, plans: Service) -> object:
     return plans.assigned(actor, workspace_id)
 
 
-@router.get("/workspaces/{workspace_id}/usage")
+@router.get("/workspaces/{workspace_id}/plan-usage")
 def usage(workspace_id: UUID, actor: Actor, plans: Service) -> object:
     return plans.usage(actor, workspace_id)
 

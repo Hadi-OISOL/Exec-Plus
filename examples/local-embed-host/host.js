@@ -24,7 +24,7 @@ form.addEventListener("submit", event => {
   const secret = secretInput.value;
   clearView();
   let url;
-  try { url = new URL(address.value); } catch { status.textContent = "Enter a valid local ExecPlus frame address."; return; }
+  try { url = new URL(address.value); } catch { status.textContent = "Enter a valid local Syntelio frame address."; return; }
   const grant = url.pathname.match(/^\/embed\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/)?.[1];
   if (!grant || !["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || url.origin === window.location.origin || url.username || url.password || url.search || url.hash) {
     status.textContent = "Use a local /embed/ address on a different origin, without credentials, query or fragment.";
@@ -35,7 +35,7 @@ form.addEventListener("submit", event => {
     return;
   }
   const frame = document.createElement("iframe");
-  frame.title = "Private ExecPlus dashboard";
+  frame.title = "Private Syntelio dashboard";
   frame.referrerPolicy = "no-referrer";
   frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
   pending = { frame, origin: url.origin, grant, secret };

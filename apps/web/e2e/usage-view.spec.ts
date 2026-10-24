@@ -49,7 +49,7 @@ test("owners see exact usage, daily history and limit notices; staff see the wor
   const summary = page.getByRole("region", { name: "Workspace allowances", exact: true });
   await expect(summary).toContainText(`${key} · Active`);
   await expect(summary.getByText("Datasets · Limit reached", { exact: true })).toBeVisible();
-  const usage = await (await page.request.get(`${api}/workspaces/${wid}/usage`, { headers })).json();
+  const usage = await (await page.request.get(`${api}/workspaces/${wid}/plan-usage`, { headers })).json();
   expect(usage.allowances.datasets).toMatchObject({ used: 1, limit: 1, remaining: 0, state: "reached" });
   const today = new Date().toISOString().slice(0, 10);
   const table = summary.getByRole("table", { name: "Daily usage history", exact: true });

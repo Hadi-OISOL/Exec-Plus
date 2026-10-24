@@ -74,7 +74,7 @@ test("local allowances enforce backend limits and administrator changes appear f
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await summary.screenshot({ path: `../../data/verification/2026-10-17/two-phase/plans-ui/allowances-${width}.png` });
   }
-  await page.route(`**/workspaces/${wid}/usage`, route => route.fulfill({ status: 403, json: { error: { code: "forbidden", message: "Allowance access removed." } } }));
+  await page.route(`**/workspaces/${wid}/plan-usage`, route => route.fulfill({ status: 403, json: { error: { code: "forbidden", message: "Allowance access removed." } } }));
   await summary.getByRole("button", { name: "Refresh allowances", exact: true }).click();
   await expect(summary.getByRole("alert")).toContainText("Allowance access removed");
   await expect(summary.getByText("49 remaining", { exact: true })).toHaveCount(0);

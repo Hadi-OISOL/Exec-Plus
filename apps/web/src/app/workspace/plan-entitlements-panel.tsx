@@ -30,7 +30,7 @@ function AllowanceReport({ workspaceId, request, refresh }: { workspaceId: strin
   const [pending, setPending] = useState(true);
   useEffect(() => {
     const controller = new AbortController();
-    request<Summary>(`/workspaces/${workspaceId}/usage`, { signal: controller.signal })
+    request<Summary>(`/workspaces/${workspaceId}/plan-usage`, { signal: controller.signal })
       .then(value => { if (!controller.signal.aborted) setReport(value); })
       .catch(cause => { if (!controller.signal.aborted) { setReport(null); setError(cause instanceof Error ? cause.message : "Allowances could not be loaded."); } })
       .finally(() => { if (!controller.signal.aborted) setPending(false); });

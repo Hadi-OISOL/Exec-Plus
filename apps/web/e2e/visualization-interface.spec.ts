@@ -116,7 +116,7 @@ test("chart and table exploration preserve exact values, gaps, source filters an
   await expect(missingRows.getByRole("listitem")).toHaveText("2026-01-02");
   await expect(missingRows).not.toContainText("2026-01-03");
   await modal.getByLabel("Inspect returned row for Date trend", { exact: true }).selectOption("2");
-  await expect(modal.getByLabel("Exact chart detail for Date trend", { exact: true }).locator("strong").last()).toHaveText("0E-12");
+  await expect(modal.getByLabel("Exact chart detail for Date trend", { exact: true }).locator("strong").last()).toHaveText("0");
   await modal.getByLabel("Inspect returned row for Date trend", { exact: true }).selectOption("1");
   await expect(modal.getByLabel("Exact chart detail for Date trend", { exact: true })).toContainText("Missing");
   await modal.getByRole("button", { name: "Dots", exact: true }).click();

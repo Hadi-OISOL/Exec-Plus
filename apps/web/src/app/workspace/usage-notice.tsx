@@ -11,7 +11,7 @@ export function UsageNotice({ workspaceId, view, request }: { workspaceId: strin
   const [notices, setNotices] = useState<{ workspaceId: string; items: Notice[] } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    request<{ notices: Notice[] }>(`/workspaces/${workspaceId}/usage`, { signal: controller.signal })
+    request<{ notices: Notice[] }>(`/workspaces/${workspaceId}/plan-usage`, { signal: controller.signal })
       .then(value => { if (!controller.signal.aborted) setNotices({ workspaceId, items: value.notices }); })
       .catch(() => { if (!controller.signal.aborted) setNotices(null); });
     return () => controller.abort();

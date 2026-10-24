@@ -9,7 +9,7 @@ import { AccountAccess } from "./account-access";
 import { AccountSecurity, InvitationIdentityApproval } from "./account-security";
 import { OnboardingGuide } from "./onboarding-guide";
 import type { ApiRequest } from "./profile-panel";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { FormEvent } from "react";
@@ -31,6 +31,8 @@ import { AnalyticsHome } from "./analytics-home";
 import { WorkspaceLoading } from "./workspace-loading";
 import { ThemeControl } from "../theme-control";
 
+// A native submit before hydration reloads the page and drops the typed token.
+const subscribeNever = () => () => undefined;
 const loadingView = () => <WorkspaceLoading />;
 const SourcesPanel = dynamic(
   () => import("./sources-panel").then(module => module.SourcesPanel),
@@ -221,6 +223,7 @@ export default function WorkspacePage() {
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(0);
   const [busy, setBusy] = useState(false);
+  const hydrated = useSyncExternalStore(subscribeNever, () => true, () => false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [topQuestion, setTopQuestion] = useState("");
   const role = members.find((member) => member.user_id === user?.id)?.role;
@@ -1155,11 +1158,12 @@ export default function WorkspacePage() {
                     type="password"
                     value={token}
                     onChange={(event) => setToken(event.target.value)}
+                    disabled={!hydrated}
                     required
                     autoComplete="off"
                   />
                 </label>
-                <button className="secondaryAction" disabled={busy}>Sign in</button>
+                <button className="secondaryAction" disabled={busy || !hydrated}>Sign in</button>
               </form>
               )}
             </section>
