@@ -177,12 +177,12 @@ class GoogleAccessService:
             if email != normalized_email(payload["email"]):
                 raise IngestionError(
                     "google_wrong_account",
-                    "Choose the Google account that matches your ExecPlus email.",
+                    "Choose the Google account that matches your Syntelio email.",
                     409,
                 )
             if DRIVE_FILE not in tokens.scope.split():
                 raise IngestionError(
-                    "google_scope_missing", "Allow ExecPlus to open the sheets you choose.", 409
+                    "google_scope_missing", "Allow Syntelio to open the sheets you choose.", 409
                 )
             assert attempt.user_id is not None
             existing = self.connections.get(attempt.user_id)
@@ -268,12 +268,12 @@ class GoogleAccessService:
             if error.status in {403, 404}:
                 raise IngestionError(
                     "google_sheet_unavailable",
-                    "ExecPlus cannot read that sheet. Choose it again with Google's picker.",
+                    "Syntelio cannot read that sheet. Choose it again with Google's picker.",
                     404,
                 ) from None
             if error.status == 413:
                 raise IngestionError(
-                    "sheet_too_large", "The sheet is larger than ExecPlus can import.", 413
+                    "sheet_too_large", "The sheet is larger than Syntelio can import.", 413
                 ) from None
             if error.status == 429:
                 raise IngestionError(

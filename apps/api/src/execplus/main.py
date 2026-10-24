@@ -97,7 +97,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
                 application.state.runtime.engine.dispose()
 
     application = FastAPI(
-        title="ExecPlus API",
+        title="Syntelio API",
         summary="Verified conversational analytics",
         version=__version__,
         lifespan=lifespan,

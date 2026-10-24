@@ -149,7 +149,7 @@ class ReportLabPdfRenderer:
             canvas.saveState()
             canvas.setFont(FONT_NAME, 8)
             canvas.setFillColor(colors.HexColor("#53625f"))
-            canvas.drawString(44, 26, f"ExecPlus | Page {page}")
+            canvas.drawString(44, 26, f"Syntelio | Page {page}")
             canvas.drawRightString(
                 width - 44,
                 26,
@@ -166,7 +166,7 @@ class ReportLabPdfRenderer:
             topMargin=42,
             bottomMargin=45,
             title=document.title,
-            author="ExecPlus",
+            author="Syntelio",
             subject="Report generated " + document.generated_at.isoformat(),
             pageCompression=1,
             invariant=1,

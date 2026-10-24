@@ -80,7 +80,7 @@ def png_chart(chart: ExportChart, evidence: dict[str, Any]) -> bytes:
     text((45, 25), "\n".join(title_lines[:2]) + ("…" if len(title_lines) > 2 else ""), large=True)
     text(
         (45, 110),
-        "ExecPlus | Approximate geometry. Exact values and source evidence are embedded.",
+        "Syntelio | Approximate geometry. Exact values and source evidence are embedded.",
     )
     if chart.kind == "diagram":
         groups = [node for node in chart.nodes if node.get("kind") == "group"]

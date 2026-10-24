@@ -192,7 +192,7 @@ class PortableRenderer:
         timestamp = content.document.generated_at.astimezone(timezone.utc).replace(tzinfo=None)
         workbook.properties.created = timestamp
         workbook.properties.modified = timestamp
-        workbook.properties.creator = "ExecPlus"
+        workbook.properties.creator = "Syntelio"
         workbook.properties.title = content.document.title
         workbook.properties.description = "Exact authorized results; original types in Evidence."
 
@@ -268,7 +268,7 @@ class PortableRenderer:
         for start in range(0, len(serialized), 30000):
             append(meta, (str(start // 30000 + 1), serialized[start : start + 30000]))
         guide = workbook.create_sheet("Read me")
-        append(guide, ("ExecPlus exact result export",), header=True)
+        append(guide, ("Syntelio exact result export",), header=True)
         append(guide, (evidence["notice"],))
         for name, table in zip(table_sheets, content.tables, strict=True):
             append(guide, (name, table.name, f"{len(table.rows)} rows"))

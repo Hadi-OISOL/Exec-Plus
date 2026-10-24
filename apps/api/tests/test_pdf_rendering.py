@@ -28,7 +28,7 @@ from execplus.infrastructure.exports.reportlab_pdf import ReportLabPdfRenderer
 
 def document(table=None, text="Fictional saved evidence"):
     return PdfDocument(
-        "ExecPlus - saved answer",
+        "Syntelio - saved answer",
         datetime(2026, 10, 16, 12, 0, tzinfo=timezone.utc),
         (PdfSection("Exact values", (text,), table),),
     )
@@ -49,7 +49,7 @@ def test_every_returned_row_survives_real_pdf_pagination_with_repeated_headers()
     for page in reader.pages:
         page_text = page.extract_text()
         assert "Record" in page_text and "Exact amount" in page_text
-        assert "ExecPlus | Page" in page_text
+        assert "Syntelio | Page" in page_text
     for label, amount in rows:
         assert label in text and amount in text
 

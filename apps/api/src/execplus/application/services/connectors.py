@@ -246,7 +246,7 @@ class ConnectorService:
         }
         if error.code == "control_plane_database":
             return IngestionError(
-                "connector_host_blocked", "ExecPlus's own database cannot be used as a source.", 422
+                "connector_host_blocked", "Syntelio's own database cannot be used as a source.", 422
             )
         if error.status == 400:
             return (
