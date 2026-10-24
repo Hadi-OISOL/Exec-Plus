@@ -168,7 +168,7 @@ test("diagram requests render all declared fields and PDF actions reopen without
   const download = page.waitForEvent("download");
   await firstTurn.getByRole("button", { name: "Download PDF", exact: true }).click();
   const file = await download;
-  expect(file.suggestedFilename()).toMatch(/^execplus-answer-[0-9a-f-]+\.pdf$/);
+  expect(file.suggestedFilename()).toMatch(/^syntelio-answer-[0-9a-f-]+\.pdf$/);
   const bytes = await readFile((await file.path())!);
   expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
   await page.getByLabel("Your question", { exact: true }).fill("Make a PDF of this answer");

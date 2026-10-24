@@ -82,7 +82,7 @@ export function ConversationActivity({
         <summary>
           Recorded actions{events.length ? ` (${events.length})` : ""}
         </summary>
-        <p>These recorded steps show what ExecPlus did with your request.</p>
+        <p>These recorded steps show what Syntelio did with your request.</p>
         {events.length ? (
           <ol>
             {events.map((event) => (

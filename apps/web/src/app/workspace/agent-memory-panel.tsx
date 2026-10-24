@@ -66,13 +66,13 @@ export function AgentMemoryPanel({ workspaceId, request }: { workspaceId: string
     <div className="panel studioMemoryEditor">
       <div className="studioMemoryHeading"><span className="studioToolIcon"><Icon name="memory" size={25} /></span><span className="homeContextStatus">Only you · This workspace</span></div>
       <h2>A data partner that knows your priorities.</h2>
-      <p>Tell ExecPlus what matters to you. You choose what to save, change or forget.</p>
+      <p>Tell Syntelio what matters to you. You choose what to save, change or forget.</p>
       {error && <div className="errorNotice" role="alert"><p>{error}</p>{(conflict || !memory) && <button type="button" disabled={busy} onClick={() => void reload()}>Reload saved memory</button>}</div>}
       {message && <p className="studioMemorySuccess" role="status"><Icon name="check" size={18} />{message}</p>}
       {!memory && !error ? <p role="status">Loading your private memory…</p> : memory && <form onSubmit={event => { event.preventDefault(); void change(); }}>
         <label>Your role or perspective <span>For example: I manage retail operations.</span><input value={role} onChange={event => setRole(event.target.value)} maxLength={300} disabled={busy} placeholder="What is your role?" /></label>
         <label>What you usually want to understand <span>A preference for all your files in this workspace.</span><textarea value={focus} onChange={event => setFocus(event.target.value)} maxLength={500} rows={3} disabled={busy} placeholder="I focus on sales changes, unusual costs and practical next steps." /></label>
-        <fieldset><legend>How should ExecPlus explain things?</legend><div className="studioStyleChoices">
+        <fieldset><legend>How should Syntelio explain things?</legend><div className="studioStyleChoices">
           <label data-selected={style === "concise"}><input type="radio" name="memory-style" value="concise" checked={style === "concise"} onChange={() => setStyle("concise")} disabled={busy} /><span><strong>Short & clear</strong><small>Start with the main point.</small></span></label>
           <label data-selected={style === "step_by_step"}><input type="radio" name="memory-style" value="step_by_step" checked={style === "step_by_step"} onChange={() => setStyle("step_by_step")} disabled={busy} /><span><strong>Step by step</strong><small>Walk through the explanation.</small></span></label>
         </div></fieldset>

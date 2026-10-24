@@ -29,7 +29,7 @@ test("confirmed data automatically shows measured relationships and theme change
   const confirmed = await page.request.post(`${api}${root}/understanding`, { headers, data: { revision_id: current.revision_id, expected_version: current.version, state: "confirmed", definition } });
   expect(confirmed.status()).toBe(201);
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
-  await nav.getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await nav.getByRole("button", { name: "Ask Syntelio", exact: true }).click();
   const discoveryResponse = page.waitForResponse(response => response.url().endsWith(`${root}/discovery`) && response.status() === 200);
   await nav.getByRole("button", { name: "Overview", exact: true }).click();
   const discovery = await (await discoveryResponse).json();

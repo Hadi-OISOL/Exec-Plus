@@ -43,7 +43,7 @@ export async function openFindings(page: Page) {
 }
 
 export async function openConversation(page: Page) {
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask Syntelio", exact: true }).click();
   await expect(page.getByLabel("Your question", { exact: true })).toBeVisible();
 }
 

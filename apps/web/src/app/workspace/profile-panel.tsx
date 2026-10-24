@@ -180,7 +180,7 @@ export function ProfilePanel({
             {onUnderstand && <aside className={styles.nextStep} aria-label="Understand this file">
               <span className={styles.eyebrow}>THE NEXT STEP</span>
               <h3>Review what we know.</h3>
-              <p>See what ExecPlus understands about this file and review anything missing.</p>
+              <p>See what Syntelio understands about this file and review anything missing.</p>
               <button type="button" onClick={onUnderstand} disabled={busy || refreshNeeded}>
                 Review data meaning <Icon name="arrow" size={18} />
               </button>

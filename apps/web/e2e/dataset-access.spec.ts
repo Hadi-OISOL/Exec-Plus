@@ -89,7 +89,7 @@ test("owner saves row and field rules, retains failed drafts and can recover sel
   await expect(memberPage.getByRole("region", { name: "Analytics home", exact: true })).toBeVisible();
   await expect(memberPage.getByRole("complementary", { name: "Your dataset access", exact: true })).toContainText("rows and fields shared with you");
   await expect(memberPage.getByRole("button", { name: "Skip for now", exact: true })).toHaveCount(0);
-  await memberPage.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await memberPage.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask Syntelio", exact: true }).click();
   await memberPage.getByLabel("Your question", { exact: true }).fill("Make a diagram of how our data converge");
   await memberPage.getByRole("button", { name: "Ask", exact: true }).click();
   const answer = memberPage.locator(".conversationTurn").last();

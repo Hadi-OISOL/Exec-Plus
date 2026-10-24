@@ -148,7 +148,7 @@ test("a second home question becomes an explicit draft while the real first job 
     await expect(chat.locator(".datasetGuidance").last()).toContainText("city");
     await page.screenshot({ path: "../../data/interface-reference/execplus-conversation-desktop.png", fullPage: false });
     await navigate(page, "Overview");
-    await navigate(page, "Ask ExecPlus");
+    await navigate(page, "Ask Syntelio");
     await expect(chat.locator(".datasetGuidance")).toHaveCount(2);
   } finally {
     release();
@@ -247,7 +247,7 @@ test("overview keeps charts and first findings open with keyboard view and focus
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   }
   expect(calculations).toBe(0);
-  await navigate(page, "Ask ExecPlus");
+  await navigate(page, "Ask Syntelio");
   await expect(page.getByLabel("Your question", { exact: true })).toBeVisible();
   await expect(dashboardSection).toBeHidden();
   await expect(findingsSection).toBeHidden();

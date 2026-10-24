@@ -70,7 +70,7 @@ test("a model reading opens at the top after upload and saves confirmed meaning 
   await expect(panel.getByText("Question 1 of", { exact: false })).toBeVisible();
   expect((await panel.boundingBox())!.y).toBeLessThan(500);
   await expect(page.locator("#chat-question")).toBeHidden();
-  await page.getByRole("button", { name: "Ask ExecPlus", exact: true }).first().click();
+  await page.getByRole("button", { name: "Ask Syntelio", exact: true }).first().click();
   await expect(page.locator("#chat-question")).toBeVisible();
   await page.getByRole("button", { name: "Overview", exact: true }).first().click();
   await expect(panel).toBeVisible();
@@ -124,7 +124,7 @@ test("without a model reading the overview stays open with a way to review meani
   await signIn(page, person);
   await upload(page, person);
   await expect(page.getByRole("region", { name: "First findings from your file", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Check what ExecPlus understood", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Check what Syntelio understood", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Data reading", exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Guided data review", exact: true })).toHaveCount(0);
 });
@@ -174,10 +174,10 @@ for (const partial of [false, true]) {
     await expect(page.getByText("Your saved data meanings are in use.", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: "Review missing meanings or units" })).toHaveCount(0);
     await page.getByRole("button", { name: "Explore observed data", exact: true }).click();
-    await page.getByRole("button", { name: "Check what ExecPlus understood", exact: true }).click();
+    await page.getByRole("button", { name: "Check what Syntelio understood", exact: true }).click();
     await expect(reading).toContainText("already confirmed");
     await reading.getByRole("button", { name: "Close", exact: true }).click();
-    await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+    await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask Syntelio", exact: true }).click();
     await page.locator("#chat-question").fill("Find anomalies in measure_19");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await page.getByRole("button", { name: "Scan for unusual values", exact: true }).click();
@@ -194,7 +194,7 @@ for (const partial of [false, true]) {
     const definition = saved.definition;
     definition.columns[19].unit = "";
     expect((await page.request.post(api + root + "/understanding", { headers: person.headers, data: { revision_id: saved.revision_id, expected_version: saved.version, state: "confirmed", definition } })).status()).toBe(201);
-    await page.getByRole("button", { name: "Check what ExecPlus understood", exact: true }).click();
+    await page.getByRole("button", { name: "Check what Syntelio understood", exact: true }).click();
     await expect(reading).toContainText("Question 1 of 1");
     await expect(reading.getByRole("textbox", { name: "What does this column mean?", exact: true })).toHaveValue("Reviewed measure_19");
     await reading.getByLabel("Unit of measurement (required)", { exact: true }).fill("mm");

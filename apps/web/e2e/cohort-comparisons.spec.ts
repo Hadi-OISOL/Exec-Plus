@@ -48,7 +48,7 @@ async function prepare(page: Page, numeric: boolean) {
   await expect(page.getByLabel("Current workspace")).toHaveValue(wid);
   await page.getByLabel("Dataset", { exact: true }).selectOption(did);
   await page.getByLabel("Profile upload").selectOption(uid);
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask Syntelio", exact: true }).click();
   return { headers, root };
 }
 

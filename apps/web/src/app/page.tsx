@@ -20,9 +20,9 @@ export default function Home() {
   return (
     <main>
       <nav aria-label="Primary navigation">
-        <a className="brand" href="#top" aria-label="ExecPlus home">
-          <span className="brandMark" aria-hidden="true">E+</span>
-          <span>ExecPlus</span>
+        <a className="brand" href="#top" aria-label="Syntelio home">
+          <span className="brandMark" aria-hidden="true">S</span>
+          <span>Syntelio</span>
         </a>
       </nav>
 
@@ -30,7 +30,7 @@ export default function Home() {
         <div className="eyebrow">Operational clarity, backed by evidence</div>
         <h1>Ask your business data.<br />Trust the answer.</h1>
         <p className="heroCopy">
-          ExecPlus is being built to turn structured datasets into clear answers,
+          Syntelio is being built to turn structured datasets into clear answers,
           explainable charts, and decisions you can verify.
         </p>
         <p>Secure uploads, profiles, verified dashboards, saved analyses and workspace sharing are available locally. Explore profile observations and reference documents in the workspace.</p>
@@ -59,7 +59,7 @@ export default function Home() {
             filters, and record count needed to trace it.
           </p>
         </div>
-        <div className="flow" aria-label="ExecPlus request flow">
+        <div className="flow" aria-label="Syntelio request flow">
           <div><span>01</span><strong>Question</strong><small>Plain language</small></div>
           <div><span>02</span><strong>Validate</strong><small>Intent and access</small></div>
           <div><span>03</span><strong>Compute</strong><small>Read-only engine</small></div>
@@ -78,7 +78,7 @@ export default function Home() {
       </section>
 
       <footer>
-        <span>ExecPlus</span>
+        <span>Syntelio</span>
         <span>Exact computation · Explainable results</span>
       </footer>
     </main>

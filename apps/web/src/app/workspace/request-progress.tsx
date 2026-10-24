@@ -11,7 +11,7 @@ export function RequestProgress({ title, detail, paused = false }: {
       <span /><span /><span /><i />
     </div>
     <div className={styles.copy} role="status" aria-atomic="true">
-      <span className={styles.label}>ExecPlus</span>
+      <span className={styles.label}>Syntelio</span>
       <p>{title}</p>
       <small>{detail}</small>
     </div>

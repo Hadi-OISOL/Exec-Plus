@@ -580,7 +580,7 @@ export function AskPanel({
           <Icon name="sparkle" />
         </div>
         <div>
-          <h2>Ask ExecPlus</h2>
+          <h2>Ask Syntelio</h2>
           <span>Your data, in conversation</span>
         </div>
         <button
@@ -652,7 +652,7 @@ export function AskPanel({
         aria-relevant="additions text"
       >
         <div className="assistantMessage welcomeMessage">
-          <span className="messageAuthor">ExecPlus</span>
+          <span className="messageAuthor">Syntelio</span>
           <h3>What would you like to discover?</h3>
           <p>
             You’re exploring <strong>{filename}</strong>. Ask what a column
@@ -688,7 +688,7 @@ export function AskPanel({
             </div>
             <div className="assistantMessage">
               <span className="messageAuthor">
-                ExecPlus{" "}
+                Syntelio{" "}
                 {turn.answer?.lineage && (
                   <span className="verifiedBadge">
                     <Icon name="check" size={12} /> Verified

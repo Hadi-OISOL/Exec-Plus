@@ -76,7 +76,7 @@ export function EmbeddedBoard({ grantId, hostOrigin }: { grantId: string; hostOr
   }
 
   return <main className={styles.frame} aria-busy={busy}>
-    <header className={styles.header}><div><p className={styles.eyebrow}>ExecPlus · Private dashboard</p><h1>{board?.board.name ?? "Your saved dashboard"}</h1></div>{board && <button disabled={busy} onClick={() => void refresh()}>{busy ? "Checking access…" : "Refresh access & results"}</button>}</header>
+    <header className={styles.header}><div><p className={styles.eyebrow}>Syntelio · Private dashboard</p><h1>{board?.board.name ?? "Your saved dashboard"}</h1></div>{board && <button disabled={busy} onClick={() => void refresh()}>{busy ? "Checking access…" : "Refresh access & results"}</button>}</header>
     {message && <p role="status" className={styles.notice}>{message}</p>}
     {board && <><p className={styles.context}>Saved version {board.board.version} · View expires at {new Date(expiresAt).toLocaleTimeString()}. Existing results are shown with their original evidence.</p><div className={styles.cards}>{board.studies.map(value => <section key={value.study.id} className={styles.card}>
       <p className={styles.eyebrow}>Saved study · {value.unit || "Unit not declared"}</p><h2>{value.study.name}</h2><p>{value.version.question}</p>

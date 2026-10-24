@@ -153,7 +153,7 @@ test("a connected user picks a sheet and a tab and the import becomes the select
   });
   await signInWithToken(page, person.token);
   const panel = page.getByRole("region", { name: "Import from Google Sheets", exact: true });
-  await expect(panel).toContainText("ExecPlus can open only the sheets you choose");
+  await expect(panel).toContainText("Syntelio can open only the sheets you choose");
   await expect(panel.getByRole("button", { name: `Disconnect ${person.email}`, exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Choose a Google Sheet", exact: true }).click();
   await panel.getByRole("combobox").selectOption({ label: "Feb" });
@@ -169,9 +169,9 @@ test("an import error from Google is shown without creating a half-finished stat
   await fakePicker(page);
   await page.route("**/integrations/google/status", route => route.fulfill({ json: { connected: true, email: person.email } }));
   await page.route("**/integrations/google/picker-token", route => route.fulfill({ json: { access_token: "t", expires_in: 3600 } }));
-  await page.route("**/integrations/google/spreadsheets/*", route => route.fulfill({ status: 404, json: { error: { code: "google_sheet_unavailable", message: "ExecPlus cannot read that sheet. Choose it again with Google's picker." } } }));
+  await page.route("**/integrations/google/spreadsheets/*", route => route.fulfill({ status: 404, json: { error: { code: "google_sheet_unavailable", message: "Syntelio cannot read that sheet. Choose it again with Google's picker." } } }));
   await signInWithToken(page, person.token);
   const panel = page.getByRole("region", { name: "Import from Google Sheets", exact: true });
   await panel.getByRole("button", { name: "Choose a Google Sheet", exact: true }).click();
-  await expect(panel.getByRole("alert")).toContainText("ExecPlus cannot read that sheet");
+  await expect(panel.getByRole("alert")).toContainText("Syntelio cannot read that sheet");
 });

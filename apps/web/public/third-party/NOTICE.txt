@@ -1,4 +1,4 @@
-ExecPlus third-party credits
+Syntelio third-party credits
 
 Lieflat Charts by 躺在废墟里
 Source: https://github.com/larashero3-dotcom/lieflat-charts
@@ -13,7 +13,7 @@ Microsoft tslib2.3.0: echarts-tslib-LICENSE.txt, echarts-tslib-CopyrightNotice.t
 
 documd-visuals by markdown-viewer/skills
 https://github.com/markdown-viewer/skills/tree/2672b6920f6c055caf72a916b414ede62ecbfc2e
-Time-series preset adapted for actual observations and the ExecPlus theme.
+Time-series preset adapted for actual observations and the Syntelio theme.
 CC-BY-4.0: documd-LICENSE.md. The separate GPL renderer/exporter is not included.
 
 AIpoch, medical-research-skills@686e09dfdb45d9fa1a08664f06bb93769b3c9d91
@@ -40,7 +40,7 @@ No Anthropic PDF skill or AIpoch HTML-to-PDF script is distributed in this tool.
 
 Radix Select 2.3.8, Copyright (c)2022 WorkOS, MIT
 https://github.com/radix-ui/primitives/tree/main/packages/react/select
-Unmodified accessible selection primitives, with an original ExecPlus wrapper/theme.
+Unmodified accessible selection primitives, with an original Syntelio wrapper/theme.
 All 38 newly resolved packages are MIT. Reused tslib 2.8.1 is BSD-0-Clause.
 Full exact-version inventory and retained notices: radix-select/inventory.json and
 radix-select/NOTICE.txt. No external icon package is included.

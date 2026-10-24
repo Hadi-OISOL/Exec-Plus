@@ -22,7 +22,7 @@ test("overview maps the file, keeps evidence optional, and carries an average in
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   const earlyOverview = page.getByRole("region", { name: "First reading of your data", exact: true });
   await expect(earlyOverview.getByRole("region", { name: "Data organisation diagram", exact: true })).toBeVisible();
-  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Ask Syntelio", exact: true }).click();
   await expect(page.getByLabel("Your question", { exact: true })).toBeVisible();
   await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Overview", exact: true }).click();
   await finishInitialReview(page);
@@ -38,7 +38,7 @@ test("overview maps the file, keeps evidence optional, and carries an average in
     definition: { ...current.definition, grain: "record", columns: current.definition.columns.map((column: { name: string }) => column.name === "Soil_Moisture" ? { ...column, unit: "%", meaning: "Observed soil moisture" } : column) },
   } })).status()).toBe(201);
   const nav = page.getByRole("navigation", { name: "Workspace navigation" });
-  await nav.getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await nav.getByRole("button", { name: "Ask Syntelio", exact: true }).click();
   const read = page.waitForResponse(response => response.url().endsWith(`${root}/discovery`) && response.status() === 200);
   await nav.getByRole("button", { name: "Overview", exact: true }).click();
   const briefing = await (await read).json();
@@ -132,7 +132,7 @@ test("switching sources abandons the previous briefing and failed reads stay emp
   await expect(overview).not.toContainText("first measure");
   let denied = true;
   await page.route(`**${datasetRoot}/uploads/${second}/discovery`, route => denied ? route.fulfill({ status: 403, json: { error: { code: "forbidden", message: "Briefing access denied for this test" } } }) : route.continue());
-  await nav.getByRole("button", { name: "Ask ExecPlus", exact: true }).click();
+  await nav.getByRole("button", { name: "Ask Syntelio", exact: true }).click();
   await nav.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(overview.getByRole("alert")).toContainText("Briefing access denied");
   await expect(overview.locator(".discoveryValue")).toHaveCount(0);

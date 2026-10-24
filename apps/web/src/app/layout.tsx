@@ -14,8 +14,8 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "ExecPlus",
-  description: "Verified conversational analytics for structured business data",
+  title: "Syntelio",
+  description: "Synthesized Enterprise Intelligence: verified conversational analytics for structured business data",
 };
 
 type RootLayoutProps = Readonly<{
