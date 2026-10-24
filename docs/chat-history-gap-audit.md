@@ -79,8 +79,36 @@ reopened chats too (reopened answers render the same chips/buttons).
   marked `shortcut:` in `ThreadService.list_chats` — cache access checks if it gets slow.
 - Only the 10 most recent completed answers auto-load on open; older answers need one click.
 - Remove is a hide only; there is no “restore hidden chat” screen and no hard delete.
-- No pagination beyond the first 50 chats (search narrows the list).
+- ~~No pagination beyond the first 50 chats~~ — closed by the sidebar slice below.
 - Chat-level actions such as “pin to dashboard from chat” remain future work.
+
+## Follow-up slice: chat sidebar, paging and context titles (October 24)
+
+- **Sidebar.** The top-of-panel list is replaced by a collapsible left sidebar inside
+  Ask Syntelio (toggle in the chat header, `aria-expanded`/`aria-controls`). It holds
+  New chat, search, chats grouped Today / Yesterday / Previous 7 days / Older, the
+  active chat highlighted (`aria-current`) and a per-row options button with Rename and
+  Remove. Desktop: open by default; the open/closed choice is kept in `localStorage`
+  (`syntelio.chat-sidebar`, wrapped in try/catch). Phones (≤ 768 px): always starts
+  closed and opens as a modal drawer (portal to the workbench root because animated
+  ancestors trap `position: fixed`), with focus trap, Esc, backdrop click and close
+  button; picking a chat closes it. Global reduced-motion rules stop its slide/fade.
+- **Paging.** `GET /workspaces/{wid}/threads?after=<last_activity>|<id>` is a keyset
+  cursor over the existing order (last activity desc, id asc), so chats do not repeat
+  or skip when pages shift. The service keeps reading raw pages until it has `limit`
+  visible chats, so a short page reliably means the end. The sidebar shows
+  **Load more chats** when a full page (50) came back. Bad or timezone-less cursors are 422.
+- **Context-based titles.** Untitled chats are named on the server from the first
+  turn's executed plan (`query_executions` metric/aggregation/grouping) plus the dataset
+  name, e.g. “Total revenue by region — Sales”, “Record count by branch — …”; capped at
+  60 characters (dataset dropped first). Without a calculation the first seven words of
+  the first question are used. The inputs are immutable, so the title never changes and
+  needs no storage; a user rename always wins. Only the owner's own chat data (already
+  access-rechecked per listed chat) is used. **No migration** and **no language model**:
+  the optional model-proposed title was skipped, so there is nothing to validate for
+  digits/profanity.
+- Limits: a list refresh (after each answer) returns to the first page; search still
+  matches title/questions/dataset/file, not the derived measure words.
 
 ## Verification
 

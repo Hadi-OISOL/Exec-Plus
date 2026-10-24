@@ -30,6 +30,9 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     check: "M4 12l5 5L20 6",
     more: "M5 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z M19 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z",
     sparkle: "M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z",
+    sidebar: "M4 4h16v16H4z M9 4v16",
+    plus: "M12 5v14 M5 12h14",
+    close: "M6 6l12 12 M18 6L6 18",
   };
   return (
     <svg

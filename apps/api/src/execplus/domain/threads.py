@@ -46,17 +46,66 @@ class ThreadSummary:
     turn_count: int
     dataset_name: str
     filename: str
+    first_metric: str | None = None
+    first_aggregation: str | None = None
+    first_grouping: tuple[str, ...] = ()
 
     @property
     def display_title(self) -> str:
-        return chat_title(self.thread.title or self.first_question)
+        if self.thread.title:
+            return chat_title(self.thread.title)
+        return context_title(
+            self.first_question,
+            self.first_metric,
+            self.first_aggregation,
+            self.first_grouping,
+            self.dataset_name,
+        )
 
 
-def chat_title(text: str | None) -> str:
+def chat_title(text: str | None, limit: int = 80) -> str:
     words = " ".join((text or "").split())
     if not words:
         return "New chat"
-    return words if len(words) <= 80 else words[:79].rstrip() + "…"
+    return words if len(words) <= limit else words[: limit - 1].rstrip() + "…"
+
+
+_SUBJECTS = {
+    "sum": "Total {}",
+    "avg": "Average {}",
+    "min": "Lowest {}",
+    "max": "Highest {}",
+    "count": "Count of {}",
+}
+TITLE_LIMIT = 60
+
+
+def _words(name: str) -> str:
+    return " ".join(name.replace("_", " ").replace(":", " ").split())
+
+
+def context_title(
+    question: str | None,
+    metric: str | None,
+    aggregation: str | None,
+    grouping: tuple[str, ...],
+    dataset_name: str,
+) -> str:
+    """A stable title built only from the owner's first turn and its executed plan."""
+    subject = None
+    if aggregation == "rows":
+        subject = "Records"
+    elif metric and aggregation in _SUBJECTS:
+        name = _words(metric)
+        subject = _SUBJECTS[aggregation].format(name) if name not in {"", "*"} else "Record count"
+    if subject:
+        if grouping:
+            subject += " by " + " and ".join(_words(item) for item in grouping[:2])
+        subject = subject[0].upper() + subject[1:]
+        titled = f"{subject} — {_words(dataset_name)}" if dataset_name.strip() else subject
+        return chat_title(titled if len(titled) <= TITLE_LIMIT else subject, TITLE_LIMIT)
+    words = " ".join((question or "").split()).split(" ")
+    return chat_title(" ".join(words[:7]) + ("…" if len(words) > 7 else ""), TITLE_LIMIT)
 
 
 def valid_chat_title(text: str) -> str:

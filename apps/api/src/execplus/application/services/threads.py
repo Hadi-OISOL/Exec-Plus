@@ -139,24 +139,38 @@ class ThreadService:
             return tuple(visible)
 
     def list_chats(
-        self, actor: User, wid: UUID, search: str = "", limit: int = 50
+        self,
+        actor: User,
+        wid: UUID,
+        search: str = "",
+        limit: int = 50,
+        after: tuple[datetime, UUID] | None = None,
     ) -> tuple[ThreadSummary, ...]:
-        """Owner-only chats across the workspace, hiding ones current access no longer allows."""
+        """Owner-only chats, newest activity first, after an optional (activity, id) cursor.
+
+        Pages are filled past chats that current access hides, so a short page means the end.
+        """
         with self.uow() as repo:
             repo.membership(wid, actor.id)
-            visible = []
-            # shortcut: rechecks every turn of each listed chat; cache access checks if slow.
-            for summary in repo.owner_threads(wid, actor.id, search.strip()[:100], limit):
-                try:
-                    self._thread(repo, actor, wid, summary.thread.id)
-                    for turn in repo.thread_turns(wid, summary.thread.id):
-                        self._authorize_turn(repo, actor, wid, summary.thread, turn)
-                except IngestionError as error:
-                    if error.status not in {403, 404}:
-                        raise
-                else:
-                    visible.append(summary)
-            return tuple(visible)
+            visible: list[ThreadSummary] = []
+            cursor = after
+            while len(visible) < limit:
+                page = repo.owner_threads(wid, actor.id, search.strip()[:100], limit, cursor)
+                # shortcut: rechecks every turn of each listed chat; cache access checks if slow.
+                for summary in page:
+                    try:
+                        self._thread(repo, actor, wid, summary.thread.id)
+                        for turn in repo.thread_turns(wid, summary.thread.id):
+                            self._authorize_turn(repo, actor, wid, summary.thread, turn)
+                    except IngestionError as error:
+                        if error.status not in {403, 404}:
+                            raise
+                    else:
+                        visible.append(summary)
+                if len(page) < limit:
+                    break
+                cursor = (page[-1].last_activity, page[-1].thread.id)
+            return tuple(visible[:limit])
 
     def rename_chat(self, actor: User, wid: UUID, tid: UUID, title: str) -> Thread:
         try:
