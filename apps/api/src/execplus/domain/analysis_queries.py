@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from execplus.domain.decision_analysis import METHODS, fail
+from execplus.domain.inventory_reorder import is_inventory_reorder, reorder_plan
 from execplus.domain.large_allocation import is_large_allocation
 from execplus.domain.large_allocation_queries import large_allocation_plan
 from execplus.domain.models import QueryPlan, WorkspaceScope
@@ -32,6 +33,8 @@ def analysis_plan(
     kind = raw["kind"]
     if is_multivariate(raw):
         return multivariate_plan(scope, did, view, table, raw)
+    if is_inventory_reorder(raw):
+        return reorder_plan(scope, did, view, table, raw)
     if is_large_allocation(raw):
         return large_allocation_plan(scope, did, view, table, raw)
     if kind == "scenario_comparison" and is_source_scenario(raw):

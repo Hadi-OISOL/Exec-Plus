@@ -133,7 +133,7 @@ class CpSatAllocationSolver:
             if values is not None and (
                 not isinstance(values, list)
                 or len(values) > 50
-                or any(type(x) is not int or not 0 <= x <= 100 for x in values)
+                or any(type(x) is not int or not 0 <= x <= 1_000_000 for x in values)
             ):
                 raise ValueError("Invalid solver quantities")
             return SolverOutcome(

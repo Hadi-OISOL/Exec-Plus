@@ -61,6 +61,13 @@ from execplus.domain.errors import AuthorizationError, ClarificationRequiredErro
 from execplus.domain.evidence import receipt
 from execplus.domain.exploration_selection import anomaly_default
 from execplus.domain.ingestion import IngestionError, User
+from execplus.domain.inventory_reorder import METHOD as REORDER_METHOD
+from execplus.domain.inventory_reorder import (
+    checked_reorder,
+    is_inventory_reorder,
+    prepare_reorder,
+    reopen_reorder,
+)
 from execplus.domain.large_allocation import METHOD as LARGE_ALLOCATION_METHOD
 from execplus.domain.large_allocation import (
     SCHEDULE_METHOD,
@@ -128,6 +135,8 @@ def scenario_successor_compatible(
 
 
 def method_version(raw: dict[str, Any]) -> str:
+    if is_inventory_reorder(raw):
+        return REORDER_METHOD
     if is_multivariate(raw):
         return MULTIVARIATE_METHOD
     if is_large_allocation(raw):
@@ -296,7 +305,19 @@ class DecisionAnalysisService:
                 maximum_resources=4,
             ),
             methods=REGISTERED_METHODS,
+            inventory_reorder=dict(
+                model=REORDER_METHOD,
+                dates=[
+                    c.name
+                    for c in context.view.columns
+                    if c.type == "date" and c.name in context.view.dimensions
+                ],
+                items=[c["name"] for c in columns if c["role"] in {"dimension", "identifier"}],
+                service_levels=["0.90", "0.95", "0.975", "0.99"],
+                maximum_items=50,
+            ),
             extensions=[
+                REORDER_METHOD,
                 LARGE_ALLOCATION_METHOD,
                 CAPACITY_METHOD,
                 SCHEDULE_METHOD,
@@ -512,7 +533,10 @@ class DecisionAnalysisService:
             did,
             dataset_name,
             len(table.rows),
-            raw.get("metric", raw.get("benefit_column", raw.get("sales_column", ""))),
+            raw.get(
+                "metric",
+                raw.get("benefit_column", raw.get("sales_column", raw.get("demand_column", ""))),
+            ),
             "analysis",
             (),
             (),
@@ -522,6 +546,7 @@ class DecisionAnalysisService:
                 method_version(raw)
                 if method_version(raw)
                 in {
+                    REORDER_METHOD,
                     LARGE_ALLOCATION_METHOD,
                     CAPACITY_METHOD,
                     SCHEDULE_METHOD,
@@ -588,7 +613,19 @@ class DecisionAnalysisService:
             if len(result.rows) != 1 or len(result.rows[0]) != 1:
                 raise IngestionError("scenario_coverage", "One complete baseline is required.", 422)
             result = replace(result, rows=((result.rows[0][0], *coverage_values),))
-        if is_large_allocation(raw):
+        if is_inventory_reorder(raw):
+            prepared = prepare_reorder(raw, result.rows)
+            outcome = None
+            if prepared.problem is not None:
+                if self.allocation_solver is None:
+                    raise IngestionError(
+                        "allocation_solver_unavailable",
+                        "The budget solver is not configured.",
+                        503,
+                    )
+                outcome = await self.allocation_solver.solve(prepared.problem)
+            calculated = checked_reorder(prepared, outcome)
+        elif is_large_allocation(raw):
             if self.allocation_solver is None:
                 raise IngestionError(
                     "allocation_solver_unavailable",
@@ -770,7 +807,9 @@ class DecisionAnalysisService:
                 if len(result.rows) != 1 or len(result.rows[0]) != 1:
                     raise invalid
                 result = replace(result, rows=((result.rows[0][0], *coverage_values),))
-            if is_large_allocation(run.request):
+            if is_inventory_reorder(run.request):
+                rebuilt = reopen_reorder(prepare_reorder(run.request, result.rows), run.result)
+            elif is_large_allocation(run.request):
                 if run.request["model"] == CAPACITY_METHOD:
                     rebuilt = reopen_sensitivity(run.request, result.rows, run.result)
                 elif run.request["model"] == SCHEDULE_METHOD:

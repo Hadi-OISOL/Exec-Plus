@@ -15,6 +15,7 @@ export type AnalysisOptions = {
     large_allocations?: { model: string; available: boolean; maximum_actions: number; maximum_resources: number };
     calendar_anomalies?: ForecastOptions & { methods: string[] };
     multivariate_anomalies?: { model: string; identifiers: string[]; groups: string[]; maximum_records: number; minimum_reference: number; maximum_reference: number };
+    inventory_reorder?: { model: string; dates: string[]; items: string[]; service_levels: string[]; maximum_items: number };
     source_scenarios?: { model: string; grain: string | null; columns: { name: string; unit: string; currency: string }[] };
 };
 export type AnalysisSummary = {

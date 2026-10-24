@@ -1,4 +1,4 @@
-/* Use case: Protects how forecast event dates and simulation ranges leave the browser.
+/* Use case: Protects how forecast event dates, simulation ranges and reorder inputs leave the browser.
 What it does: Verifies that typed text becomes exact declared strings without converting values into JavaScript numbers. */
 
 import assert from "node:assert/strict";
@@ -16,6 +16,7 @@ async function load(path) {
 
 const { eventPeriods } = await load("../src/app/workspace/forecast-types.ts");
 const { simulationDrivers, simulationCorrelations, driverPairs } = await load("../src/app/workspace/source-scenario-types.ts");
+const { reorderItems } = await load("../src/app/workspace/inventory-reorder-types.ts");
 
 test("future event dates split on commas and spaces without inventing dates", () => {
   assert.deepEqual(eventPeriods(" 2024-03-13, 2024-03-20\n2024-03-27 "), ["2024-03-13", "2024-03-20", "2024-03-27"]);
@@ -42,4 +43,14 @@ test("only filled correlations between complete simulation drivers leave the bro
     [{ first: "price", second: "quantity", value: "0.60" }],
   );
   assert.deepEqual(simulationCorrelations({ price: range }, { "price|quantity": "0.5" }), []);
+});
+
+test("typed reorder values stay exact strings and column-backed inputs are left out", () => {
+  const rows = [
+    { item: " Widget ", stock: " 12.50 ", reorder_point: "20", lead_time_days: "7", unit_cost: "" },
+    { item: "  ", stock: "1", reorder_point: "1", lead_time_days: "1", unit_cost: "1" },
+  ];
+  assert.deepEqual(reorderItems(rows, { reorder_point: "reorder_point" }), [
+    { item: "Widget", stock: "12.50", reorder_point: null, lead_time_days: 7, unit_cost: null },
+  ]);
 });

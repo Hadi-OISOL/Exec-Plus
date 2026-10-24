@@ -2150,6 +2150,14 @@ class IntentRouterService:
             (),
             description.view.sources,
             description.state,
+            actions=(
+                ({"tool": "reorder", "label": "Plan reorder quantities"},)
+                if any(
+                    column.type == "date" and column.name in description.view.dimensions
+                    for column in description.view.columns
+                )
+                else ()
+            ),
         )
 
     async def _free_text(

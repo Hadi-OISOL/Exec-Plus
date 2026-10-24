@@ -367,6 +367,12 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
                     ),
                 )
             )
+    elif kind == "allocation" and result.get("version") == "inventory-reorder-v1":
+        report.text(
+            "Decision boundary",
+            "No purchase order is placed when a reorder plan is approved or exported.",
+        )
+        report.objects("Reorder plan by days of cover", result["allocations"])
     elif kind == "allocation":
         report.text(
             "Decision boundary",
