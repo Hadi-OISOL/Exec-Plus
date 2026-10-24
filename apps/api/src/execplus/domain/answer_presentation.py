@@ -14,6 +14,12 @@ from execplus.domain.guidance import words
 from execplus.domain.models import CalculationLineage
 from execplus.domain.semantics import RECORD_COUNT, VALUE_ALIAS, DatasetView, quote_identifier
 
+
+def decimal_text(value: Decimal) -> str:
+    """Exact positional text: never scientific notation such as 0E-12 (receipts are unchanged)."""
+    return "0" if value.is_zero() else format(value, "f")
+
+
 _REQUESTED = (
     ("pie", r"\b(pie|donut|doughnut)\b"),
     ("line", r"\b(line|trend)\b"),

@@ -211,11 +211,14 @@ class DuckDBQueryExecutor:
         closed = Event()
         guard = Lock()
         average = query.find(exp.Avg)
+        per_day = query.find(exp.Distinct) is not None
+        divided = average is not None or per_day
         ordering: list[tuple[str, bool]] = []
         limit: int | None = None
-        if average is not None:
-            alias = average.parent
-            if not isinstance(alias, exp.Alias) or average is not alias.this:
+        if divided:
+            numerator = average if average is not None else query.find(exp.Sum)
+            alias = numerator.parent if numerator is not None else None
+            if not isinstance(alias, exp.Alias) or numerator is not alias.this:
                 connection.close()
                 raise UnsafeQueryError("Only a single direct average is supported")
             order = query.args.get("order")
@@ -230,10 +233,13 @@ class DuckDBQueryExecutor:
                 limit = int(limit_node.expression.name) if limit_node is not None else None
                 query.set("order", None)
                 query.set("limit", None)
-            alias.set("this", exp.Sum(this=average.this.copy()))
-            query.select(
-                exp.alias_(exp.Count(this=average.this.copy()), "__count"), append=True, copy=False
-            )
+            if average is not None:
+                alias.set("this", exp.Sum(this=average.this.copy()))
+                query.select(
+                    exp.alias_(exp.Count(this=average.this.copy()), "__count"),
+                    append=True,
+                    copy=False,
+                )
 
         def run() -> QueryResult:
             try:
@@ -259,7 +265,7 @@ class DuckDBQueryExecutor:
                     raise UnsafeQueryError("The result exceeds the row budget")
                 result_rows: list[tuple[Scalar, ...]] = []
                 for row in fetched:
-                    if average is not None:
+                    if divided:
                         with localcontext() as context:
                             context.prec = 50
                             value = (
@@ -282,7 +288,7 @@ class DuckDBQueryExecutor:
                     result_rows = result_rows[:limit] if limit is not None else result_rows
                 return QueryResult(
                     plan.query_id,
-                    columns[:-1] if average is not None else columns,
+                    columns[:-1] if divided else columns,
                     tuple(result_rows),
                     records,
                     matched_records,

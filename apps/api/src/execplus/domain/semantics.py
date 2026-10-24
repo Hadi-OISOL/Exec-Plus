@@ -18,6 +18,8 @@ from execplus.domain.models import QueryPlan, Scalar, WorkspaceScope
 
 VIEW_NAME = "dataset"
 VALUE_ALIAS = "__value"
+DAYS_ALIAS = "__days"
+PER_DAY_LABEL = " per calendar day"
 RECORD_COUNT = "*"
 
 _NUMERIC_TYPES = {"integer", "decimal"}
@@ -102,10 +104,12 @@ class MetricRequest:
     limit: int | None = None
     period: Literal["day", "week", "month", "quarter", "year", "weekday", "weekend"] | None = None
     times: str | None = None
+    per_day: bool = False
 
     @property
     def label(self) -> str:
-        return f"{self.metric}{PRODUCT_SIGN}{self.times}" if self.times else self.metric
+        base = f"{self.metric}{PRODUCT_SIGN}{self.times}" if self.times else self.metric
+        return base + PER_DAY_LABEL if self.per_day else base
 
 
 @dataclass(frozen=True, slots=True)
@@ -325,9 +329,23 @@ def plan_query(
     argument = RECORD_COUNT if request.metric == RECORD_COUNT else quote_identifier(request.metric)
     if request.times is not None:
         argument += f" * {quote_identifier(request.times)}"
-    select.append(
-        f"{request.aggregation.value.upper()}({argument}) AS {quote_identifier(VALUE_ALIAS)}"
-    )
+    if request.per_day:
+        if (
+            request.period not in ("weekday", "weekend")
+            or request.aggregation != AggregationKind.AVG
+            or request.metric == RECORD_COUNT
+        ):
+            raise UnsupportedQuestionError(
+                "An average per calendar day needs a summed measure split by weekday or weekend"
+            )
+        select += [
+            f"SUM({argument}) AS {quote_identifier(VALUE_ALIAS)}",
+            f"COUNT(DISTINCT CAST({name} AS DATE)) AS {quote_identifier(DAYS_ALIAS)}",
+        ]
+    else:
+        select.append(
+            f"{request.aggregation.value.upper()}({argument}) AS {quote_identifier(VALUE_ALIAS)}"
+        )
     sql = f"SELECT {', '.join(select)} FROM {quote_identifier(VIEW_NAME)}"
     if where_clauses:
         sql += " WHERE " + " AND ".join(where_clauses)
@@ -360,6 +378,8 @@ def plan_query(
         question += f" grouped by {', '.join(request.group_by)}"
     if request.period is not None:
         question += f" per {request.period}"
+    if request.per_day:
+        question += PER_DAY_LABEL
     if request.order is not None:
         question += f" ranked {request.order}"
     return QueryPlan(

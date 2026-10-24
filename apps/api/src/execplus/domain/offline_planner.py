@@ -166,17 +166,145 @@ def executable_choice(choice: str, view: DatasetView) -> bool:
     return planned is not None and planned.kind != QuestionKind.UNSUPPORTED
 
 
-def working_choices(question: str, view: DatasetView) -> tuple[str, ...]:
-    """Up to three related questions that plan deterministically on this file."""
-    operation = "average" if re.search(_AGGREGATIONS[0][1], words(question)) else "total"
-    named = dict.fromkeys(
+_DERIVED = (
+    r"\b(rate|rates|ratio|per|minus|net|margin|percentage|percent|proportion|divided|"
+    r"difference)\b"
+)
+_RATIO = r"\b(rate|rates|ratio|per|percentage|percent|proportion|divided)\b"
+_WHEN = r"\b(when|what time|which (day|date|week|month|hour|time))\b"
+_SYNONYMS = {"cost": "spend", "costs": "spend", "spend": "cost", "expense": "cost spend"}
+
+
+def _stem(word: str) -> str:
+    return word[:-1] if len(word) > 3 and word.endswith("s") else word
+
+
+def _named_measures(text: str, view: DatasetView) -> tuple[list[str], int]:
+    tokens = words(text).split()
+    positions = [{_stem(token), *map(_stem, _SYNONYMS.get(token, "").split())} for token in tokens]
+    expanded = " ".join([text, *(_SYNONYMS.get(token, "") for token in tokens)])
+    found = dict.fromkeys(
         [
-            *(name for name in _matched(question, view) if name in view.metrics),
-            *loosely_named_metrics(question, view),
+            *(name for name in _matched(text, view) if name in view.metrics),
+            *loosely_named_metrics(expanded, view),
         ]
     )
-    candidates = [f"What is the {operation} of {name}?" for name in list(named)[:2]]
-    candidates += offline_choices(question, view)
-    return tuple(choice for choice in dict.fromkeys(candidates) if executable_choice(choice, view))[
-        :3
+
+    def position(name: str) -> int:
+        parts = {_stem(token) for token in words(name).split()}
+        return next((i for i, stems in enumerate(positions) if stems & parts), len(positions))
+
+    ordered = sorted(found, key=lambda name: (position(name), name))
+    return ordered, len({position(name) for name in ordered})
+
+
+def _named_categories(
+    text: str, view: DatasetView, values: dict[str, tuple[str, ...]]
+) -> list[str]:
+    asked = {_stem(token) for token in words(text).split()}
+    by_value = [
+        name
+        for name, labels in values.items()
+        if any(
+            len(words(label)) >= 3 and {_stem(token) for token in words(label).split()} <= asked
+            for label in labels
+        )
     ]
+    return list(
+        dict.fromkeys(
+            [
+                *(
+                    name
+                    for name in _matched(text, view)
+                    if name in view.dimensions
+                    and (column := view.column(name))
+                    and column.type == "text"
+                ),
+                *by_value,
+            ]
+        )
+    )
+
+
+def _denominator(numerator: str, named: list[str], view: DatasetView) -> str | None:
+    parts = set(words(numerator).split())
+    scored = [
+        (len(parts & set(words(name).split())), name)
+        for name in sorted(view.metrics)
+        if name not in named
+        and (column := view.column(name)) is not None
+        and "identifier" not in column.tags
+    ]
+    best = max(scored, default=(0, ""), key=lambda item: item[0])
+    return best[1] if best[0] else None
+
+
+def working_choices(
+    question: str,
+    view: DatasetView,
+    context: str = "",
+    values: dict[str, tuple[str, ...]] | None = None,
+    lead: tuple[str, ...] = (),
+    groups: tuple[str, ...] = (),
+) -> tuple[str, ...]:
+    """Up to three questions that plan deterministically, most relevant to the question first.
+
+    Fields, grouping and category values named in the question rank first, then those of the
+    previous turn (context). A rate or difference offers each component total separately,
+    grouped the way the user asked.
+    """
+    values = values or {}
+    text = words(question)
+    asked, concepts = _named_measures(question, view)
+    named = list(dict.fromkeys([*lead, *asked]))
+    categories = list(dict.fromkeys([*groups, *_named_categories(question, view, values)]))
+    derived = bool(re.search(_DERIVED, text))
+    if re.search(_RATIO, text) and named and concepts <= 1:
+        denominator = _denominator(named[0], named, view)
+        if denominator:
+            named.insert(1, denominator)
+    if not named:
+        named = _named_measures(context, view)[0]
+    if not named and derived:
+        named = [
+            column.name
+            for column in view.columns
+            if column.name in view.metrics and "identifier" not in column.tags
+        ][:1]
+    if not categories:
+        categories = _named_categories(context, view, values) if not asked else []
+    group = f" by {categories[0]}" if categories else ""
+    dates = [
+        column.name
+        for column in view.columns
+        if column.name in view.dimensions and (column.type == "date" or column.has_time)
+    ]
+    when = bool(re.search(_WHEN, text))
+    candidates: list[str] = []
+    if when and dates:
+        candidates += [f"Which {dates[0]} has the highest maximum {name}?" for name in named[:2]]
+    operation = (
+        "maximum"
+        if when
+        else "average"
+        if re.search(_AGGREGATIONS[0][1], text) and not derived
+        else "total"
+    )
+    candidates += [f"What is the {operation} of {name}{group}?" for name in named[:3]]
+    if categories and not named:
+        candidates.append(f"How many records are there{group}?")
+    relevant = {*named, *categories}
+
+    def score(choice: str) -> int:
+        return sum(bool(re.search(rf"\b{re.escape(name)}\b", choice)) for name in relevant)
+
+    generic = sorted(offline_choices(question, view), key=score, reverse=True)
+    working = [choice for choice in dict.fromkeys(candidates) if executable_choice(choice, view)]
+    working += [
+        choice
+        for choice in generic
+        if choice not in working
+        and executable_choice(choice, view)
+        and (score(choice) or not working)
+    ]
+    return tuple(working[:3])

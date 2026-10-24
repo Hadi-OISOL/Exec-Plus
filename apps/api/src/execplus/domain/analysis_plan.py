@@ -200,6 +200,8 @@ class AnalysisPlan:
             )
             if kind == "numerical":
                 keys = keys | ({"order", "limit", "period", "times"} & set(plan))
+                if plan.get("per_day") is True:
+                    keys = keys | {"per_day"}
                 if "period" in plan and plan["period"] not in TIME_PERIODS:
                     self._invalid()
                 if "times" in plan and (
@@ -332,7 +334,7 @@ def conversation_plan(intent: RoutedIntent, sources: tuple[dict[str, str], ...])
         parameters = {
             key: value
             for key, value in parameters.items()
-            if key not in optional or value is not None
+            if (key not in optional or value is not None) and (key != "per_day" or value)
         }
         steps.append(
             AnalysisStep(

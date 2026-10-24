@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field
 
-from execplus.application.conversation import EvidenceAnswer, NumericalAnswer
+from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, answer_lineage
 from execplus.application.conversation_context import capture_follow_ups
 from execplus.application.services.analytics import (
     AnalyticsService,
@@ -33,11 +33,12 @@ from execplus.application.services.intent_router import (
 )
 from execplus.application.services.summaries import SummaryService
 from execplus.application.usage_context import usage_scope
-from execplus.domain.answer_presentation import recommended_chart, share_of_total
+from execplus.domain.answer_presentation import decimal_text, recommended_chart, share_of_total
 from execplus.domain.kpi_library import KpiMatch
 from execplus.domain.models import CalculationLineage, QueryResult, VerifiedMetricAnswer
 from execplus.domain.pdf_exports import ReportAnswer
 from execplus.domain.semantics import (
+    PER_DAY_LABEL,
     AggregationKind,
     FilterOperator,
     MetricFilter,
@@ -132,7 +133,7 @@ def query_body(result: QueryResult, lineage: CalculationLineage) -> dict[str, ob
         "rows": jsonable_encoder(
             result.rows,
             custom_encoder={
-                Decimal: str,
+                Decimal: decimal_text,
                 int: lambda value: str(value) if abs(value) > 2**53 - 1 else value,
             },
         ),
@@ -172,7 +173,7 @@ def _card_body(card: DashboardCard) -> dict[str, object]:
 def answer_body(answer: VerifiedMetricAnswer) -> dict[str, object]:
     return {
         "label": answer.label,
-        "value": str(answer.value)
+        "value": decimal_text(answer.value)
         if isinstance(answer.value, Decimal)
         else (str(answer.value) if abs(answer.value) > 2**53 - 1 else answer.value),
         "lineage": asdict(answer.lineage),
@@ -244,7 +245,11 @@ def numerical_answer_body(
             "model_route": answer.model_route,
             "sources": answer.sources,
             "message": (
-                "The requested calculations are shown with their individual evidence."
+                "Weekdays and weekends have different numbers of days, so the first result is "
+                "the average per calendar day: each group's exact total divided by the number "
+                "of distinct calendar days it contains. The totals follow."
+                if answer.data and answer_lineage(answer.data).metric.endswith(PER_DAY_LABEL)
+                else "The requested calculations are shown with their individual evidence."
                 if answer.coverage == "data"
                 else "Calculated data and quoted source statements are shown separately."
             ),

@@ -10,7 +10,7 @@ import hashlib
 import json
 import re
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -92,7 +92,9 @@ from execplus.domain.intent import (
     canonical_question,
     canonical_records,
     cohort_scope_needs_clarification,
+    per_day_request,
     route_response,
+    with_extremum,
     with_product,
     with_time_grain,
 )
@@ -117,7 +119,7 @@ from execplus.domain.pattern_requests import (
     wants_patterns,
 )
 from execplus.domain.pdf_exports import ReportAnswer
-from execplus.domain.semantics import DatasetView, MetricRequest
+from execplus.domain.semantics import PER_DAY_LABEL, DatasetView, MetricRequest
 
 
 @dataclass(frozen=True, slots=True)
@@ -330,7 +332,8 @@ _SYSTEM_PROMPT = (
     "which month, yearly). Never set order for a trend: periods return in date order. "
     "'Which month had the highest X' uses period month with order desc. For day of week "
     "(busiest weekday, Mondays vs Fridays) group by the date field with period weekday; for "
-    "weekdays vs weekends use period weekend and avg when comparing typical days. "
+    "weekdays vs weekends use period weekend with sum for counts and amounts (the system "
+    "adds the exact average per calendar day) and avg for per-record measures. "
     "A value that is one field times another in each row (inventory value = units on hand "
     "times unit cost, revenue = quantity times price) uses metric plus times with sum; never "
     "total only the quantity for a value. Two equality "
@@ -455,15 +458,19 @@ def _relevant_categories(question: str, view: DatasetView) -> tuple[str, ...]:
     )[:8]
 
 
-def derived_parts(request: MetricRequest, question: str, view: DatasetView) -> tuple[str, ...]:
-    group = f" by {request.group_by[0]}" if len(request.group_by) == 1 else ""
-    measures = dict.fromkeys(
-        name
-        for name in (request.metric, *loosely_named_metrics(question, view))
-        if name in view.metrics
+def derived_parts(
+    request: MetricRequest,
+    question: str,
+    view: DatasetView,
+    values: dict[str, tuple[str, ...]] | None = None,
+) -> tuple[str, ...]:
+    return working_choices(
+        question,
+        view,
+        values=values,
+        lead=(request.metric,) if request.metric in view.metrics else (),
+        groups=request.group_by[:1],
     )
-    choices = [f"What is the total of {name}{group}?" for name in list(measures)[:3]]
-    return (*choices, f"How many records are there{group}?")
 
 
 class IntentRouterService:
@@ -712,6 +719,27 @@ class IntentRouterService:
             tuple(dict.fromkeys(value for item in choices for value in item["values"])),
         )
 
+    async def _category_values(
+        self, actor: User, wid: UUID, did: UUID, uid: UUID
+    ) -> dict[str, tuple[str, ...]]:
+        """Labels of short text categories, so offered choices can follow named values."""
+        current, table, _ = await read_complete(
+            lambda: self.analytics.descriptive_snapshot(actor, wid, did, uid)
+        )
+        found: dict[str, tuple[str, ...]] = {}
+        for column in current.view.columns:
+            if (
+                column.type != "text"
+                or column.name not in current.view.dimensions
+                or "identifier" in column.tags
+            ):
+                continue
+            index = table.headers.index(column.name)
+            labels = dict.fromkeys(row[index].strip() for row in table.rows if row[index].strip())
+            if len(labels) <= 12:
+                found[column.name] = tuple(labels)
+        return found
+
     async def _selection(self, context: str, question: str, view: DatasetView) -> tuple[str, str]:
         if self.selector is None:
             return "", ""
@@ -772,8 +800,16 @@ class IntentRouterService:
         prior_clarification: ClarificationContext | None = None,
         prior_cohort: dict[str, Any] | None = None,
         prior_result: ResultContext | None = None,
+        prior_question: str = "",
     ) -> ConversationAnswer:
         description = await self._describe(actor, workspace_id, dataset_id, upload_id)
+        if prior_turn is not None and prior_turn.metric.endswith(PER_DAY_LABEL):
+            prior_turn = replace(
+                prior_turn, metric=prior_turn.metric.removesuffix(PER_DAY_LABEL), aggregation="sum"
+            )
+        choice_context = " ".join(
+            [prior_question, *((prior_turn.metric, *prior_turn.grouping) if prior_turn else ())]
+        )
         # Keep the last question available for model-selected explanation, even
         # when the latest wording is not a recognized analytical continuation.
         explanation_context = prior_clarification if self.context_enabled else None
@@ -1426,6 +1462,7 @@ class IntentRouterService:
             ),
             view,
         )
+        routed = with_extremum(question, routed, view)
         await activity(JobStage.PLANNING, EventStatus.COMPLETED)
         await activity(JobStage.VALIDATING, EventStatus.STARTED)
         if (
@@ -1480,35 +1517,15 @@ class IntentRouterService:
                         view.sources,
                     )
                 )
-            answers: list[NumericalAnswer] = []
-            for step in routed.data_steps:
-                answers.append(
-                    await self._execute_data(
-                        actor,
-                        workspace_id,
-                        dataset_id,
-                        upload_id,
-                        step,
-                        view,
-                        model_route,
-                        question,
-                    )
-                )
-            current = await self._describe(actor, workspace_id, dataset_id, upload_id)
-            if current.view.sources != view.sources:
-                raise ClarificationRequiredError(
-                    "The file changed during the calculations. Ask again for its current version."
-                )
-            return EvidenceAnswer(
-                "mixed",
-                answers[0],
-                (),
-                "",
-                "data",
-                (),
+            return await self._execute_steps(
+                actor,
+                workspace_id,
+                dataset_id,
+                upload_id,
+                routed.data_steps,
+                view,
                 model_route,
-                view.sources,
-                additional_data=tuple(answers[1:]),
+                question,
             )
 
         if routed.kind == QuestionKind.COHORT_COMPARISON:
@@ -1777,7 +1794,12 @@ class IntentRouterService:
                     "them into one number yet, so I will not show a single total as the "
                     "answer. Choose a part to calculate:",
                     view.sources,
-                    derived_parts(routed.request, question, view),
+                    derived_parts(
+                        routed.request,
+                        question,
+                        view,
+                        await self._category_values(actor, workspace_id, dataset_id, upload_id),
+                    ),
                 )
             )
         if (
@@ -1795,6 +1817,19 @@ class IntentRouterService:
                     choices,
                 )
             )
+        if routed.kind == QuestionKind.NUMERICAL and (
+            per_day := per_day_request(question, routed.request)
+        ):
+            return await self._execute_steps(
+                actor,
+                workspace_id,
+                dataset_id,
+                upload_id,
+                (replace(routed, request=per_day), routed),
+                view,
+                model_route,
+                question,
+            )
         if routed.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}:
             return await self._execute_data(
                 actor, workspace_id, dataset_id, upload_id, routed, view, model_route, question
@@ -1809,7 +1844,12 @@ class IntentRouterService:
                     or option in category_options
                     or executable_choice(option, view)
                 )
-            )[:6] or working_choices(original, view)
+            )[:6] or working_choices(
+                original,
+                view,
+                choice_context,
+                await self._category_values(actor, workspace_id, dataset_id, upload_id),
+            )
             options = (
                 f" Candidates: {', '.join(routed.options)}."
                 if routed.options and not choices
@@ -1844,7 +1884,12 @@ class IntentRouterService:
             )
         if routed.validation_issue == INVALID_PLAN:
             original = prior_clarification.question if prior_clarification else question
-            choices = working_choices(original, view)
+            choices = working_choices(
+                original,
+                view,
+                choice_context,
+                await self._category_values(actor, workspace_id, dataset_id, upload_id),
+            )
             raise PlanningClarification(
                 ClarificationContext(
                     original,
@@ -1859,6 +1904,41 @@ class IntentRouterService:
                 )
             )
         raise UnsupportedQuestionError(routed.message)
+
+    async def _execute_steps(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        steps: tuple[RoutedIntent, ...],
+        view: DatasetView,
+        model_route: str,
+        question: str,
+    ) -> EvidenceAnswer:
+        answers: list[NumericalAnswer] = []
+        for step in steps:
+            answers.append(
+                await self._execute_data(
+                    actor, workspace_id, dataset_id, upload_id, step, view, model_route, question
+                )
+            )
+        current = await self._describe(actor, workspace_id, dataset_id, upload_id)
+        if current.view.sources != view.sources:
+            raise ClarificationRequiredError(
+                "The file changed during the calculations. Ask again for its current version."
+            )
+        return EvidenceAnswer(
+            "mixed",
+            answers[0],
+            (),
+            "",
+            "data",
+            (),
+            model_route,
+            view.sources,
+            additional_data=tuple(answers[1:]),
+        )
 
     async def _explore_patterns(
         self,
