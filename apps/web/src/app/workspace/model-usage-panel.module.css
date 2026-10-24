@@ -29,3 +29,7 @@ What it does: Keeps summary cards, allowances and detailed evidence responsive a
 .switch { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .switch button[aria-pressed="true"] { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
 @media (max-width: 600px) { .metrics, .allowance { grid-template-columns: 1fr; } .metrics > div, .cost { padding: 16px; } .header > button { width: 100%; } .period { max-width: none; } }
+.tableScroll { overflow-x: auto; max-width: 100%; }
+.tableScroll table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tableScroll th, .tableScroll td { padding: 6px 12px; text-align: right; border-bottom: 1px solid var(--studio-border, var(--color-border)); white-space: nowrap; }
+.tableScroll th[scope="row"], .tableScroll thead th:first-child { text-align: left; }

@@ -15,6 +15,21 @@ from execplus.domain.ingestion import IngestionError
 STOCK = frozenset({"seats", "datasets", "file_bytes", "storage_bytes", "saved_studies"})
 OPERATIONS = frozenset({"processing", "exports", "forecasts", "model_attempts"})
 LIMITS = STOCK | OPERATIONS
+NEAR_SHARE = (4, 5)
+STILL_WORKS = (
+    "Saved answers, dashboards, earlier results and receipt replays still open; "
+    "new work of this kind waits until the allowance is reviewed."
+)
+LABELS = {
+    "seats": "team seats",
+    "datasets": "datasets",
+    "storage_bytes": "upload storage",
+    "saved_studies": "saved studies",
+    "processing": "processing operations (uploads, questions and analyses)",
+    "exports": "exports",
+    "forecasts": "forecasts",
+    "model_attempts": "AI attempts",
+}
 DEMO = {
     "seats": 5,
     "datasets": 10,
@@ -127,6 +142,43 @@ def require_capacity(
     if limit is not None and used + amount > limit:
         raise IngestionError(
             "plan_limit",
-            "This workspace has reached its local allowance. Ask an administrator to review it.",
+            "This workspace has reached its local allowance. "
+            + STILL_WORKS
+            + " Ask an administrator to review it.",
             429,
         )
+
+
+def usage_state(used: int | None, limit: int | None) -> str:
+    if used is None or limit is None:
+        return "ok"
+    if used >= limit:
+        return "reached"
+    return "near" if used * NEAR_SHARE[1] >= limit * NEAR_SHARE[0] else "ok"
+
+
+def usage_notices(allowances: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    notices = []
+    for kind in sorted(allowances):
+        value = allowances[kind]
+        state = usage_state(value["used"], value["limit"]) if kind in LABELS else "ok"
+        if state == "ok":
+            continue
+        label = LABELS[kind]
+        message = (
+            f"This workspace has reached its {label} allowance "
+            f"({value['used']} of {value['limit']} used). " + STILL_WORKS
+            if state == "reached"
+            else f"This workspace has used {value['used']} of {value['limit']} {label} "
+            "(80% or more). Work continues normally until the allowance is reached."
+        )
+        notices.append(
+            {
+                "kind": kind,
+                "state": state,
+                "used": value["used"],
+                "limit": value["limit"],
+                "message": message,
+            }
+        )
+    return notices
