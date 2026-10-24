@@ -349,3 +349,44 @@ def test_missing_values_and_duplicate_action_rows_are_refused(integration, conte
     assert response.status_code == 422, response.text
     with env.engine.connect() as connection:
         assert connection.execute(select(s.analysis_runs.c.id)).all() == []
+
+
+def test_scheduled_allocation_saves_checked_periods_and_reopens_without_solving(
+    integration, monkeypatch
+):
+    env = integration
+    owner, _, wid, _, _, root = fixture(env)
+    response = create(
+        env,
+        owner,
+        root,
+        model="cp-sat-scheduled-allocation-v1",
+        maximum_quantity=1,
+        schedule=dict(period_budgets=["0.05", "0.05"], precedence=[dict(candidate="B", after="A")]),
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    result = body["run"]["result"]
+    assert body["run"]["method_version"] == "cp-sat-scheduled-allocation-v1"
+    assert {r["candidate"]: r["period"] for r in result["allocations"]} == dict(A=1, B=2)
+    assert [Decimal(p["used"]) for p in result["schedule"]["periods"]] == [
+        Decimal("0.03"),
+        Decimal("0.05"),
+    ]
+    assert [Decimal(p["unused"]) for p in result["schedule"]["periods"]] == [
+        Decimal("0.02"),
+        Decimal("0"),
+    ]
+    assert Decimal(result["benefit"]) == Decimal("0.07") + Decimal("0.11")
+    assert result["verification"]["precedence"] == "passed"
+    assert result["verification"]["period_budgets"] == "passed"
+
+    class NoSearch:
+        async def solve_schedule(self, problem):
+            raise AssertionError("Reopening must not rerun the schedule search")
+
+    monkeypatch.setattr(env.runtime.decision_analysis, "allocation_solver", NoSearch())
+    assert env.client.get(endpoint(root, body), headers=owner).json()["run"] == body["run"]
+    path = root.split("/uploads/")[0] + f"/analyses/{body['run']['id']}/export.xlsx?kind=allocation"
+    text = download_text(env.client.get(path, headers=owner), "xlsx")
+    assert "0.02" in text and "after" in text

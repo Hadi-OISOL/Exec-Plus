@@ -4,7 +4,11 @@ What it does: Uses synthetic source files to verify mapping, replay, policy race
 shared boards and independently parsed exports without model or provider calls.
 """
 
+import csv
 from copy import deepcopy
+from decimal import Decimal
+from fractions import Fraction
+from io import StringIO
 from uuid import UUID, uuid4
 
 import pytest
@@ -638,3 +642,115 @@ def test_ranked_fields_add_root_cause_evidence_that_replays_exactly(integration)
     method["comparison"] = {**right, "dimensions": ["product"]}
     method["baseline"] = {**left, "dimensions": ["product"]}
     assert create_contribution(env, owner, root, method).status_code == 422
+
+
+MONTHS = (
+    b"date,region,channel,product,revenue\n"
+    b"2026-01-05,North,Online,A,10.25\n2026-01-09,North,Store,B,4.10\n"
+    b"2026-01-12,South,Online,A,7.00\n2026-01-20,South,Store,C,3.333\n"
+    b"2026-02-02,North,Online,A,25.75\n2026-02-14,North,Store,B,3.90\n"
+    b"2026-02-18,South,Online,C,7.00\n2026-02-25,South,Store,C,3.333\n"
+    b"2026-03-01,North,Online,A,999\n"
+)
+
+
+def month_over_month(env, owner, root, uid):
+    current = env.client.get(root + "/adaptive-views", headers=owner).json()
+    left = dict(
+        column="revenue",
+        segment="region",
+        dimensions=["channel", "product"],
+        date_column="date",
+        start="2026-01-01",
+        end="2026-01-31",
+    )
+    right = {
+        **left,
+        "start": "2026-02-01",
+        "end": "2026-02-28",
+        "dataset_id": root.split("/")[4],
+        "upload_id": uid,
+        "revision_id": current["revision_id"],
+        "understanding_id": current["understanding_id"],
+    }
+    method = dict(
+        kind="contribution",
+        mode="period",
+        baseline=left,
+        comparison=right,
+        additive_rows_confirmed=True,
+    )
+    return create_contribution(env, owner, root, method)
+
+
+def independent_changes(rows, field, inside=None):
+    deltas = {}
+    for row in rows:
+        if inside and row[inside[0]] != inside[1]:
+            continue
+        sign = 1 if row["date"].startswith("2026-02") else -1
+        deltas[row[field]] = deltas.get(row[field], Fraction(0)) + sign * Fraction(row["revenue"])
+    return deltas
+
+
+def as_fraction(exact):
+    return Fraction(int(exact["numerator"]), int(exact["denominator"]))
+
+
+def test_month_over_month_change_by_three_fields_matches_independent_decimal_sums(integration):
+    env = integration
+    owner, _ = identity(env, f"month-change-{uuid4().hex}@example.test")
+    wid = workspace(env, owner)
+    _, uid, root = source(env, owner, wid, MONTHS)
+    response = month_over_month(env, owner, root, uid)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    value = body["contribution"]
+    rows = [
+        r for r in csv.DictReader(StringIO(MONTHS.decode())) if not r["date"].startswith("2026-03")
+    ]
+    january = sum(Decimal(r["revenue"]) for r in rows if r["date"].startswith("2026-01"))
+    february = sum(Decimal(r["revenue"]) for r in rows if r["date"].startswith("2026-02"))
+    assert Decimal(value["baseline_total"]["display"]) == january == Decimal("24.683")
+    assert Decimal(value["comparison_total"]["display"]) == february == Decimal("39.983")
+    assert Decimal(value["net_change"]["display"]) == february - january
+    assert value["reconciled"]
+    expected = {}
+    for field in ("region", "channel", "product"):
+        deltas = independent_changes(rows, field)
+        top = max(deltas, key=lambda k: abs(deltas[k]))
+        expected[field] = (top, deltas[top], abs(deltas[top]) / sum(map(abs, deltas.values())))
+    cause = value["root_cause"]
+    assert cause["state"] == "available"
+    assert "not a proven business cause" in cause["limitation"]
+    order = sorted(expected, key=lambda f: -expected[f][2])
+    assert [f["field"] for f in cause["fields"]] == order == ["region", "channel", "product"]
+    for field in cause["fields"]:
+        member, delta, concentration = expected[field["field"]]
+        assert field["top_member"] == member
+        assert as_fraction(field["top_delta"]) == delta
+        assert as_fraction(field["concentration"]) == concentration
+    drill = cause["drilldown"]
+    assert (drill["within_field"], drill["within_member"]) == ("region", "North")
+    inside = independent_changes(rows, drill["field"], ("region", "North"))
+    assert {r["member"]: as_fraction(r["delta"]) for r in drill["rows"]} == inside
+    assert sum(inside.values()) == expected["region"][1] and drill["reconciled"]
+    url = f"/workspaces/{wid}/study-versions/{body['version']['id']}"
+    assert env.client.get(url, headers=owner).json() == body
+    for fmt in ("pdf", "xlsx"):
+        text = download_text(env.client.get(f"{url}/export.{fmt}", headers=owner), fmt)
+        assert "accounting attribution" in text
+        assert "dimension-concentration-v1" in text
+        assert all(name in text for name in ("region", "channel", "product", "North"))
+        assert str(as_fraction(cause["fields"][0]["concentration"]).numerator) in text
+        assert "15.3" in text
+
+
+def test_studies_without_ranked_fields_export_no_root_cause_section(integration):
+    env = integration
+    owner, _, wid, _, _, root, _, _, _, method = prepare_contribution(env)
+    body = create_contribution(env, owner, root, method).json()
+    assert "root_cause" not in body["contribution"]
+    url = f"/workspaces/{wid}/study-versions/{body['version']['id']}/export.xlsx"
+    text = download_text(env.client.get(url, headers=owner), "xlsx")
+    assert "dimension-concentration-v1" not in text and "115" in text

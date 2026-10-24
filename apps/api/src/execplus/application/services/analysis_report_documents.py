@@ -380,6 +380,7 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
         if result.get("version") in {
             "multi-resource-allocation-v1",
             "multi-resource-allocation-v2",
+            "scheduled-allocation-v1",
         }:
             report.objects("Every declared resource limit and exact use", result["resources"])
             report.objects(
@@ -391,6 +392,13 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
                 ],
                 ("candidate", "quantity", "column", "per_unit", "used"),
             )
+        if result.get("schedule"):
+            report.objects("Per-period budgets and exact use", result["schedule"]["periods"])
+            report.objects(
+                "Ordering rules",
+                result["schedule"]["precedence"],
+                ("candidate", "after"),
+            )
         if result.get("capacity_sensitivity"):
             _capacity_comparison(report, run, result)
         if result["allocations"]:
@@ -398,6 +406,7 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
             larger_method = result.get("version") in {
                 "multi-resource-allocation-v1",
                 "multi-resource-allocation-v2",
+                "scheduled-allocation-v1",
             }
             unit = run.get("evidence", {}).get("units", {}).get(measure, "")
             report.charts.append(

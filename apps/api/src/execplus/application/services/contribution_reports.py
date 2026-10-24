@@ -1,7 +1,8 @@
 """Use case: Adds exact contribution findings to existing protected study exports.
 
-What it does: Includes reconciled totals, rational components, coverage, assumptions
-and chart values while the existing report keeps both replayed receipt tables.
+What it does: Includes reconciled totals, rational components, coverage, ranked change
+fields with their drilldown, assumptions and chart values while the existing report keeps both
+replayed receipt tables.
 """
 
 from decimal import Decimal
@@ -146,4 +147,84 @@ def add_contribution(report: "_Report", title: str, evidence: dict[str, Any]) ->
         report.metadata(
             title + " - decomposition status",
             dict(state=pvm["state"], reconciled=pvm["reconciled"]),
+        )
+    cause = value.get("root_cause")
+    if cause:
+        add_root_cause(report, title, cause, unit)
+
+
+def add_root_cause(report: "_Report", title: str, cause: dict[str, Any], unit: str) -> None:
+    report.text(
+        title + " - where the change is concentrated",
+        f"Method: {cause['method']}. State: {cause['state']}.",
+        cause["limitation"],
+        "Concentration = top member's absolute change / total absolute movement in that field.",
+    )
+    report.table(
+        title + " - ranked change fields",
+        (
+            "Rank",
+            "Field",
+            "State",
+            "Members",
+            "Top member",
+            "Top member change",
+            "Concentration",
+            "Concentration numerator",
+            "Concentration denominator",
+            "Share of signed net",
+            "Unit",
+        ),
+        tuple(
+            (
+                index + 1 if field["state"] == "ranked" else None,
+                field["field"],
+                field["state"],
+                field["members"],
+                field.get("top_member"),
+                display(field.get("top_delta")),
+                display(field.get("concentration")),
+                field["concentration"]["numerator"] if field.get("concentration") else None,
+                field["concentration"]["denominator"] if field.get("concentration") else None,
+                display(field.get("top_share_of_net")),
+                unit,
+            )
+            for index, field in enumerate(cause["fields"])
+        ),
+    )
+    drill = cause.get("drilldown")
+    if drill:
+        report.table(
+            title + " - drilldown inside the top member",
+            (
+                "Inside field",
+                "Inside member",
+                "Field",
+                "Member",
+                "Change",
+                "Exact numerator",
+                "Exact denominator",
+                "Unit",
+            ),
+            tuple(
+                (
+                    drill["within_field"],
+                    drill["within_member"],
+                    drill["field"],
+                    row["member"],
+                    display(row["delta"]),
+                    row["delta"]["numerator"],
+                    row["delta"]["denominator"],
+                    unit,
+                )
+                for row in drill["rows"]
+            ),
+        )
+        report.metadata(
+            title + " - drilldown adds back",
+            dict(
+                within_field=drill["within_field"],
+                within_member=drill["within_member"],
+                reconciled=drill["reconciled"],
+            ),
         )
