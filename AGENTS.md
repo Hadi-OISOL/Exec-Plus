@@ -52,7 +52,7 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   comparisons, named ties, zero display, follow-up measure scope, free-text word counts,
   deterministic reorder rule, usage view (`/plan-usage`) + notices + staff ranking,
   root-cause UI/exports/month picker, scheduling web form, calendar-effect forecasts
-  (advanced-v4), scenario simulation, calibrated targets for all detectors.
+  (advanced-v4), scenario simulation, calibrated targets for grouped, seasonal and rolling detectors (drift and multi-measure not yet calibrated). Oct 24 reassessment: 50 Done / 12 Partial / 2 Not yet (`docs/partial-feature-reassessment-20261024.md`).
 - Evidence: backend full suite all pass except 4 hit by a `/usage` route shadow bug,
   fixed (51/51 on fix); web 107/107; browser 122/5 fail/4 skip, all 5 fixed and the
   7 affected specs rechecked 22 pass/2 model skips. Live 81-question run 4: **62 PASS / 19 PARTIAL / 0 FAIL** (`docs/verification-live-datasets-20261024.md`). Live: register/login/chats/usage,
