@@ -1,52 +1,103 @@
-> **File use case:** Owner-approved three-phase plan for the October 26 data-intake work on Syntelio.
-> **What it does:** Lists what each phase delivers, the facts found on October 25, and how each phase is verified and released.
+> **File use case:** Owner-approved plan for the October 26 big-data intake work on Syntelio.
+> **What it does:** Lists the goals, facts found on October 25, the three phases with parallel agent workstreams, and how each phase is verified and released.
 
-# Data intake plan — October 26
+# Big-data intake plan — October 26
 
-Owner goal: accept every common data file, much larger files, and live database connections.
+## Owner goals
+
+- Accept files up to **500 MB** each, uploaded in **chunks/batches** that **resume** after a network drop.
+- Uploads continue **in the background** while the user keeps using Syntelio (other pages,
+  chat, dashboards). Closing or reloading the tab while an upload is running shows a
+  **"upload in progress — are you sure?"** warning.
+- Every user has a **5 GB storage quota** with a visible **usage/progress bar**
+  (per-file progress + total used of 5 GB).
+- Handle **millions of records** as a normal case, not an exception: exact answers on big data.
+- Read **every common data file format** properly, reusing proven open-source readers
+  (research GitHub projects for format extraction and LLM-friendly data reading).
+- The AI understands big data from compact, exact summaries (schema, profiles, samples,
+  computed statistics) — never by reading raw rows — then **builds a dashboard tailored to each
+  dataset** automatically (different every time, based on what the data contains).
+- Live **database connections**.
 
 ## Facts found on October 25
 
-- Google Sheets import builds a filename from the sheet/tab title; titles containing `/`, `\`, `:`
-  or `%` fail `validate_filename` (`infrastructure/file_parser.py`) with "Use a plain filename
-  without paths or control characters."
-- Size is capped at 20 MiB in three places: `max_upload_bytes` and `google_import_max_bytes`
-  (`config.py`, both hard-capped `le=20 MiB`) and Caddy `SYNTELIO_MAX_REQUEST_BYTES` (25 MiB).
-  Query limits also bound large files: 200,000 input rows, 2,000,000 cells, 256 MB DuckDB memory.
-- Only `.csv` and `.xlsx` are accepted (`file_parser.py`).
-- Existing database connector: read-only PostgreSQL (tested end to end); BigQuery mock-only.
+- Google Sheets import builds a filename from the sheet/tab title; titles with `/`, `\`, `:` or `%`
+  fail `validate_filename` (`infrastructure/file_parser.py`).
+- Size capped at 20 MiB: `max_upload_bytes`, `google_import_max_bytes` (`config.py`, hard `le=20 MiB`),
+  Caddy `SYNTELIO_MAX_REQUEST_BYTES` (25 MiB). Query bounds: 200,000 input rows, 2,000,000 cells,
+  256 MB DuckDB memory. Files are parsed into memory today.
+- Only `.csv` and `.xlsx` accepted. Existing connectors: read-only PostgreSQL (real), BigQuery (mock).
+- Typed Parquet was trialled earlier (exact results, faster repeat queries) but not adopted
+  "without lifecycle integration" (ADR 0007) — this plan provides that lifecycle.
+- Existing pieces to reuse: object storage (MinIO), durable jobs worker, usage/allowance view
+  (`/plan-usage`), six deterministic analysts (`docs/insights-engine.md`), six-pin dashboards,
+  staged refresh, profile versions (v1–v4 replay unchanged).
 
-## Phase 1 — Fix imports and lift size limits
+## Phase 1 — Big uploads (morning)
 
-- Google Sheets: build a safe filename from the title (replace unsafe characters) instead of
-  refusing; keep the strict check for user-typed upload names.
-- Raise limits to a configurable ceiling (target 200 MiB upload / import), streamed to object
-  storage without loading the whole file in memory; matching Caddy limit and timeouts.
-- Raise query bounds proportionally (rows/cells/memory) with measured timings on large
-  synthetic files; keep exact numbers and refuse honestly above the new ceiling.
-- Progress bar for big uploads; clear message when a file is over the limit.
+Parallel workstreams:
 
-## Phase 2 — Every common data file format
+1. **Resumable chunked upload (API + storage):** resumable protocol (tus or S3 multipart with
+   signed part URLs), 8–16 MB chunks, resume after drop, checksum per chunk and whole file,
+   500 MB per file (configurable), streamed to object storage, no full file in memory.
+   Google Sheets/connector imports use the same path. Fix the Sheets filename by sanitizing.
+2. **Background upload UX (web):** upload manager that survives page navigation inside the app,
+   per-file and total progress, pause/resume/cancel, `beforeunload` warning while active,
+   resumes after reload when possible.
+3. **5 GB per-user quota:** counted from stored bytes (all versions), shown as a bar
+   ("2.1 GB of 5 GB"), checked before an upload starts and enforced per chunk; staff can change
+   a user's quota; reuse the allowance/usage tables and `/plan-usage`.
+4. **Edge/server limits:** Caddy body/timeouts for chunked uploads, API/worker timeouts, disk
+   space checks on the VPS, backup size impact.
 
-- Add: `.xls` (old Excel), `.xlsm`, `.ods`, `.tsv`/`.txt` delimited, `.json` / `.jsonl`,
-  `.parquet`, `.xml` (table-shaped), `.sav`/`.dta` (SPSS/Stata) if a small pinned reader exists,
-  `.sqlite`/`.db` (pick a table), and `.zip`/`.gz` containing one of these.
-- Multi-sheet/table files ask which sheet/table to import (Excel already has tab choice in Sheets).
-- New uploads get the next profile version; old files replay unchanged.
-- Each format: a real sample file test, exact-number check against pandas, malicious-file checks
-  (zip bombs, formula injection, oversized nesting).
+## Phase 2 — Millions of rows and every format (midday)
 
-## Phase 3 — Database connections
+1. **Format research (first, 1 agent):** survey proven GitHub projects and pick pinned, offline
+   readers — e.g. DuckDB native readers (CSV/Parquet/JSON/Excel), Apache Arrow/pyarrow,
+   python-calamine (fast Excel), pyreadstat (SPSS/Stata/SAS), odfpy/calamine (.ods), lxml (XML),
+   plus LLM data-reading projects (how they summarize large tables for models). Output: chosen
+   library per format, licence, size, security notes.
+2. **Ingest to columnar storage:** every upload is converted once (in the jobs worker) to typed
+   Parquet in object storage; DuckDB queries the Parquet directly. Exact decimals preserved
+   (decimal columns, never floats), old files replay unchanged (new profile version).
+3. **Formats:** `.csv/.tsv/.txt` (any delimiter/encoding), `.xlsx/.xlsm/.xls`, `.ods`,
+   `.json/.jsonl/.ndjson`, `.parquet`, table-shaped `.xml`, `.sav/.dta/.sas7bdat`,
+   `.sqlite/.db`, and `.zip/.gz` containing these; multi-sheet/table files ask which to import.
+   Security: zip-bomb and nesting limits, formula-injection handling, no macro execution.
+4. **Scale:** profiling on the full data via DuckDB aggregates (not row-by-row Python), query
+   bounds raised (tens of millions of rows; memory/spill settings), measured timings on 1M/10M-row
+   synthetic files with pandas-checked exact results.
 
-- Add read-only connectors for MySQL/MariaDB, Microsoft SQL Server, and SQLite file upload;
-  harden PostgreSQL; table/view picker with row-count preview; optional custom read-only SELECT
-  validated by the existing SQL safety checker.
-- Credentials encrypted at rest (existing pattern), private-host rules, row limits, and staged
-  refresh like other connectors.
-- Each connector tested against a real local database container.
+## Phase 3 — AI understanding, dynamic dashboards, databases (afternoon)
 
-## Release
+1. **Big-data understanding for the AI:** a compact "dataset brief" (schema, roles, units,
+   exact column statistics, top values, date ranges, data-quality findings, small samples)
+   generated by server tools; the model reads only this brief and plans governed queries.
+2. **Dynamic dashboards:** after upload, Syntelio builds a dashboard tailored to that dataset
+   (which charts, KPIs, breakdowns and time views fit its columns and the user's goal), using the
+   analyst team's checked findings; every tile is a governed query with receipts; user can edit,
+   pin and share. Different data → different dashboard.
+3. **Database connections:** read-only MySQL/MariaDB, SQL Server, SQLite, hardened PostgreSQL;
+   table picker with row counts, optional validated read-only SELECT, large tables pulled in
+   batches into the same Parquet path; encrypted credentials; tested against real containers.
 
-Each phase: agents in worktrees → merge → full backend + browser suites → checked backup →
-release with the 2026-10-25 kit (copy, bump date; add migration handling only if a phase adds
-one) → live check on https://syntelio.173-208-151-137.sslip.io.
+## Agents and order
+
+- Morning: 4 agents (Phase 1 workstreams) + 1 format-research agent (Phase 2.1) in parallel.
+- Midday: merge Phase 1 → test → release; start Phase 2 agents (ingest, formats, scale).
+- Afternoon: merge Phase 2 → test → release; Phase 3 agents (brief, dashboards, databases).
+- Evening: final merge → full tests → release → live check with a 500 MB / multi-million-row
+  file on https://syntelio.173-208-151-137.sslip.io.
+
+## Release and safety
+
+Each release: worktree agents → merge → full backend + browser suites → checked backup →
+release kit (copy 2026-10-25 kit; add migration handling if a phase adds tables, e.g. upload
+sessions/quotas) → live check. VPS disk and backup size must be checked before allowing
+5 GB per user. Old uploads, answers and receipts must keep replaying unchanged.
+
+## Honest risks
+
+- 500 MB files and 5 GB per user need disk space and longer backups on the VPS; check capacity first.
+- A one-day timeline is tight for all of Phase 3; dashboards and databases may spill over.
+- Some formats (SAS/SPSS/XML) vary a lot; rare files may still need a clear "unsupported" message.
