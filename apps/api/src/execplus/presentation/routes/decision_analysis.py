@@ -265,6 +265,31 @@ class LargeAllocationInput(SourceInput):
     exclusions: list[Exclusion] = Field(default_factory=list, max_length=40)
 
 
+class ReorderItemInput(Input):
+    item: str = Field(min_length=1, max_length=200)
+    stock: str | None = Field(default=None, min_length=1, max_length=100)
+    reorder_point: str | None = Field(default=None, min_length=1, max_length=100)
+    lead_time_days: int | None = Field(default=None, ge=1, le=365, strict=True)
+    unit_cost: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class InventoryReorderInput(SourceInput):
+    kind: Literal["bounded_allocation"] = "bounded_allocation"
+    model: Literal["inventory-reorder-v1"] = "inventory-reorder-v1"
+    date_column: str = Field(min_length=1, max_length=200)
+    item_column: str = Field(min_length=1, max_length=200)
+    demand_column: str = Field(min_length=1, max_length=200)
+    stock_column: str | None = Field(default=None, min_length=1, max_length=200)
+    reorder_point_column: str | None = Field(default=None, min_length=1, max_length=200)
+    lead_time_column: str | None = Field(default=None, min_length=1, max_length=200)
+    unit_cost_column: str | None = Field(default=None, min_length=1, max_length=200)
+    default_lead_time_days: int | None = Field(default=None, ge=1, le=365, strict=True)
+    items: list[ReorderItemInput] = Field(default_factory=list, max_length=50)
+    service_level: Literal["0.90", "0.95", "0.975", "0.99"] = "0.95"
+    budget: str | None = Field(default=None, min_length=1, max_length=100)
+    assumptions_confirmed: bool = Field(strict=True)
+
+
 class ScenarioAlternative(Input):
     name: str = Field(min_length=1, max_length=100)
     operation: Literal["replace", "percent_change"]
@@ -342,6 +367,12 @@ class SimulationTarget(Input):
     value: str = Field(min_length=1, max_length=100)
 
 
+class DriverCorrelation(Input):
+    first: Literal["price", "quantity", "variable_cost", "fixed_cost"]
+    second: Literal["price", "quantity", "variable_cost", "fixed_cost"]
+    value: str = Field(min_length=1, max_length=20)
+
+
 class ScenarioSimulation(Input):
     drivers: dict[Literal["price", "quantity", "variable_cost", "fixed_cost"], TriangularRange] = (
         Field(min_length=1, max_length=4)
@@ -349,6 +380,7 @@ class ScenarioSimulation(Input):
     draws: int = Field(default=10000, ge=1000, le=10000, strict=True)
     seed: int = Field(default=20261024, ge=0, le=2**32 - 1, strict=True)
     target: SimulationTarget | None = None
+    correlations: list[DriverCorrelation] | None = Field(default=None, min_length=1, max_length=6)
 
 
 class ScenarioConstraint(Input):
@@ -401,6 +433,8 @@ async def source_scenarios(
     raw = body.model_dump(mode="json")
     if body.simulation is None:
         raw.pop("simulation")
+    elif body.simulation.correlations is None:
+        raw["simulation"].pop("correlations")
     return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
 
 
@@ -477,6 +511,20 @@ async def large_allocations(
     if body.schedule is None:
         raw.pop("schedule")
     return await analyses.create(actor, workspace_id, dataset_id, upload_id, raw)
+
+
+@router.post(SOURCE + "/inventory-reorders", status_code=201)
+async def inventory_reorders(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: InventoryReorderInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
+    )
 
 
 @router.post(SOURCE + "/seasonal-anomalies", status_code=201)

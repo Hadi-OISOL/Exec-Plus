@@ -46,6 +46,7 @@ dev = [
   "pytest-cov>=5,<7",
   "ruff>=0.5,<1",
   "pypdf==6.20.1",
+  "aiosmtpd==1.4.6",
 ]
 
 [tool.hatch.build.targets.wheel]

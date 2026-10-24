@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     smtp_password: str = Field(default="", repr=False)
     smtp_sender: str = ""
     smtp_security: Literal["ssl", "starttls", "none"] = "ssl"
+    smtp_ca_file: str = ""
     vector_mode: Literal["disabled"] = "disabled"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
     web_origin: str = "http://localhost:3000"

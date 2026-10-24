@@ -33,7 +33,8 @@ def bounded_input(value: Any) -> dict[str, Any]:
         if any(type(x) is not int or not 0 <= x <= LIMIT for x in column):
             raise ValueError("Invalid integer coefficient")
     if any(
-        not 0 <= lo <= hi <= 100 for lo, hi in zip(value["minimum"], value["maximum"], strict=True)
+        not 0 <= lo <= hi <= 1_000_000
+        for lo, hi in zip(value["minimum"], value["maximum"], strict=True)
     ):
         raise ValueError("Invalid quantity bound")
     if any(

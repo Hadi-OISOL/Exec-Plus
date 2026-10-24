@@ -368,6 +368,12 @@ def _decision(report: _Report, record: dict[str, Any], kind: str) -> None:
                     ),
                 )
             )
+    elif kind == "allocation" and result.get("version") == "inventory-reorder-v1":
+        report.text(
+            "Decision boundary",
+            "No purchase order is placed when a reorder plan is approved or exported.",
+        )
+        report.objects("Reorder plan by days of cover", result["allocations"])
     elif kind == "allocation":
         report.text(
             "Decision boundary",
@@ -792,6 +798,53 @@ def _source_scenario(report: _Report, run: dict[str, Any], result: dict[str, Any
                 notes=notes,
             )
         )
+    if result.get("simulation"):
+        _scenario_simulation(report, result["simulation"])
+
+
+def _scenario_simulation(report: _Report, simulation: dict[str, Any]) -> None:
+    report.text("Probability simulation", simulation["label"])
+    report.metadata(
+        "Simulation settings",
+        {
+            key: simulation[key]
+            for key in ("method", "seed", "draws", "reference", "percentile_rule")
+        },
+    )
+    report.table(
+        "Simulated driver ranges (%)",
+        ("Driver", "Low", "Likely", "High"),
+        tuple(
+            (driver, bounds["low"], bounds["likely"], bounds["high"])
+            for driver, bounds in simulation["drivers"].items()
+        ),
+    )
+    if simulation.get("correlations"):
+        report.objects(
+            "Declared driver correlations", simulation["correlations"], ("first", "second", "value")
+        )
+    report.table(
+        "Simulated outcome percentiles",
+        ("Measure", "P10", "P50", "P90", "Minimum", "Maximum"),
+        tuple(
+            (
+                field,
+                *((values or {}).get(key) for key in ("p10", "p50", "p90", "minimum", "maximum")),
+            )
+            for field, values in simulation["percentiles"].items()
+        ),
+    )
+    if simulation.get("target_probability"):
+        report.metadata("Target probability", simulation["target_probability"])
+    report.table(
+        "Simulation assumptions and limits",
+        ("Kind", "Statement"),
+        tuple(
+            (kind, statement)
+            for kind in ("assumptions", "limitations")
+            for statement in simulation[kind]
+        ),
+    )
 
 
 def _dashboard(report: _Report, record: dict[str, Any]) -> None:

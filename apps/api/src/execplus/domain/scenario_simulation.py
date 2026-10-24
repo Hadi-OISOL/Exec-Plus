@@ -1,18 +1,22 @@
 """Use case: Simulates declared low/likely/high driver ranges through the exact scenario formula.
 
-What it does: Draws seeded independent triangular percentage changes, evaluates each draw
-with the existing source scenario arithmetic and reports nearest-rank percentiles and the
-share of draws beating a declared target. The stored seed makes replay identical.
+What it does: Draws seeded triangular percentage changes, independently or through an
+optional Gaussian copula with declared pairwise correlations, evaluates each draw with the
+existing source scenario arithmetic and reports nearest-rank percentiles and the share of
+draws beating a declared target. The stored seed makes replay identical.
 """
 
 import random
 from collections.abc import Callable
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
+from statistics import NormalDist
 from typing import Any
 
 from execplus.domain.decision_analysis import encoded, fail, number
 
 METHOD = "triangular-monte-carlo-v1"
+COPULA_METHOD = "triangular-gaussian-copula-v1"
+MAX_CORRELATION = Decimal("0.9")
 DRIVERS = ("price", "quantity", "variable_cost", "fixed_cost")
 FIELDS = (
     "quantity",
@@ -45,7 +49,7 @@ def validate_simulation(raw: dict[str, Any]) -> None:
     simulation = raw.get("simulation")
     if simulation is None:
         return
-    if not isinstance(simulation, dict) or set(simulation) != {
+    if not isinstance(simulation, dict) or set(simulation) - {"correlations"} != {
         "drivers",
         "draws",
         "seed",
@@ -77,6 +81,60 @@ def validate_simulation(raw: dict[str, Any]) -> None:
         fail("scenario_simulation", "Choose a known outcome, a direction and a target value.")
     if target is not None:
         number(target["value"])
+    if "correlations" in simulation:
+        _cholesky(_matrix(simulation))
+
+
+def _matrix(simulation: dict[str, Any]) -> list[list[float]]:
+    keys = [key for key in DRIVERS if key in simulation["drivers"]]
+    pairs = simulation["correlations"]
+    if not isinstance(pairs, list) or not 1 <= len(pairs) <= 6:
+        fail("scenario_correlation", "Declare one to six driver correlations.")
+    matrix = [[float(i == j) for j in range(len(keys))] for i in range(len(keys))]
+    seen: set[frozenset[str]] = set()
+    for pair in pairs:
+        if (
+            not isinstance(pair, dict)
+            or set(pair) != {"first", "second", "value"}
+            or not all(isinstance(item, str) for item in pair.values())
+        ):
+            fail("scenario_correlation", "Declare two drivers and a correlation for each pair.")
+        names = frozenset((pair["first"], pair["second"]))
+        if len(names) != 2 or not names <= set(keys) or names in seen:
+            fail("scenario_correlation", "Correlate two different simulated drivers once each.")
+        seen.add(names)
+        value = number(pair["value"])
+        if not -MAX_CORRELATION <= value <= MAX_CORRELATION:
+            fail("scenario_correlation", "Correlations must be between -0.9 and 0.9.")
+        i, j = keys.index(pair["first"]), keys.index(pair["second"])
+        matrix[i][j] = matrix[j][i] = float(value)
+    return matrix
+
+
+def _cholesky(matrix: list[list[float]]) -> list[list[float]]:
+    size = len(matrix)
+    lower = [[0.0] * size for _ in range(size)]
+    for i in range(size):
+        for j in range(i + 1):
+            total = matrix[i][j] - sum(lower[i][k] * lower[j][k] for k in range(j))
+            if i == j:
+                if total <= 1e-9:
+                    fail(
+                        "scenario_correlation",
+                        "These correlations cannot hold together; weaken or change one pair.",
+                    )
+                lower[i][i] = total**0.5
+            else:
+                lower[i][j] = total / lower[j][j]
+    return lower
+
+
+def _uniforms(rng: random.Random, lower: list[list[float]] | None, size: int) -> list[float]:
+    if lower is None:
+        return [rng.random() for _ in range(size)]
+    normal = NormalDist()
+    z = [normal.inv_cdf(min(max(rng.random(), 1e-12), 1 - 1e-12)) for _ in range(size)]
+    return [normal.cdf(sum(row[k] * z[k] for k in range(i + 1))) for i, row in enumerate(lower)]
 
 
 def triangular(uniform: float, low: Decimal, likely: Decimal, high: Decimal) -> Decimal:
@@ -104,10 +162,14 @@ def simulate(raw: dict[str, Any], outcome: Outcome) -> dict[str, Any]:
         for key, value in declared.items()
     }
     rng = random.Random(simulation["seed"])
+    correlated = "correlations" in simulation
+    lower = _cholesky(_matrix(simulation)) if correlated else None
     collected: dict[str, list[Decimal] | None] = {field: [] for field in FIELDS}
     for _ in range(simulation["draws"]):
+        uniforms = _uniforms(rng, lower, len(bounds))
         changes = dict.fromkeys(DRIVERS, "0") | {
-            key: encoded(triangular(rng.random(), *values)) for key, values in bounds.items()
+            key: encoded(triangular(uniform, *values))
+            for uniform, (key, values) in zip(uniforms, bounds.items(), strict=True)
         }
         result = outcome(changes)
         for field in FIELDS:
@@ -148,8 +210,17 @@ def simulate(raw: dict[str, Any], outcome: Outcome) -> dict[str, Any]:
                 share=encoded(share),
                 monte_carlo_standard_error=encoded(error),
             )
+    dependence = (
+        [
+            "Declared driver pairs move together through a Gaussian copula: each driver keeps "
+            "its triangular range while normal scores share the stated correlations.",
+            "Undeclared driver pairs are uncorrelated.",
+        ]
+        if correlated
+        else ["Drivers are drawn independently; real drivers can move together."]
+    )
     return dict(
-        method=METHOD,
+        method=COPULA_METHOD if correlated else METHOD,
         label="Simulation under the stated assumptions, not a forecast or guarantee.",
         reference="original_baseline_other_changes_zero",
         seed=simulation["seed"],
@@ -158,12 +229,22 @@ def simulate(raw: dict[str, Any], outcome: Outcome) -> dict[str, Any]:
             key: dict(zip(("low", "likely", "high"), map(encoded, values), strict=True))
             for key, values in bounds.items()
         },
+        **(
+            {
+                "correlations": [
+                    dict(first=p["first"], second=p["second"], value=encoded(number(p["value"])))
+                    for p in simulation["correlations"]
+                ]
+            }
+            if correlated
+            else {}
+        ),
         percentiles=summary,
         target_probability=probability,
         percentile_rule="nearest rank over all draws",
         assumptions=[
             "Each listed driver follows its own triangular low/likely/high range.",
-            "Drivers are drawn independently; real drivers can move together.",
+            *dependence,
             "Unlisted drivers stay at zero change from the original baseline.",
             "Each draw runs the same exact scenario arithmetic as the alternatives.",
         ],
@@ -172,5 +253,13 @@ def simulate(raw: dict[str, Any], outcome: Outcome) -> dict[str, Any]:
             "of real outcomes; they inherit every assumption above.",
             "Sampled percentages are rounded to six decimal places before evaluation.",
             "Margin percentiles are unavailable when any draw has zero revenue.",
+            *(
+                [
+                    "Correlations apply to normal scores; the drivers' own rank correlation "
+                    "is 6/π·asin(r/2), slightly below r."
+                ]
+                if correlated
+                else []
+            ),
         ],
     )

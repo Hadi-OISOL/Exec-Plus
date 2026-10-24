@@ -102,7 +102,30 @@ async def test_reorder_question_uses_one_stated_rule_regardless_of_model_plan(in
         assert positions == sorted(positions)
         assert "1. A5, Tools, North — on_hand_units 8, reorder_point 30, short by 22" in message
         assert "A2," not in message and "A6," not in message
+        assert answer.actions == ()
     assert model.requests == []
+
+
+DATED_CSV = (
+    b"day,sku,sold,on_hand_units,reorder_point\n"
+    b"2026-01-01,A1,3,5,20\n2026-01-02,A1,4,5,20\n2026-01-01,A2,1,50,10\n2026-01-02,A2,0,50,10\n"
+)
+
+
+@pytest.mark.asyncio
+async def test_dated_inventory_offers_the_reorder_quantity_planner(integration):
+    headers, actor = identity(integration, "dated-inventory@example.test")
+    wid = workspace(integration, headers)
+    did = dataset(integration, headers, wid)
+    response = upload(integration, headers, wid, did, DATED_CSV, "stock.csv", "text/csv")
+    assert response.status_code == 201, response.text
+    model = Planner()
+    router = IntentRouterService(model, integration.runtime.analytics, context_enabled=True)
+    threads = ThreadService(integration.runtime.threads.uow, router)
+    thread = await threads.start_thread(actor, UUID(wid), UUID(did), UUID(response.json()["id"]))
+    answer, turn = await threads.ask(actor, UUID(wid), thread.id, "What should I reorder first?")
+    assert turn.model_route == REORDER_ROUTE
+    assert answer.actions == ({"tool": "reorder", "label": "Plan reorder quantities"},)
 
 
 def test_without_a_reorder_point_the_rule_is_lowest_stock_and_says_so():

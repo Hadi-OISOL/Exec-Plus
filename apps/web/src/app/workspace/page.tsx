@@ -1896,7 +1896,7 @@ export default function WorkspacePage() {
                         onTool={action => {
                           setToolSelection({root, ...action});
                           if (action.tool === "forecasts") setSection("forecasts");
-                          else if (["anomalies", "allocations", "scenarios"].includes(action.tool)) setSection("decisions");
+                          else if (["anomalies", "allocations", "scenarios", "reorder"].includes(action.tool)) setSection("decisions");
                           else if (action.tool === "prepare") openBrief();
                           else if (action.tool === "overview") setSection("overview");
                           else if (action.tool === "patterns") askFromHome(action.metric ? `Find patterns related to ${action.metric}` : "Find patterns in my data");
@@ -2072,7 +2072,7 @@ export default function WorkspacePage() {
                       key={`decisions-${root}-${revisionTick}-${analysisIntent}-${toolSelection?.tool}-${toolSelection?.metric}-${toolSelection?.aggregation}-${toolSelection?.scenario_mode}`}
                       root={root}
                       request={request}
-                      initialMethod={toolSelection?.root === root && ["anomalies", "allocations", "scenarios"].includes(toolSelection.tool) ? toolSelection.tool as "anomalies" | "allocations" | "scenarios" : analysisIntent === "prescriptive" ? "allocations" : "anomalies"}
+                      initialMethod={toolSelection?.root === root && ["anomalies", "allocations", "scenarios", "reorder"].includes(toolSelection.tool) ? toolSelection.tool as "anomalies" | "allocations" | "scenarios" | "reorder" : analysisIntent === "prescriptive" ? "allocations" : "anomalies"}
                       initialMetric={toolSelection?.root === root ? toolSelection.metric : ""}
                       initialOperation={toolSelection?.root === root ? toolSelection.scenario_mode : undefined}
                       initialAggregation={toolSelection?.root === root ? toolSelection.aggregation : undefined}
