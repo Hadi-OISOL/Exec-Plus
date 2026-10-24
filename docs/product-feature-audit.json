@@ -918,7 +918,7 @@
       "section": "Commercial readiness",
       "feature": "AI-response evaluation",
       "status": "partial",
-      "note": "Deterministic offline evaluation covers 40 named synthetic cases and 112 exact checks, including numerical agreement, citation binding, unsupported-output checks, access boundaries and replay consistency. Initial failures remain recorded. This proves the fixed local cases only; representative live-provider quality, speed, spending and customer-data performance remain unverified. October 22 (private release f590a4a813287580 on 0030): provider-free labelled evaluation: routing 23/24, output validation 20/20, grounding 9/10, binding 5/5, executed answers 16/16. A live 12-dataset/81-question review (36 pass/16 partial/29 fail, all executed numbers correct) found calendar-grain, impossible-filter, ratio-measure and follow-up defects; fixes are deployed and await a live re-measure. October 23 (release 93d29ec6abe39458 on 0030): clickable clarification choices, friendly plan failures, date-time columns, grounded next steps, row products and weekday grouping are live; the live 81-question review moved to 54 pass / 19 partial / 8 fail (from 36/16/29), with every executed number matching an independent pandas check.",
+      "note": "Deterministic offline evaluation covers 40 named synthetic cases and 112 exact checks, including numerical agreement, citation binding, unsupported-output checks, access boundaries and replay consistency. Initial failures remain recorded. This proves the fixed local cases only; representative live-provider quality, speed, spending and customer-data performance remain unverified. October 22 (private release f590a4a813287580 on 0030): provider-free labelled evaluation: routing 23/24, output validation 20/20, grounding 9/10, binding 5/5, executed answers 16/16. A live 12-dataset/81-question review (36 pass/16 partial/29 fail, all executed numbers correct) found calendar-grain, impossible-filter, ratio-measure and follow-up defects; fixes are deployed and await a live re-measure. October 23 (release 93d29ec6abe39458 on 0030): clickable clarification choices, friendly plan failures, date-time columns, grounded next steps, row products and weekday grouping are live; the live 81-question review moved to 54 pass / 19 partial / 8 fail (from 36/16/29), with every executed number matching an independent pandas check. October 24: live 81-question run 4 on release 4028b7309e58531f scored 62 pass / 19 partial / 0 fail, every executed number matching pandas.",
       "evidence": [
         "scripts/evaluate_demo_model.py",
         "scripts/evaluate_data_partner.py",
@@ -935,7 +935,8 @@
         "docs/verification-evaluation-cost-performance.md",
         "apps/api/tests/test_live_dataset_defects.py",
         "docs/agent-harness.md",
-        "docs/verification-live-datasets-20261023.md"
+        "docs/verification-live-datasets-20261023.md",
+        "docs/verification-live-datasets-20261024.md"
       ],
       "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [
