@@ -1,5 +1,6 @@
 /* Use case: Defines exact wire contracts for private anomaly and allocation views.
 What it does: Keeps numerical results as returned strings and labels conditional decisions. */
+import type { DetectorCalibration } from "./false-alarm-target";
 import type { ForecastOptions } from "./forecast-types";
 export type AnalysisOptions = {
     state: string;
@@ -43,6 +44,7 @@ export type AnomalyResult = {
     flagged_records: number;
     findings: Finding[];
     limitations: string[];
+    calibration?: DetectorCalibration;
 };
 export type AllocationResult = {
     status: string;

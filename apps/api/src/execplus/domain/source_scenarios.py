@@ -13,6 +13,7 @@ from execplus.domain.models import QueryPlan, WorkspaceScope
 from execplus.domain.profiling import TableData
 from execplus.domain.scenario_constraints import METHOD as CONSTRAINED_METHOD
 from execplus.domain.scenario_constraints import apply_constraints, constraints, validate_units
+from execplus.domain.scenario_simulation import simulate, validate_simulation
 from execplus.domain.semantics import (
     DatasetView,
     MetricFilter,
@@ -110,6 +111,7 @@ def validate_source_scenario(raw: dict[str, Any]) -> None:
                 fail("scenario_range", "Each low change must be below its high change.")
             if driver == "fixed_cost" and not raw.get("fixed_cost_column"):
                 fail("scenario_fixed_cost", "Choose a source fixed-cost column before varying it.")
+    validate_simulation(raw)
 
 
 def source_scenario_plan(
@@ -337,6 +339,7 @@ def compare_source_scenarios(
                     "Margin bounds are unavailable when any combination has zero revenue."
                 ),
             )
+        simulation = simulate(raw, outcome) if raw.get("simulation") else None
     comparison = dict(
         version=METHOD,
         method_version=METHOD,
@@ -346,6 +349,7 @@ def compare_source_scenarios(
         alternatives=alternatives,
         sensitivity=sensitivity,
         **({"ranges": ranges} if ranges else {}),
+        **({"simulation": simulation} if simulation else {}),
         parent_run_id=raw.get("parent_run_id"),
         warnings=[
             "Signed source inputs are retained, including returns or credits; "

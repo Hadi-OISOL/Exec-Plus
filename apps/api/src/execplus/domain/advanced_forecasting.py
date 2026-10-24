@@ -11,6 +11,19 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from itertools import product
 from typing import Any
 
+from execplus.domain.calendar_regression import (
+    METHOD_VERSION as CALENDAR_METHOD_VERSION,
+)
+from execplus.domain.calendar_regression import (
+    METHODS as REGRESSION_METHODS,
+)
+from execplus.domain.calendar_regression import (
+    CalendarInputs,
+    calendar_kind,
+    feature_names,
+    fit,
+    project,
+)
 from execplus.domain.forecasting import (
     MAX_HISTORY,
     MIN_HOLDOUT,
@@ -36,6 +49,8 @@ VERSION = "forecast-v2"
 ENGINE = "advanced-v2"
 CALIBRATED_VERSION = "forecast-v3"
 CALIBRATED_ENGINE = "advanced-v3"
+REGRESSION_VERSION = "forecast-v4"
+REGRESSION_ENGINE = "advanced-v4"
 CALIBRATION_ORIGINS = 9
 NOMINAL_COVERAGE = "0.8"
 CONFORMAL_RANK = 8
@@ -65,8 +80,17 @@ class Candidate:
     phi: str = "1"
     gamma: str = "0"
     season: int | None = None
+    calendar: str | None = None
+    event: bool = False
 
     def parameters(self) -> dict[str, Any]:
+        if self.method in REGRESSION_METHODS:
+            return {
+                "calendar": self.calendar,
+                "trend": self.method == "calendar_regression",
+                "event": self.event,
+                "estimation": "ordinary_least_squares",
+            }
         if self.method in {"last_value", "seasonal_naive"}:
             return {"season_length": self.season}
         return {
@@ -240,6 +264,7 @@ def advanced_forecast(
     request: ForecastRequest,
     family: str = "auto",
     calibrated: bool = False,
+    calendar: CalendarInputs | None = None,
 ) -> ForecastResult:
     required = minimum_history(request, family, calibrated)
     _points(points, request.frequency, contiguous=True)
@@ -263,6 +288,33 @@ def advanced_forecast(
     candidates = registered_candidates(
         request, family, calibration_origins[0] if calibrated else first_origin
     )
+    smoothing_count = len(candidates)
+    regression_excluded = None
+    if calendar is not None:
+        if (
+            calibrated
+            or len(calendar.periods) != len(points) + request.horizon
+            or (calendar.events is not None and len(calendar.events) != len(calendar.periods))
+        ):
+            raise _invalid("forecast_regressors", "Calendar inputs must cover every period.")
+        cycle = 7 if request.frequency == "daily" else 12
+        if first_origin >= 2 * cycle:
+            candidates = (
+                *candidates,
+                *(
+                    Candidate(
+                        method,
+                        calendar=calendar_kind(request.frequency),
+                        event=calendar.events is not None,
+                    )
+                    for method in REGRESSION_METHODS
+                ),
+            )
+        else:
+            regression_excluded = {
+                "method": "calendar regression",
+                "reason": "The first training window has fewer than two complete calendar cycles.",
+            }
     work = (
         len(candidates) * sum(origins)
         + sum(calibration_origins)
@@ -275,6 +327,19 @@ def advanced_forecast(
             "This forecast exceeds the bounded candidate evaluation workload.",
         )
     values = tuple(point.actual for point in points)
+
+    def run(candidate: Candidate, end: int, steps: int) -> tuple[Decimal, ...]:
+        if calendar is not None and candidate.method in REGRESSION_METHODS:
+            estimates = []
+            for estimate in project(
+                calendar, request.frequency, end, values, candidate.method, steps
+            ):
+                estimate = _approximate(estimate)
+                _number(estimate, estimate=True)
+                estimates.append(estimate)
+            return tuple(estimates)
+        return predict(candidate, values[:end], steps)
+
     with localcontext() as context:
         context.prec = 128
         context.rounding = ROUND_HALF_EVEN
@@ -285,9 +350,7 @@ def advanced_forecast(
         )
         for candidate in candidates:
             estimates = tuple(
-                value
-                for origin in origins
-                for value in predict(candidate, values[:origin], holdout)
+                value for origin in origins for value in run(candidate, origin, holdout)
             )
             metrics = error_metrics(validation_actuals, estimates)
             residual_sets.append(
@@ -315,7 +378,7 @@ def advanced_forecast(
             else (width,) * holdout
         )
         test_points = points[-holdout:]
-        estimates = predict(selected, values[:-holdout], holdout)
+        estimates = run(selected, len(values) - holdout, holdout)
         backtest = []
         for point, estimate, step_width in zip(test_points, estimates, widths, strict=True):
             row = _prediction(point.period.isoformat(), estimate, step_width)
@@ -332,7 +395,7 @@ def advanced_forecast(
         baseline_accuracy = error_metrics(
             test_actuals, tuple(Decimal(_estimated(value)) for value in baseline_estimates)
         )
-        future = predict(selected, values, request.horizon)
+        future = run(selected, len(values), request.horizon)
         period = points[-1].period
         predictions = []
         for estimate, step_width in zip(future, widths, strict=False):
@@ -367,7 +430,7 @@ def advanced_forecast(
                 "Validation errors were zero, so ranges collapse. "
                 "Future errors can still be nonzero."
             )
-        record = {
+        record: dict[str, Any] = {
             "version": VERSION,
             "frequency": request.frequency,
             "horizon": request.horizon,
@@ -435,6 +498,33 @@ def advanced_forecast(
         }
         if calibrated:
             _calibrate_record(record, points, calibration_origins, first_origin, widths)
+        if calendar is not None:
+            record["version"] = REGRESSION_VERSION
+            record["regressors"] = _regressor_comparison(
+                calendar,
+                request,
+                candidates,
+                scores,
+                smoothing_count,
+                lambda candidate: error_metrics(
+                    test_actuals,
+                    run(candidate, len(values) - holdout, holdout),
+                ),
+                fit,
+                values,
+            )
+            if regression_excluded:
+                record["selection"]["excluded"].append(regression_excluded)
+            record["limitations"] = [
+                item for item in record["limitations"] if not item.startswith("Additive methods")
+            ] + [
+                "Additive methods permit negative estimates. No clipping or "
+                "missing-period imputation is used.",
+                "Calendar regression is selected only when its rolling-validation error is "
+                "strictly lower than every smoothing candidate; the test window never chooses.",
+                "Calendar effects are fitted averages relative to the first day or month, "
+                "not causes. A declared event schedule is assumed known in advance.",
+            ]
         return ForecastResult(
             json.dumps(record, sort_keys=True, separators=(",", ":"), allow_nan=False)
         )
@@ -472,9 +562,83 @@ def _calibrate_record(
     ]
 
 
+def _regressor_comparison(
+    calendar: CalendarInputs,
+    request: ForecastRequest,
+    candidates: tuple[Candidate, ...],
+    scores: list[dict[str, Any]],
+    smoothing_count: int,
+    test_metrics: Any,
+    fitter: Any,
+    values: tuple[Decimal, ...],
+) -> dict[str, Any]:
+    def best(indexes: range) -> int | None:
+        return min(
+            indexes,
+            key=lambda index: (Decimal(scores[index]["metrics"]["mae"]), index),
+            default=None,
+        )
+
+    def summary(index: int | None) -> dict[str, Any] | None:
+        if index is None:
+            return None
+        return {
+            "method": candidates[index].method,
+            "parameters": candidates[index].parameters(),
+            "validation_mae": scores[index]["metrics"]["mae"],
+            "test_mae": test_metrics(candidates[index])["mae"],
+        }
+
+    plain = best(range(smoothing_count))
+    calendar_index = best(range(smoothing_count, len(candidates)))
+    effects = None
+    if calendar_index is not None:
+        candidate = candidates[calendar_index]
+        names = feature_names(
+            request.frequency, candidate.method == "calendar_regression", candidate.event
+        )
+        coefficients = fitter(calendar, request.frequency, len(values), values, candidate.method)
+        effects = {
+            name: _estimated(value)
+            for name, value in zip(names, coefficients, strict=True)
+            if name not in {"baseline", "trend"}
+        }
+    with_calendar = summary(calendar_index)
+    without = summary(plain)
+    selected = (
+        calendar_index is not None
+        and plain is not None
+        and Decimal(scores[calendar_index]["metrics"]["mae"])
+        < Decimal(scores[plain]["metrics"]["mae"])
+    )
+    return {
+        "method": CALENDAR_METHOD_VERSION,
+        "calendar": calendar_kind(request.frequency),
+        "event_declared": calendar.events is not None,
+        "future_event_periods": [
+            period.isoformat()
+            for period, flag in zip(
+                calendar.periods[len(values) :],
+                (calendar.events or ())[len(values) :],
+                strict=False,
+            )
+            if flag
+        ],
+        "best_without_regressors": without,
+        "best_with_regressors": with_calendar,
+        "selected": "calendar_regression" if selected else "smoothing",
+        "rule": "Calendar regression is chosen only when its rolling-validation MAE is strictly "
+        "lower than the best smoothing candidate; test MAE is shown for comparison only.",
+        "effects": effects,
+        "effects_label": "Fitted average difference from the first "
+        + ("weekday (Monday)" if request.frequency == "daily" else "month (January)")
+        + " on the full history; approximate, not causal.",
+    }
+
+
 def compare_advanced_forecast(
     record: dict[str, Any], actuals: tuple[ForecastPoint, ...]
 ) -> dict[str, Any]:
-    if record.get("version") not in {VERSION, CALIBRATED_VERSION}:
+    if record.get("version") not in {VERSION, CALIBRATED_VERSION, REGRESSION_VERSION}:
         raise _invalid("forecast_record", "This advanced forecast version is unavailable.")
     return compare_forecast({**record, "version": BASIC_VERSION}, actuals)

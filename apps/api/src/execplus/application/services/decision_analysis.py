@@ -52,6 +52,11 @@ from execplus.domain.decision_analysis import (
     checksum,
     detect_distribution,
 )
+from execplus.domain.detector_calibration import (
+    SEGMENT_CALIBRATED_METHOD,
+    detector_evidence,
+    detector_threshold,
+)
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt
 from execplus.domain.exploration_selection import anomaly_default
@@ -136,7 +141,7 @@ def method_version(raw: dict[str, Any]) -> str:
     ):
         return DAILY_METHOD
     if raw["kind"] == "robust_distribution" and raw.get("target_false_alarm_rate"):
-        return CALIBRATED_METHOD
+        return SEGMENT_CALIBRATED_METHOD if raw.get("segment_column") else CALIBRATED_METHOD
     if raw["kind"] == "robust_distribution" and raw.get("segment_column"):
         return SEGMENT_METHOD
     if raw["kind"] == "bounded_allocation" and (raw.get("prerequisites") or raw.get("exclusions")):
@@ -158,6 +163,17 @@ def calculate(raw: dict[str, Any], value: QueryResult) -> dict[str, Any]:
             return compare_source_scenarios(raw, value.rows)
         return compare_scenarios(raw, value.rows)
     if raw["kind"] == "robust_distribution":
+        if raw.get("target_false_alarm_rate") and raw.get("segment_column"):
+            target = raw["target_false_alarm_rate"]
+            return detect_segments(
+                [(None if row[0] is None else str(row[0]), row[1], row[2]) for row in value.rows],
+                detector_threshold("grouped", target),
+                raw["materiality"],
+                raw["minimum_segment_size"],
+            ) | dict(
+                method_version=SEGMENT_CALIBRATED_METHOD,
+                calibration=detector_evidence("grouped", target),
+            )
         if raw.get("target_false_alarm_rate"):
             target = raw["target_false_alarm_rate"]
             return detect_distribution(
@@ -294,6 +310,7 @@ class DecisionAnalysisService:
                 *sorted(CALENDAR_METHODS),
                 MULTIVARIATE_METHOD,
                 CALIBRATED_METHOD,
+                SEGMENT_CALIBRATED_METHOD,
             ],
             limitations=[
                 "Confirm meaning and fixed units before analysis.",
@@ -517,6 +534,7 @@ class DecisionAnalysisService:
                     SOURCE_SCENARIO_METHOD,
                     MULTIVARIATE_METHOD,
                     CALIBRATED_METHOD,
+                    SEGMENT_CALIBRATED_METHOD,
                 }
                 else SCENARIO_METHOD
                 if raw["kind"] == "scenario_comparison"

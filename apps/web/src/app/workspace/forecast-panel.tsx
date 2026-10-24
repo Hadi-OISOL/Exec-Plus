@@ -7,9 +7,10 @@ import type { ApiRequest } from "./profile-panel";
 import { ForecastResults } from "./forecast-results";
 import { UnusualValues } from "./unusual-values";
 import styles from "./forecast.module.css";
-import { advancedMinimumHistory } from "./forecast-types";
+import { advancedMinimumHistory, eventPeriods } from "./forecast-types";
 import type {
   ComparisonSummary,
+  ForecastEngine,
   ForecastComparison,
   ForecastOptions,
   ForecastRun,
@@ -64,7 +65,9 @@ export function ForecastPanel({
   const [frequency, setFrequency] = useState<"daily" | "monthly">("monthly");
   const [horizon, setHorizon] = useState(3);
   const [seasonal, setSeasonal] = useState(false);
-  const [engine, setEngine] = useState<"basic-v1" | "advanced-v2" | "advanced-v3">("basic-v1");
+  const [engine, setEngine] = useState<ForecastEngine>("basic-v1");
+  const [eventColumn, setEventColumn] = useState("");
+  const [futureEvents, setFutureEvents] = useState("");
   const [methodFamily, setMethodFamily] = useState("auto");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -177,6 +180,9 @@ export function ForecastPanel({
       horizon,
       season_length: seasonal ? (frequency === "daily" ? 7 : 12) : null,
       ...(engine !== "basic-v1" ? { engine, method_family: methodFamily } : {}),
+      ...(engine === "advanced-v4" && eventColumn
+        ? { event_column: eventColumn, future_event_periods: eventPeriods(futureEvents) }
+        : {}),
       coverage_start: start,
       coverage_end: end,
     });
@@ -408,12 +414,27 @@ export function ForecastPanel({
                   <h4>Choose a forecast approach</h4>
                   <label>
                     Forecast approach
-                    <select value={engine} disabled={!!pending} onChange={event => setEngine(event.target.value as "basic-v1" | "advanced-v2" | "advanced-v3")}>
+                    <select value={engine} disabled={!!pending} onChange={event => setEngine(event.target.value as ForecastEngine)}>
                       <option value="basic-v1">Basic — compare simple methods</option>
                       <option value="advanced-v2" disabled={!options.advanced_methods?.length}>Advanced — compare smoothing and trends</option>
                       <option value="advanced-v3" disabled={!options.advanced_methods?.length}>Advanced with calibrated 80% ranges — needs longer history</option>
+                      <option value="advanced-v4" disabled={!options.advanced_methods?.length}>Advanced with calendar effects — day of week or month of year</option>
                     </select>
                   </label>
+                  {engine === "advanced-v4" && <>
+                    <p>Also tries a fitted {frequency === "daily" ? "day-of-week" : "month-of-year"} pattern. It is used only when it beats the best smoothing method on the earlier windows; the comparison is shown with the result.</p>
+                    <label>
+                      Known event column · optional, 0 or 1 per row
+                      <select value={eventColumn} disabled={!!pending} onChange={event => setEventColumn(event.target.value)}>
+                        <option value="">No event column</option>
+                        {(options.event_columns ?? []).filter(item => item !== metricName).map(item => <option key={item} value={item}>{item}</option>)}
+                      </select>
+                    </label>
+                    {eventColumn && <label>
+                      Future event dates in the forecast horizon · optional
+                      <input value={futureEvents} disabled={!!pending} placeholder="Example: 2024-03-13, 2024-03-20" onChange={event => setFutureEvents(event.target.value)} />
+                    </label>}
+                  </>}
                   {engine !== "basic-v1" && <>
                     <p>Try methods that follow a changing level, trend or repeating cycle. We compare them on three earlier time windows, then test the selected method on a later window it has not seen.</p>
                     <label>

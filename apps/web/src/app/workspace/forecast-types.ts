@@ -57,6 +57,7 @@ export type ForecastResult = {
     coverage_guaranteed: boolean;
     backtest_coverage?: { inside: number; count: number; label: string };
   };
+  regressors?: ForecastRegressors;
   benchmark?: {
     method: string;
     accuracy: ForecastMetrics;
@@ -66,6 +67,25 @@ export type ForecastResult = {
   limitations: string[];
   commentary?: string[];
 };
+export type RegressorSummary = {
+  method: string;
+  parameters: Record<string, unknown>;
+  validation_mae: string;
+  test_mae: string;
+};
+export type ForecastRegressors = {
+  method: string;
+  calendar: "day_of_week" | "month_of_year";
+  event_declared: boolean;
+  future_event_periods: string[];
+  best_without_regressors: RegressorSummary | null;
+  best_with_regressors: RegressorSummary | null;
+  selected: "calendar_regression" | "smoothing";
+  rule: string;
+  effects: Record<string, string> | null;
+  effects_label: string;
+};
+export type ForecastEngine = "basic-v1" | "advanced-v2" | "advanced-v3" | "advanced-v4";
 export type ForecastEvidence = {
   query_ids: string[];
   sources: object[];
@@ -83,8 +103,10 @@ export type ForecastRun = {
   method: string;
   method_version: string;
   request: {
-    engine?: "basic-v1" | "advanced-v2";
+    engine?: ForecastEngine;
     method_family?: string;
+    event_column?: string;
+    future_event_periods?: string[];
     metric: string;
     time_column: string;
     aggregation: string;
@@ -130,6 +152,7 @@ export type ComparisonSummary = Pick<
 >;
 export type ForecastOptions = {
   advanced_methods?: { id: string; label: string; requires_season: boolean }[];
+  event_columns?: string[];
   meaning_state?: string;
   blockers?: { code: string; message: string }[];
   state: "ready" | "needs_review" | "unsupported";
@@ -177,6 +200,10 @@ export function advancedMinimumHistory(
     ? (frequency === "daily" ? 14 : 24)
     : (frequency === "daily" ? 14 : 6);
   return training + 4 * holdout + (calibrated ? 8 + holdout : 0);
+}
+
+export function eventPeriods(text: string): string[] {
+  return text.split(/[\s,]+/).filter(Boolean);
 }
 
 export function forecastRows(

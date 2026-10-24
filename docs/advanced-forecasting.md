@@ -76,6 +76,58 @@ v2 records are byte-identical to the earlier release (pinned hashes in
 (240 test points) observed coverage was 76.7% for v3 (nominal 80%) and 80.4% for
 v2's 90th-percentile display width. This is synthetic evidence, not customer accuracy.
 
+## Calendar effects (engine `advanced-v4`, record `forecast-v4`)
+
+The opt-in `advanced-v4` engine keeps every v2 smoothing candidate and appends two
+deterministic least-squares regressions (`calendar-dummy-least-squares-v1`, Decimal
+normal equations, 60 digits): `calendar_regression` (baseline + linear trend +
+calendar indicators) and `calendar_profile` (baseline + calendar indicators). Daily
+series use day-of-week indicators relative to Monday; monthly series use
+month-of-year indicators relative to January. Each candidate is fitted only on the
+fitting window of each fold, the test prefix or the full history, exactly like the
+smoothing candidates.
+
+- **Selection rule.** Regression candidates sit after the smoothing registry, so
+  with the existing `(validation MAE, registry order)` rule they are chosen only
+  when their rolling-validation MAE is strictly lower than every smoothing
+  candidate. The untouched test window never chooses. `regressors` in the record
+  shows best-without and best-with candidates, both validation and test MAE, the
+  selection and fitted effects (approximate, 18 significant digits).
+- **Known event column (optional).** `event_column` names a numerical 0/1 column in
+  the same dataset. A fourth governed receipt (`MAX(event)` per period, same
+  filters/coverage) supplies history flags; every period must be 0 or 1.
+  `future_event_periods` declares which forecast-horizon periods are events (the
+  schedule is assumed known in advance, as for planned promotions or closures).
+  Both keys are only accepted with `advanced-v4` and are omitted from requests
+  without an event column, so v1–v3 request shapes are unchanged.
+- **Eligibility.** Regression needs at least two complete cycles (14 days or 24
+  months) in the first fold's training window; otherwise it is listed under
+  `selection.excluded` with a reason. v4 uses the v2 empirical range width; it is
+  not combined with v3 calibration.
+- **Compatibility.** v2 and v3 records stay byte-identical (pinned hashes in
+  `apps/api/tests/test_calendar_regression_forecasting.py` and
+  `test_calibrated_forecasting.py`). Replay re-runs the stored three or four receipts.
+
+Seeded synthetic measurement (`execplus.domain.regressor_evaluation`, seed 20261024,
+10 series per scenario; mean untouched-test MAE, v2 auto vs v4 auto on identical
+history). Seasonal series are `100 + 0.2t + 15·sin(2πt/cycle) + N(0, 3²)`, which is
+exactly the form the regression fits, so these numbers favour v4 by construction:
+
+| Scenario | v2 MAE | v4 MAE | v4 selected regression | v4 better / worse |
+| --- | --- | --- | --- | --- |
+| Weekly, cycle not declared | 10.110 | 2.602 | 10/10 | 10 / 0 |
+| Weekly, 7-day cycle declared (Holt-Winters available) | 2.812 | 2.276 | 8/10 | 6 / 2 |
+| Yearly (monthly), cycle not declared | 15.655 | 2.581 | 10/10 | 10 / 0 |
+| Yearly, 12-month cycle declared | 4.050 | 3.747 | 6/10 | 4 / 2 |
+| Weekly + 6% known +40 events, cycle declared | 9.023 | 2.290 | 10/10 | 9 / 1 |
+| Random walk, no seasonality | 3.681 | 3.681 | 0/10 | 0 / 0 |
+
+When a cycle is already declared, Holt-Winters is a strong competitor and v4 is
+worse on 2 of 10 series in both declared scenarios: validation wins do not
+guarantee test wins. With no seasonality the regression was never selected and v4
+matched v2 exactly. Real calendars (holidays, moving events, structural breaks)
+are not represented; this is not customer accuracy evidence.
+
 ## Access, immutability and exports
 
 The forecast remains creator-private, including from workspace owners. Existing source revision, confirmed meaning, accepted refresh, byte-integrity and query-receipt checks remain. Opt-in dataset policies project allowed rows/columns before calculation; exact policy/actor references are retained in evidence. A changed policy blocks publication or opening old-scope results, and history omits inaccessible results. Exports reopen the same authorized saved result and perform the export service's final authorization check.
@@ -84,4 +136,4 @@ Replay dispatches by the saved engine version and recomputes the recorded determ
 
 ## Remaining boundaries
 
-This slice does not implement ARIMA, probabilistic ETS likelihood fitting, multiplicative seasonality, multiple seasonal cycles, learned regressors, event/holiday effects, hierarchical reconciliation, causal effects or automatic refresh scheduling. It does not establish calibrated uncertainty, representative customer quality or production throughput. Those need their own explicit method and acceptance evidence, not a more confident label.
+This slice does not implement ARIMA, probabilistic ETS likelihood fitting, multiplicative seasonality, multiple seasonal cycles, learned or external regressors, automatic holiday calendars, hierarchical reconciliation, causal effects or automatic refresh scheduling. It does not establish calibrated uncertainty, representative customer quality or production throughput. Those need their own explicit method and acceptance evidence, not a more confident label.

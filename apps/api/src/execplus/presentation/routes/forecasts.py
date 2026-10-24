@@ -45,13 +45,21 @@ class ForecastInput(CoverageInput):
     frequency: Literal["daily", "monthly"]
     horizon: int = Field(ge=1, le=30, strict=True)
     season_length: int | None = Field(default=None, ge=1, le=12, strict=True)
-    engine: Literal["basic-v1", "advanced-v2", "advanced-v3"] = "basic-v1"
+    engine: Literal["basic-v1", "advanced-v2", "advanced-v3", "advanced-v4"] = "basic-v1"
     method_family: Literal[
         "auto", "simple_exponential", "holt", "damped_holt", "holt_winters_additive"
     ] = "auto"
+    event_column: str | None = Field(default=None, min_length=1, max_length=200)
+    future_event_periods: list[Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]] = Field(
+        default_factory=list, max_length=30
+    )
 
     @model_validator(mode="after")
     def compatible_engine(self) -> "ForecastInput":
+        if (self.event_column or self.future_event_periods) and self.engine != "advanced-v4":
+            raise ValueError("Event columns require the calendar-effects engine.")
+        if self.future_event_periods and not self.event_column:
+            raise ValueError("Choose the event column before future event periods.")
         if self.engine == "basic-v1" and self.method_family != "auto":
             raise ValueError("Specific smoothing methods require the advanced engine.")
         if self.method_family == "holt_winters_additive" and self.season_length is None:
@@ -83,6 +91,9 @@ async def create(
     if body.engine == "basic-v1":
         raw.pop("engine")
         raw.pop("method_family")
+    if body.event_column is None:
+        raw.pop("event_column")
+        raw.pop("future_event_periods")
     return asdict(await forecasts.create(actor, workspace_id, dataset_id, upload_id, raw))
 
 

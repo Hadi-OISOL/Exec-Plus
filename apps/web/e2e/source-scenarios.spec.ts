@@ -163,3 +163,61 @@ test("source scenarios preserve explicit assumptions, exact rows, saved successo
   expect(await (await page.request.get(`${root}/understanding`, { headers: auth })).json()).toEqual(confirmed);
   expect(errors).toEqual([]);
 });
+
+test("probability-based scenarios simulate declared ranges with a stored seed", async ({ page }) => {
+  test.setTimeout(120_000);
+  const token = execFileSync("python3", ["-m", "execplus.manage", "provision-user", "--email", `source-simulation-${randomUUID()}@example.test`], { cwd: "../..", encoding: "utf8" }).trim();
+  const auth = { Authorization: `Bearer ${token}` };
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/workspace");
+  await page.getByLabel("Session token").fill(token);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByLabel("CSV or Excel file").setInputFiles({ name: "source-simulation.csv", mimeType: "text/csv", buffer: Buffer.from("region,quantity,sales,cost,fixed\nNorth,2,10,6,3\nSouth,3,20,8,4\n") });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  const wid = await page.getByLabel("Current workspace").inputValue();
+  const did = await page.getByLabel("Dataset", { exact: true }).inputValue();
+  const uid = await page.getByLabel("Profile upload").inputValue();
+  const root = `${api}/workspaces/${wid}/datasets/${did}/uploads/${uid}`;
+  const current = await (await page.request.get(`${root}/understanding`, { headers: auth })).json();
+  const saved = await page.request.post(`${root}/understanding`, { headers: auth, data: {
+    revision_id: current.revision_id, expected_version: current.version, state: "confirmed",
+    definition: { ...current.definition, grain: "record", columns: current.definition.columns.map((column: { name: string }) => column.name === "quantity" ? { ...column, unit: "items", currency: "" } : ["sales", "cost", "fixed"].includes(column.name) ? { ...column, unit: "", currency: "USD" } : column) },
+  } });
+  expect(saved.status()).toBe(201);
+  await page.getByRole("radio", { name: "Expert", exact: true }).check();
+  await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Anomalies & decisions", exact: true }).click();
+  await page.getByRole("combobox", { name: "Analysis method", exact: true }).selectOption("scenarios");
+  await page.getByRole("combobox", { name: "Scenario approach", exact: true }).selectOption("source");
+  const panel = page.getByRole("region", { name: "Source-derived scenarios", exact: true });
+  await panel.getByRole("combobox", { name: "Quantity column", exact: true }).selectOption("quantity");
+  await panel.getByRole("combobox", { name: "Price per unit column", exact: true }).selectOption("sales");
+  await panel.getByRole("combobox", { name: "Variable cost per unit column", exact: true }).selectOption("cost");
+  await panel.getByRole("combobox", { name: "Fixed cost allocated per row", exact: true }).selectOption("fixed");
+  await panel.getByRole("checkbox", { name: "Each row contributes once", exact: false }).check();
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await panel.getByText("Simulate uncertain changes (low / likely / high)", { exact: true }).click();
+  await panel.getByRole("checkbox", { name: "Include a simulation of 10,000 seeded draws", exact: true }).check();
+  await panel.getByLabel("Price low (%)", { exact: true }).fill("-10");
+  await panel.getByLabel("Price likely (%)", { exact: true }).fill("0");
+  await panel.getByLabel("Price high (%)", { exact: true }).fill("20");
+  await panel.getByLabel(/^Target value/).fill("40");
+  await panel.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(panel).toContainText("Simulation: Price -10/0/20% · seed 20261024");
+  await panel.getByRole("checkbox", { name: "I confirm these changes", exact: false }).check();
+  const responsePromise = page.waitForResponse(response => response.url().endsWith("/decision-analysis/source-scenarios") && response.status() === 201);
+  await panel.getByRole("button", { name: "Calculate and save source comparison", exact: true }).click();
+  const result = await (await responsePromise).json();
+  const simulation = result.run.result.simulation;
+  expect(result.run.request.simulation.seed).toBe(20261024);
+  expect(simulation.draws).toBe(10000);
+  expect(Math.abs(Number(simulation.target_probability.share) - 0.4401)).toBeLessThan(0.02);
+  const section = panel.getByRole("region", { name: "Simulation under stated ranges", exact: true });
+  await expect(section).toContainText(simulation.target_probability.share);
+  await expect(section).toContainText(simulation.percentiles.remaining.p50);
+  await expect(section).toContainText("not a forecast or guarantee");
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  expect(errors).toEqual([]);
+});

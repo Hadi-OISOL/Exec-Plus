@@ -110,6 +110,10 @@ def series_request(raw: dict[str, Any], table: TableData, view: DatasetView) -> 
     return request
 
 
+def series_kinds(raw: dict[str, Any]) -> tuple[str, ...]:
+    return ("value", "present", "samples", *(("event",) if raw.get("event_column") else ()))
+
+
 def series_plan(
     scope: WorkspaceScope,
     did: UUID,
@@ -117,6 +121,7 @@ def series_plan(
     request: MetricRequest,
     frequency: str,
     kind: str,
+    event_column: str | None = None,
 ) -> QueryPlan:
     time_column = quote_identifier(request.group_by[0])
     metric = quote_identifier(request.metric)
@@ -128,6 +133,13 @@ def series_plan(
     grouped = quote_identifier(alias)
     aggregation = request.aggregation.value.upper() if kind == "value" else "COUNT"
     operand = "?" if kind == "samples" else metric
+    if kind == "event":
+        column = view.column(event_column or "")
+        if column is None or column.type not in {"integer", "decimal"}:
+            raise IngestionError(
+                "forecast_event_column", "Choose a numerical 0/1 event column.", 422
+            )
+        aggregation, operand = "MAX", quote_identifier(column.name)
     clauses, parameters = build_where(view, request.filters)
     sql = (
         f'SELECT {period} AS {grouped}, {aggregation}({operand}) AS "__value" '
@@ -144,6 +156,28 @@ def series_plan(
         sql,
         (unit, *((1,) if kind == "samples" else ()), *parameters),
     )
+
+
+def event_flags(result: QueryResult, points: tuple[Any, ...]) -> tuple[int, ...]:
+    flags: dict[date, int] = {}
+    for row in result.rows:
+        if len(row) != 2:
+            raise IngestionError("invalid_series", "The event evidence is malformed.", 422)
+        period, value = row
+        if isinstance(period, datetime):
+            period = period.date()
+        if not isinstance(period, date) or isinstance(value, bool) or value not in {0, 1}:
+            raise IngestionError(
+                "forecast_event_values",
+                "The event column must hold 0 or 1 on every included record.",
+                422,
+            )
+        flags[period] = 1 if value == 1 else 0
+    if set(flags) != {point.period for point in points}:
+        raise IngestionError(
+            "forecast_event_values", "Every forecast period needs an event value of 0 or 1.", 422
+        )
+    return tuple(flags[point.period] for point in points)
 
 
 def series_values(

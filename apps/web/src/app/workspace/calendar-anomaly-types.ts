@@ -1,16 +1,19 @@
 /* Use case: Preserves exact calendar anomaly and distribution comparison evidence.
 What it does: Separates chronological scores from snapshot findings and retains exact rational distances. */
 import type { AnalysisBody, AnalysisSummary } from "./decision-types";
+import type { DetectorCalibration } from "./false-alarm-target";
 
 export const SEASONAL_METHOD = "seasonal-residual-mad-iqr-v1";
 export const DRIFT_METHOD = "empirical-window-distance-v1";
 export const ROLLING_METHOD = "rolling-reference-mad-iqr-v1";
+export const SEASONAL_CALIBRATED_METHOD = "seasonal-residual-mad-iqr-calibrated-v1";
+export const ROLLING_CALIBRATED_METHOD = "rolling-reference-mad-iqr-calibrated-v1";
 export type CalendarMethod = "seasonal" | "drift" | "rolling";
-export function isCalendarMethod(method?: string) { return method === SEASONAL_METHOD || method === DRIFT_METHOD || method === ROLLING_METHOD; }
+export function isCalendarMethod(method?: string) { return [SEASONAL_METHOD, DRIFT_METHOD, ROLLING_METHOD, SEASONAL_CALIBRATED_METHOD, ROLLING_CALIBRATED_METHOD].includes(method ?? ""); }
 export type ExactFraction = { numerator: string; denominator: string; display: string; display_exact: boolean };
 export function fractionText(value: ExactFraction) { return `${value.display_exact ? "" : "≈ "}${value.display} (${value.numerator}/${value.denominator})`; }
 export type CalendarFinding = { id: string; period?: string; value?: string; baseline?: string; absolute_difference?: string; score?: string | null; kind?: string };
-type Common = { version: string; method_version: string; frequency: string; materiality: string; findings: CalendarFinding[]; limitations: string[] };
+type Common = { version: string; method_version: string; frequency: string; materiality: string; findings: CalendarFinding[]; limitations: string[]; calibration?: DetectorCalibration };
 export type SeasonalResult = Common & {
   version: "temporal-anomaly-v1";
   sample_count: number; training_periods: number; evaluated_periods: number; flagged_periods: number;

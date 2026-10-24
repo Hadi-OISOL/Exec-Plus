@@ -8,10 +8,11 @@ import type { AnalysisOptions, AnalysisSummary } from "./decision-types";
 import { AnswerVisualization } from "./answer-visualization";
 import { ResultExportActions } from "./result-export-actions";
 import { WorkspaceSelect } from "./workspace-select";
-import { amountFields, amountLabels, blankSourceAlternative, driverLabels, scenarioDrivers, SOURCE_SCENARIO_METHOD, CONSTRAINED_SCENARIO_METHOD, isSourceScenarioMethod } from "./source-scenario-types";
-import type { AmountField, ScenarioDriver, SourceAlternative, SourceScenarioBody, SourceScenarioRequest, ScenarioConstraint } from "./source-scenario-types";
+import { amountFields, amountLabels, blankSourceAlternative, driverLabels, scenarioDrivers, simulationDrivers, SOURCE_SCENARIO_METHOD, CONSTRAINED_SCENARIO_METHOD, isSourceScenarioMethod } from "./source-scenario-types";
+import type { AmountField, ScenarioDriver, SourceAlternative, SourceScenarioBody, SourceScenarioRequest, ScenarioConstraint, TriangularRange } from "./source-scenario-types";
 import styles from "./source-scenario-panel.module.css";
 
+const blankRanges = (): Record<ScenarioDriver, TriangularRange> => ({ price: { low: "", likely: "", high: "" }, quantity: { low: "", likely: "", high: "" }, variable_cost: { low: "", likely: "", high: "" }, fixed_cost: { low: "", likely: "", high: "" } });
 const showHistory = (values: AnalysisSummary[]) => values.filter(value => value.kind === "scenario_comparison" && isSourceScenarioMethod(value.method_version));
 
 type Props = { root: string; request: ApiRequest; onReview: () => void };
@@ -37,6 +38,12 @@ export function SourceScenarioPanel({ root, request, onReview }: Props) {
   const [sensitivity, setSensitivity] = useState(false);
   const [driver, setDriver] = useState<ScenarioDriver>("price");
   const [levels, setLevels] = useState("-10, 0, 10");
+  const [simulate, setSimulate] = useState(false);
+  const [ranges, setRanges] = useState(blankRanges);
+  const [seed, setSeed] = useState("20261024");
+  const [targetField, setTargetField] = useState<AmountField>("remaining");
+  const [targetDirection, setTargetDirection] = useState<"above" | "below">("above");
+  const [targetValue, setTargetValue] = useState("");
   const [limits, setLimits] = useState<(Omit<ScenarioConstraint, "unit"> & { id: string })[]>([]);
   const [parent, setParent] = useState<string | null>(null);
   const [rowConfirmed, setRowConfirmed] = useState(false);
@@ -75,6 +82,7 @@ export function SourceScenarioPanel({ root, request, onReview }: Props) {
         quantity_column: quantity, sales_column: sales, cost_column: cost, fixed_cost_column: fixed || null,
         filters: inheritedFilters ?? (filter ? [{ column: filter, operator: "eq", value: filterValue }] : []), alternatives,
         sensitivity: sensitivity ? { driver, percent_changes: levels.split(",").map(value => value.trim()) } : null,
+        simulation: simulate ? { drivers: simulationDrivers(ranges), draws: 10000, seed: Number(seed), target: targetValue.trim() ? { field: targetField, direction: targetDirection, value: targetValue.trim() } : null } : null,
         assumptions_confirmed: confirmed, row_basis_confirmed: rowConfirmed, parent_run_id: parent,
         revision_id: options.revision_id, understanding_id: options.understanding_id,
       };
@@ -102,6 +110,9 @@ export function SourceScenarioPanel({ root, request, onReview }: Props) {
     setAlternatives(saved.alternatives.map(value => ({ ...value })));
     setLimits((saved.constraints || []).map(({ field, operator, value }) => ({ field, operator, value, id: crypto.randomUUID() })));
     setSensitivity(Boolean(saved.sensitivity)); setDriver(saved.sensitivity?.driver || "price"); setLevels(saved.sensitivity?.percent_changes.join(", ") || "-10, 0, 10");
+    const savedSimulation = saved.simulation;
+    setSimulate(Boolean(savedSimulation)); setRanges({ ...blankRanges(), ...(savedSimulation?.drivers || {}) }); setSeed(String(savedSimulation?.seed ?? 20261024));
+    setTargetValue(savedSimulation?.target?.value || ""); setTargetField(savedSimulation?.target?.field || "remaining"); setTargetDirection(savedSimulation?.target?.direction || "above");
     setParent(selected.run.id); setRowConfirmed(false); setConfirmed(false); setStep(0);
   }
   const columns = options?.source_scenarios?.columns || [];
@@ -138,6 +149,19 @@ export function SourceScenarioPanel({ root, request, onReview }: Props) {
           <div className={styles.alternatives}>{alternatives.map((alternative, index) => <fieldset key={index}><legend>Alternative {index + 1}</legend><label>Alternative name {index + 1}<input value={alternative.name} required maxLength={100} onChange={event => editAlternative(index, { name: event.target.value })} /></label><div className={styles.grid}>{scenarioDrivers.map(key => <label key={key}>{driverLabels[key]} change {index + 1} (%)<input required inputMode="decimal" maxLength={100} value={alternative[key]} disabled={key === "fixed_cost" && !fixed} onChange={event => editAlternative(index, { [key]: event.target.value })} /></label>)}</div>{alternatives.length > 1 && <button type="button" onClick={() => { setAlternatives(values => values.filter((_, position) => position !== index)); changed(); }}>Remove alternative {index + 1}</button>}</fieldset>)}</div>
           <div className={styles.actions}><button type="button" disabled={alternatives.length >= 5} onClick={() => { setAlternatives(values => [...values, blankSourceAlternative(values.length + 1)]); changed(); }}>Add alternative</button></div>
           <details><summary>Explore one change across several values</summary><label className={styles.check}><input type="checkbox" checked={sensitivity} onChange={event => { setSensitivity(event.target.checked); changed(); }} />Include a sensitivity comparison</label>{sensitivity && <div className={styles.grid}><label>Sensitivity driver<select value={driver} onChange={event => { setDriver(event.target.value as ScenarioDriver); changed(); }}>{scenarioDrivers.filter(value => value !== "fixed_cost" || fixed).map(value => <option key={value} value={value}>{driverLabels[value]}</option>)}</select></label><label>Percentages, separated by commas<input required value={levels} maxLength={2100} onChange={event => { setLevels(event.target.value); changed(); }} /><small>Two to 21 increasing values. Every other change stays at zero.</small></label></div>}</details>
+          <details><summary>Simulate uncertain changes (low / likely / high)</summary>
+            <label className={styles.check}><input type="checkbox" checked={simulate} onChange={event => { setSimulate(event.target.checked); changed(); }} />Include a simulation of 10,000 seeded draws</label>
+            {simulate && <>
+              <p>For each change you are unsure about, give a lowest, most likely and highest percentage. Leave a row blank to keep it at zero. Each draw runs the same exact calculation; the result is a simulation under your ranges, not a forecast.</p>
+              <div className="tableWrap"><table aria-label="Simulation ranges"><thead><tr><th>Change</th><th>Low (%)</th><th>Likely (%)</th><th>High (%)</th></tr></thead><tbody>{scenarioDrivers.filter(key => key !== "fixed_cost" || fixed).map(key => <tr key={key}><th scope="row">{driverLabels[key]}</th>{(["low", "likely", "high"] as const).map(bound => <td key={bound}><input aria-label={`${driverLabels[key]} ${bound} (%)`} inputMode="decimal" maxLength={100} value={ranges[key][bound]} onChange={event => { const value = event.target.value; setRanges(items => ({ ...items, [key]: { ...items[key], [bound]: value } })); changed(); }} /></td>)}</tr>)}</tbody></table></div>
+              <div className={styles.grid}>
+                <label>Simulation seed<input required inputMode="numeric" pattern="[0-9]+" maxLength={10} value={seed} onChange={event => { setSeed(event.target.value); changed(); }} /><small>The same seed always gives the same draws.</small></label>
+                <WorkspaceSelect label="Target outcome" value={targetField} disabled={busy} options={amountFields.map(field => ({ value: field, label: amountLabels[field] }))} onValueChange={field => { setTargetField(field as AmountField); changed(); }} />
+                <WorkspaceSelect label="Target direction" value={targetDirection} disabled={busy} options={[{ value: "above", label: "Above" }, { value: "below", label: "Below" }]} onValueChange={value => { setTargetDirection(value as "above" | "below"); changed(); }} />
+                <label>Target value · {limitUnit(targetField)} · optional<input inputMode="decimal" maxLength={100} value={targetValue} onChange={event => { setTargetValue(event.target.value); changed(); }} /></label>
+              </div>
+            </>}
+          </details>
           <section aria-label="Declared scenario limits"><h4>Keep outcomes within your limits</h4><p>Optional: check a minimum or maximum for sales, quantity, costs or margin. A passing check only means your stated limit was met.</p>
             {limits.map((limit, index) => <fieldset key={limit.id}><legend>Limit {index + 1}</legend><div className={styles.grid}>
               <WorkspaceSelect label={`Limit ${index + 1} amount`} value={limit.field} disabled={busy} options={amountFields.map(field => ({ value: field, label: amountLabels[field] }))} onValueChange={field => { setLimits(items => items.map(item => item.id === limit.id ? { ...item, field: field as AmountField } : item)); changed(); }} />
@@ -152,6 +176,7 @@ export function SourceScenarioPanel({ root, request, onReview }: Props) {
           <div className={styles.note}><p><strong>{basis === "per_unit" ? "Per-unit inputs" : "Recorded row totals"}</strong></p><p>Quantity: {quantity}. Sales: {sales}. Variable cost: {cost}. Fixed cost: {fixed || "not included"}.</p><p>{populationDescription}</p><p>Sales scale with price × quantity. Variable costs scale with cost per unit × quantity. Fixed costs use only their own change.</p></div>
           <div className="tableWrap" tabIndex={0} role="region" aria-label="Declared scenario changes table"><table><thead><tr><th>Alternative</th>{scenarioDrivers.map(value => <th key={value}>{driverLabels[value]} (%)</th>)}</tr></thead><tbody>{alternatives.map((value, index) => <tr key={index}><td>{value.name}</td>{scenarioDrivers.map(key => <td key={key}>{value[key]}</td>)}</tr>)}</tbody></table></div>
           {sensitivity && <p>Sensitivity: {driverLabels[driver]} at {levels}%, with every other change at zero.</p>}
+          {simulate && <p>Simulation: {Object.entries(simulationDrivers(ranges)).map(([key, value]) => `${driverLabels[key as ScenarioDriver]} ${value.low}/${value.likely}/${value.high}%`).join("; ") || "no complete ranges yet"} · seed {seed}{targetValue.trim() ? ` · target ${amountLabels[targetField].toLowerCase()} ${targetDirection} ${targetValue} ${limitUnit(targetField)}` : ""}.</p>}
           {limits.length > 0 && <ul aria-label="Review declared limits">{limits.map(limit => <li key={limit.id}>{amountLabels[limit.field]}: {limit.operator === "minimum" ? "at least" : "at most"} {limit.value} {limitUnit(limit.field)}.</li>)}</ul>}
           {parent && <p>This creates a successor and keeps the earlier comparison. <button type="button" onClick={() => setParent(null)}>Make an independent comparison</button></p>}
           <label className={styles.check}><input type="checkbox" required checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I confirm these changes and the fixed row mix are my assumptions. The result is not a forecast, a causal effect or audited net profit.</label>
@@ -189,6 +214,11 @@ function SourceScenarioResult({ value, droot, busy, onReplay, onSuccessor }: { v
     </section>}
     <h4>Change in the remaining amount</h4><ul>{result.alternatives.map(alternative => <li key={alternative.name}>{alternative.name}: {alternative.difference.remaining} {currency} versus the source baseline.</li>)}</ul>
     {result.sensitivity && <section aria-label="Single-driver sensitivity"><h4>What changes when only {driverLabels[result.sensitivity.driver].toLowerCase()} changes?</h4><p>Each point starts from the original source. Every other change is zero. This range is not a probability or a confidence interval.</p><AnswerVisualization title="Single-driver sensitivity" columns={[`${driverLabels[result.sensitivity.driver]} change (%)`, `Remaining (${currency})`]} rows={result.sensitivity.points.map(point => [point.percent_change, point.result.remaining])} recordsAnalyzed={result.sample_count} chartLimit={21} /><details className={styles.evidence}><summary>All exact sensitivity values</summary><div className="tableWrap" tabIndex={0} role="region" aria-label="Exact sensitivity values table"><table><thead><tr><th>Change (%)</th>{amountFields.map(field => <th key={field}>{amountLabels[field]} ({unit(field)})</th>)}</tr></thead><tbody>{result.sensitivity.points.map(point => <tr key={point.percent_change}><td>{point.percent_change}</td>{amountFields.map(field => <td key={field}>{point.result[field] ?? "Unavailable"}</td>)}</tr>)}</tbody></table></div></details></section>}
+    {result.simulation && <section aria-label="Simulation under stated ranges"><h4>Simulation under your stated ranges</h4><p className={styles.note}>{result.simulation.label} {result.simulation.draws.toLocaleString()} draws · seed {result.simulation.seed}. P10 means one draw in ten was lower.</p>
+      {result.simulation.target_probability && <p><strong>{result.simulation.target_probability.share}</strong> of draws had {amountLabels[result.simulation.target_probability.field].toLowerCase()} {result.simulation.target_probability.direction} {result.simulation.target_probability.value} {unit(result.simulation.target_probability.field)} ({result.simulation.target_probability.draws_beating} draws; simulation error ± {result.simulation.target_probability.monte_carlo_standard_error}).</p>}
+      <div className="tableWrap" tabIndex={0} role="region" aria-label="Simulation percentiles table"><table><thead><tr><th>Measure</th><th>Unit</th><th>P10</th><th>P50</th><th>P90</th></tr></thead><tbody>{amountFields.map(field => { const row = result.simulation?.percentiles[field]; return <tr key={field}><th scope="row">{amountLabels[field]}</th><td>{unit(field)}</td><td>{row?.p10 ?? "Unavailable"}</td><td>{row?.p50 ?? "Unavailable"}</td><td>{row?.p90 ?? "Unavailable"}</td></tr>; })}</tbody></table></div>
+      <details className={styles.evidence}><summary>Simulation assumptions</summary><ul>{Object.entries(result.simulation.drivers).map(([key, value]) => <li key={key}>{driverLabels[key as ScenarioDriver]}: low {value.low}%, likely {value.likely}%, high {value.high}%</li>)}{[...result.simulation.assumptions, ...result.simulation.limitations].map(item => <li key={item}>{item}</li>)}</ul></details>
+    </section>}
     {result.warnings.map(warning => <p className={styles.note} key={warning}>{warning}</p>)}
     <details className={styles.evidence}><summary>Assumptions, limits and source evidence</summary><h4>Your declared changes</h4><ul>{result.alternatives.map(alternative => <li key={alternative.name}>{alternative.name}: {scenarioDrivers.map(driver => `${driverLabels[driver]} ${alternative.assumptions[driver]}%`).join("; ")}</li>)}</ul><ul>{[...result.assumptions, ...result.limitations].map(item => <li key={item}>{item}</li>)}</ul><p>Method: {result.version}. One complete ordered source projection is independently replayed.</p><p>Query receipt: {value.run.evidence.query_id}</p><p>Result checksum: {value.run.evidence.result_checksum}</p>{result.parent_run_id && <p>Prior comparison: {result.parent_run_id}</p>}</details>
   </section>;

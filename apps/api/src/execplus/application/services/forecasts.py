@@ -24,6 +24,8 @@ from execplus.domain.advanced_forecasting import (
     CALIBRATED_ENGINE,
     CALIBRATED_VERSION,
     METHOD_CATALOG,
+    REGRESSION_ENGINE,
+    REGRESSION_VERSION,
     advanced_forecast,
     compare_advanced_forecast,
     minimum_history,
@@ -35,24 +37,36 @@ from execplus.domain.advanced_forecasting import (
     VERSION as ADVANCED_VERSION,
 )
 from execplus.domain.analysis_readiness import forecast_options
+from execplus.domain.calendar_regression import CalendarInputs
 from execplus.domain.errors import AuthorizationError, ClarificationRequiredError
 from execplus.domain.evidence import receipt, result_evidence, scalar_record
 from execplus.domain.forecast_defaults import quick_start
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
-from execplus.domain.forecast_series import series_plan, series_request, series_values
+from execplus.domain.forecast_series import (
+    event_flags,
+    series_kinds,
+    series_plan,
+    series_request,
+    series_values,
+)
 from execplus.domain.forecasting import (
     VERSION,
     ForecastPoint,
     ForecastRequest,
     compare_forecast,
     forecast,
+    next_period,
 )
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.models import CalculationLineage, QueryResult, WorkspaceScope
 from execplus.domain.profiling import TableData
 from execplus.domain.semantics import DatasetView
 
-ADVANCED_ENGINES = {ADVANCED_ENGINE: ADVANCED_VERSION, CALIBRATED_ENGINE: CALIBRATED_VERSION}
+ADVANCED_ENGINES = {
+    ADVANCED_ENGINE: ADVANCED_VERSION,
+    CALIBRATED_ENGINE: CALIBRATED_VERSION,
+    REGRESSION_ENGINE: REGRESSION_VERSION,
+}
 T = TypeVar("T")
 
 
@@ -80,6 +94,10 @@ def engine_version(raw: dict[str, Any]) -> str:
         raise IngestionError(
             "forecast_method", "Specific smoothing methods require Advanced forecasting.", 422
         )
+    if engine != REGRESSION_ENGINE and ("event_column" in raw or "future_event_periods" in raw):
+        raise IngestionError(
+            "forecast_regressors", "Event columns require the calendar-effects engine.", 422
+        )
     if engine in ADVANCED_ENGINES:
         minimum_history(
             ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length")),
@@ -89,16 +107,61 @@ def engine_version(raw: dict[str, Any]) -> str:
     return ADVANCED_ENGINES.get(engine, VERSION)
 
 
-def calculate_forecast(points: tuple[ForecastPoint, ...], raw: dict[str, Any]) -> dict[str, Any]:
+def calendar_inputs(
+    points: tuple[ForecastPoint, ...], raw: dict[str, Any], events: tuple[int, ...] | None
+) -> CalendarInputs:
+    future = []
+    period = points[-1].period
+    for _ in range(raw["horizon"]):
+        period = next_period(period, raw["frequency"])
+        future.append(period)
+    declared = raw.get("future_event_periods", [])
+    if len(set(declared)) != len(declared) or set(declared) - {p.isoformat() for p in future}:
+        raise IngestionError(
+            "forecast_regressors",
+            "Future event periods must be distinct periods inside the forecast horizon.",
+            422,
+        )
+    if events is None and declared:
+        raise IngestionError(
+            "forecast_regressors", "Choose the event column before future event periods.", 422
+        )
+    return CalendarInputs(
+        (*(point.period for point in points), *future),
+        None
+        if events is None
+        else (*events, *(int(period.isoformat() in declared) for period in future)),
+    )
+
+
+def calculate_forecast(
+    points: tuple[ForecastPoint, ...],
+    raw: dict[str, Any],
+    events: tuple[int, ...] | None = None,
+) -> dict[str, Any]:
     request = ForecastRequest(raw["frequency"], raw["horizon"], raw.get("season_length"))
     version = engine_version(raw)
     return (
         forecast(points, request)
         if version == VERSION
         else advanced_forecast(
-            points, request, raw.get("method_family", "auto"), version == CALIBRATED_VERSION
+            points,
+            request,
+            raw.get("method_family", "auto"),
+            version == CALIBRATED_VERSION,
+            calendar_inputs(points, raw, events) if version == REGRESSION_VERSION else None,
         )
     ).to_record()
+
+
+def series_inputs(
+    results: list[QueryResult], raw: dict[str, Any]
+) -> tuple[tuple[ForecastPoint, ...], tuple[int, ...] | None]:
+    points = tuple(
+        ForecastPoint(period, value) for period, value in series_values(results[:3], raw)
+    )
+    events = event_flags(results[3], points) if raw.get("event_column") else None
+    return points, events
 
 
 def calculate_comparison(
@@ -122,6 +185,7 @@ def commentary(result: dict[str, Any], metric: str, unit: str) -> list[str]:
     direction = "increased by" if change > 0 else "decreased by" if change < 0 else "changed by"
     range_label = {
         ADVANCED_VERSION: "empirical validation-error",
+        REGRESSION_VERSION: "empirical validation-error",
         CALIBRATED_VERSION: "80% split-conformal calibration",
     }.get(result["version"], "heuristic")
     return [
@@ -167,6 +231,11 @@ class ForecastService:
         return {
             **options,
             "advanced_methods": list(METHOD_CATALOG),
+            "event_columns": [
+                column.name
+                for column in context.view.columns
+                if column.type == "integer" and column.role != "identifier"
+            ],
             "quick_start": quick_start(context, options),
         }
 
@@ -225,7 +294,7 @@ class ForecastService:
         request = series_request(raw, table, view)
         results: list[QueryResult] = []
         query_ids = []
-        for kind in ("value", "present", "samples"):
+        for kind in series_kinds(raw):
             result = await self._measure(actor, did, name, scope, table, view, raw, request, kind)
             results.append(result)
             query_ids.append(str(result.query_id))
@@ -266,7 +335,9 @@ class ForecastService:
         request: Any,
         kind: str,
     ) -> QueryResult:
-        plan = series_plan(scope, did, view, request, raw["frequency"], kind)
+        plan = series_plan(
+            scope, did, view, request, raw["frequency"], kind, raw.get("event_column")
+        )
         lineage = CalculationLineage(
             plan.query_id,
             scope.workspace_id,
@@ -365,10 +436,8 @@ class ForecastService:
                 {"dataset": did, "upload": uid, "request": raw},
             )
         results, evidence = await self._series(actor, wid, did, uid, raw)
-        points = tuple(
-            ForecastPoint(period, value) for period, value in series_values(results, raw)
-        )
-        result = await read_complete(lambda: calculate_forecast(points, raw))
+        points, events = series_inputs(results, raw)
+        result = await read_complete(lambda: calculate_forecast(points, raw, events))
         result["commentary"] = commentary(result, raw["metric"], evidence["unit"])
         evidence["result_checksum"] = digest(result)
         value = ForecastRun(
@@ -426,10 +495,11 @@ class ForecastService:
         )
         try:
             keys = evidence["query_ids"]
-            if not isinstance(keys, list) or len(keys) != 3:
+            kinds = series_kinds(raw)
+            if not isinstance(keys, list) or len(keys) != len(kinds):
                 raise invalid
             query_ids = [UUID(key) for key in keys]
-            if len(set(query_ids)) != 3 or len(evidence["sources"]) != 1:
+            if len(set(query_ids)) != len(kinds) or len(evidence["sources"]) != 1:
                 raise invalid
             source = evidence["sources"][0]
             if (
@@ -456,9 +526,17 @@ class ForecastService:
         if evidence["unit"] != unit:
             raise invalid
         results = []
-        for query_id, kind in zip(query_ids, ("value", "present", "samples"), strict=True):
+        for query_id, kind in zip(query_ids, kinds, strict=True):
             plan = replace(
-                series_plan(scope, value.dataset_id, view, request, raw["frequency"], kind),
+                series_plan(
+                    scope,
+                    value.dataset_id,
+                    view,
+                    request,
+                    raw["frequency"],
+                    kind,
+                    raw.get("event_column"),
+                ),
                 query_id=query_id,
             )
             with self.uow() as repo:
@@ -504,11 +582,8 @@ class ForecastService:
                 "lineage_mismatch", "The saved forecast method is inconsistent.", 409
             )
         results = await self._replay(actor, value, value.request)
-        points = tuple(
-            ForecastPoint(period, actual)
-            for period, actual in series_values(results, value.request)
-        )
-        rebuilt = await read_complete(lambda: calculate_forecast(points, value.request))
+        points, events = series_inputs(results, value.request)
+        rebuilt = await read_complete(lambda: calculate_forecast(points, value.request, events))
         rebuilt["commentary"] = commentary(rebuilt, value.request["metric"], value.evidence["unit"])
         if digest(rebuilt) != value.evidence["result_checksum"] or rebuilt != value.result:
             raise IngestionError(
@@ -532,7 +607,7 @@ class ForecastService:
         )
         points = tuple(
             ForecastPoint(period, value)
-            for period, value in series_values(results, request, allow_missing=True)
+            for period, value in series_values(results[:3], request, allow_missing=True)
         )
         result = calculate_comparison(original.result, points)
         result["commentary"] = comparison_commentary(result, evidence["unit"])
@@ -624,7 +699,7 @@ class ForecastService:
         points = tuple(
             ForecastPoint(period, actual)
             for period, actual in series_values(
-                results, value.evidence["request"], allow_missing=True
+                results[:3], value.evidence["request"], allow_missing=True
             )
         )
         rebuilt = calculate_comparison(original.result, points)
