@@ -43,11 +43,13 @@ from execplus.domain.conversation_requirements import (
     asks_for_ideal_conditions,
     asks_for_next_steps,
     compound_covers_request,
+    followup_choices,
     is_acknowledgement,
     is_contextual_reply,
     is_guidance_followup,
     is_result_explanation,
     is_temporal_followup,
+    keeps_prior_measure,
     loosely_named_metrics,
     preserves_followup_scope,
     product_choices,
@@ -70,6 +72,13 @@ from execplus.domain.errors import (
     UnsafeQueryError,
     UnsupportedQuestionError,
     UnverifiedAnswerError,
+)
+from execplus.domain.free_text import (
+    FREE_TEXT_ROUTE,
+    free_text_column,
+    is_free_text,
+    summarise,
+    summary_message,
 )
 from execplus.domain.guidance import (
     DescriptionContext,
@@ -117,7 +126,21 @@ from execplus.domain.pattern_requests import (
     wants_patterns,
 )
 from execplus.domain.pdf_exports import ReportAnswer
-from execplus.domain.semantics import DatasetView, MetricRequest
+from execplus.domain.reorder import (
+    REORDER_ROUTE,
+    ReorderFields,
+    asks_what_to_reorder,
+    reorder_fields,
+    reorder_message,
+)
+from execplus.domain.semantics import (
+    RECORD_COUNT,
+    AggregationKind,
+    DatasetView,
+    MetricRequest,
+    RowOrder,
+    RowRequest,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -955,6 +978,12 @@ class IntentRouterService:
             return await self.diagrams.create(
                 actor, workspace_id, dataset_id, upload_id, description, diagram
             )
+        stock_fields = reorder_fields(description.view)
+        if stock_fields is not None and asks_what_to_reorder(question):
+            require_current_context()
+            return await self._reorder(
+                actor, workspace_id, dataset_id, upload_id, description, stock_fields
+            )
         if self.patterns is not None and asks_for_next_steps(question):
             require_current_context()
             steps_guide = await self._next_steps(
@@ -1442,6 +1471,8 @@ class IntentRouterService:
                     view.sources,
                 )
             )
+        if self.context_enabled and contextual_reply and prior_turn is not None:
+            routed = keeps_prior_measure(question, routed, prior_turn, view)
         if (
             self.context_enabled
             and contextual_reply
@@ -1449,12 +1480,18 @@ class IntentRouterService:
             and routed.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}
             and not preserves_followup_scope(question, routed, prior_turn, view)
         ):
+            choices = (*followup_choices(routed, prior_turn), *working_choices(question, view))
             raise PlanningClarification(
                 ClarificationContext(
                     question,
-                    "The proposed follow-up changed an earlier condition or calculation "
-                    "you did not ask to change. Please state the complete question and conditions.",
+                    "That follow-up would change an earlier condition or calculation you did "
+                    "not ask to change. Choose a complete question, or ask with every condition:",
                     view.sources,
+                    tuple(
+                        choice
+                        for choice in dict.fromkeys(choices)
+                        if executable_choice(choice, view)
+                    )[:3],
                 )
             )
         if routed.data_steps and not self.orchestration_enabled:
@@ -1631,6 +1668,13 @@ class IntentRouterService:
                 description,
                 DiagramRequest(routed.guide_columns),
             )
+
+        if routed.kind == QuestionKind.TEXTUAL and routed.data_intent is None:
+            responses = await self._free_text(
+                actor, workspace_id, dataset_id, upload_id, description, question
+            )
+            if responses is not None:
+                return responses
 
         if routed.kind in {QuestionKind.TEXTUAL, QuestionKind.MIXED} and routed.document_query:
             data = None
@@ -1985,6 +2029,83 @@ class IntentRouterService:
             ClarificationContext(
                 prior.question if prior else question, message, context.view.sources, choices
             )
+        )
+
+    async def _reorder(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        description: DescriptionContext,
+        fields: ReorderFields,
+    ) -> DatasetGuide:
+        """One stated reorder rule over exact returned rows, never a model-chosen ranking (D27)."""
+        measures = (fields.stock, *((fields.reorder,) if fields.reorder else ()))
+        limit = self.analytics.row_limit
+        result, _ = await self.analytics.query_records(
+            actor,
+            workspace_id,
+            dataset_id,
+            upload_id,
+            RowRequest(columns=(*fields.labels, *measures), order_by=RowOrder(fields.stock, "asc")),
+            limit,
+            REORDER_ROUTE,
+            description.view.sources,
+        )
+        return DatasetGuide(
+            reorder_message(
+                fields, result.rows, result.records_analyzed, len(result.rows) >= limit
+            ),
+            REORDER_ROUTE,
+            measures,
+            (),
+            description.view.sources,
+            description.state,
+        )
+
+    async def _free_text(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        description: DescriptionContext,
+        question: str,
+    ) -> DatasetGuide | None:
+        """Word counts for a written-answers field when documents cannot answer (D16)."""
+        view = description.view
+        column = free_text_column(question, view)
+        if column is None:
+            return None
+        named = column in mentioned_columns(question, view)
+        documents = (
+            await self.documents.knowledge.list_documents(actor, workspace_id, dataset_id)
+            if self.documents is not None
+            else []
+        )
+        if documents and not named:
+            return None
+        result, _ = await self.analytics.run_query(
+            actor,
+            workspace_id,
+            dataset_id,
+            upload_id,
+            MetricRequest(RECORD_COUNT, AggregationKind.COUNT, (column,)),
+            FREE_TEXT_ROUTE,
+            view.sources,
+        )
+        summary = summarise(column, result.rows, result.records_analyzed)
+        if not named and not is_free_text(summary):
+            return None
+        truncated = len(result.rows) >= self.analytics.row_limit
+        return DatasetGuide(
+            summary_message(summary, description.name, truncated, bool(documents)),
+            FREE_TEXT_ROUTE,
+            (column,),
+            (),
+            view.sources,
+            description.state,
         )
 
     async def _next_steps(

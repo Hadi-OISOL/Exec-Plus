@@ -687,13 +687,21 @@ def canonical_question(question: str, view: DatasetView) -> RoutedIntent | None:
         return route_response(json.dumps({"kind": kind, **body}), view)
 
     def metric(
-        op: str, measure: str, group: str | None, order: str | None = None, times: str = ""
+        op: str,
+        measure: str,
+        group: str | None,
+        order: str | None = None,
+        times: str = "",
+        *,
+        where: tuple[str, str] | None = None,
     ) -> RoutedIntent:
         body: dict[str, Any] = {
             "metric": name(measure),
             "aggregation": _OPERATIONS[op.casefold()],
             "group_by": [name(group)] if group else [],
         }
+        if where:
+            body["filters"] = [{"column": name(where[0]), "operator": "ieq", "value": where[1]}]
         if order:
             body["order"] = order
         if times:
@@ -707,9 +715,16 @@ def canonical_question(question: str, view: DatasetView) -> RoutedIntent | None:
         return metric(*found)
     if found := match(rf"(?:what is the|show|compare) {operation} {field}(?: by {field})?"):
         return metric(*found)
-    if found := match(rf"which {field} has the (highest|lowest) {operation} {field}"):
+    if found := match(
+        rf"which {field} has the (highest|lowest) {operation} {field}"
+        rf"(?: where {field} equals (.{{1,200}}?))?"
+    ):
         return metric(
-            found[2], found[3], found[0], "desc" if found[1].casefold() == "highest" else "asc"
+            found[2],
+            found[3],
+            found[0],
+            "desc" if found[1].casefold() == "highest" else "asc",
+            where=(found[4], found[5]) if found[4] else None,
         )
     if found := match(rf"which {field} has the most records"):
         return plan(
