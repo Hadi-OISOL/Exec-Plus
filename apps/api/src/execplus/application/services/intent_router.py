@@ -73,6 +73,13 @@ from execplus.domain.errors import (
     UnsupportedQuestionError,
     UnverifiedAnswerError,
 )
+from execplus.domain.free_text import (
+    FREE_TEXT_ROUTE,
+    free_text_column,
+    is_free_text,
+    summarise,
+    summary_message,
+)
 from execplus.domain.guidance import (
     DescriptionContext,
     explain_dataset,
@@ -119,7 +126,7 @@ from execplus.domain.pattern_requests import (
     wants_patterns,
 )
 from execplus.domain.pdf_exports import ReportAnswer
-from execplus.domain.semantics import DatasetView, MetricRequest
+from execplus.domain.semantics import RECORD_COUNT, AggregationKind, DatasetView, MetricRequest
 
 
 @dataclass(frozen=True, slots=True)
@@ -1642,6 +1649,13 @@ class IntentRouterService:
                 DiagramRequest(routed.guide_columns),
             )
 
+        if routed.kind == QuestionKind.TEXTUAL and routed.data_intent is None:
+            responses = await self._free_text(
+                actor, workspace_id, dataset_id, upload_id, description, question
+            )
+            if responses is not None:
+                return responses
+
         if routed.kind in {QuestionKind.TEXTUAL, QuestionKind.MIXED} and routed.document_query:
             data = None
             limitations: list[str] = []
@@ -1995,6 +2009,50 @@ class IntentRouterService:
             ClarificationContext(
                 prior.question if prior else question, message, context.view.sources, choices
             )
+        )
+
+    async def _free_text(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        description: DescriptionContext,
+        question: str,
+    ) -> DatasetGuide | None:
+        """Word counts for a written-answers field when documents cannot answer (D16)."""
+        view = description.view
+        column = free_text_column(question, view)
+        if column is None:
+            return None
+        named = column in mentioned_columns(question, view)
+        documents = (
+            await self.documents.knowledge.list_documents(actor, workspace_id, dataset_id)
+            if self.documents is not None
+            else []
+        )
+        if documents and not named:
+            return None
+        result, _ = await self.analytics.run_query(
+            actor,
+            workspace_id,
+            dataset_id,
+            upload_id,
+            MetricRequest(RECORD_COUNT, AggregationKind.COUNT, (column,)),
+            FREE_TEXT_ROUTE,
+            view.sources,
+        )
+        summary = summarise(column, result.rows, result.records_analyzed)
+        if not named and not is_free_text(summary):
+            return None
+        truncated = len(result.rows) >= self.analytics.row_limit
+        return DatasetGuide(
+            summary_message(summary, description.name, truncated, bool(documents)),
+            FREE_TEXT_ROUTE,
+            (column,),
+            (),
+            view.sources,
+            description.state,
         )
 
     async def _next_steps(
