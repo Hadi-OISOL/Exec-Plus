@@ -266,7 +266,8 @@ Email stays disabled until private `app.env` sets `EXECPLUS_EMAIL_MODE=smtp`,
 `EXECPLUS_SMTP_HOST`, `EXECPLUS_SMTP_PORT`, `EXECPLUS_SMTP_USERNAME`,
 `EXECPLUS_SMTP_PASSWORD`, `EXECPLUS_SMTP_SENDER` and
 `EXECPLUS_SMTP_SECURITY=ssl` (port 465) or `starttls` (port 587). `none` is refused
-outside local/test. Then install and start the delivery timer:
+outside local/test. Optional `EXECPLUS_SMTP_CA_FILE` adds a private CA bundle
+to the trusted roots; certificate and hostname verification stay on. Then install and start the delivery timer:
 
 ```bash
 sudo cp deploy/vps/execplus-reports.service deploy/vps/execplus-reports.timer /etc/systemd/system/
