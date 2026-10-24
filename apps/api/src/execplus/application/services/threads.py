@@ -797,6 +797,7 @@ class ThreadService:
                         prior_clarification,
                         prior_cohort,
                         prior_result,
+                        prior_question=prior_turns[-1].question if prior_turns else "",
                     ),
                     timeout=100,
                 )

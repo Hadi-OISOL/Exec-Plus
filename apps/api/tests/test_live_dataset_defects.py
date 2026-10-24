@@ -290,7 +290,8 @@ async def test_difference_question_never_publishes_one_side_as_the_answer(integr
     assert turn.kind == "ambiguous"
     assert turn.query_id is None
     choices = turn.evidence["clarification"]["choices"]
-    assert choices == ["What is the total of revenue?", "How many records are there?"]
+    assert choices[0] == "What is the total of revenue by region?"
+    assert all("region" in choice for choice in choices)
 
 
 MONTHLY_CSV = (

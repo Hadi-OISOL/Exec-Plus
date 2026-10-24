@@ -47,7 +47,32 @@ _ALLOWED = {
     exp.Case,
     exp.If,
     exp.Mul,
+    exp.Distinct,
 }
+DAYS_ALIAS = "__days"
+
+
+def _calendar_days(query: exp.Select) -> int:
+    distinct = list(query.find_all(exp.Distinct))
+    if not distinct:
+        return 0
+    count = distinct[0].parent
+    alias = count.parent if count is not None else None
+    target = distinct[0].expressions[0] if len(distinct[0].expressions) == 1 else None
+    if (
+        len(distinct) != 1
+        or not isinstance(count, exp.Count)
+        or not isinstance(alias, exp.Alias)
+        or alias.alias != DAYS_ALIAS
+        or alias.parent is not query
+        or not isinstance(target, exp.Cast)
+        or not isinstance(target.this, exp.Column)
+        or query.find(exp.Avg) is not None
+        or len(list(query.find_all(exp.Sum))) != 1
+        or not query.args.get("group")
+    ):
+        raise UnsafeQueryError("Only a count of calendar days beside one grouped sum is supported")
+    return 1
 
 
 def _validate_calendar_parts(query: exp.Select) -> None:
@@ -165,7 +190,7 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
         for node in query.find_all(exp.Cast)
     ):
         raise UnsafeQueryError("Only a calendar period or field may be converted to a date")
-    if len(list(query.find_all(exp.AggFunc))) > 1:
+    if len(list(query.find_all(exp.AggFunc))) > 1 + _calendar_days(query):
         raise UnsafeQueryError("Only one verified aggregation per query is supported")
     references = list(query.find_all(exp.Table))
     if not references or any(

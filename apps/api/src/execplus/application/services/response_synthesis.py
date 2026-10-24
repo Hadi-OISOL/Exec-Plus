@@ -7,6 +7,7 @@ No original rows, prompts, or model output are logged here.
 import asyncio
 import json
 import math
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
@@ -17,6 +18,7 @@ from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, a
 from execplus.application.ports import LanguageModel
 from execplus.application.progress import model_call
 from execplus.application.services.intent_router import PatternAnswer
+from execplus.domain.answer_presentation import decimal_text
 from execplus.domain.errors import ProviderUnavailableError
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.models import ModelTier, VerifiedMetricAnswer
@@ -54,9 +56,9 @@ def build_fact_packet(
             ):
                 raise ValueError("Invalid numeric evidence")
             unit = (units or {}).get(ref, "")
-            value = str(data.value) + (
-                f" {unit}" if unit and lineage.aggregation != "count" else ""
-            )
+            value = (
+                decimal_text(data.value) if isinstance(data.value, Decimal) else str(data.value)
+            ) + (f" {unit}" if unit and lineage.aggregation != "count" else "")
             if lineage.aggregation == "count":
                 label = (
                     "matching records"
@@ -96,6 +98,17 @@ def build_fact_packet(
                     "Use the exact table for every value and missing cell.",
                     ref,
                 )
+                extreme = re.search(r"= \(SELECT (MAX|MIN)\(", lineage.sql)
+                if lineage.aggregation == "rows" and extreme and len(result.rows) <= 10:
+                    leaders = ", ".join(
+                        "missing" if row[0] is None else str(row[0]) for row in result.rows
+                    )
+                    add(
+                        f"{len(result.rows)} record(s) share the "
+                        f"{'highest' if extreme.group(1) == 'MAX' else 'lowest'} value; "
+                        f"{json.dumps(result.columns[0], ensure_ascii=False)}: {leaders}.",
+                        ref,
+                    )
                 unit = (units or {}).get(ref, "")
                 if (
                     lineage.aggregation != "rows"
@@ -105,7 +118,13 @@ def build_fact_packet(
                     for row in result.rows[:3]:
                         cells = "; ".join(
                             f"{json.dumps(name, ensure_ascii=False)}: "
-                            + ("missing" if value is None else str(value))
+                            + (
+                                "missing"
+                                if value is None
+                                else decimal_text(value)
+                                if isinstance(value, Decimal)
+                                else str(value)
+                            )
                             + (
                                 f" {unit}"
                                 if name == "__value"

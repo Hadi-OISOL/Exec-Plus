@@ -203,6 +203,27 @@ def _day_part(text: str, period: str | None) -> str | None:
     return "weekday" if named else None
 
 
+_SUPERLATIVE = r"\b(highest|lowest|most|least|maximum|minimum|largest|smallest|biggest)\b"
+_COMPARE = (
+    r"\b(more|less|fewer|busier|busiest|quieter|quietest|compare|compared|comparison|vs|"
+    r"versus|than|higher|lower|highest|lowest|most|least|difference|better|worse|best|worst)\b"
+)
+
+
+def per_day_request(question: str, request: MetricRequest | None) -> MetricRequest | None:
+    """A weekday/weekend comparison of totals is misleading: compare the average per day."""
+    if (
+        request is None
+        or request.period not in ("weekday", "weekend")
+        or request.aggregation != AggregationKind.SUM
+        or request.metric == RECORD_COUNT
+        or not re.search(_COMPARE, words(question))
+        or re.search(r"\b(total|totals|sum|overall)\b", words(question))
+    ):
+        return None
+    return replace(request, aggregation=AggregationKind.AVG, per_day=True)
+
+
 def with_time_grain(
     question: str, routed: RoutedIntent, view: DatasetView, inherited: str | None = None
 ) -> RoutedIntent:
@@ -243,6 +264,31 @@ def with_time_grain(
     if (period, order) == (request.period, request.order):
         return routed
     return replace(routed, request=replace(request, period=period, order=order))
+
+
+def with_extremum(question: str, routed: RoutedIntent, view: DatasetView) -> RoutedIntent:
+    """'Which X has the highest Y' asks for every record at the extreme, ties included."""
+    rows = routed.rows
+    field_words = {token for column in view.columns for token in words(column.name).split()}
+    text = " ".join(word for word in words(question).split() if word not in field_words)
+    if (
+        routed.kind != QuestionKind.ROWS
+        or rows is None
+        or rows.order_by is None
+        or rows.extremum is not None
+        or rows.order_by.column not in view.metrics
+        or not re.search(r"\b(which|what|who)\b", text)
+        or not re.search(_SUPERLATIVE, text)
+        or re.search(r"\b(top|bottom|have|are|were|records|rows)\b|\d", text)
+    ):
+        return routed
+    column = rows.order_by.column
+    extremum = (
+        RowExtremum(column, "max")
+        if rows.order_by.direction == "desc"
+        else RowExtremum(column, "min")
+    )
+    return replace(routed, rows=replace(rows, extremum=extremum, order_by=None))
 
 
 def with_product(question: str, routed: RoutedIntent, view: DatasetView) -> RoutedIntent:

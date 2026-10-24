@@ -248,17 +248,26 @@ async def test_weekend_and_weekday_answers_match_pandas_and_replay(integration):
     assert replayed.rows == result.rows
 
     answer, turn = await threads.ask(actor, wid, thread.id, "Which day of the week is busiest?")
-    result, lineage = answer
+    (per_day, per_day_lineage), (result, lineage) = answer.data, answer.additional_data[0]
     totals = frame.groupby("dow")["orders"].apply(lambda s: sum(s, Decimal(0)))
+    day_counts = frame.groupby("dow")["order_date"].nunique()
+    averages = {
+        key: (totals[key] / day_counts[key]).quantize(Decimal("1e-12")) for key in totals.index
+    }
+    assert [(row[0], row[1]) for row in per_day.rows] == sorted(
+        averages.items(), key=lambda item: (-item[1], item[0])
+    )
+    assert "COUNT(DISTINCT" in per_day_lineage.sql
     assert [(row[0], row[1]) for row in result.rows] == sorted(
         totals.items(), key=lambda item: (-item[1], item[0])
     )
     assert result.rows[0][0] == totals.idxmax()
-    replayed, _ = await integration.runtime.analytics.replay(actor, wid, lineage.query_id)
-    assert replayed.rows == result.rows
+    for item in (per_day, result):
+        replayed, _ = await integration.runtime.analytics.replay(actor, wid, item.query_id)
+        assert replayed.rows == item.rows
 
     answer, turn = await threads.ask(actor, wid, thread.id, "and the lowest?")
-    result, lineage = answer
+    result, lineage = answer.additional_data[0]
     assert "STRFTIME(" in lineage.sql
     assert result.rows[0] == (totals.idxmin(), totals.min())
 
