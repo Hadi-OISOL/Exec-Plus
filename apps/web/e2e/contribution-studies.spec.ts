@@ -33,15 +33,15 @@ async function seed(page: Page, token: string, wid: string, name: string, csv: s
   return { did, uid, root };
 }
 
-async function prepare(page: Page, period: boolean) {
+async function prepare(page: Page, period: boolean, csv?: string) {
   const token = execFileSync("python3", ["-m", "execplus.manage", "provision-user", "--email", `contribution-${randomUUID()}@example.test`], { cwd: "../..", encoding: "utf8" }).trim();
   const headers = { Authorization: `Bearer ${token}` };
   const workspace = await page.request.post(api + "/workspaces", { headers, data: { name: "Fictional sales", seat_limit: 3 } });
   expect(workspace.status()).toBe(201);
   const wid = (await workspace.json()).id;
-  const baseline = await seed(page, token, wid, "baseline", period
+  const baseline = await seed(page, token, wid, "baseline", csv ?? (period
     ? "date,product,revenue,quantity\n2026-01-01,A,100,10\n2026-01-02,B,200,10\n2026-01-03,D,30,1\n2026-02-01,A,240,20\n2026-02-02,B,125,5\n2026-02-03,C,80,2\n"
-    : "product,revenue,quantity\nA,100,10\nB,200,10\nD,30,1\n", "revenue", "quantity");
+    : "product,revenue,quantity\nA,100,10\nB,200,10\nD,30,1\n"), "revenue", "quantity");
   const other = period ? baseline : await seed(page, token, wid, "comparison", "item,sales,units\nA,240,20\nB,125,5\nC,80,2\n", "sales", "units");
   await page.goto("/workspace");
   await page.getByLabel("Session token").fill(token);
@@ -146,3 +146,47 @@ for (const mode of ["period", "dataset"] as const) {
     expect(errors).toEqual([]);
   });
 }
+
+test("month-over-month change ranks fields, drills into the top member and adds back exactly", async ({ page }) => {
+  test.setTimeout(150_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const { wid, headers, library } = await prepare(page, true, "date,region,channel,product,revenue\n"
+    + "2026-01-05,North,Online,A,10.25\n2026-01-09,North,Store,B,4.10\n2026-01-12,South,Online,A,7.00\n2026-01-20,South,Store,C,3.333\n"
+    + "2026-02-02,North,Online,A,25.75\n2026-02-14,North,Store,B,3.90\n2026-02-18,South,Online,C,7.00\n2026-02-25,South,Store,C,3.333\n2026-03-01,North,Online,A,999\n");
+  await choose(page, "Baseline amount", "revenue");
+  await choose(page, "Baseline category", "region");
+  await choose(page, "Baseline also rank by 1", "channel");
+  await choose(page, "Baseline also rank by 2", "product");
+  await choose(page, "Comparison date field", "date");
+  await library.getByLabel("Quick month", { exact: true }).fill("2026-02");
+  await expect(library.getByLabel("Baseline start", { exact: true })).toHaveValue("2026-01-01");
+  await expect(library.getByLabel("Baseline end", { exact: true })).toHaveValue("2026-01-31");
+  await expect(library.getByLabel("Comparison end", { exact: true })).toHaveValue("2026-02-28");
+  await library.getByLabel("These amounts can be added across rows", { exact: false }).check();
+  const response = page.waitForResponse(value => value.url().endsWith("/studies") && value.status() === 201);
+  await library.getByRole("button", { name: "Calculate & save comparison", exact: true }).click();
+  const saved = await (await response).json();
+  expect(saved.version.method.baseline.dimensions).toEqual(["channel", "product"]);
+  expect(saved.contribution.net_change.display).toBe("15.3");
+  const cause = library.getByRole("region", { name: "Where the change is concentrated", exact: true });
+  await expect(cause).toContainText("Accounting attribution, not cause");
+  const rows = cause.getByRole("row");
+  await expect(rows.nth(1)).toContainText("region");
+  await expect(rows.nth(1)).toContainText("North");
+  await expect(rows.nth(2)).toContainText("channel");
+  await expect(cause).toContainText("Inside region = North, by channel");
+  await expect(cause.getByRole("status")).toContainText("Adds back exactly");
+  await expect(cause.getByRole("status")).toContainText("15.3");
+  const reopened = await page.request.get(`${api}/workspaces/${wid}/study-versions/${saved.version.id}`, { headers });
+  expect((await reopened.json()).contribution).toEqual(saved.contribution);
+  const output = process.env.PLAYWRIGHT_JSON_OUTPUT_NAME ? join(dirname(process.env.PLAYWRIGHT_JSON_OUTPUT_NAME), "captures", "contributions") : "../../data/verification/2026-10-24/root-cause-browser";
+  mkdirSync(output, { recursive: true });
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await cause.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await cause.screenshot({ path: join(output, `root-cause-${width}.png`) });
+  }
+  expect(errors).toEqual([]);
+});

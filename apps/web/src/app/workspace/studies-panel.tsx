@@ -1,7 +1,7 @@
 /* Use case: Turns confirmed meanings into interactive, reproducible investigations.
 What it does: Runs supported studies, reopens versions and manages permission-aware six-pin dashboards. */
 
-import { ContributionForm, ContributionSummary, ContributionDetails, type Contribution, type ContributionRecords } from "./contribution-panel";
+import { ContributionForm, ContributionSummary, ContributionDetails, RootCauseDetails, type Contribution, type ContributionRecords } from "./contribution-panel";
 import { ResultExportActions } from "./result-export-actions";
 import { useEffect, useId, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
@@ -119,6 +119,7 @@ export function StudyResult({ value, workspacePath }: { value: Result; workspace
         {new Date(value.version.evidence.source_uploaded_at).toLocaleString()}
       </p>
       {value.contribution && <ContributionSummary value={value.contribution} unit={value.unit} />}
+      {value.contribution?.root_cause && <RootCauseDetails value={value.contribution.root_cause} unit={value.unit} />}
       {value.version.evidence.component === "card" ? (
         <p className="kpiValue studyValue">{String(value.display.rows[0]?.at(-1) ?? "No matching values")}</p>
       ) : (

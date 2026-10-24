@@ -1,5 +1,6 @@
 /* Use case: Compares larger declared resource allocations without executing actions.
-What it does: Collects explicit assumptions, shows exact private outcomes and distinguishes proof from a timed feasible result. */
+What it does: Collects explicit assumptions, optional multi-period schedules and ordering rules, shows exact private
+outcomes per period with their independent checks and distinguishes proof from a timed feasible result. */
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
@@ -8,17 +9,21 @@ import type { AllocationResult, AnalysisBody, AnalysisOptions, AnalysisSummary }
 import { AnswerVisualization } from "./answer-visualization";
 import { ResultExportActions } from "./result-export-actions";
 import { WorkspaceSelect } from "./workspace-select";
+import { byPeriod } from "./change-helpers";
 import styles from "./large-allocation-panel.module.css";
 
 export const LARGE_ALLOCATION_METHOD = "cp-sat-integer-allocation-v1";
 export const CAPACITY_ALLOCATION_METHOD = "cp-sat-capacity-sensitivity-v2";
-export const isLargeAllocationMethod = (method?: string) => method === LARGE_ALLOCATION_METHOD || method === CAPACITY_ALLOCATION_METHOD;
+export const SCHEDULE_ALLOCATION_METHOD = "cp-sat-scheduled-allocation-v1";
+export const isLargeAllocationMethod = (method?: string) => method === LARGE_ALLOCATION_METHOD || method === CAPACITY_ALLOCATION_METHOD || method === SCHEDULE_ALLOCATION_METHOD;
 type InfeasibilityReason = { code: string; proof: string; proof_kind: string; candidate?: string; first?: string; second?: string; column?: string; minimum_required?: string; capacity?: string; shortfall?: string; forced_quantities?: Record<string, number> };
 type ResourceUse = { column: string; capacity: string; used: string | null; unused: string | null };
 type LargeResult = Omit<AllocationResult, "quantum" | "solver_status" | "verification" | "allocations"> & {
   solver_status: "optimal" | "feasible" | "infeasible" | "unknown";
   resources: ResourceUse[];
-  allocations: (AllocationResult["allocations"][number] & { resources: { column: string; per_unit: string; used: string }[] })[];
+  allocations: (AllocationResult["allocations"][number] & { period?: number | null; resources: { column: string; per_unit: string; used: string }[] })[];
+  verification?: Record<string, string> | null;
+  schedule?: { periods: { period: number; budget: string; used: string | null; unused: string | null }[]; precedence: { candidate: string; after: string }[] };
   infeasibility?: InfeasibilityReason[];
   capacity_sensitivity?: { column: string; unit: string; baseline_capacity: string; approval_scope: string; variants: { capacity: string; result: LargeResult; difference: { benefit: string; cost: string } | null }[] };
 };
@@ -45,6 +50,9 @@ export function LargeAllocationPanel({ root, request, onReview }: { root: string
   const [capacityColumn, setCapacityColumn] = useState("");
   const [capacityLevels, setCapacityLevels] = useState("");
   const [bounds, setBounds] = useState<(Bound & { id: string })[]>([]);
+  const [scheduled, setScheduled] = useState(false);
+  const [periodBudgets, setPeriodBudgets] = useState(["", ""]);
+  const [ordering, setOrdering] = useState<{ id: string; candidate: string; after: string }[]>([]);
   const [rules, setRules] = useState<{ id: string; kind: "requires" | "excludes"; first: string; second: string }[]>([]);
   const [filter, setFilter] = useState("");
   const [filterValue, setFilterValue] = useState("");
@@ -82,8 +90,9 @@ export function LargeAllocationPanel({ root, request, onReview }: { root: string
     event.preventDefault(); if (!options || !confirmed) return;
     await work("Checking exact inputs and searching within the declared limits…", async signal => {
       const body = { name: name.trim() || "Larger resource allocation", revision_id: options.revision_id, understanding_id: options.understanding_id,
-        model: compareCapacities ? CAPACITY_ALLOCATION_METHOD : LARGE_ALLOCATION_METHOD,
-        capacity_sensitivity: compareCapacities ? { column: comparisonColumn, unit: options.metrics.find(item => item.name === comparisonColumn)?.unit || "", capacities: capacityLevels.split(",").map(value => value.trim()) } : null,
+        model: scheduled ? SCHEDULE_ALLOCATION_METHOD : compareCapacities ? CAPACITY_ALLOCATION_METHOD : LARGE_ALLOCATION_METHOD,
+        ...(scheduled ? { schedule: { period_budgets: periodBudgets, precedence: ordering.map(item => ({ candidate: item.candidate, after: item.after })) } } : {}),
+        capacity_sensitivity: compareCapacities && !scheduled ? { column: comparisonColumn, unit: options.metrics.find(item => item.name === comparisonColumn)?.unit || "", capacities: capacityLevels.split(",").map(value => value.trim()) } : null,
         entity_column: entityName, cost_column: costName, benefit_column: benefitName, budget, maximum_quantity: Number(maximum),
         resources: resources.map(item => ({ column: item.column, capacity: item.capacity })),
         bounds: bounds.map(item => ({ candidate: item.candidate, minimum: Number(item.minimum), maximum: Number(item.maximum) })),
@@ -131,8 +140,9 @@ export function LargeAllocationPanel({ root, request, onReview }: { root: string
         {resources.map((item, index) => <div className={styles.row} key={item.id}><label>Resource {index + 1}<select required value={item.column} onChange={event => setResources(items => items.map(row => row.id === item.id ? { ...row, column: event.target.value } : row))}><option value="">Choose a separate measure</option>{measureOptions}</select></label><label>Resource {index + 1} capacity<input required inputMode="decimal" value={item.capacity} onChange={event => setResources(items => items.map(row => row.id === item.id ? { ...row, capacity: event.target.value } : row))} /></label><button type="button" onClick={() => { setResources(items => items.filter(row => row.id !== item.id)); setConfirmed(false); }}>Remove resource {index + 1}</button></div>)}
         <button type="button" disabled={resources.length >= 3} onClick={() => { setResources(items => [...items, { id: crypto.randomUUID(), column: "", capacity: "" }]); setConfirmed(false); }}>Add resource limit</button>
         <details><summary>Compare alternative resource capacities</summary><p>Keep the same actions and assumptions, and compare two to five limits for one resource. Each alternative runs its own bounded search.</p>
-          <label className="checkLabel"><input type="checkbox" checked={compareCapacities} onChange={event => { setCompareCapacities(event.target.checked); setConfirmed(false); }} />Include capacity comparison</label>
-          {compareCapacities && <div className={styles.grid}>
+          <label className="checkLabel"><input type="checkbox" checked={compareCapacities} disabled={scheduled} onChange={event => { setCompareCapacities(event.target.checked); setConfirmed(false); }} />Include capacity comparison</label>
+          {scheduled && <p>Capacity comparison is not available together with a period schedule.</p>}
+          {compareCapacities && !scheduled && <div className={styles.grid}>
             <WorkspaceSelect label="Resource to compare" value={comparisonColumn} disabled={Boolean(pending)} onValueChange={value => { setCapacityColumn(value); setConfirmed(false); }} options={[...new Set([costName, ...resources.map(item => item.column)].filter(Boolean))].map(column => ({ value: column, label: `${column} · ${choices.find(item => item.name === column)?.unit || ""}` }))} />
             <label>Alternative capacities · {choices.find(item => item.name === comparisonColumn)?.unit}<input required inputMode="decimal" maxLength={505} value={capacityLevels} onChange={event => setCapacityLevels(event.target.value)} /><small>Two to five distinct increasing nonnegative numbers, separated by commas. These are your assumptions.</small></label>
           </div>}
@@ -141,6 +151,17 @@ export function LargeAllocationPanel({ root, request, onReview }: { root: string
       </fieldset><fieldset disabled={Boolean(pending)}><legend>3. Add any selection rules</legend><p>“Requires” means at least one unit of the named action is needed. “Cannot go with” prevents both actions from being selected. These are selection rules, not schedules.</p>
         {rules.map((item, index) => <div className={styles.row} key={item.id}><label>Rule {index + 1} action<input required maxLength={200} value={item.first} onChange={event => setRules(items => items.map(row => row.id === item.id ? { ...row, first: event.target.value } : row))} /></label><label>Rule {index + 1} relationship<select value={item.kind} onChange={event => setRules(items => items.map(row => row.id === item.id ? { ...row, kind: event.target.value as "requires" | "excludes" } : row))}><option value="requires">Requires</option><option value="excludes">Cannot go with</option></select></label><label>Rule {index + 1} other action<input required maxLength={200} value={item.second} onChange={event => setRules(items => items.map(row => row.id === item.id ? { ...row, second: event.target.value } : row))} /></label><button type="button" onClick={() => { setRules(items => items.filter(row => row.id !== item.id)); setConfirmed(false); }}>Remove rule {index + 1}</button></div>)}
         <button type="button" disabled={rules.length >= 80} onClick={() => { setRules(items => [...items, { id: crypto.randomUUID(), kind: "requires", first: "", second: "" }]); setConfirmed(false); }}>Add selection rule</button>
+        <details open={scheduled}><summary>Schedule across periods</summary><p>Spread the selected actions over 2–12 periods. Each selected action starts and spends its whole cost in one period, and each period has its own budget. The overall budget above still applies to the total.</p>
+          <label className="checkLabel"><input type="checkbox" checked={scheduled} disabled={compareCapacities} onChange={event => { setScheduled(event.target.checked); setConfirmed(false); }} />Plan by period</label>
+          {compareCapacities && <p>Turn off the capacity comparison to plan by period.</p>}
+          {scheduled && <>
+            <div className={styles.grid}><label>Number of periods<input type="number" min={2} max={12} step={1} required value={periodBudgets.length} onChange={event => { const count = Math.min(12, Math.max(2, Math.trunc(Number(event.target.value)) || 2)); setPeriodBudgets(items => Array.from({ length: count }, (_, index) => items[index] ?? "")); setConfirmed(false); }} /></label></div>
+            <div className={styles.grid}>{periodBudgets.map((value, index) => <label key={index}>Period {index + 1} budget · {choices.find(item => item.name === costName)?.unit}<input required inputMode="decimal" value={value} onChange={event => setPeriodBudgets(items => items.map((item, position) => position === index ? event.target.value : item))} /></label>)}</div>
+            <p>Ordering rules: the first action can only start in a period strictly after the second action, and only if the second action is also selected.</p>
+            {ordering.map((item, index) => <div className={styles.row} key={item.id}><label>Order rule {index + 1} action<input required maxLength={200} value={item.candidate} onChange={event => setOrdering(items => items.map(row => row.id === item.id ? { ...row, candidate: event.target.value } : row))} /></label><label>Order rule {index + 1} only after<input required maxLength={200} value={item.after} onChange={event => setOrdering(items => items.map(row => row.id === item.id ? { ...row, after: event.target.value } : row))} /></label><button type="button" onClick={() => { setOrdering(items => items.filter(row => row.id !== item.id)); setConfirmed(false); }}>Remove order rule {index + 1}</button></div>)}
+            <button type="button" disabled={ordering.length >= 40} onClick={() => { setOrdering(items => [...items, { id: crypto.randomUUID(), candidate: "", after: "" }]); setConfirmed(false); }}>Add ordering rule</button>
+          </>}
+        </details>
         <details><summary>Optional population filter</summary><div className={styles.grid}><label>Include only this group<select value={filter} onChange={event => setFilter(event.target.value)}><option value="">All permitted rows</option>{options.entities.map(item => <option key={item}>{item}</option>)}</select></label><label>Group equals<input required={Boolean(filter)} value={filterValue} onChange={event => setFilterValue(event.target.value)} /></label></div></details>
         <label className="checkLabel"><input name="allocation-confirmation" type="checkbox" required checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I confirm each row is one action, resources are per unit and fixed, and benefits add together. This model does not prove real-world effects.</label>
       </fieldset><button disabled={Boolean(pending) || !confirmed || costName === benefitName}>Calculate and save privately</button>
@@ -158,6 +179,8 @@ function LargeAllocationResult({ body, datasetRoot, pending, onReplay, onReview 
     <ResultExportActions path={`${datasetRoot}/analyses/${body.run.id}/export?kind=allocation`} charts={[...(result.capacity_sensitivity?.variants.some(item => item.result.benefit !== null) ? ["Conditional benefit by declared capacity"] : []), ...(result.allocations.length ? ["Declared benefit by selected candidate"] : [])]} /><button type="button" disabled={pending} onClick={onReplay}>Verify saved allocation evidence</button>
     <dl className={styles.cards}><div><dt>Conditional benefit · {body.run.evidence.units[body.run.request.benefit_column]}</dt><dd>{result.benefit ?? "No selection"}</dd></div><div><dt>Cost · {body.run.evidence.units[body.run.request.cost_column]}</dt><dd>{result.cost ?? "No selection"}</dd></div><div><dt>Do-nothing baseline</dt><dd>{result.baseline.feasible ? "Feasible · benefit 0" : "Fails required minimum quantities"}</dd></div></dl>
     <InfeasibilityDetails reasons={result.infeasibility || []} units={body.run.evidence.units} />
+    {result.verification && <p role="note">Independent check of the saved answer: {Object.entries(result.verification).map(([check, outcome]) => `${check.replaceAll("_", " ")} ${outcome}`).join(" · ")}. Exact decimals were recomputed without the solver.</p>}
+    {result.schedule && <SchedulePlan schedule={result.schedule} allocations={result.allocations} unit={body.run.evidence.units[body.run.request.cost_column]} />}
     <div className="tableWrap" tabIndex={0} role="region" aria-label="Exact resource limits"><table><thead><tr><th>Resource</th><th>Unit</th><th>Available</th><th>Used</th><th>Remaining</th></tr></thead><tbody>{result.resources.map(item => <tr key={item.column}><th>{item.column}</th><td>{body.run.evidence.units[item.column]}</td><td>{item.capacity}</td><td>{item.used ?? "No selection"}</td><td>{item.unused ?? "No selection"}</td></tr>)}</tbody></table></div>
     {result.allocations.length > 0 && <><AnswerVisualization title="Conditional benefit by action" columns={["Action", `Benefit (${body.run.evidence.units[body.run.request.benefit_column]})`, "Quantity", "Cost", "Minimum", "Maximum"]} rows={result.allocations.map(item => [item.candidate, item.benefit, item.quantity, item.cost, item.minimum, item.maximum])} initialChart="bar" /><details><summary>Every exact resource contribution</summary><AnswerVisualization title="Per-action resource use" initialMode="table" chartAllowed={false} columns={["Action", "Quantity", "Resource", "Unit", "Per unit", "Used"]} rows={result.allocations.flatMap(item => item.resources.map(resource => [item.candidate, item.quantity, resource.column, body.run.evidence.units[resource.column], resource.per_unit, resource.used]))} /></details></>}
     {result.capacity_sensitivity && <section aria-label="Capacity comparison results"><h4>What changes with another capacity?</h4><p>Original {result.capacity_sensitivity.column}: {result.capacity_sensitivity.baseline_capacity} {result.capacity_sensitivity.unit}. Differences compare with that original model. A usable selection may not be the best one; check the status for each alternative.</p>
@@ -172,6 +195,14 @@ function LargeAllocationResult({ body, datasetRoot, pending, onReplay, onReview 
     <details><summary>Saved assumptions, rules and limits</summary><ul>{[...result.assumptions, ...result.limitations].map(item => <li key={item}>{item}</li>)}</ul><ul>{result.selection_rules?.prerequisites.map((item, index) => <li key={`p-${index}`}>{item.candidate} requires {item.requires}.</li>)}{result.selection_rules?.exclusions.map((item, index) => <li key={`e-${index}`}>{item.first} cannot go with {item.second}.</li>)}</ul><p>Filters: {body.run.request.filters.length ? JSON.stringify(body.run.request.filters) : "All permitted rows; confirmed required filters also apply."}</p><p>Private source receipt: {body.run.evidence.query_id}</p><p>Result checksum: {body.run.evidence.result_checksum}</p></details>
     <form className={styles.form} onSubmit={event => { event.preventDefault(); void onReview("approved", note); }}><label>Reason for your review<textarea required maxLength={1000} value={note} onChange={event => setNote(event.target.value)} /></label><p>Approval records your decision. It does not execute any action or turn assumptions into proven outcomes.</p><div className="buttonRow"><button disabled={pending || !body.current || result.status !== "feasible" || !note.trim()}>Approve recommendation</button><button type="button" disabled={pending || !note.trim()} onClick={() => onReview("rejected", note)}>Reject recommendation</button><button type="button" disabled={pending || !note.trim()} onClick={() => onReview("pending", note)}>Reopen for review</button></div></form>
     <details><summary>Private review history ({body.reviews.length})</summary>{body.reviews.map(item => <p key={item.id}>{item.sequence}. {item.status} · {item.note}</p>)}</details>
+  </section>;
+}
+
+function SchedulePlan({ schedule, allocations, unit }: { schedule: NonNullable<LargeResult["schedule"]>; allocations: LargeResult["allocations"]; unit: string }) {
+  const actions = byPeriod(allocations, schedule.periods.length);
+  return <section aria-label="Plan by period"><h4>Plan by period</h4>
+    <div className="tableWrap" tabIndex={0} role="region" aria-label="Exact use per period"><table><thead><tr><th>Period</th><th>Actions that start</th><th>Budget · {unit}</th><th>Used</th><th>Remaining</th></tr></thead><tbody>{schedule.periods.map((item, index) => <tr key={item.period}><th>Period {item.period}</th><td>{actions[index].length ? actions[index].map(action => `${action.candidate} × ${action.quantity}`).join(", ") : "Nothing starts"}</td><td>{item.budget}</td><td>{item.used ?? "No selection"}</td><td>{item.unused ?? "No selection"}</td></tr>)}</tbody></table></div>
+    {schedule.precedence.length > 0 && <ul aria-label="Ordering rules">{schedule.precedence.map(rule => <li key={`${rule.candidate}-${rule.after}`}>{rule.candidate} starts only after {rule.after}.</li>)}</ul>}
   </section>;
 }
 
