@@ -1,9 +1,10 @@
 /* Use case: Gives members a controlled refresh and proactive monitoring workspace.
-What it does: Stages files, reviews changed meaning, replays findings and manages private alerts. */
+What it does: Stages files through resumable chunked uploads, reviews changed meaning, replays findings and manages private alerts. */
 
 import { useEffect, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { studyJson } from "./studies-panel";
+import { UploadManager, formatBytes, uploadContentType, type Transport } from "./upload-manager";
 
 type Column = {
   name: string;
@@ -157,11 +158,13 @@ function requestIdentifier(): string {
 export function RefreshPanel({
   root,
   request,
+  transport,
   onActivated,
   onReview,
 }: {
   root: string;
   request: ApiRequest;
+  transport: Transport;
   onActivated: (id: string) => Promise<void>;
   onReview: () => void;
 }) {
@@ -182,6 +185,7 @@ export function RefreshPanel({
   const [freshness, setFreshness] = useState(48);
   const [enabled, setEnabled] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState("");
   const [mode, setMode] = useState("replace");
   const [keys, setKeys] = useState("");
   const [duplicates, setDuplicates] = useState("keep_all");
@@ -255,6 +259,29 @@ export function RefreshPanel({
     } finally {
       setBusy(false);
     }
+  }
+  function sendStaged(chosen: File, options: Record<string, unknown>): Promise<Candidate> {
+    const [, , workspaceId, , datasetId] = dataPath.split("/");
+    return new Promise((resolve, reject) => {
+      const manager = new UploadManager({
+        transport,
+        userId: "",
+        storage: null,
+        onFinish: (item) => (item.phase === "done" ? resolve(item.outcome as Candidate) : reject(new Error(item.error))),
+      });
+      manager.subscribe(() => {
+        const item = manager.snapshot()[0];
+        setProgress(item?.phase === "uploading" ? `Uploading ${formatBytes(item.sentBytes)} of ${formatBytes(item.size)}` : "");
+      });
+      manager.enqueue(chosen, workspaceId, datasetId, uploadContentType(chosen.name), (sessionId, signal) =>
+        request<Candidate>(`${dataPath}/refresh/candidates/from-upload-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...options, session_id: sessionId }),
+          signal,
+        }),
+      );
+    });
   }
   function dates() {
     return {
@@ -444,29 +471,20 @@ export function RefreshPanel({
               e.preventDefault();
               act(async () => {
                 if (!file) return;
-                const body = new FormData();
-                body.set("file", file);
-                body.set(
-                  "options",
-                  JSON.stringify({
-                    request_id: requestIdentifier(),
-                    expected_version: feed.version,
-                    mode,
-                    keys:
-                      mode === "replace"
-                        ? []
-                        : keys
-                            .split(",")
-                            .map((k) => k.trim())
-                            .filter(Boolean),
-                    duplicates: mode === "replace" ? "keep_all" : duplicates,
-                    ...dates(),
-                  }),
-                );
-                const c = await request<Candidate>(
-                  `${dataPath}/refresh/candidates`,
-                  { method: "POST", body },
-                );
+                const c = await sendStaged(file, {
+                  request_id: requestIdentifier(),
+                  expected_version: feed.version,
+                  mode,
+                  keys:
+                    mode === "replace"
+                      ? []
+                      : keys
+                          .split(",")
+                          .map((k) => k.trim())
+                          .filter(Boolean),
+                  duplicates: mode === "replace" ? "keep_all" : duplicates,
+                  ...dates(),
+                }).finally(() => setProgress(""));
                 await reload();
                 setMessage(
                   `File ${human(c.status)}. ${c.status === "failed" ? "The active data has not changed." : "Activate when ready, or let the schedule process a validated candidate."}`,
@@ -483,6 +501,8 @@ export function RefreshPanel({
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
             </label>
+            <small>CSV or XLSX up to 500 MB, sent in resumable pieces.</small>
+            {progress && <p aria-live="polite">{progress}</p>}
             <label>
               Update behavior
               <select

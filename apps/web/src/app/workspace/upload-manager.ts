@@ -1,5 +1,5 @@
 /* Use case: Runs resumable chunked file uploads in the background of the workspace.
-What it does: Queues files, hashes and sends each chunk with retries, supports pause/resume/cancel, and remembers in-progress sessions (never file contents) so an upload can resume after a reload, and summarizes the other sheets of an uploaded workbook. */
+What it does: Queues files, hashes and sends each chunk with retries, supports pause/resume/cancel, and remembers in-progress sessions (never file contents) so an upload can resume after a reload. A caller-supplied finalize step can complete a session into something other than a dataset upload, such as a staged refresh candidate. It also summarizes the other sheets of an uploaded workbook. */
 
 export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
 export const RESUME_KEY = "execplus.uploads.v1";
@@ -28,12 +28,14 @@ export type UploadItem = {
   errorCode?: string;
   legacy?: boolean;
   result?: UploadedFile;
+  outcome?: unknown;
 };
 export type ResumeRecord = { sessionId: string; workspaceId: string; userId: string; filename: string; size: number; lastModified: number };
 export type Transport = (path: string, init?: RequestInit) => Promise<Response>;
 type Session = { id: string; chunk_size: number; received_bytes: number; next_chunk: number; total_chunks: number; status: string; filename?: string; size_bytes?: number };
 type Failure = Error & { status?: number; code?: string };
-type Running = { file?: Blob & { lastModified?: number }; contentType: string; controller?: AbortController; session?: Session };
+export type Finalize = (sessionId: string, signal: AbortSignal) => Promise<unknown>;
+type Running = { file?: Blob & { lastModified?: number }; contentType: string; controller?: AbortController; session?: Session; finalize?: Finalize };
 type Store = Pick<Storage, "getItem" | "setItem">;
 export type ManagerOptions = {
   transport: Transport;
@@ -153,10 +155,10 @@ export class UploadManager {
   snapshot = () => this.items;
   active = () => this.items.some(item => item.phase === "queued" || item.phase === "uploading");
 
-  enqueue(file: Blob & { name: string; lastModified?: number }, workspaceId: string, datasetId: string, contentType: string): string {
+  enqueue(file: Blob & { name: string; lastModified?: number }, workspaceId: string, datasetId: string, contentType: string, finalize?: Finalize): string {
     if (file.size > MAX_UPLOAD_BYTES) throw new Error(uploadErrorMessage("file_too_large", "", file.size));
     const key = `upload-${Date.now()}-${(this.counter += 1)}`;
-    this.running.set(key, { file, contentType });
+    this.running.set(key, { file, contentType, finalize });
     this.items = [...this.items, { key, filename: file.name, size: file.size, workspaceId, datasetId, sentBytes: 0, speed: 0, phase: "queued" }];
     this.emit();
     this.pump();
@@ -289,14 +291,14 @@ export class UploadManager {
             session = await call<Session>(root, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: item.filename, size_bytes: item.size, content_type: state.contentType || "application/octet-stream", purpose: "upload", ...(item.datasetId ? { dataset_id: item.datasetId } : {}) }) });
           } catch (cause) {
             const failure = cause as Failure;
-            if (!item.datasetId || !((failure.status === 404 && !failure.code) || failure.status === 405)) throw cause;
+            if (state.finalize || !item.datasetId || !((failure.status === 404 && !failure.code) || failure.status === 405)) throw cause;
             this.patch(key, { legacy: true });
             result = await this.legacy(item, state, controller.signal);
             return this.finish(key, result);
           }
           state.session = session;
           this.patch(key, { sessionId: session.id, sentBytes: session.received_bytes });
-          writeRecords(this.options.storage, [...readRecords(this.options.storage), { sessionId: session.id, workspaceId: item.workspaceId, userId: this.options.userId, filename: item.filename, size: item.size, lastModified: state.file.lastModified ?? 0 }]);
+          if (!state.finalize) writeRecords(this.options.storage, [...readRecords(this.options.storage), { sessionId: session.id, workspaceId: item.workspaceId, userId: this.options.userId, filename: item.filename, size: item.size, lastModified: state.file.lastModified ?? 0 }]);
         } else {
           state.session = { ...state.session!, ...(await call<Session>(`${root}/${item.sessionId}`)) };
         }
@@ -323,6 +325,12 @@ export class UploadManager {
           Object.assign(session, progress);
           const previous = this.find(key)?.speed ?? 0;
           this.patch(key, { sentBytes: session.received_bytes, speed: previous && instant > 0 ? previous * 0.7 + instant * 0.3 : Math.max(instant, previous) });
+        }
+        if (state.finalize) {
+          const outcome = await state.finalize(session.id, controller.signal);
+          this.patch(key, { phase: "done", sentBytes: item.size, speed: 0, outcome });
+          this.options.onFinish?.(this.find(key)!);
+          return;
         }
         result = (await call<{ upload: UploadedFile }>(`${path}/complete`, { method: "POST" })).upload;
         this.forget(session.id);

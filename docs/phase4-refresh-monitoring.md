@@ -48,7 +48,15 @@ are visible; expected failure codes omit source values and internal diagnostics.
 
 Append/merge requires the same ordered columns. Its raw delta and derived complete
 CSV snapshot are both retained, with base/input/output identifiers and exact counts.
-Files and derived snapshots are limited to 20 MiB. Empty candidates and typed
+Files and derived snapshots are limited to the upload limit (`EXECPLUS_MAX_UPLOAD_BYTES`,
+500 MiB by default). Files arrive through the same resumable 8 MiB-chunk upload sessions as
+ordinary uploads (session started with the feed's `dataset_id`, quota reserved while open);
+`POST /refresh/candidates/from-upload-session` then assembles and checks the parts and stages
+them instead of ingesting a new dataset upload. A session can be completed only once, only for
+its own dataset and only when every chunk has arrived. If the API stops while staging, the
+session sweep marks it `failed` (`interrupted`) rather than ingesting it. Staging still reads
+the whole file and both snapshots into memory, so very large refreshes need matching API
+memory. Empty candidates and typed
 conflicts/invalid dates are rejected. A replacement with changed column names or
 inferred types requires explicit meaning review. Declared relationships require
 review and reconfirmation after refresh; they are not silently carried forward.
@@ -128,7 +136,8 @@ Dataset root: `/workspaces/{workspace_id}/datasets/{dataset_id}`.
 |---|---|
 | GET /refresh | Head, freshness, meaning state, candidate history, editor capability |
 | PUT /refresh | Confirmed upload/revision/meaning IDs, expected version, source dates, intervals, enabled |
-| POST /refresh/candidates | Multipart `file` and JSON `options`: request UUID, expected version, mode, keys, duplicate rule, source dates |
+| POST /refresh/candidates | Multipart `file` and JSON `options`: request UUID, expected version, mode, keys, duplicate rule, source dates (single request, kept for compatibility) |
+| POST /refresh/candidates/from-upload-session | JSON: the same options plus `session_id` of a complete upload session for this dataset (used by the web form) |
 | POST /workspaces/{w}/refresh-candidates/{id}/review | Explicit `definition`, or `reject: true` |
 | POST /workspaces/{w}/refresh-candidates/{id}/activate | Validate retained source again and atomically activate |
 | GET/POST /monitors | Shared methods and the caller's private rules/outcomes; create a method |

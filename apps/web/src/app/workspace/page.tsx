@@ -1441,7 +1441,7 @@ export default function WorkspacePage() {
                   <details className="uploadOptions">
                     <summary>Supported files & limits</summary>
                     <p>
-                      CSV in UTF-8 or a spreadsheet (the first sheet with data is imported; you can import other sheets afterwards), up to 20 MiB. Use
+                      CSV in UTF-8 or a spreadsheet (the first sheet with data is imported; you can import other sheets afterwards), up to 500 MB. Use
                       unique headers, values only, and no merged cells. Maximum
                       100,000 rows, 1,000 columns, and 1,000,000 cells including
                       the header. Your original file is retained.
@@ -2123,6 +2123,7 @@ export default function WorkspacePage() {
                       key={`refresh-${root}-${revisionTick}`}
                       root={root}
                       request={request}
+                      transport={authorizedResponse}
                       onReview={reviewUnderstanding}
                       onActivated={async (id) => {
                         const available = await request<Upload[]>(

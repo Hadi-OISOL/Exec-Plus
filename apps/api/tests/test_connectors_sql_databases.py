@@ -176,8 +176,70 @@ def test_encrypted_sessions_work_and_unverifiable_certificates_are_refused(serve
     connector = kind(HostPolicy(True))
     assert connector.validate({**reader, "tls": "require"})
     if name != "sqlserver":
-        with pytest.raises(ConnectorApiError):
+        with pytest.raises(ConnectorApiError) as unverified:
             connector.validate({**reader, "tls": "verify"})
+        assert (unverified.value.status, unverified.value.code) == (422, "tls_unverified")
+
+
+def _fresh_mysql_login(admin, database):
+    user, secret = "plain_" + uuid4().hex[:8], "Pl!" + uuid4().hex
+    with admin.connect() as connection:
+        connection.exec_driver_sql(f"CREATE USER '{user}'@'%%' IDENTIFIED BY '{secret}'")
+        connection.exec_driver_sql(f"GRANT SELECT ON `{database}`.* TO '{user}'@'%%'")
+        connection.commit()
+    return user, secret
+
+
+def test_a_first_unencrypted_sign_in_with_tls_off_connects_without_encryption(server):
+    name, kind, _, reader, _, admin = server
+    if name == "sqlserver":
+        connector = kind(HostPolicy(True))
+        assert connector.validate({**reader, "tls": "off"})
+        return
+    user, secret = _fresh_mysql_login(admin, reader["database"])
+    plain = {**reader, "user": user, "password": secret, "tls": "off"}
+    connector = kind(HostPolicy(True))
+    assert connector.validate(plain)
+    with connector._connection(plain) as connection:
+        cipher = connection.exec_driver_sql("SHOW SESSION STATUS LIKE 'Ssl_cipher'").one()[1]
+    assert not cipher
+
+
+def test_servers_without_tls_connect_when_allowed_and_refuse_clearly_when_tls_is_required():
+    raw = os.environ.get("EXECPLUS_TEST_MYSQL_PLAIN_URL")
+    if not raw:
+        pytest.skip("Set EXECPLUS_TEST_MYSQL_PLAIN_URL to a MySQL server started without TLS")
+    url = make_url(raw)
+    admin = create_engine(url)
+    database = "plain_" + uuid4().hex[:8]
+    with admin.connect() as connection:
+        connection.exec_driver_sql(f"CREATE DATABASE `{database}`")
+        connection.commit()
+    user, secret = _fresh_mysql_login(admin, database)
+    base = dict(
+        host=url.host or "localhost",
+        port=str(url.port),
+        database=database,
+        user=user,
+        password=secret,
+    )
+    try:
+        trusted = MySqlConnector(HostPolicy(True))
+        assert trusted.validate({**base, "tls": "off"})
+        assert trusted.validate(base)
+        for mode in ("require", "verify"):
+            with pytest.raises(ConnectorApiError) as refused:
+                trusted.validate({**base, "tls": mode})
+            assert (refused.value.status, refused.value.code) == (422, "tls_unavailable")
+            with pytest.raises(ConnectorApiError) as listing:
+                trusted.sources(session({**base, "tls": mode}), None)
+            assert listing.value.code == "tls_unavailable"
+    finally:
+        with admin.connect() as connection:
+            connection.exec_driver_sql(f"DROP DATABASE `{database}`")
+            connection.exec_driver_sql(f"DROP USER '{user}'@'%%'")
+            connection.commit()
+        admin.dispose()
 
 
 def test_schemas_tables_and_views_are_listed_with_approximate_row_counts(server):

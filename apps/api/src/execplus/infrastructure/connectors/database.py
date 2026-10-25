@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from typing import Any, BinaryIO, Literal
 from urllib.parse import quote, unquote
 
+from pymysql import _auth as mysql_auth  # type: ignore[import-untyped]
 from sqlalchemy import (
     MetaData,
     Table,
@@ -59,6 +60,7 @@ BATCH_ROWS = 2000
 STATEMENT_SECONDS = 120
 TLS_MODES = ("require", "verify", "off")
 QUERY_PREFIX = "query/"
+SSL_CONNECTION_ERROR = 2026
 
 
 def _is_binary(column: Any) -> bool:
@@ -129,6 +131,9 @@ class SqlDatabaseConnector:
     def _prepare(self, engine: Engine, tls: str) -> None:
         return None
 
+    def _refusal(self, error: SQLAlchemyError) -> ConnectorApiError | None:
+        return None
+
     def _engine(self, credentials: dict[str, str]) -> Engine:
         host = credentials.get("host", "").strip()
         if not host or any(char in host for char in "/@ "):
@@ -164,8 +169,8 @@ class SqlDatabaseConnector:
             with engine.connect() as connection:
                 yield connection
                 connection.rollback()
-        except SQLAlchemyError:
-            raise ConnectorApiError(502, "database_error") from None
+        except SQLAlchemyError as error:
+            raise self._refusal(error) or ConnectorApiError(502, "database_error") from None
         finally:
             engine.dispose()
 
@@ -175,8 +180,8 @@ class SqlDatabaseConnector:
             with engine.connect() as connection:
                 read_only = self._check_read_only(connection)
                 connection.rollback()
-        except SQLAlchemyError:
-            raise ConnectorApiError(401, "connection_failed") from None
+        except SQLAlchemyError as error:
+            raise self._refusal(error) or ConnectorApiError(401, "connection_failed") from None
         finally:
             engine.dispose()
         if not read_only:
@@ -330,6 +335,16 @@ class PostgresConnector(SqlDatabaseConnector):
         return {str(name): int(count) for name, count in rows if count is not None and count >= 0}
 
 
+class PlaintextSafeCachingSha2:
+    """PyMySQL 1.2.3 drops the final OK packet of caching_sha2 RSA sign-in without TLS."""
+
+    def __init__(self, connection: Any) -> None:
+        self.connection = connection
+
+    def authenticate(self, packet: Any) -> Any:
+        return mysql_auth.caching_sha2_password_auth(self.connection, packet)
+
+
 class MySqlConnector(SqlDatabaseConnector):
     id = "mysql"
     label = "MySQL or MariaDB database"
@@ -347,12 +362,13 @@ class MySqlConnector(SqlDatabaseConnector):
             write_timeout=STATEMENT_SECONDS,
             charset="utf8mb4",
             init_command="SET SESSION TRANSACTION READ ONLY",
+            auth_plugin_map={"caching_sha2_password": PlaintextSafeCachingSha2},
         )
         if tls == "off":
             args["ssl_disabled"] = True
         elif tls == "verify":
             args["ssl"] = ssl.create_default_context()
-        else:
+        elif tls or not self.policy.allow_private:
             context = ssl.create_default_context()
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
@@ -376,6 +392,17 @@ class MySqlConnector(SqlDatabaseConnector):
                     row = cursor.fetchone()
                     if not row or not row[1]:
                         raise ConnectorApiError(422, "tls_unavailable")
+
+    def _refusal(self, error: SQLAlchemyError) -> ConnectorApiError | None:
+        reason = getattr(error, "orig", None)
+        if isinstance(reason, ConnectorApiError):
+            return reason
+        detail = getattr(reason, "args", ())
+        if detail and detail[0] == SSL_CONNECTION_ERROR:
+            return ConnectorApiError(422, "tls_unavailable")
+        if "CERTIFICATE_VERIFY_FAILED" in str(reason):
+            return ConnectorApiError(422, "tls_unverified")
+        return None
 
     def _check_read_only(self, connection: Connection) -> bool:
         try:

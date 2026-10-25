@@ -17,7 +17,7 @@ from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.dataset_access import authorize_sources, require_full_access
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.domain.dataset_access import denied
-from execplus.domain.ingestion import IngestionError, Membership, Upload, User
+from execplus.domain.ingestion import IngestionError, Membership, Upload, User, file_too_large
 from execplus.domain.profiling import Revision, TableData, reconstruct
 from execplus.domain.refresh import (
     Observation,
@@ -258,7 +258,7 @@ class RefreshService:
         stored: list[Upload],
     ) -> tuple[Upload, Revision, TableData]:
         if len(content) > self.uploads.max_upload_bytes:
-            fail("file_too_large", "Files and derived snapshots must be at most 20 MiB.", 413)
+            raise file_too_large(self.uploads.max_upload_bytes)
         stream = BytesIO(content)
         structure = self.uploads.parser.parse(stream, filename, content_type)
         table = self.uploads.parser.read_table(stream, structure.format)

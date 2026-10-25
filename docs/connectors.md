@@ -72,8 +72,18 @@ pyodbc because its wheels bundle FreeTDS, so the slim API image needs no system 
   store; not offered for SQL Server because FreeTDS does not verify) and *Off*. *Off* is only
   offered and accepted where private hosts are allowed (local/test or
   `EXECPLUS_CONNECTOR_ALLOW_PRIVATE_HOSTS`). Leaving it empty keeps the previous default:
-  PostgreSQL `prefer` locally and `require` elsewhere; MySQL tries TLS and, outside trusted
-  deployments, refuses a server that does not encrypt (`connector_tls_unavailable`).
+  PostgreSQL `prefer` locally and `require` elsewhere; MySQL tries TLS and falls back to plain
+  text only in trusted deployments, and elsewhere refuses a server that does not encrypt.
+  An explicit *Required* or *verified* choice is never downgraded: a server without TLS gets
+  `connector_tls_unavailable` and an unverifiable certificate gets `connector_tls_unverified`
+  (both 422 with a plain-language message) instead of a generic sign-in failure.
+- **MySQL without TLS:** PyMySQL 1.2.3 loses the final OK packet of the `caching_sha2_password`
+  RSA sign-in used when a session is not encrypted and the server has not yet cached the
+  password (first sign-in after a server restart), which crashed *Off* connections with an
+  `AttributeError`. The connector registers a small `caching_sha2_password` handler that lets
+  PyMySQL finish that exchange; drop it once a fixed PyMySQL is pinned. SQL Server (pymssql /
+  FreeTDS) maps *Required* to `encryption=require` and *Off* to `off` and was verified to connect
+  in each mode; it has no equivalent crash.
 - **Read-only sessions:** PostgreSQL uses `default_transaction_read_only=on` and a 30 s statement
   timeout. MySQL/MariaDB run `SET SESSION TRANSACTION READ ONLY` on connect plus a 120 s
   statement limit (`max_execution_time` / `max_statement_time`). SQL Server has no read-only
@@ -146,7 +156,8 @@ upload format readers handle `.sqlite`/`.db`); there is no SQLite connector form
 MySQL 8.4, MariaDB 11.4 and SQL Server 2022 (Developer edition container) are tested against
 real servers: connect, wrong password, TLS, listing with counts, previews, exact DECIMAL(18,4)
 copies, allowed and refused custom queries, read-only enforcement with an account that could
-write, private-host and TLS rules, a 300,000-row batched export with bounded memory, and an
+write, private-host and TLS rules (including a MySQL 8.4 server started without TLS:
+*Off* and the empty default connect, *Required*/*verified* are refused clearly), a 300,000-row batched export with bounded memory, and an
 API journey (sealed password, import, custom-query import, staged refresh, tenant isolation).
 The PostgreSQL connector is tested against a real PostgreSQL server, including the read-only
 guarantee and an end-to-end API journey with a least-privilege role (sealed password, browse,

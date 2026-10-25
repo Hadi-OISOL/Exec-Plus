@@ -271,7 +271,15 @@ class ConnectorService:
         if error.code == "tls_unavailable":
             return IngestionError(
                 "connector_tls_unavailable",
-                "That server does not offer an encrypted connection. Turn on TLS for it.",
+                "That server does not offer an encrypted (TLS) connection. Enable TLS on the "
+                "database server, or choose Encryption off if it is on a trusted network.",
+                422,
+            )
+        if error.code == "tls_unverified":
+            return IngestionError(
+                "connector_tls_unverified",
+                "The server's TLS certificate could not be verified. Use a trusted certificate "
+                "or choose Encryption require.",
                 422,
             )
         if error.code == "control_plane_database":
