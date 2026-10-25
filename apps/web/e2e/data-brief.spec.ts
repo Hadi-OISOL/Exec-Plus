@@ -50,7 +50,7 @@ async function readingLeadsOverview(page: Page, panel: ReturnType<Page["getByRol
 
 async function upload(page: Page, person: ReturnType<typeof account>, source = file) {
   await page.getByLabel("CSV or Excel file").setInputFiles(source);
-  const created = page.waitForResponse(r => r.url().includes("/uploads?filename=") && r.request().method() === "POST");
+  const created = page.waitForResponse(r => /\/upload-sessions\/[^/]+\/complete$/.test(new URL(r.url()).pathname) && r.request().method() === "POST");
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
   expect((await created).status()).toBe(201);
   const get = async (path: string) => (await page.request.get(api + path, { headers: person.headers })).json();

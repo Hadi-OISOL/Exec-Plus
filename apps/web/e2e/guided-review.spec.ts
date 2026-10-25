@@ -19,9 +19,9 @@ async function signIn(page: Page, person: ReturnType<typeof account>, query = ""
 }
 async function upload(page: Page, content = "city,amount,cost\nKarachi,0.10,0.05\nLahore,0.20,0.15\n") {
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "guided.csv", mimeType: "text/csv", buffer: Buffer.from(content) });
-  const response = page.waitForResponse(r => r.url().includes("/uploads?filename=") && r.request().method() === "POST");
+  const response = page.waitForResponse(r => /\/upload-sessions\/[^/]+\/complete$/.test(new URL(r.url()).pathname) && r.request().method() === "POST");
   await page.getByRole("button", { name: "Upload file", exact: true }).click();
-  const r = await response; expect(r.status()).toBe(201); const stored = await r.json();
+  const r = await response; expect(r.status()).toBe(201); const stored = (await r.json()).upload;
   const root = `/workspaces/${stored.workspace_id}/datasets/${stored.dataset_id}/uploads/${stored.id}`;
   const panel = page.getByRole("region", { name: "Guided data review", exact: true });
   await expect(panel).toHaveCount(0);
