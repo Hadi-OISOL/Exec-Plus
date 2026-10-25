@@ -22,6 +22,7 @@ from execplus.application.services.activation import ActivationService
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.artifacts import ArtifactService
+from execplus.application.services.auto_dashboards import AutoDashboardService
 from execplus.application.services.catalog import CatalogService
 from execplus.application.services.company_consolidation import CompanyConsolidationService
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
@@ -71,7 +72,11 @@ from execplus.infrastructure.columnar.converter import DuckDBColumnarConverter
 from execplus.infrastructure.columnar.store import S3ColumnarStore
 from execplus.infrastructure.connectors.base import HostPolicy
 from execplus.infrastructure.connectors.bigquery import BigQueryConnector
-from execplus.infrastructure.connectors.database import PostgresConnector
+from execplus.infrastructure.connectors.database import (
+    MySqlConnector,
+    PostgresConnector,
+    SqlServerConnector,
+)
 from execplus.infrastructure.connectors.odoo import OdooConnector
 from execplus.infrastructure.connectors.quickbooks import QuickBooksConnector
 from execplus.infrastructure.connectors.xero import XeroConnector
@@ -179,6 +184,10 @@ def build_connectors(settings: Settings) -> dict[str, Connector]:
         found["postgresql"] = PostgresConnector(
             policy, (own.host or "localhost", own.port or 5432, own.database or "")
         )
+    if settings.mysql_connector_enabled:
+        found["mysql"] = MySqlConnector(policy)
+    if settings.mssql_connector_enabled:
+        found["sqlserver"] = SqlServerConnector(policy)
     return found
 
 
@@ -328,6 +337,7 @@ def build_runtime(settings: Settings) -> "Runtime":
             public_api_url=settings.public_api_url,
             web_origin=settings.web_origin,
             max_rows=settings.connector_max_rows,
+            database_max_rows=settings.database_connector_max_rows,
         )
         if connector_set and vault
         else None
@@ -430,6 +440,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         upload_chunk_bytes=settings.upload_chunk_bytes,
         upload_inline_bytes=settings.upload_inline_bytes,
         upload_session_hours=settings.upload_session_hours,
+        brief_values=settings.data_brief_sample_values > 0,
     )
 
 
@@ -475,6 +486,7 @@ class Runtime:
     upload_chunk_bytes: int = 8 * 1024 * 1024
     upload_inline_bytes: int = 20 * 1024 * 1024
     upload_session_hours: int = 24
+    brief_values: bool = False
 
     @cached_property
     def upload_sessions(self) -> UploadSessionService:
@@ -485,6 +497,18 @@ class Runtime:
             chunk_bytes=self.upload_chunk_bytes,
             inline_bytes=self.upload_inline_bytes,
             session_hours=self.upload_session_hours,
+        )
+
+    @cached_property
+    def auto_dashboards(self) -> AutoDashboardService:
+        return AutoDashboardService(
+            SQLUnitOfWork(self.engine),
+            self.analytics,
+            self.intent_router.patterns.statistics
+            if self.intent_router.patterns
+            else ScipyPatternStatistics(),
+            self.intent_router.model,
+            self.brief_values,
         )
 
     @cached_property

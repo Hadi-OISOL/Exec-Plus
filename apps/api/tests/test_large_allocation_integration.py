@@ -355,7 +355,7 @@ def test_scheduled_allocation_saves_checked_periods_and_reopens_without_solving(
     integration, monkeypatch
 ):
     env = integration
-    owner, _, wid, _, _, root = fixture(env)
+    owner, _, _wid, _, _, root = fixture(env)
     response = create(
         env,
         owner,

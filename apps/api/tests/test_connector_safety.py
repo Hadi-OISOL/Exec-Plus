@@ -126,6 +126,8 @@ def test_each_platform_is_built_only_from_its_own_settings():
         "zoho_books": dict(zoho_client_id="z", zoho_client_secret="zs"),
         "odoo": dict(odoo_enabled=True),
         "postgresql": dict(database_connector_enabled=True),
+        "mysql": dict(mysql_connector_enabled=True),
+        "sqlserver": dict(mssql_connector_enabled=True),
         "bigquery": dict(bigquery_enabled=True, **google),
     }
     for platform, values in cases.items():
@@ -143,6 +145,8 @@ def test_each_platform_is_built_only_from_its_own_settings():
         dict(bigquery_enabled=True),
         dict(odoo_enabled=True, token_encryption_key=""),
         dict(database_connector_enabled=True, token_encryption_key="not-a-fernet-key"),
+        dict(mysql_connector_enabled=True, token_encryption_key=""),
+        dict(mssql_connector_enabled=True, token_encryption_key="not-a-fernet-key"),
     ],
 )
 def test_half_configured_platforms_refuse_to_start(values):
@@ -176,6 +180,8 @@ def test_unconfigured_platforms_are_listed_without_any_connect_form():
         (500, "", "connector_unavailable", 503),
         (503, "", "connector_unavailable", 503),
         (422, "control_plane_database", "connector_host_blocked", 422),
+        (403, "not_read_only", "connector_not_read_only", 403),
+        (422, "tls_unavailable", "connector_tls_unavailable", 422),
     ],
 )
 def test_platform_failures_map_to_stable_user_errors(status, code, expected, http):

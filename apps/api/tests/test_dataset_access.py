@@ -613,6 +613,7 @@ def test_policy_migration_preserves_existing_tables_and_refuses_nonempty_downgra
     env = integration
     owner, _, wid, did, _, root = prepare(env, CONTENT)
     names = set(s.metadata.tables) - {
+        "auto_dashboards",
         "dataset_access_policies",
         "incidents",
         "incident_occurrences",

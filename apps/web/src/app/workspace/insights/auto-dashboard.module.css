@@ -1,0 +1,16 @@
+/* Use case: Lays out the automatic dataset dashboard above the analyst overview.
+What it does: Styles the header controls, tile editor and alert with shared tokens in light and dark themes, down to 320px wide. */
+
+.board { padding-bottom: 8px; border-bottom: 1px solid var(--color-border); }
+.header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.controls button[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary-text); background: var(--color-primary-subtle); }
+.controls button:disabled, .editor button:disabled { opacity: .6; cursor: progress; }
+.tile { align-content: start; }
+.editor { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 8px 16px; margin: 0; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); color: var(--color-text); }
+.editor legend { padding: 0 6px; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); }
+.editor label { display: flex; align-items: flex-start; gap: 8px; min-height: 32px; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; cursor: pointer; }
+.editor input { margin-top: 3px; accent-color: var(--color-primary); }
+.editor button { justify-self: start; grid-column: 1 / -1; }
+.alert { margin: 0; padding: 10px 14px; border-radius: var(--radius-md); background: var(--color-warning-subtle); color: var(--color-warning); font-size: 14px; }
+@media (max-width: 560px) { .controls { width: 100%; } .controls button { flex: 1 1 auto; justify-content: center; } .editor label { min-height: 44px; } }

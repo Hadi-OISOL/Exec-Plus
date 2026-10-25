@@ -108,3 +108,47 @@ What it does: Reuses the workspace colour tokens so the cards match the rest of 
   padding: 0;
   list-style: none;
 }
+.rows {
+  align-self: center;
+  color: var(--muted, var(--color-text-muted));
+  font-size: 12px;
+}
+.query {
+  display: grid;
+  gap: 6px;
+}
+.query label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.query textarea {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  width: 100%;
+}
+.query span {
+  color: var(--muted, var(--color-text-muted));
+  font-size: 12px;
+}
+.preview {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.scroll table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.scroll th,
+.scroll td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line, var(--color-border));
+  text-align: left;
+  white-space: nowrap;
+}
