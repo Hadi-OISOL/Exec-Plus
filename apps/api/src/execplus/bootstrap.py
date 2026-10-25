@@ -236,7 +236,10 @@ def build_runtime(settings: Settings) -> "Runtime":
                         memory_limit_mb=settings.columnar_query_memory_mb,
                         threads=settings.columnar_query_threads,
                         spill_limit_mb=settings.columnar_spill_mb,
-                        spill_directory=settings.columnar_work_directory,
+                        spill_directory=str(
+                            Path(settings.columnar_work_directory or tempfile.gettempdir())
+                            / "execplus-query-spill"
+                        ),
                     ),
                 ),
             )
