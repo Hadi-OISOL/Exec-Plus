@@ -42,7 +42,7 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ### October 25 (evening) — goal-aware agents, spelled dates and eight-agent merge live
 
-- Release **790e3461b0ef0869** (commit 9b49992, CSS fix for the squeezed hypotheses column, on 33acf3748e711cee / 0114968; merges 259e856) is active on unchanged **0034**.
+- Release **5e046154794e5930** (commit 9261b35: no chat jumps on reopen; 9b49992 CSS fix for the squeezed hypotheses column; on 33acf3748e711cee / 0114968; merges 259e856) is active on unchanged **0034**.
   An earlier same-day candidate eb771f71bee9e2d6 was activated first; the live check found two
   defects fixed in 0114968. Checked backups 20261025T135422Z / 20261025T140358Z (pre) and
   20261025T140514Z (post, checksums OK). Kit: `data/verification/2026-10-27-claude-release/`
