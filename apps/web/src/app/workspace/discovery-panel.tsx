@@ -13,6 +13,7 @@ import { CountUpValue, StatTile } from "./charts/stat-tile";
 import { donutEligible } from "./charts/chart-values";
 import { InsightsOverview, ProposedActions, proposedFromInsights, useInsights, useInsightWords } from "./insights/insights-overview";
 import type { ProposedItem } from "./insights/insights-overview";
+import { AutoDashboardView } from "./insights/auto-dashboard";
 import type { ActionIntent } from "./insights/insights-model";
 import styles from "./dashboard-presentation.module.css";
 import overview from "./discovery-panel.module.css";
@@ -389,6 +390,7 @@ export function DiscoveryPanel({
           ))}
         </details>
       </div>
+      <AutoDashboardView root={root} request={request} enabled={enabled} fields={fields} onReview={onReview} />
       <InsightsOverview state={insights} retry={retryInsights} onAction={act} fields={fields} words={words} />
       {discovery.findings.length > 0 && <details className={`legacyCalculations ${overview.legacy}`} open={Boolean(insights?.error || (insights && !insights.payload?.insights.length))}>
       <summary>More detail: individual calculations</summary>

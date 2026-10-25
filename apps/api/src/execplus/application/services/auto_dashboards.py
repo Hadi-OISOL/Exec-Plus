@@ -382,6 +382,7 @@ class AutoDashboardService:
         did: UUID,
         uid: UUID,
         chosen: list[str] | None = None,
+        reuse: bool = False,
     ) -> AutoDashboard:
         brief, cards, context, table, scope = await self.brief(actor, wid, did, uid)
         candidates = [] if _blocked(context) else enumerate_candidates(context, brief, cards)
@@ -425,6 +426,8 @@ class AutoDashboardService:
                 item for item in repo.auto_dashboards(wid, did, uid) if item.owner_id == actor.id
             ]
             latest = max(mine, key=lambda item: item.number) if mine else None
+            if reuse and latest and latest.payload["sources"] == list(context.view.sources):
+                return latest
             record = AutoDashboard(
                 uuid4(),
                 wid,
@@ -480,7 +483,7 @@ class AutoDashboardService:
             latest = max(mine, key=lambda item: item.number) if mine else None
             others = self._shared(repo, actor, wid, items)
         if latest is None or latest.payload["sources"] != list(context.view.sources):
-            latest = await self.build(actor, wid, did, uid)
+            latest = await self.build(actor, wid, did, uid, reuse=True)
         return latest, others
 
     def _shared(

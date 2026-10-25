@@ -51,6 +51,7 @@ export function chartSpecFromInsight(chart: InsightChart | null | undefined): Ch
       return { label, value: text(row[y.field]) ?? "0", ...(/^other\b/i.test(label) ? { members: [] } : {}) };
     }) };
     case "bar": return { kind: "bar", title: chart.title, subtitle, unit, horizontal: true, categories: rows.map(row => text(row[x.field]) ?? "Missing"), series: [{ name: y.label, values: rows.map(row => text(row[y.field])) }] };
+    case "line": return { kind: "line", title: chart.title, subtitle, unit, x: rows.map(row => text(row[x.field]) ?? "Missing"), series: [{ name: y.label, values: rows.map(row => text(row[y.field])) }] };
     case "histogram": return { kind: "histogram", title: chart.title, subtitle: [x.label, x.unit].filter(Boolean).join(" · ") || undefined, bins: rows.map(row => ({ label: text(row[x.field]) ?? "", count: text(row[y.field]) ?? "0" })) };
     case "heatmap": {
       const field = chart.value?.field ?? "score";
