@@ -19,6 +19,7 @@ from execplus.infrastructure.connectors import zoho
 from execplus.infrastructure.connectors.base import HostPolicy
 from execplus.infrastructure.connectors.bigquery import SCOPES as BIGQUERY_SCOPES
 from execplus.infrastructure.connectors.bigquery import BigQueryConnector
+from execplus.infrastructure.connectors.database import MySqlConnector
 from execplus.infrastructure.connectors.odoo import OdooConnector
 from execplus.infrastructure.connectors.quickbooks import QuickBooksConnector
 from execplus.infrastructure.connectors.xero import XeroConnector
@@ -182,6 +183,7 @@ def test_unconfigured_platforms_are_listed_without_any_connect_form():
         (422, "control_plane_database", "connector_host_blocked", 422),
         (403, "not_read_only", "connector_not_read_only", 403),
         (422, "tls_unavailable", "connector_tls_unavailable", 422),
+        (422, "tls_unverified", "connector_tls_unverified", 422),
     ],
 )
 def test_platform_failures_map_to_stable_user_errors(status, code, expected, http):
@@ -204,3 +206,29 @@ def test_malformed_platform_rows_are_refused_as_unexpected_replies():
             lambda: shapeless.fetch(ConnectorSession("t", {"realm_id": "1"}), "Invoice", 5)
         )
     assert wrapped.value.code == "connector_unexpected_response"
+
+
+def test_mysql_tls_choices_never_downgrade_a_required_encryption():
+    trusted, strict = MySqlConnector(HostPolicy(True)), MySqlConnector(HostPolicy(False))
+    assert trusted._connect_args("off")["ssl_disabled"] is True
+    preferred = trusted._connect_args("")
+    assert "ssl" not in preferred and "ssl_disabled" not in preferred
+    for connector, mode in ((trusted, "require"), (trusted, "verify"), (strict, "")):
+        assert "ssl" in connector._connect_args(mode)
+    assert trusted._connect_args("verify")["ssl"].check_hostname is True
+    assert "caching_sha2_password" in trusted._connect_args("off")["auth_plugin_map"]
+
+
+def test_mysql_driver_tls_failures_become_clear_connector_errors():
+    import pymysql
+    from sqlalchemy.exc import OperationalError
+
+    def wrapped(reason):
+        return OperationalError("connect", {}, reason)
+
+    connector = MySqlConnector(HostPolicy(True))
+    missing = wrapped(pymysql.err.OperationalError(2026, "SSL is required"))
+    assert connector._refusal(missing).code == "tls_unavailable"
+    unverified = wrapped(pymysql.err.OperationalError(2003, "[SSL: CERTIFICATE_VERIFY_FAILED]"))
+    assert connector._refusal(unverified).code == "tls_unverified"
+    assert connector._refusal(wrapped(pymysql.err.OperationalError(1045, "denied"))) is None
