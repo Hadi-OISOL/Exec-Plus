@@ -277,7 +277,7 @@ class CompanyConsolidationService:
             wid,
             did,
             name,
-            len(table.rows),
+            table.row_count,
             raw["amount_column"],
             "analysis",
             (),

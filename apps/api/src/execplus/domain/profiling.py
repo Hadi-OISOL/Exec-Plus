@@ -49,6 +49,9 @@ class TableData:
     def row_count(self) -> int:
         return len(self.rows)
 
+    def head(self, limit: int) -> tuple[tuple[str, ...], ...]:
+        return self.rows[:limit]
+
 
 @dataclass(frozen=True)
 class Revision:

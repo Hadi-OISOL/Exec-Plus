@@ -114,3 +114,29 @@ def test_chunked_ndjson_upload_is_ingested_to_parquet(integration, tmp_path):
     )
     expected = sum(Decimal(f"{index}.05") for index in range(20_000))
     assert Decimal(query.json()["rows"][0][0]) == expected
+
+
+def test_brief_and_auto_dashboard_work_above_the_row_feature_limit(integration, tmp_path):
+    env = integration
+    enable_columnar(env, tmp_path)
+    owner, _ = identity(env, "columnar-dashboard@example.test")
+    wid = workspace(env, owner)
+    did = dataset(env, owner, wid)
+    lines = ["order_date,region,amount"]
+    lines += [
+        f"2024-{index % 12 + 1:02d}-{index % 28 + 1:02d},{('North', 'South')[index % 2]},"
+        f"{index % 500}.25"
+        for index in range(150_000)
+    ]
+    response = upload(env, owner, wid, did, ("\n".join(lines) + "\n").encode())
+    assert response.status_code == 201, response.text
+    root = f"/workspaces/{wid}/datasets/{did}/uploads/{response.json()['id']}"
+    brief = env.client.get(root + "/dataset-brief", headers=owner)
+    assert brief.status_code == 200, brief.text
+    assert brief.json()["dataset"]["rows"] == "150000"
+    board = env.client.get(root + "/auto-dashboard", headers=owner)
+    assert board.status_code == 200, board.text
+    query_ids = [key for tile in board.json()["dashboard"]["tiles"] for key in tile["query_ids"]]
+    assert query_ids
+    replay = env.client.post(f"/workspaces/{wid}/queries/{query_ids[0]}/replay", headers=owner)
+    assert replay.status_code == 200, replay.text

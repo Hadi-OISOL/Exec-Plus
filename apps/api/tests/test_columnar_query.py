@@ -40,6 +40,7 @@ from execplus.domain.semantics import (
     plan_rows,
 )
 from execplus.infrastructure.columnar.converter import DuckDBColumnarConverter
+from execplus.infrastructure.columnar.store import S3ColumnarStore
 from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 
 EXTENSIONS = Path(
@@ -111,6 +112,9 @@ async def test_parquet_queries_match_in_memory_results(tmp_path):
     table, view, legacy, _ = columnar_snapshot(tmp_path, HEADERS, rows)
     legacy_view = dataset_view(profile_for(legacy, PROFILE_V5))
     assert legacy_view == view
+    head = S3ColumnarStore(None, "", tmp_path, 1).head(table.parquet_path(), 2)
+    assert head[0][0] == rows[0][0].strip() and head[0][2] == str(Decimal(rows[0][2]).normalize())
+    assert len(head) == 2
     dataset_id = uuid4()
     scope = WorkspaceScope(uuid4(), uuid4(), frozenset({"owner"}), frozenset({dataset_id}))
     executor = DuckDBQueryExecutor(30, 256)

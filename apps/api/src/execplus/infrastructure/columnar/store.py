@@ -10,9 +10,12 @@ import hashlib
 import os
 import tempfile
 import time
+from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import duckdb
 from botocore.exceptions import BotoCoreError, ClientError
 
 if TYPE_CHECKING:
@@ -26,6 +29,18 @@ def columnar_key(upload: Upload) -> str:
         f"workspaces/{upload.workspace_id}/datasets/{upload.dataset_id}"
         f"/uploads/{upload.id}/columnar-v1.parquet"
     )
+
+
+def _text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, Decimal):
+        return format(value.normalize(), "f") if value else "0"
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    return str(value)
 
 
 def _sha256(path: Path) -> str:
@@ -94,6 +109,16 @@ class S3ColumnarStore:
             staged.unlink(missing_ok=True)
         self._prune(cached)
         return str(cached)
+
+    def head(self, path: str, limit: int) -> tuple[tuple[str, ...], ...]:
+        connection = duckdb.connect(config={"enable_external_access": "true"})
+        try:
+            rows = connection.execute(
+                "SELECT * FROM read_parquet(?) LIMIT ?", [path, limit]
+            ).fetchall()
+        finally:
+            connection.close()
+        return tuple(tuple(_text(value) for value in row) for row in rows)
 
     def _prune(self, keep: Path) -> None:
         files = sorted(

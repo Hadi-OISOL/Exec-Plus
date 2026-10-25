@@ -133,7 +133,7 @@ async def run_contribution(
             wid,
             plan.dataset_id,
             dataset_name,
-            len(table.rows),
+            table.row_count,
             "contribution records",
             "analysis",
             (),

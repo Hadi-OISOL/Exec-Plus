@@ -224,7 +224,7 @@ class MonitoringService:
                 wid,
                 did,
                 name,
-                len(table.rows),
+                table.row_count,
                 request.metric,
                 "count",
                 (),

@@ -90,9 +90,14 @@ def revision_table(
         return original()
 
     columns = cast(list[dict[str, Any]], revision.profile["columns"])
+
+    def path() -> str:
+        return store.local(upload, manifest.key, manifest.sha256, manifest.size)
+
     return ColumnarTable(
         tuple(str(column["name"]) for column in columns),
         manifest,
-        lambda: store.local(upload, manifest.key, manifest.sha256, manifest.size),
+        path,
         rows,
+        lambda limit: store.head(path(), limit),
     )

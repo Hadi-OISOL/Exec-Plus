@@ -98,6 +98,7 @@ class ColumnarTable(TableData):
     manifest: ColumnarManifest
     _parquet_path: Callable[[], str]
     _materialize: Callable[[], TableData]
+    _head: Callable[[int], tuple[tuple[str, ...], ...]]
     _rows: tuple[tuple[str, ...], ...] | None
 
     def __init__(
@@ -106,12 +107,14 @@ class ColumnarTable(TableData):
         manifest: ColumnarManifest,
         parquet_path: Callable[[], str],
         materialize: Callable[[], TableData],
+        head: Callable[[int], tuple[tuple[str, ...], ...]] | None = None,
     ) -> None:
         object.__setattr__(self, "headers", headers)
         object.__setattr__(self, "manifest", manifest)
         object.__setattr__(self, "_parquet_path", parquet_path)
         object.__setattr__(self, "_materialize", materialize)
         object.__setattr__(self, "_rows", None)
+        object.__setattr__(self, "_head", head or (lambda limit: self.rows[:limit]))
 
     @property
     def rows(self) -> tuple[tuple[str, ...], ...]:
@@ -129,6 +132,10 @@ class ColumnarTable(TableData):
     @property
     def row_count(self) -> int:
         return self.manifest.rows
+
+    def head(self, limit: int) -> tuple[tuple[str, ...], ...]:
+        """First rows as canonical text from Parquet (decimals without padding zeros)."""
+        return self._head(limit)
 
     def parquet_path(self) -> str:
         return self._parquet_path()
