@@ -37,6 +37,7 @@ from execplus.domain.audit import MANAGER_ACTIONS, SHARED_ACTIONS, audit_cursor,
 from execplus.domain.columnar import ColumnarConversion, ColumnarManifest
 from execplus.domain.dataset_access import DatasetAccess, ScopedUploadMetadata, denied
 from execplus.domain.ingestion import (
+    MULTI_TABLE_FORMATS,
     AuditEvent,
     Dataset,
     FileStructure,
@@ -50,6 +51,7 @@ from execplus.domain.ingestion import (
     file_too_large,
     require_manager,
     require_seat_limit,
+    stored_table,
     validate_filename,
 )
 from execplus.domain.profiling import (
@@ -533,6 +535,7 @@ class WorkspaceService:
         _sample_id: str | None = None,
         _publication_guard: Callable[[WorkspaceRepository, Upload, Revision], None] | None = None,
         _quota_session: UUID | None = None,
+        table: str | None = None,
     ) -> Upload:
         with tempfile.TemporaryDirectory(prefix="execplus-ingest-", dir=self.workdir) as work:
             return self._upload(
@@ -547,6 +550,7 @@ class WorkspaceService:
                 _sample_id=_sample_id,
                 _publication_guard=_publication_guard,
                 _quota_session=_quota_session,
+                table=table,
             )
 
     def _upload(
@@ -563,6 +567,7 @@ class WorkspaceService:
         _sample_id: str | None,
         _publication_guard: Callable[[WorkspaceRepository, Upload, Revision], None] | None,
         _quota_session: UUID | None,
+        table: str | None = None,
     ) -> Upload:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
@@ -622,7 +627,7 @@ class WorkspaceService:
             with source.open("wb") as handle:
                 shutil.copyfileobj(content, handle, 1024 * 1024)
             content.seek(0)
-            conversion = self.converter.convert(source, validate_filename(filename), workdir)
+            conversion = self.converter.convert(source, validate_filename(filename), workdir, table)
             source.unlink()
             structure = FileStructure(
                 conversion.format, conversion.rows, len(conversion.headers), 1
@@ -735,6 +740,69 @@ class WorkspaceService:
                     )
             raise
         return upload
+
+    def _stored_tables(
+        self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> tuple[Upload, Dataset, bytes, tuple[tuple[str, int | None], ...], int]:
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            access = require_full_access(repo, actor, workspace_id, dataset_id)
+            upload = repo.upload(workspace_id, dataset_id, upload_id)
+            dataset = repo.dataset(workspace_id, dataset_id)
+        base, index = stored_table(upload.format)
+        if self.converter is None or base not in MULTI_TABLE_FORMATS:
+            return upload, dataset, b"", (), index
+        content = self.storage.read(upload)
+        with tempfile.TemporaryDirectory(prefix="execplus-sheets-", dir=self.workdir) as work:
+            source = Path(work) / f"source.{base}"
+            source.write_bytes(content)
+            tables = self.converter.tables(source, source.name, Path(work))
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self._recheck_upload(repo, actor, upload, access)
+        return upload, dataset, content, tables, index
+
+    def upload_sheets(
+        self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> dict[str, object]:
+        """List the sheets/tables of a stored spreadsheet and which one this upload imported."""
+        _, _, _, tables, index = self._stored_tables(actor, workspace_id, dataset_id, upload_id)
+        return {
+            "sheets": [{"name": name, "rows": rows} for name, rows in tables],
+            "imported": tables[index][0] if index < len(tables) else None,
+        }
+
+    def import_sheet(
+        self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID, sheet: str
+    ) -> Upload:
+        """Import another sheet of a stored file as its own dataset without re-uploading."""
+        if self.converter is None:
+            raise IngestionError(
+                "sheet_import_unavailable", "Importing other sheets is not enabled here.", 409
+            )
+        upload, dataset, content, tables, index = self._stored_tables(
+            actor, workspace_id, dataset_id, upload_id
+        )
+        names = [name for name, _ in tables]
+        if sheet not in names:
+            raise IngestionError("unknown_sheet", "This file has no sheet with that name.", 404)
+        if names.index(sheet) == index:
+            raise IngestionError(
+                "sheet_already_imported", "This sheet is already this dataset.", 409
+            )
+        with self.uow() as repo:
+            repo.workspace(workspace_id, lock=True)
+            self.check_storage(repo, actor.id, upload.size)
+        target = self.create_dataset(actor, workspace_id, f"{dataset.name[:60]} - {sheet[:37]}")
+        return self.upload(
+            actor,
+            workspace_id,
+            target.id,
+            upload.filename,
+            upload.content_type,
+            BytesIO(content),
+            table=sheet,
+        )
 
     def download(self, actor: User, workspace_id: UUID, dataset_id: UUID, upload_id: UUID) -> bytes:
         with self.uow() as repo:

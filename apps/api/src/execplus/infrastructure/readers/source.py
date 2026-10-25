@@ -89,8 +89,23 @@ class ReadResult:
         if table is None:
             return names[0]
         if table not in names:
-            raise IngestionError("unknown_table", "Choose one of the listed tables.", 422)
+            raise IngestionError("unknown_table", "Choose one of the listed sheets or tables.", 404)
         return table
+
+    def first_filled(self, connection: duckdb.DuckDBPyConnection) -> str:
+        """Return the first table with a data row, skipping empty leading sheets."""
+        if len(self.tables) == 1:
+            return self.tables[0].name
+        for info in self.tables:
+            if info.approx_rows == 0:
+                continue
+            try:
+                if self.relation(connection, info.name).limit(1).fetchall():
+                    return info.name
+            except IngestionError as error:
+                if error.code != "unreadable_file":
+                    raise
+        return self.tables[0].name
 
     def relation(
         self, connection: duckdb.DuckDBPyConnection, table: str | None = None
@@ -291,7 +306,7 @@ def open_source(
         except (KeyError, SyntaxError, ValueError) as error:
             raise IngestionError("malformed_excel", "The workbook is not readable.", 422) from error
     elif format in CALAMINE_FORMATS:
-        tables = [TableInfo(name) for name in records.calamine_sheets(path)]
+        tables = [TableInfo(name, rows) for name, rows in records.calamine_sheets(path)]
     elif format == "parquet":
         tables = _parquet_tables(path, options)
     elif format == "sqlite":

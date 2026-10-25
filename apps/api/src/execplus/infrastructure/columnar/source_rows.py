@@ -1,8 +1,9 @@
 """Use case: Opens a retained profile-v5 upload through the shared format readers.
 
-What it does: Names the stored reader format ("r:<suffix>"), opens the first table as an
-all-text relation on a hardened DuckDB connection, and reads bounded exact text rows for
-row-level features, so ingest and later reads see the same strings.
+What it does: Names the stored reader format ("r:<suffix>", plus "#<n>" when sheet/table n other
+than the first was imported), opens that table as an all-text relation on a hardened DuckDB
+connection, and reads bounded exact text rows for row-level features, so ingest and later reads
+see the same strings.
 """
 
 import shutil
@@ -14,7 +15,7 @@ from typing import BinaryIO, Literal
 
 import duckdb
 
-from execplus.domain.ingestion import FileStructure, IngestionError
+from execplus.domain.ingestion import FileStructure, IngestionError, stored_table
 from execplus.domain.profiling import TableData
 from execplus.infrastructure.readers import (
     ReaderOptions,
@@ -27,10 +28,10 @@ READER_PREFIX = "r:"
 _COMPRESSED = frozenset({"gz", "bz2", "xz"})
 
 
-def stored_format(filename: str) -> str:
+def stored_format(filename: str, table_index: int = 0) -> str:
     suffixes = [suffix.lower().lstrip(".") for suffix in PurePosixPath(filename).suffixes]
     chain = suffixes[-2:] if suffixes and suffixes[-1] in _COMPRESSED else suffixes[-1:]
-    format = READER_PREFIX + ".".join(chain)
+    format = READER_PREFIX + ".".join(chain) + (f"#{table_index}" if table_index else "")
     if not chain or len(format) > 16:
         raise IngestionError("unsupported_format", "This file type is not supported.", 415)
     return format
@@ -51,7 +52,9 @@ def open_table(
     memory_limit_mb: int = 1024,
     threads: int = 2,
     max_temp_bytes: int = 8 * 1024**3,
-) -> Iterator[tuple[duckdb.DuckDBPyConnection, duckdb.DuckDBPyRelation, ReadResult]]:
+    table: str | int | None = 0,
+) -> Iterator[tuple[duckdb.DuckDBPyConnection, duckdb.DuckDBPyRelation, ReadResult, int]]:
+    """Open one table: a name, an index, or None for the first table that has data rows."""
     (workdir / "read").mkdir(parents=True, exist_ok=True)
     result = open_source(
         source, filename, ReaderOptions(workdir / "read", extension_directory, formula_cells)
@@ -65,7 +68,16 @@ def open_table(
         max_temp_bytes=max_temp_bytes,
     )
     try:
-        yield connection, result.relation(connection), result
+        if table is None:
+            name = result.first_filled(connection)
+        elif isinstance(table, int):
+            if table >= len(result.tables):
+                raise IngestionError("unknown_table", "The stored sheet is no longer listed.", 409)
+            name = result.tables[table].name
+        else:
+            name = result.table_name(table)
+        index = [info.name for info in result.tables].index(name)
+        yield connection, result.relation(connection, name), result, index
     finally:
         connection.close()
 
@@ -78,14 +90,21 @@ def read_source_table(
     limit: int,
 ) -> tuple[FileStructure, TableData]:
     with tempfile.TemporaryDirectory(prefix="execplus-read-") as work:
-        name = "source." + format.removeprefix(READER_PREFIX)
+        name = "source." + stored_table(format)[0]
         source = Path(work) / name
         content.seek(0)
         with source.open("wb") as handle:
             shutil.copyfileobj(content, handle, 1024 * 1024)
         content.seek(0)
-        with open_table(source, name, Path(work), extension_directory, formula_cells) as opened:
-            _, relation, _ = opened
+        with open_table(
+            source,
+            name,
+            Path(work),
+            extension_directory,
+            formula_cells,
+            table=stored_table(format)[1],
+        ) as opened:
+            _, relation, _, _ = opened
             fetched = relation.fetchmany(limit + 1)
             headers = tuple(str(column) for column in relation.columns)
     if len(fetched) > limit:
