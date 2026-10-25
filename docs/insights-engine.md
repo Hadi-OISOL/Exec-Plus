@@ -138,11 +138,57 @@ cross-check values keep exact strings, and the cross-checker compares exact valu
 Future incompatible changes must use a new `version` value; readers should ignore
 unknown keys and render only known chart types.
 
+### One analyst at a time: `?analyst=<name>` (2026-10-25, additive)
+
+`GET .../analyst-overview?analyst=quality|composition|distribution|segment|relationship|outlier|trend`
+returns one analyst's result so the web can update each "analyst team" card as soon as
+its own result arrives (the web fires all seven in parallel, plus the combined request).
+Unknown names return 422. The response without `analyst` is unchanged `insights-v1`.
+
+```jsonc
+{ "version": "insights-analyst-v1", "analyst": "segment", "dataset_name": "...",
+  "definition_state": "inferred", "sources": [...],
+  "insights": [ /* same card shape, only cross-checked cards, deterministic order */ ],
+  "cross_check": { "verified": 1, "dropped": [] }, "limitations": ["..."] }
+```
+
+Each analyst's cross-checks are independent of the others, so a per-analyst card is
+already verified. The 24-check budget is assigned over the whole team in the same order
+as before, so per-analyst and combined results contain the same checks. Ranking
+("What you should know") still needs every card and comes from the combined response.
+
+**Trends** (`trend`, per-analyst only; never in `insights-v1`): needs a profiled date
+field and a measure (the first ranked measure whose confirmed aggregation, if any, is
+sum or avg). One governed `MetricRequest` groups the measure by calendar period
+(day/week/month/quarter/year from the date span). The first and last periods are left
+out when the profile's `date_min`/`date_max` show they are only partly covered; at
+least 3 complete periods are required. Direction, best/worst period and first-to-last
+growth (`(last - first) * 100 / |first|`, Decimal, 2 dp; `n/a` when the first period is
+0) are server arithmetic on the returned values. The first, last, best and worst period
+values are each recomputed by an independent filtered query
+(`date >= start AND date < next start`) and the card is dropped if any differ.
+Chart type `line` (`label`, `value`). It describes the past; no forecast or cause.
+
+### Shared run (no double work)
+
+The overview opens `/analyst-overview` and `/auto-dashboard` together, and the
+dashboard brief calls the same analyst team. Before 2026-10-25 that ran the projection
+and every cross-check twice. The team run (projection + analysts) and each analyst's
+checks are now shared in-process tasks keyed by actor, workspace, dataset, upload and
+the access-scoped `sources` (revision, meaning and policy), most recent 32 kept. A
+concurrent or later request with the same key awaits the same work; a failed run is
+not kept. The snapshot load and final freshness recheck still run per request, and
+narration still runs per combined request.
+
 ## Limits and honest scope
 
-- Files above 50,000 rows return KPIs and limitations without analyst cards.
-- Recomputed on every request (no cache); each request stores one projection and
-  up to 24 check receipts, plus one narration model call when a model is configured.
+- Files above 50,000 rows return KPIs and limitations without analyst cards (the
+  Trends analyst still runs: it uses aggregate queries only).
+- The shared run is per API process, in memory. Because the work is shared, a browser
+  disconnect no longer stops an analyst run that has started; it finishes and is kept
+  for the next request.
+- Each analyst team run stores one projection and up to 24 check receipts, plus one
+  narration model call per combined request when a model is configured.
 - Without confirmed meaning, units are `null` and cards state that meaning is inferred.
 - Outliers are exploratory unusualness, not errors; group gaps and relationships
   are associations, not causes. No forecast or prediction is made.
