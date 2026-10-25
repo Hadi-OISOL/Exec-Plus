@@ -317,7 +317,7 @@ class GoogleAccessService:
             connection,
         )
         self.oauth.assert_connection(actor.id, session_token, "google", connection.version)
-        content = sheet_to_csv(values)
+        content = sheet_to_csv(values, self.max_import_bytes)
         filename = import_filename(info.title, tab.title if len(info.tabs) > 1 else "")
 
         def publish(

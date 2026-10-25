@@ -62,6 +62,7 @@ from execplus.presentation.routes.source_imports import router as source_imports
 from execplus.presentation.routes.studies import router as studies_router
 from execplus.presentation.routes.threads import router as threads_router
 from execplus.presentation.routes.understanding import router as understanding_router
+from execplus.presentation.routes.upload_sessions import router as upload_sessions_router
 from execplus.presentation.routes.usage_metering import router as usage_metering_router
 from execplus.presentation.routes.workspaces import router as workspace_router
 
@@ -118,7 +119,13 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         allow_origins=[configured.web_origin],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-ExecPlus-Request"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "X-ExecPlus-Request",
+            "X-Chunk-SHA256",
+        ],
         expose_headers=["Content-Disposition", "X-Request-ID"],
     )
 
@@ -135,7 +142,8 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
                 response = await call_next(request)
         except IngestionError as exc:
             response = JSONResponse(
-                status_code=exc.status, content={"error": {"code": exc.code, "message": str(exc)}}
+                status_code=exc.status,
+                content={"error": {**exc.details, "code": exc.code, "message": str(exc)}},
             )
             if request.headers.get("origin") == configured.web_origin:
                 response.headers["Access-Control-Allow-Origin"] = configured.web_origin
@@ -215,12 +223,13 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.include_router(result_exports_router)
     application.include_router(google_router)
     application.include_router(connectors_router)
+    application.include_router(upload_sessions_router)
 
     @application.exception_handler(IngestionError)
     async def ingestion_error(request: Request, error: IngestionError) -> JSONResponse:
         return JSONResponse(
             status_code=error.status,
-            content={"error": {"code": error.code, "message": str(error)}},
+            content={"error": {**error.details, "code": error.code, "message": str(error)}},
             headers={
                 "Cache-Control": "no-store",
                 **({"WWW-Authenticate": "Bearer"} if error.status == 401 else {}),

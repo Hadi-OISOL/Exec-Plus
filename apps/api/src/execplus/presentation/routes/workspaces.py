@@ -16,7 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from execplus.application.ports import IdentityProvider
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.domain.dataset_access import ScopedUploadMetadata
-from execplus.domain.ingestion import IngestionError, Upload, User
+from execplus.domain.ingestion import IngestionError, Upload, User, file_too_large
 from execplus.domain.profiling import Cleaning
 from execplus.domain.samples import SAMPLES
 
@@ -217,13 +217,13 @@ async def upload(
         if not declared.isdecimal():
             raise IngestionError("invalid_request", "Invalid content length.", 422)
         if int(declared) > service.max_upload_bytes:
-            raise IngestionError("file_too_large", "Files must be at most 20 MiB.", 413)
+            raise file_too_large(service.max_upload_bytes)
     size = 0
     with TemporaryFile(mode="w+b") as content:
         async for chunk in request.stream():
             size += len(chunk)
             if size > service.max_upload_bytes:
-                raise IngestionError("file_too_large", "Files must be at most 20 MiB.", 413)
+                raise file_too_large(service.max_upload_bytes)
             await run_in_threadpool(content.write, chunk)
         result = await run_in_threadpool(
             service.upload,

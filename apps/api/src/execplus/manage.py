@@ -175,6 +175,7 @@ def main() -> None:
             "revoke-staff",
             "recover-local-account",
             "issue-reset-code",
+            "set-storage-quota",
         ],
     )
     parser.add_argument("--email")
@@ -185,6 +186,8 @@ def main() -> None:
     parser.add_argument("--watch", action="store_true")
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--poll-seconds", type=float, default=0.5)
+    parser.add_argument("--quota-bytes", type=int)
+    parser.add_argument("--clear", action="store_true")
     args = parser.parse_args()
     if args.action == "issue-reset-code":
         _issue_reset_code(args)
@@ -212,7 +215,20 @@ def main() -> None:
         elif args.action == "process-refreshes":
             refreshed = runtime.refresh.process_due()
             observed = asyncio.run(runtime.monitoring.process())
-            print(json.dumps(dict(refresh=refreshed, observations=observed)))
+            swept = runtime.upload_sessions.sweep()
+            print(json.dumps(dict(refresh=refreshed, observations=observed, upload_sessions=swept)))
+        elif args.action == "set-storage-quota":
+            if args.account_id is None or (args.quota_bytes is None) == (not args.clear):
+                parser.error(
+                    "--account-id and exactly one of --quota-bytes or --clear are required"
+                )
+            print(
+                json.dumps(
+                    runtime.operations.set_storage_quota(
+                        None, args.account_id, None if args.clear else args.quota_bytes
+                    )
+                )
+            )
         elif args.action == "deliver-reports":
             print(json.dumps(asyncio.run(runtime.reports.deliver_due())))
         else:

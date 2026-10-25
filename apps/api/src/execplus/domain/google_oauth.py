@@ -8,12 +8,12 @@ import csv
 import hashlib
 import re
 import secrets
-import unicodedata
 from datetime import datetime
 from io import BytesIO, StringIO
 from typing import Any
 
 from execplus.domain.ingestion import IngestionError
+from execplus.domain.upload_sessions import safe_label
 
 SIGN_IN_SCOPES = ("openid", "email", "profile")
 SHEETS_SCOPES = ("openid", "email", "https://www.googleapis.com/auth/drive.file")
@@ -71,10 +71,7 @@ def valid_spreadsheet_id(value: str) -> str:
 
 def import_filename(spreadsheet_title: str, tab_title: str) -> str:
     label = f"{spreadsheet_title} - {tab_title}" if tab_title else spreadsheet_title
-    cleaned = unicodedata.normalize("NFKC", label)
-    cleaned = re.sub(r"[\\/\x00-\x1f]", " ", cleaned).strip()
-    cleaned = " ".join(cleaned.split())[: MAX_FILENAME - 4] or "Google Sheet"
-    return f"{cleaned}.csv"
+    return f"{safe_label(label, MAX_FILENAME - 4, 'Google Sheet')}.csv"
 
 
 def _cell(value: Any) -> str:
@@ -85,7 +82,9 @@ def _cell(value: Any) -> str:
     return str(value)
 
 
-def sheet_to_csv(values: list[list[Any]]) -> bytes:
+def sheet_to_csv(values: list[list[Any]], limit: int | None = None) -> bytes:
+    max_bytes = MAX_IMPORT_BYTES if limit is None else limit
+
     def too_large() -> IngestionError:
         return IngestionError(
             "sheet_too_large",
@@ -99,10 +98,10 @@ def sheet_to_csv(values: list[list[Any]]) -> bytes:
     for row in values:
         for cell in row:
             value = _cell(cell)
-            if len(value) > MAX_IMPORT_BYTES:
+            if len(value) > max_bytes:
                 raise too_large()
             size += len(value.encode("utf-8"))
-            if size > MAX_IMPORT_BYTES:
+            if size > max_bytes:
                 raise too_large()
     end = len(values)
     while end and not any(_cell(cell).strip() for cell in values[end - 1]):
@@ -132,7 +131,7 @@ def sheet_to_csv(values: list[list[Any]]) -> bytes:
         line = StringIO()
         csv.writer(line, lineterminator="\n").writerow(row)
         content = line.getvalue().encode("utf-8")
-        if output.tell() + len(content) > MAX_IMPORT_BYTES:
+        if output.tell() + len(content) > max_bytes:
             raise too_large()
         output.write(content)
 
