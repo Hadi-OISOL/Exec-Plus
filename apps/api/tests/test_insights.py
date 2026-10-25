@@ -12,19 +12,22 @@ from contextlib import nullcontext
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from scipy import stats
 
 from execplus.application.contracts import ModelResponse
-from execplus.application.services.insights import build_insights, narrate
+from execplus.application.services import insights as insights_service
+from execplus.application.services.insights import build_analyst, build_insights, narrate
 from execplus.domain import insights as engine
-from execplus.domain.errors import ProviderUnavailableError
+from execplus.domain.errors import ProviderUnavailableError, UnsupportedQuestionError
 from execplus.domain.guidance import DescriptionContext
 from execplus.domain.models import WorkspaceScope
 from execplus.domain.profiling import TableData, profile
-from execplus.domain.semantics import dataset_view
+from execplus.domain.semantics import dataset_view, plan_query
+from execplus.domain.understanding import governed_request
 from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 from execplus.infrastructure.statistics.scipy_patterns import ScipyPatternStatistics
 
@@ -83,7 +86,7 @@ def payload(table: TableData, model=None, context=None) -> tuple[dict, FakeServi
     body = asyncio.run(
         build_insights(
             service,
-            object(),
+            SimpleNamespace(id=uuid4()),
             service.scope.workspace_id,
             service.dataset,
             uuid4(),
@@ -448,3 +451,123 @@ def test_statements_are_readable_while_evidence_and_checks_stay_exact(farm):
     assert "(9.29)" in card["summary"] and "9.2915" not in card["summary"]
     assert card["chart"]["rows"][0]["value"] == "9.291538461538"
     assert card["cross_check"]["checks"][0]["primary"] == "9.291538461538"
+
+
+class ExecutingService(FakeService):
+    async def _execute(self, actor, dataset_id, name, scope, table, view, request, route=None):
+        governed = governed_request(view, table, request)
+        plan = plan_query(scope, dataset_id, view, governed, row_limit=1000)
+        result = await self.executor.execute(plan, scope, table, view)
+        lineage = SimpleNamespace(query_id=plan.query_id, sql=plan.sql, route=route)
+        self.persisted.append(lineage)
+        return result, lineage
+
+
+def run_team(service, *analysts, combined=0):
+    actor, upload = SimpleNamespace(id=uuid4()), uuid4()
+    ids = (service.scope.workspace_id, service.dataset, upload)
+
+    async def everything():
+        return await asyncio.gather(
+            *(build_insights(service, actor, *ids, statistics=STATISTICS) for _ in range(combined)),
+            *(
+                build_analyst(service, actor, *ids, name, statistics=STATISTICS)
+                for name in analysts
+            ),
+        )
+
+    return asyncio.run(everything())
+
+
+def test_concurrent_overview_and_per_analyst_requests_run_each_analyst_once(farm):
+    names = ("quality", "composition", "distribution", "segment", "relationship", "outlier")
+    alone, single = payload(farm)
+    service = FakeService(farm)
+    results = run_team(service, *names, combined=2)
+    assert len(service.persisted) == len(single.persisted)
+    assert results[0]["insights"] == results[1]["insights"]
+    assert stable(results[0]["insights"]) == stable(alone["insights"])
+    per_analyst = {card["id"]: card for body in results[2:] for card in body["insights"]}
+    assert set(per_analyst) == {card["id"] for card in alone["insights"]}
+    for body, name in zip(results[2:], names, strict=True):
+        assert body["version"] == "insights-analyst-v1" and body["analyst"] == name
+        assert all(card["analyst"] == name for card in body["insights"])
+    assert all(
+        card["cross_check"] == per_analyst[card["id"]]["cross_check"]
+        for card in results[0]["insights"]
+    )
+
+
+def stable(cards: list[dict]) -> list[dict]:
+    return [
+        {
+            **card,
+            "cross_check": [{**check, "query_id": None} for check in card["cross_check"]["checks"]],
+        }
+        for card in cards
+    ]
+
+
+def test_a_failed_team_run_is_not_cached(monkeypatch, farm):
+    calls = []
+    real = insights_service.analyse
+
+    def flaky(*args):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("boom")
+        return real(*args)
+
+    monkeypatch.setattr(insights_service, "analyse", flaky)
+    service = FakeService(farm)
+    actor, upload = SimpleNamespace(id=uuid4()), uuid4()
+    ids = (service.scope.workspace_id, service.dataset, upload)
+    with pytest.raises(RuntimeError):
+        asyncio.run(build_insights(service, actor, *ids, statistics=STATISTICS))
+    body = asyncio.run(build_insights(service, actor, *ids, statistics=STATISTICS))
+    assert body["insights"] and len(calls) == 2
+
+
+def test_unknown_analyst_is_rejected(farm):
+    with pytest.raises(UnsupportedQuestionError):
+        run_team(FakeService(farm), "astrology")
+
+
+SALES = (
+    "day,amount,region\n"
+    + "".join(
+        f"2024-{month:02d}-{day:02d},{month * 10 + day},{'North' if day % 2 else 'South'}\n"
+        for month in range(1, 8)
+        for day in (1, 9, 17, 28)
+    )
+    + "2024-07-31,1,North\n"
+)
+
+
+def test_trends_analyst_reports_cross_checked_monthly_growth():
+    table = table_from(SALES)
+    service = ExecutingService(table)
+    body = run_team(service, "trend")[0]
+    assert body["cross_check"]["dropped"] == []
+    (card,) = body["insights"]
+    totals: dict[str, int] = {}
+    for row in table.rows:
+        totals[row[0][:7]] = totals.get(row[0][:7], 0) + int(row[1])
+    expected = [str(totals[key]) for key in sorted(totals)]
+    assert [row["value"] for row in card["chart"]["rows"]] == expected
+    first, last = Decimal(totals["2024-01"]), Decimal(totals["2024-07"])
+    growth = ((last - first) * 100 / first).quantize(Decimal("0.01"))
+    evidence = {item["label"]: item["value"] for item in card["evidence"]}
+    assert evidence["Growth"] == str(growth)
+    assert evidence["Best month"] == max(totals, key=lambda key: totals[key])
+    assert card["summary"].startswith("Total amount rose from")
+    checks = card["cross_check"]["checks"]
+    assert checks and all(check["agrees"] and check["query_id"] for check in checks)
+    assert sum(isinstance(item, SimpleNamespace) for item in service.persisted) == 1 + len(checks)
+
+
+def test_trends_analyst_explains_when_there_is_no_date():
+    table = table_from("region,amount\n" + "North,1\nSouth,2\n" * 15)
+    body = run_team(ExecutingService(table), "trend")[0]
+    assert body["insights"] == []
+    assert "need a date field and a measure" in body["limitations"][0]

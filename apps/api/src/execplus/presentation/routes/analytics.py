@@ -24,7 +24,7 @@ from execplus.application.services.analytics import (
 )
 from execplus.application.services.data_diagrams import DiagramAnswer
 from execplus.application.services.discovery import discover
-from execplus.application.services.insights import build_insights
+from execplus.application.services.insights import build_analyst, build_insights
 from execplus.application.services.intent_router import (
     ConversationAnswer,
     DatasetGuide,
@@ -367,10 +367,27 @@ async def analyst_overview(
     actor: Actor,
     service: Service,
     request: Request,
+    analyst: Literal[
+        "quality", "composition", "distribution", "segment", "relationship", "outlier", "trend"
+    ]
+    | None = None,
 ) -> object:
     if await request.is_disconnected():
         return Response(status_code=499)
     router_service = request.app.state.runtime.intent_router
+    if analyst is not None:
+        return await _unless_disconnected(
+            request,
+            build_analyst(
+                service,
+                actor,
+                workspace_id,
+                dataset_id,
+                upload_id,
+                analyst,
+                statistics=router_service.patterns.statistics,
+            ),
+        )
     with usage_scope(UsageAttribution(workspace_id, actor.id, uuid4(), "summary")):
         return await _unless_disconnected(
             request,
