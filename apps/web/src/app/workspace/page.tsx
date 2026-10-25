@@ -9,7 +9,11 @@ import { AccountAccess } from "./account-access";
 import { AccountSecurity, InvitationIdentityApproval } from "./account-security";
 import { OnboardingGuide } from "./onboarding-guide";
 import type { ApiRequest } from "./profile-panel";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { MAX_UPLOAD_BYTES, UploadManager, formatBytes } from "./upload-manager";
+import type { UploadItem, UploadedFile } from "./upload-manager";
+import { StorageBar, UploadTray } from "./upload-tray";
+import type { StorageUse } from "./upload-tray";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { FormEvent } from "react";
@@ -33,6 +37,7 @@ import { ThemeControl } from "../theme-control";
 
 // A native submit before hydration reloads the page and drops the typed token.
 const subscribeNever = () => () => undefined;
+const noUploads: UploadItem[] = [];
 const loadingView = () => <WorkspaceLoading />;
 const SourcesPanel = dynamic(
   () => import("./sources-panel").then(module => module.SourcesPanel),
@@ -211,6 +216,9 @@ export default function WorkspacePage() {
     storage_bytes: number;
   } | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [storageUse, setStorageUse] = useState<StorageUse | null>(null);
+  const uploadContext = useRef(new Map<string, { domain: string; goal: string; section: string }>());
+  const finishUploadRef = useRef<(item: UploadItem) => void>(() => undefined);
   const [uploadTarget, setUploadTarget] = useState("new");
   const [uploadDomain, setUploadDomain] = useState("auto");
   const [uploadGoal, setUploadGoal] = useState("");
@@ -285,6 +293,44 @@ export default function WorkspacePage() {
     const response = await authorizedResponse(path, options);
     return response.status === 204 ? (undefined as T) : response.json();
   }, [authorizedResponse]);
+
+  const transportRef = useRef(authorizedResponse);
+  useEffect(() => { transportRef.current = authorizedResponse; });
+  const userId = user?.id;
+  const uploader = useMemo(() => userId ? new UploadManager({
+    transport: (path, init) => transportRef.current(path, init),
+    userId,
+    storage: typeof window === "undefined" ? null : (() => { try { return window.localStorage; } catch { return null; } })(),
+    onFinish: item => finishUploadRef.current(item),
+  }) : null, [userId]);
+  const uploadItems = useSyncExternalStore(uploader?.subscribe ?? subscribeNever, uploader?.snapshot ?? (() => noUploads), () => noUploads);
+  const uploading = uploadItems.some(item => item.phase === "uploading" || item.phase === "queued");
+  const loadStorage = useCallback(() => {
+    authorizedResponse("/me/storage").then(response => response.json()).then(setStorageUse).catch(() => setStorageUse(null));
+  }, [authorizedResponse]);
+
+  useEffect(() => {
+    if (!uploader) return;
+    void uploader.restore();
+    return () => uploader.reset();
+  }, [uploader]);
+
+  const storageView = section === "team" || section === "usage";
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    transportRef.current("/me/storage").then(response => response.json())
+      .then(value => { if (active) setStorageUse(value); })
+      .catch(() => { if (active) setStorageUse(null); });
+    return () => { active = false; };
+  }, [userId, storageView]);
+
+  useEffect(() => {
+    if (!uploading) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [uploading]);
 
   const downloadExport = useCallback<ExportDownload>(async (path, format, signal, body) => {
     if (!allowedExportPath(path)) throw new Error("This download is unavailable.");
@@ -721,6 +767,8 @@ export default function WorkspacePage() {
   }
 
   async function signOut() {
+    if (uploader?.active() && !window.confirm("An upload is still running. Signing out pauses it; you can resume it after signing in again. Sign out anyway?")) return;
+    uploader?.stopAll();
     await run(async () => {
       // shortcut: a failed revoke (offline, 404 or expired) still signs this browser out; the server session then ends at expiry.
       await request("/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
@@ -781,10 +829,11 @@ export default function WorkspacePage() {
     const form = event.currentTarget;
     await run(async () => {
       if (!file) throw new Error("Choose a CSV or XLSX file.");
-      if (file.size > 20 * 1024 * 1024)
-        throw new Error("Files must be at most 20 MiB.");
+      if (file.size > MAX_UPLOAD_BYTES)
+        throw new Error(`Files must be at most ${formatBytes(MAX_UPLOAD_BYTES)}.`);
       if (!/\.(csv|xlsx)$/i.test(file.name))
         throw new Error("Choose a CSV or XLSX file.");
+      if (!uploader) throw new Error("Sign in again to upload.");
       let targetWorkspace = workspace;
       if (!targetWorkspace) {
         targetWorkspace = await request<Workspace>(
@@ -822,40 +871,70 @@ export default function WorkspacePage() {
       const mime = file.name.toLowerCase().endsWith(".csv")
         ? "text/csv"
         : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-      const prefix = `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}/uploads`;
-      const stored = await request<Upload>(
-        `${prefix}?filename=${encodeURIComponent(file.name)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": mime },
-          body: file,
-        },
-      );
-      let contextSaved = true;
-      if (uploadDomain !== "auto" || uploadGoal.trim()) {
-        try {
-          await request(
-            `/workspaces/${targetWorkspace.id}/datasets/${targetDataset}/preferences`,
-            json("POST", { domain_hint: uploadDomain, goal: uploadGoal }),
-          );
-          setRevisionTick((value) => value + 1);
-        } catch { contextSaved = false; }
-      }
-      setUploads(await request<Upload[]>(prefix));
-      setProfileUpload(stored.id);
-      setGuidedFor(stored.id);
-      setBriefFor(stored.id);
-      setReviewOpen(false);
-      setStarterQuestions([]);
-      setUploadTarget("new");
-      setAnalysisIntent("descriptive");
-      setSection("overview");
-      setMessage(
-        contextSaved ? `${stored.filename} is ready. Let’s check what it means together.` : "File uploaded successfully. Your optional context could not be saved; add it under Data understanding.",
-      );
+      const key = uploader.enqueue(file, targetWorkspace.id, targetDataset, mime);
+      uploadContext.current.set(key, { domain: uploadDomain, goal: uploadGoal, section });
+      setMessage(`Uploading ${file.name} in the background. You can keep working while it finishes.`);
       setFile(null);
       form.reset();
     });
+  }
+
+  async function openUploaded(upload: UploadedFile, contextSaved = true) {
+    if (dataset !== upload.dataset_id) await selectDataset(upload.workspace_id, upload.dataset_id);
+    else setUploads(await request<Upload[]>(`/workspaces/${upload.workspace_id}/datasets/${upload.dataset_id}/uploads`));
+    setProfileUpload(upload.id);
+    setGuidedFor(upload.id);
+    setBriefFor(upload.id);
+    setReviewOpen(false);
+    setStarterQuestions([]);
+    setUploadTarget("new");
+    setAnalysisIntent("descriptive");
+    setSection("overview");
+    setMessage(
+      contextSaved ? `${upload.filename} is ready. Let’s check what it means together.` : "File uploaded successfully. Your optional context could not be saved; add it under Data understanding.",
+    );
+  }
+
+  async function finishUpload(item: UploadItem) {
+    loadStorage();
+    const context = uploadContext.current.get(item.key);
+    uploadContext.current.delete(item.key);
+    if (item.phase === "failed") {
+      setMessage("");
+      setError(`${item.filename}: ${item.error}`);
+      return;
+    }
+    const upload = item.result;
+    if (!upload) return;
+    let contextSaved = true;
+    if (context && (context.domain !== "auto" || context.goal.trim())) {
+      try {
+        await request(
+          `/workspaces/${upload.workspace_id}/datasets/${upload.dataset_id}/preferences`,
+          json("POST", { domain_hint: context.domain, goal: context.goal }),
+        );
+        setRevisionTick((value) => value + 1);
+      } catch { contextSaved = false; }
+    }
+    if (workspace?.id !== upload.workspace_id) return;
+    if (context && context.section === section) {
+      uploader?.dismiss(item.key);
+      await run(() => openUploaded(upload, contextSaved));
+      return;
+    }
+    if (dataset === upload.dataset_id) setUploads(await request<Upload[]>(`/workspaces/${upload.workspace_id}/datasets/${upload.dataset_id}/uploads`).catch(() => uploads));
+    setMessage(`${upload.filename} finished uploading. Open it from the uploads panel when you are ready.`);
+  }
+  useEffect(() => { finishUploadRef.current = item => void finishUpload(item); });
+
+  function openFromTray(item: UploadItem) {
+    if (!item.result) return;
+    if (workspace?.id !== item.result.workspace_id) {
+      setMessage(`Switch to the workspace that holds ${item.filename} to open it.`);
+      return;
+    }
+    uploader?.dismiss(item.key);
+    void run(() => openUploaded(item.result!));
   }
 
   async function inviteMember(event: FormEvent<HTMLFormElement>) {
@@ -1288,7 +1367,7 @@ export default function WorkspacePage() {
                       <span>
                         {file
                           ? `${file.name} · ${(file.size / 1024).toFixed(1)} KB`
-                          : "Drop a .csv or .xlsx file here, or click to browse · up to 20 MiB"}
+                          : "Drop a .csv or .xlsx file here, or click to browse · up to 500 MB"}
                       </span>
                     </label>
                     <label>What is this data about? (optional)<select disabled={busy} value={uploadDomain} onChange={event => setUploadDomain(event.target.value)}>{domains.map(item => <option key={item} value={item}>{item === "auto" ? "Help me work it out" : item}</option>)}</select></label>
@@ -1535,6 +1614,12 @@ export default function WorkspacePage() {
                 {workspace && role === "owner" && section === "team" && (
                   <IntegrationsPanel key={`integrations-${workspace.id}`} workspaceId={workspace.id} request={request} />
                 )}
+                {storageUse && (
+                  <section className="panel" aria-label="Your storage">
+                    <h2>Your storage</h2>
+                    <StorageBar storage={storageUse} />
+                  </section>
+                )}
                 {workspace && manager && (
                   <section className="panel">
                     <h2>Workspace usage</h2>
@@ -1760,6 +1845,12 @@ export default function WorkspacePage() {
                   workspaceId={workspace?.id}
                   request={request}
                 />
+              )}
+              {section === "usage" && storageUse && (
+                <section className="panel" aria-label="Your storage">
+                  <h2>Your storage</h2>
+                  <StorageBar storage={storageUse} />
+                </section>
               )}
               {workspace && manager && section === "usage" && (
                 <UsagePanel
@@ -2120,6 +2211,7 @@ export default function WorkspacePage() {
           </footer>
         </div>
       </div>
+      {uploader && <UploadTray manager={uploader} items={uploadItems} storage={storageUse} onOpen={openFromTray} />}
     </main></ExportDownloadContext.Provider>
   );
 }
