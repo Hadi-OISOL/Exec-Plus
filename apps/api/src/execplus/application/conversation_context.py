@@ -94,3 +94,26 @@ def offer_follow_ups(questions: tuple[str, ...]) -> None:
     captured = _follow_ups.get()
     if captured is not None and not captured.questions:
         captured.questions = list(questions)
+
+
+@dataclass
+class ReviewOutcome:
+    code: str = ""
+
+
+_review: ContextVar[ReviewOutcome | None] = ContextVar("answer_review", default=None)
+
+
+@contextmanager
+def capture_review(captured: ReviewOutcome) -> Iterator[ReviewOutcome]:
+    token = _review.set(captured)
+    try:
+        yield captured
+    finally:
+        _review.reset(token)
+
+
+def record_review(code: str) -> None:
+    captured = _review.get()
+    if captured is not None:
+        captured.code = code

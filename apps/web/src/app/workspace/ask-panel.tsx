@@ -97,6 +97,7 @@ type Turn = {
   events?: JobEvent[];
   unavailable?: boolean;
   clarification?: { choices: string[] } | null;
+  review?: string | null;
 };
 type SavedTurn = {
   id: string;
@@ -107,8 +108,14 @@ type SavedTurn = {
   status: string;
   job_id?: string | null;
   clarification?: { choices: string[] } | null;
+  review?: string | null;
 };
 type JobResult = { turn: SavedTurn; answer: Answer | null };
+export function reviewNote(review: string | null | undefined): string {
+  if (review === "passed") return "Checked: numbers match the data, filters applied.";
+  if (review?.startsWith("replanned:")) return "Checked: I corrected my plan to match your question before answering.";
+  return "";
+}
 const flatten = (answer: Answer | null): Answer | null =>
   answer?.data ? { ...answer, ...answer.data, data: undefined } : answer;
 function requestIdentifier(): string {
@@ -253,6 +260,7 @@ export function AskPanel({
             kind: result.turn.kind,
             status: result.turn.status,
             clarification: result.turn.clarification,
+            review: result.turn.review,
             answer: flatten(result.answer),
             answerLoaded: true,
             message: result.turn.message ?? "",
@@ -382,6 +390,7 @@ export function AskPanel({
         serverId: turn.id,
         kind: turn.kind,
         clarification: turn.clarification,
+        review: turn.review,
         requestId: turn.request_id ?? undefined,
         status: turn.status,
         jobId: turn.job_id ?? undefined,
@@ -700,6 +709,7 @@ export function AskPanel({
                   </span>
                 )}
               </span>
+              {turn.answer?.lineage && reviewNote(turn.review) && <p className="reviewNote">{reviewNote(turn.review)}</p>}
               {turn.answer?.narrative && <VerifiedNarrative narrative={turn.answer.narrative} />}
               {turn.answer?.diagram ? (
                 <DiagramResults diagram={turn.answer.diagram} sources={turn.answer.sources} />

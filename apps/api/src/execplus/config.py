@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     data_brief_max_output_tokens: int = Field(default=4096, ge=1024, le=8192)
     agent_context_enabled: bool = False
     agent_orchestration_enabled: bool = False
+    agent_review_model_enabled: bool = False
     agent_synthesis_enabled: bool = False
     agent_retrieval_expansion_enabled: bool = False
     production_evidence_path: str = ""

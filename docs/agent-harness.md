@@ -340,3 +340,71 @@ independent pandas/Decimal results. These are local repairs, not yet re-measured
 
 Tests: `apps/api/tests/test_derived_measures.py` (pandas/Decimal checks and scripted-planner
 replays of the live questions) and the label-variant case in `apps/api/tests/test_insights.py`.
+
+## October 25, 2026 — Answer reviewer and tested hypotheses
+
+### Answer reviewer (`domain/answer_review.py`, `IntentRouterService._reviewed_data`)
+
+Every single-answer data path (model plan, offline plan, offered question, record selection)
+is cross-checked before it runs. Mixed document/data answers and two-step compound answers
+are not reviewed yet.
+
+- Deterministic checks (always on, no I/O): the plan uses the measure the question names
+  (`wrong_column`); a stated threshold, a year (when the file has a date) or a named
+  category field with filter words is applied (`missing_filter`); "average"/"total" next to the
+  measure matches the aggregation and a "highest/lowest" group question is ordered
+  (`wrong_operation`). After execution, the existing unit guard's refusal becomes a clickable
+  choice per unit field (`clarified:mixed_units`).
+- A single safe correction (one other named measure, the named aggregation, the ranking
+  order) is applied once and re-checked; otherwise the turn becomes the existing clarification
+  with clickable choices. The model route gains ` (review: <issue>)`.
+- Reply wording: when a selected narrative is saved, every number in its text must equal a
+  result value, label, count, question number or a displayed rounding/share of them. A
+  mismatch drops the wording and keeps the exact structured answer
+  (`fallback:unsupported_number`).
+- Optional model check: `EXECPLUS_AGENT_REVIEW_MODEL_ENABLED=true` (default off, ignored when
+  the model is disabled) sends only the question, plan and field names (no rows) and accepts
+  `{"verdict":"ok"}` or `{"verdict":"flag","issue":"question_not_answered|wrong_column|missing_filter","plan":<planner reply>|null}`
+  within 8 seconds and the existing model-call budget; any failure is ignored. Offered and
+  offline (`deterministic:`) routes never call it.
+- Outcome codes are saved in turn evidence as `review` (`passed`,
+  `replanned:<issue>`, `clarified:<issue>`, `fallback:unsupported_number`) and returned on each
+  turn as `review`. The chat shows "Checked: numbers match the data, filters applied." for
+  `passed`. No prompts, replies or row values are logged.
+- Limits: the checks are heuristics on field names and words. They can miss a dropped value
+  filter that names no field ("leads in Lahore") and can ask a needless question when a year
+  is part of a category label.
+
+### Hypotheses (`GET /workspaces/{wid}/uploads/{uid}/hypotheses`)
+
+Same membership/dataset-access scoping as `dataset-purpose` (404 for an unknown upload).
+Up to eight candidates from a fixed grammar (`group_gap`, `relationship`, `concentration`,
+`recent_change`) are built from the analyst field selection; when interpretation is enabled
+the model may add up to two specs that must name listed fields and allowed directions. One
+governed projection (owner-private `analysis` receipt, route `deterministic:hypotheses-v1`)
+supplies the rows; the server labels each item `supported`, `not_supported` or
+`not_enough_data`:
+
+| kind | supported when |
+| --- | --- |
+| group_gap | largest group's average is higher/lower by ≥ 0.2 pooled SD, ≥ 5 rows each side |
+| relationship | Spearman ≥ 0.3 (rises) or ≤ −0.3 (falls) over ≥ 20 pairs |
+| concentration | one group holds > 50% of the total (or of rows) |
+| recent_change | later half (split at the middle date) higher/lower by ≥ 0.2 pooled SD |
+
+```jsonc
+{"version":"hypotheses-v1","dataset_name":"…","sources":[…],"model_route":null,
+ "items":[{"id":"group_gap:intent_score:source:higher","kind":"group_gap","origin":"server",
+   "statement":"Leads where source is LinkedIn have a higher average intent_score than other leads.",
+   "status":"supported","finding":"LinkedIn: average 8.08 across 24 leads; others: 5.79 across 24.",
+   "evidence":{"group":"LinkedIn","group_average":"8.083333333333","…":"…","query_id":"uuid"},
+   "question":"What is the average of intent_score by source?","feedback":null}],
+ "limitations":["…not proof of a cause."]}
+```
+
+`PUT /workspaces/{wid}/hypothesis-feedback` `{"kind","vote":"like|dislike","reason"?}` stores
+that member's vote per kind in a private object (`workspaces/{wid}/private/hypothesis-feedback/{user}.json`);
+sending the same vote without a reason clears it. Disliked kinds sort last and liked kinds
+first for that member only. Limit: the object is not removed when membership ends (it holds
+only kind names and votes). The web "Your data is ready" card shows the section as
+"Things we checked for you" with supported items first and the rest collapsed.

@@ -47,6 +47,7 @@ from execplus.presentation.routes.decision_analysis import router as decision_an
 from execplus.presentation.routes.forecasts import router as forecasts_router
 from execplus.presentation.routes.google import router as google_router
 from execplus.presentation.routes.health import router as health_router
+from execplus.presentation.routes.hypotheses import router as hypotheses_router
 from execplus.presentation.routes.incidents import router as incidents_router
 from execplus.presentation.routes.integrations import router as integrations_router
 from execplus.presentation.routes.jobs import router as jobs_router
@@ -221,6 +222,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.include_router(decision_analysis_router)
     application.include_router(data_brief_router)
     application.include_router(auto_dashboards_router)
+    application.include_router(hypotheses_router)
     application.include_router(pdf_exports_router)
     application.include_router(result_exports_router)
     application.include_router(google_router)

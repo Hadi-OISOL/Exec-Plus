@@ -4,6 +4,7 @@ What it does: Shows file size and a plain summary with primary actions, the data
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import type { ApiRequest } from "../profile-panel";
 import { Icon } from "../explore-components";
 import { actionIntent, analystNames } from "./insights-model";
@@ -111,10 +112,10 @@ function FindingRow({ card, index, words, onAction, onSee }: { card: InsightCard
   </li>;
 }
 
-export function DataReady({ fileName, rows, columns, seconds, summary, confirmed, purpose, insights, team, questions, words, onAsk, onDashboard, onReview, onQuestion, onAction, onSee }: {
+export function DataReady({ fileName, rows, columns, seconds, summary, confirmed, purpose, insights, team, questions, words, onAsk, onDashboard, onReview, onQuestion, onAction, onSee, checks }: {
   fileName: string; rows: number; columns: number; seconds: string | null; summary: string; confirmed: boolean;
   purpose?: DatasetPurpose; insights: { status: RequestStatus; payload?: InsightsPayload }; team: TeamMember[]; questions: { label: string; question: string }[];
-  words: Words; onAsk: () => void; onDashboard: () => void; onReview: () => void; onQuestion: (question: string) => void; onAction: (intent: ActionIntent) => void; onSee: (id: string) => void;
+  words: Words; onAsk: () => void; onDashboard: () => void; onReview: () => void; onQuestion: (question: string) => void; onAction: (intent: ActionIntent) => void; onSee: (id: string) => void; checks?: ReactNode;
 }) {
   const findings = topFindings(insights.payload);
   return <div className={styles.ready}>
@@ -145,6 +146,7 @@ export function DataReady({ fileName, rows, columns, seconds, summary, confirmed
           <div className={styles.sectionHead}><h3>What you should know</h3><p>{insights.status === "working" ? "Your analysts are still checking. Findings appear here as soon as they are double-checked." : findings.length ? "The most important findings, each recalculated by an independent check." : insights.status === "done" ? "Nothing stood out strongly yet. Ask a question to dig deeper." : "Findings are not available right now. The numbers below still come from your file."}</p></div>
           {findings.length > 0 && <ol>{findings.map((card, index) => <FindingRow key={card.id} card={card} index={index} words={words} onAction={onAction} onSee={onSee} />)}</ol>}
         </section>
+        {checks}
         {questions.length > 0 && <section className={styles.questions} aria-label="Questions you could ask">
           <h3>Questions you could ask</h3>
           <div className={styles.chips}>{questions.map(item => <button key={item.question} type="button" className={styles.chip} title={item.question} onClick={() => onQuestion(item.question)}>{words(item.label)}<Icon name="arrow" size={13} /></button>)}</div>
