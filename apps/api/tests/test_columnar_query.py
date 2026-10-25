@@ -1,6 +1,6 @@
 """Use case: Proves Parquet-backed queries return exactly what the in-memory path returns.
 
-What it does: Runs the same governed plans against a legacy snapshot and a profile-v5
+What it does: Runs the same governed plans against a legacy snapshot and a profile-v6
 typed-Parquet snapshot, plus a 200,000-row exact check and conversion-error refusal.
 """
 
@@ -27,7 +27,7 @@ from execplus.domain.compute import (
 from execplus.domain.errors import QueryDataError, UnsafeQueryError
 from execplus.domain.ingestion import IngestionError, Upload
 from execplus.domain.models import WorkspaceScope
-from execplus.domain.profiling import PROFILE_V5, Revision, TableData, profile_for
+from execplus.domain.profiling import PROFILE_V6, Revision, TableData, profile_for
 from execplus.domain.semantics import (
     AggregationKind,
     FilterOperator,
@@ -110,7 +110,7 @@ def requests():
 async def test_parquet_queries_match_in_memory_results(tmp_path):
     rows = generated_rows(5_000)
     table, view, legacy, _ = columnar_snapshot(tmp_path, HEADERS, rows)
-    legacy_view = dataset_view(profile_for(legacy, PROFILE_V5))
+    legacy_view = dataset_view(profile_for(legacy, PROFILE_V6))
     assert legacy_view == view
     head = S3ColumnarStore(None, "", tmp_path, 1).head(table.parquet_path(), 2)
     assert head[0][0] == rows[0][0].strip() and head[0][2] == str(Decimal(rows[0][2]).normalize())
@@ -201,7 +201,7 @@ def test_revision_table_verifies_manifest_and_bounds_row_reads():
     manifest = ColumnarManifest("key", "parquet-sha", 5, 3, {})
     profile = {"columns": [{"name": "amount"}], "columnar": manifest.record()}
     revision = Revision(
-        *(uuid4(), upload.workspace_id, upload.dataset_id, upload.id, None, PROFILE_V5),
+        *(uuid4(), upload.workspace_id, upload.dataset_id, upload.id, None, PROFILE_V6),
         *("src", "parquet-sha", [], profile, uuid4(), now),
     )
 

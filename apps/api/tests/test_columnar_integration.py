@@ -50,7 +50,7 @@ def test_profile_v5_upload_queries_parquet_and_replays(integration, tmp_path):
     assert response.json()["row_count"] == 200_000
     root = f"/workspaces/{wid}/datasets/{did}/uploads/{response.json()['id']}"
     profile = env.client.get(root + "/profile", headers=owner).json()
-    assert profile["algorithm"] == "profile-v5"
+    assert profile["algorithm"] == "profile-v6"
     manifest = profile["profile"]["columnar"]
     assert profile["output_checksum"] == manifest["sha256"]
     assert manifest["rows"] == 200_000 and manifest["errors"] == {}
@@ -76,7 +76,7 @@ def test_profile_v5_upload_queries_parquet_and_replays(integration, tmp_path):
     assert replay.json()["rows"] == query.json()["rows"]
     legacy_root = f"/workspaces/{wid}/datasets/{did}/uploads/{legacy.json()['id']}"
     assert env.client.get(legacy_root + "/profile", headers=owner).json()["algorithm"] == (
-        "profile-v4"
+        "profile-v6"
     )
     legacy_query = env.client.post(
         legacy_root + "/query", headers=owner, json={"metric": "amount", "aggregation": "sum"}
@@ -108,7 +108,7 @@ def test_chunked_ndjson_upload_is_ingested_to_parquet(integration, tmp_path):
     assert state["status"] == "completed", state
     root = f"/workspaces/{wid}/datasets/{did}/uploads/{state['upload_id']}"
     profile = env.client.get(root + "/profile", headers=owner).json()
-    assert profile["algorithm"] == "profile-v5"
+    assert profile["algorithm"] == "profile-v6"
     query = env.client.post(
         root + "/query", headers=owner, json={"metric": "amount", "aggregation": "sum"}
     )

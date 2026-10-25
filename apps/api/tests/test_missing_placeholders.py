@@ -22,6 +22,7 @@ from execplus.domain.offline_planner import offline_plan
 from execplus.domain.profiling import (
     CURRENT_ALGORITHM,
     PROFILE_V3,
+    PROFILE_V6,
     TableData,
     profile_for,
 )
@@ -244,7 +245,7 @@ async def test_live_messy_file_questions_answer_exactly_and_replay(integration):
     )
     root = f"/workspaces/{wid}/datasets/{did}/uploads/{uid}"
     profiled = integration.client.get(root + "/profile", headers=headers).json()
-    assert profiled["algorithm"] == CURRENT_ALGORITHM
+    assert profiled["algorithm"] == PROFILE_V6
     assert column(profiled["profile"], "Sales Amount")["missing_placeholders"] == 10
     quality = integration.client.get(root + "/quality", headers=headers)
     assert quality.status_code == 200, quality.text

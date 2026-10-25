@@ -54,8 +54,7 @@ from execplus.domain.ingestion import (
 )
 from execplus.domain.profiling import (
     ALGORITHM,
-    CURRENT_ALGORITHM,
-    PROFILE_V5,
+    PROFILE_V6,
     Cleaning,
     Revision,
     TableData,
@@ -655,7 +654,7 @@ class WorkspaceService:
                 self.parser.read_table(content, structure.format),
                 [],
                 None,
-                algorithm=ALGORITHM if _sample_id else CURRENT_ALGORITHM,
+                algorithm=ALGORITHM if _sample_id else PROFILE_V6,
             )
         content.seek(0)
         attempted = False
@@ -679,7 +678,7 @@ class WorkspaceService:
                     dataset_id,
                     upload.id,
                     None,
-                    PROFILE_V5,
+                    PROFILE_V6,
                     upload.checksum,
                     conversion.sha256,
                     [],
