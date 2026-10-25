@@ -182,6 +182,8 @@ export function AskPanel({
     events: JobEvent[];
   } | null>(null);
   const conversation = useRef<HTMLDivElement>(null);
+  const following = useRef(true);
+  const shownTurns = useRef(0);
   const input = useRef<HTMLTextAreaElement>(null);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
   const sidebar = useChatSidebar();
@@ -407,16 +409,21 @@ export function AskPanel({
       const reopenable = savedTurns
         .filter((turn) => ["complete", "partial"].includes(turn.status ?? "") && !["ambiguous", "unsupported"].includes(turn.kind ?? ""))
         .slice(-10);
-      for (const turn of reopenable) {
-        try {
-          const loaded = await savedAnswer(turn, selectedThread, controller.signal);
-          if (controller.signal.aborted) return;
-          setTurns((items) => items.map((item) => (item.id === turn.id ? loaded : item)));
-        } catch (cause) {
-          if (controller.signal.aborted) return;
-          setTurns((items) => items.map((item) => item.id === turn.id ? { ...item, failed: true, message: cause instanceof Error ? cause.message : "The evidence is unavailable." } : item));
+      const queue = [...reopenable];
+      await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => {
+        for (let turn = queue.shift(); turn; turn = queue.shift()) {
+          const current = turn;
+          try {
+            const loaded = await savedAnswer(current, selectedThread, controller.signal);
+            if (controller.signal.aborted) return;
+            setTurns((items) => items.map((item) => (item.id === current.id ? loaded : item)));
+          } catch (cause) {
+            if (controller.signal.aborted) return;
+            setTurns((items) => items.map((item) => item.id === current.id ? { ...item, failed: true, message: cause instanceof Error ? cause.message : "The evidence is unavailable." } : item));
+          }
         }
-      }
+      }));
+      if (controller.signal.aborted) return;
       const running = savedTurns.find(
         (turn) => turn.status === "running" && turn.jobId,
       );
@@ -475,6 +482,12 @@ export function AskPanel({
   useEffect(() => {
     const log = conversation.current;
     if (!log) return;
+    const added = turns.length !== shownTurns.current;
+    shownTurns.current = turns.length;
+    if (!added && !pending) {
+      if (following.current) log.scrollTop = log.scrollHeight;
+      return;
+    }
     const reading = log.querySelector('.conversationTurn:last-of-type .explanationCard[data-kind="meaning"], .conversationTurn:last-of-type .patternOverview, .conversationTurn:last-of-type [aria-label="Data organisation diagram"]');
     if (reading && !pending) {
       log.scrollTo({
@@ -660,6 +673,10 @@ export function AskPanel({
       <div
         className="conversationLog"
         ref={conversation}
+        onScroll={(event) => {
+          const log = event.currentTarget;
+          following.current = log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+        }}
         role="log"
         aria-label="Conversation"
         aria-live="polite"
