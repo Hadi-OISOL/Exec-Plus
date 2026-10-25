@@ -106,6 +106,7 @@ from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 from execplus.infrastructure.readiness import DatabaseProbe, StorageProbe
 from execplus.infrastructure.release_gate import require_production_evidence
 from execplus.infrastructure.sources.postgres import controlled_extractor
+from execplus.infrastructure.statistics.prediction import NumpyPredictionTrainer
 from execplus.infrastructure.statistics.scipy_patterns import ScipyPatternStatistics
 from execplus.infrastructure.token_vault import FernetTokenVault
 
@@ -418,7 +419,12 @@ def build_runtime(settings: Settings) -> "Runtime":
         ForecastService(SQLUnitOfWork(engine), analytics),
         operations,
         ProductUsageService(SQLUnitOfWork(engine), operations),
-        DecisionAnalysisService(SQLUnitOfWork(engine), analytics, CpSatAllocationSolver()),
+        DecisionAnalysisService(
+            SQLUnitOfWork(engine),
+            analytics,
+            CpSatAllocationSolver(),
+            NumpyPredictionTrainer(),
+        ),
         DataBriefService(
             SQLUnitOfWork(engine),
             build_language_model(

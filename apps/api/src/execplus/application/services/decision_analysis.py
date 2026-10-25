@@ -12,11 +12,13 @@ from uuid import UUID, uuid4
 
 from execplus.application.allocation_ports import AllocationSolver
 from execplus.application.plan_context import operation_id
+from execplus.application.ports import PredictionTrainer
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.calendar_analysis import CalendarAnalysis
 from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.forecasts import ForecastService, read_complete
 from execplus.application.services.plans import admit
+from execplus.application.services.prediction_models import PredictionModels
 from execplus.application.services.studies import audit
 from execplus.application.services.workspaces import checked_name
 from execplus.domain.allocation_constraints import (
@@ -89,6 +91,7 @@ from execplus.domain.multivariate_anomalies import (
 )
 from execplus.domain.multivariate_anomalies import METHOD as MULTIVARIATE_METHOD
 from execplus.domain.multivariate_anomalies import detect_multivariate, is_multivariate
+from execplus.domain.prediction_models import is_prediction_model, prediction_options
 from execplus.domain.scenario_constraints import METHOD as CONSTRAINED_SCENARIO_METHOD
 from execplus.domain.scenarios import COMPOUND_METHOD, DAILY_METHOD, alternatives, compare_scenarios
 from execplus.domain.scenarios import METHOD as SCENARIO_METHOD
@@ -144,6 +147,8 @@ def scenario_successor_compatible(
 
 
 def method_version(raw: dict[str, Any]) -> str:
+    if is_prediction_model(raw):
+        return str(raw["model"])
     if is_inventory_reorder(raw):
         return REORDER_METHOD
     if is_multivariate(raw):
@@ -267,9 +272,11 @@ class DecisionAnalysisService:
         uow: UnitOfWork,
         analytics: AnalyticsService,
         allocation_solver: AllocationSolver | None = None,
+        prediction_trainer: PredictionTrainer | None = None,
     ) -> None:
         self.uow, self.analytics = uow, analytics
         self.allocation_solver = allocation_solver
+        self.prediction_trainer = prediction_trainer
         self.sources = ForecastService(uow, analytics)
 
     async def options(self, actor: User, wid: UUID, did: UUID, uid: UUID) -> dict[str, Any]:
@@ -318,6 +325,11 @@ class DecisionAnalysisService:
                 maximum_resources=4,
             ),
             methods=REGISTERED_METHODS,
+            prediction_models={
+                **prediction_options(context),
+                "state": "ready" if context.state == "confirmed" else "needs_review",
+                "available": self.prediction_trainer is not None,
+            },
             inventory_reorder=dict(
                 model=REORDER_METHOD,
                 dates=[
@@ -507,6 +519,8 @@ class DecisionAnalysisService:
     ) -> dict[str, Any]:
         if is_calendar_anomaly(raw):
             return await CalendarAnalysis(self).create(actor, wid, did, uid, raw)
+        if is_prediction_model(raw):
+            return await PredictionModels(self).create(actor, wid, did, uid, raw)
         name = checked_name(raw["name"])
         if raw["kind"] == "scenario_comparison":
             if is_source_scenario(raw):
@@ -741,6 +755,8 @@ class DecisionAnalysisService:
         run = self._owned(actor, wid, did, rid)
         if is_calendar_anomaly(run.request):
             return await CalendarAnalysis(self).open(actor, run)
+        if is_prediction_model(run.request):
+            return await PredictionModels(self).open(actor, run)
         invalid = IngestionError(
             "lineage_mismatch", "The saved analysis evidence is inconsistent.", 409
         )
@@ -853,6 +869,12 @@ class DecisionAnalysisService:
     ) -> dict[str, Any]:
         body = await self.open(actor, wid, did, rid)
         run = self._owned(actor, wid, did, rid)
+        if is_prediction_model(run.request):
+            raise IngestionError(
+                "prediction_not_reviewable",
+                "A prediction model has no findings or decision to review.",
+                422,
+            )
         if run.kind == "scenario_comparison":
             raise IngestionError(
                 "scenario_not_decision",

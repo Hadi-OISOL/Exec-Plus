@@ -97,6 +97,19 @@ class PatternStatistics(Protocol):
     def categorical_association(self, counts: tuple[tuple[int, ...], ...]) -> float | None: ...
 
 
+class PredictionTrainer(Protocol):
+    @property
+    def engine_version(self) -> str: ...
+
+    def fit(
+        self,
+        task: str,
+        target: tuple[float, ...],
+        inputs: tuple[tuple[str, str, tuple[Any, ...]], ...],
+        holdout: tuple[int, ...],
+    ) -> dict[str, Any]: ...
+
+
 class LanguageModel(Protocol):
     async def complete(self, request: ModelRequest) -> ModelResponse: ...
 
