@@ -12,6 +12,7 @@ import re
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from itertools import zip_longest
 from typing import Any
 from uuid import UUID
 
@@ -39,6 +40,7 @@ from execplus.domain.analysis_plan import (
     pattern_conversation_plan,
 )
 from execplus.domain.answer_presentation import follow_up_questions
+from execplus.domain.columnar import ColumnarTable
 from execplus.domain.conversation_requirements import (
     SPENDING,
     asks_derived_measure,
@@ -160,6 +162,7 @@ from execplus.domain.pattern_requests import (
     wants_patterns,
 )
 from execplus.domain.pdf_exports import ReportAnswer
+from execplus.domain.profiling import TableData
 from execplus.domain.reorder import (
     REORDER_ROUTE,
     ReorderFields,
@@ -545,6 +548,39 @@ def derived_parts(
     )
 
 
+LABEL_LIMIT = 100_000
+
+
+def _short_labels(table: TableData, name: str, *, long_ok: bool = False) -> tuple[str, ...] | None:
+    """Up to twelve distinct labels in first-seen order; None when the column holds more
+    or, unless long_ok, a value longer than 200 characters."""
+    if isinstance(table, ColumnarTable):
+        found = table.values(name, 13)
+    else:
+        index = table.headers.index(name)
+        seen: dict[str, None] = {}
+        for row in table.rows:
+            value = row[index].strip()
+            if value:
+                seen[value] = None
+            if len(seen) > 12 or (not long_ok and len(value) > 200):
+                return None
+        found = tuple(seen)
+    if len(found) > 12 or (not long_ok and any(len(value) > 200 for value in found)):
+        return None
+    return found
+
+
+def _label_table(
+    table: TableData, columns: tuple[str, ...]
+) -> tuple[tuple[str, ...], tuple[tuple[str, ...], ...]]:
+    if not isinstance(table, ColumnarTable):
+        return table.headers, table.rows
+    names = tuple(name for name in columns if name in table.headers)
+    values = [table.values(name, LABEL_LIMIT) for name in names]
+    return names, tuple(zip_longest(*values, fillvalue=""))
+
+
 class IntentRouterService:
     def __init__(
         self,
@@ -723,62 +759,52 @@ class IntentRouterService:
             )
         choices: list[dict[str, Any]] = []
         for name in dict.fromkeys((*names, *eligible)):
-            index = table.headers.index(name)
-            values = set()
-            for row in table.rows:
-                value = row[index].strip()
-                if value:
-                    values.add(value)
-                if len(values) > 12 or len(value) > 200:
-                    break
-            else:
-                if values:
-                    matching = {
-                        value
-                        for value in values
-                        if len(words(value)) >= 3
-                        and words(value)
-                        not in {
-                            "the",
-                            "and",
-                            "for",
-                            "not",
-                            "but",
-                            "all",
-                            "any",
-                            "our",
-                            "you",
-                            "are",
-                            "was",
-                            "has",
-                            "had",
-                            "can",
-                            "how",
-                            "why",
-                            "who",
-                            "yes",
-                            "sum",
-                            "total",
-                            "average",
-                            "count",
-                            "show",
-                            "tell",
-                            "only",
-                        }
-                        and re.search(
-                            r"(?<!\w)" + re.escape(words(value)) + r"(?!\w)", words(question)
-                        )
+            values = _short_labels(table, name)
+            if values:
+                matching = {
+                    value
+                    for value in values
+                    if len(words(value)) >= 3
+                    and words(value)
+                    not in {
+                        "the",
+                        "and",
+                        "for",
+                        "not",
+                        "but",
+                        "all",
+                        "any",
+                        "our",
+                        "you",
+                        "are",
+                        "was",
+                        "has",
+                        "had",
+                        "can",
+                        "how",
+                        "why",
+                        "who",
+                        "yes",
+                        "sum",
+                        "total",
+                        "average",
+                        "count",
+                        "show",
+                        "tell",
+                        "only",
                     }
-                    if name in names or matching:
-                        choices.append(
-                            {
-                                "column": name,
-                                "values": sorted(values if name in names else matching),
-                                "values_complete": name in names,
-                            }
-                        )
-                        if len(choices) == 8:
-                            break
+                    and re.search(r"(?<!\w)" + re.escape(words(value)) + r"(?!\w)", words(question))
+                }
+                if name in names or matching:
+                    choices.append(
+                        {
+                            "column": name,
+                            "values": sorted(values if name in names else matching),
+                            "values_complete": name in names,
+                        }
+                    )
+                    if len(choices) == 8:
+                        break
         if not choices:
             return "", ()
         return (
@@ -806,9 +832,8 @@ class IntentRouterService:
                 or "identifier" in column.tags
             ):
                 continue
-            index = table.headers.index(column.name)
-            labels = dict.fromkeys(row[index].strip() for row in table.rows if row[index].strip())
-            if len(labels) <= 12:
+            labels = _short_labels(table, column.name, long_ok=True)
+            if labels is not None:
                 found[column.name] = tuple(labels)
         return found
 
@@ -2571,18 +2596,14 @@ class IntentRouterService:
             lambda: self.analytics.descriptive_snapshot(actor, workspace_id, dataset_id, upload_id)
         )
         view = current.view
-        note = variants_note(
-            table.headers,
-            table.rows,
-            columns
-            or tuple(
-                column.name
-                for column in view.columns
-                if column.type == "text"
-                and column.name in view.dimensions
-                and "identifier" not in column.tags
-            ),
+        checked = columns or tuple(
+            column.name
+            for column in view.columns
+            if column.type == "text"
+            and column.name in view.dimensions
+            and "identifier" not in column.tags
         )
+        note = variants_note(*_label_table(table, checked), checked)
         return replace(guide, message=f"{guide.message}\n\n{note}") if note else guide
 
     def _guide(
@@ -2666,8 +2687,14 @@ class IntentRouterService:
             ):
                 resolved.append(item)
                 continue
-            index = table.headers.index(item.column)
-            labels = {row[index] for row in table.rows if row[index].strip()}
+            if isinstance(table, ColumnarTable):
+                labels = set(table.values(item.column, LABEL_LIMIT + 1))
+                if len(labels) > LABEL_LIMIT:
+                    resolved.append(item)
+                    continue
+            else:
+                index = table.headers.index(item.column)
+                labels = {row[index] for row in table.rows if row[index].strip()}
             if item.value in labels or (
                 item.operator == FilterOperator.IEQ
                 and item.value.casefold() in {label.casefold() for label in labels}

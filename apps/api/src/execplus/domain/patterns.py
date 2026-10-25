@@ -18,6 +18,7 @@ from execplus.domain.guidance import DescriptionContext
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.models import QueryPlan, QueryResult, Scalar, WorkspaceScope
 from execplus.domain.profiling import TableData
+from execplus.domain.sampling import label as sample_label
 from execplus.domain.semantics import (
     DatasetView,
     MetricFilter,
@@ -37,6 +38,7 @@ MIN_SUPPORT = 20
 MIN_GROUP = 5
 MAX_CATEGORIES_PER_COLUMN = 12
 MAX_FINDINGS = 6
+TOTAL_ROWS = 100_000
 
 Correlation = Callable[
     [tuple[float, ...], tuple[float, ...], tuple[float, ...], tuple[float, ...]],
@@ -214,7 +216,12 @@ def pattern_request(
 
 
 def pattern_plan(
-    scope: WorkspaceScope, did: UUID, view: DatasetView, request: dict[str, Any]
+    scope: WorkspaceScope,
+    did: UUID,
+    view: DatasetView,
+    request: dict[str, Any],
+    *,
+    totals: bool = False,
 ) -> QueryPlan:
     from execplus.domain.semantics import FilterOperator
 
@@ -225,6 +232,20 @@ def pattern_plan(
         for item in request["filters"]
     )
     where, parameters = build_where(view, filters)
+    if totals:
+        keys = ", ".join(quote_identifier(name) for name in request["categories"])
+        measures = "".join(
+            f", COUNT({name}), SUM({name})"
+            for name in map(quote_identifier, request["group_metrics"])
+        )
+        sql = f'SELECT {keys}, COUNT(*){measures} FROM "dataset"'
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += f" GROUP BY {keys} ORDER BY {keys} LIMIT {TOTAL_ROWS}"
+        validate_read_only(sql)
+        return QueryPlan(
+            uuid4(), scope.workspace_id, did, "Exact pattern totals", sql, tuple(parameters)
+        )
     fields = ", ".join(quote_identifier(name) for name in request["columns"])
     sql = f'SELECT {fields} FROM "dataset"'
     if where:
@@ -376,6 +397,7 @@ def _groups(
     category: str,
     metric: str,
     unit: str,
+    exact: tuple[dict[str, tuple[int, Decimal]], int] | None = None,
 ) -> dict[str, Any] | None:
     ci, mi = names.index(category), names.index(metric)
     groups: dict[str, list[Decimal]] = defaultdict(list)
@@ -402,9 +424,27 @@ def _groups(
     score = between / total_variance
     strong = score >= Decimal("0.2")
     means = {key: mean(values) for key, values in usable.items()}
+    counts = {key: len(values) for key, values in usable.items()}
+    support, excluded = len(values), len(rows) - len(values)
+    notes = []
+    if exact is not None:
+        sums, matching = exact
+        counts = {key: count for key, (count, _) in sums.items() if count >= MIN_GROUP}
+        means = {
+            key: (sums[key][1] / count).quantize(Decimal("0.000000000001"))
+            for key, count in counts.items()
+        }
+        if len(means) < 2:
+            return None
+        support = sum(counts.values())
+        excluded = matching - support
+        notes.append(
+            f"Averages and row counts use all {support} matching rows and are exact; "
+            "the separation score is estimated from the sample."
+        )
     highest = max(means, key=lambda key: means[key])
     lowest = min(means, key=lambda key: means[key])
-    points = [dict(x=key, y=encoded(means[key]), count=len(usable[key])) for key in sorted(usable)]
+    points = [dict(x=key, y=encoded(means[key]), count=counts[key]) for key in sorted(means)]
     return dict(
         id=finding_id("group_difference", [category, metric]),
         type="group_difference",
@@ -416,12 +456,12 @@ def _groups(
             ("" if strong else "No clear group pattern: ")
             + f"Average {metric} is {encoded(means[highest])} {unit} for {highest} "
             f"and {encoded(means[lowest])} {unit} for {lowest}, "
-            f"across {len(values)} covered rows."
+            f"across {support} covered rows."
         ),
         columns=[category, metric],
         score=approximate(score),
-        support=len(values),
-        excluded=len(rows) - len(values),
+        support=support,
+        excluded=excluded,
         statistics=dict(eta_squared=approximate(score)),
         chart=dict(kind="bar", x=category, y=metric, y_unit=unit, points=points),
         notes=[
@@ -429,34 +469,45 @@ def _groups(
             "missing values and smaller groups are excluded.",
             "Arithmetic means are rounded to twelve decimal places. Group differences describe "
             "these records; they do not show what changing a category would cause.",
+            *notes,
         ],
     )
 
 
+def _margins(counts: Counter[tuple[str, str]]) -> tuple[Counter[str], Counter[str]]:
+    left: Counter[str] = Counter()
+    right: Counter[str] = Counter()
+    for (x, y), count in counts.items():
+        left[x] += count
+        right[y] += count
+    return left, right
+
+
 def _categories(
-    rows: tuple[tuple[Scalar, ...], ...],
-    names: list[str],
+    observed: Counter[tuple[str, str]],
+    total: int,
     left: str,
     right: str,
     association: Association,
+    exact: bool = False,
 ) -> dict[str, Any] | None:
-    li, ri = names.index(left), names.index(right)
-    pairs = [
-        (str(row[li]), str(row[ri])) for row in rows if row[li] is not None and row[ri] is not None
-    ]
-    left_counts, right_counts = Counter(x for x, _ in pairs), Counter(y for _, y in pairs)
+    left_counts, right_counts = _margins(observed)
     if max(len(left_counts), len(right_counts)) > MAX_CATEGORIES_PER_COLUMN:
         return None
-    pairs = [
-        (x, y) for x, y in pairs if left_counts[x] >= MIN_GROUP and right_counts[y] >= MIN_GROUP
-    ]
-    left_counts, right_counts = Counter(x for x, _ in pairs), Counter(y for _, y in pairs)
-    if len(pairs) < MIN_SUPPORT or min(len(left_counts), len(right_counts)) < 2:
+    counts = Counter(
+        {
+            (x, y): count
+            for (x, y), count in observed.items()
+            if left_counts[x] >= MIN_GROUP and right_counts[y] >= MIN_GROUP
+        }
+    )
+    left_counts, right_counts = _margins(counts)
+    covered = sum(counts.values())
+    if covered < MIN_SUPPORT or min(len(left_counts), len(right_counts)) < 2:
         return None
     if min(*left_counts.values(), *right_counts.values()) < MIN_GROUP:
         return None
     xs, ys = sorted(left_counts), sorted(right_counts)
-    counts = Counter(pairs)
     score = association(tuple(tuple(counts[x, y] for y in ys) for x in xs))
     if score is None:
         return None
@@ -474,12 +525,12 @@ def _categories(
         summary=(
             ("" if strong else "No clear category pattern: ")
             + f"{strongest[0]} with {strongest[1]} occurs in {counts[strongest]} "
-            f"of {len(pairs)} covered rows. Overall category association: {approximate(score)}."
+            f"of {covered} covered rows. Overall category association: {approximate(score)}."
         ),
         columns=[left, right],
         score=approximate(score),
-        support=len(pairs),
-        excluded=len(rows) - len(pairs),
+        support=covered,
+        excluded=total - covered,
         statistics=dict(cramers_v=approximate(score)),
         chart=dict(
             kind="matrix",
@@ -492,8 +543,45 @@ def _categories(
             "It is not statistical significance or an event sequence.",
             "Missing values and category levels with fewer than five rows are excluded; "
             "small groups can produce unstable patterns.",
+            *(
+                ["Counts and the association score use all matching rows and are exact."]
+                if exact
+                else []
+            ),
         ],
     )
+
+
+def _exact_totals(
+    totals: QueryResult, request: dict[str, Any]
+) -> tuple[
+    int,
+    dict[tuple[str, str], dict[str, tuple[int, Decimal]]],
+    dict[tuple[str, str], Counter[tuple[str, str]]],
+]:
+    categories, metrics = request["categories"], request["group_metrics"]
+    if list(totals.columns[: len(categories)]) != categories or len(totals.columns) != len(
+        categories
+    ) + 1 + 2 * len(metrics):
+        invalid("The exact pattern totals do not match their declared fields.")
+    matching = 0
+    groups: dict[tuple[str, str], dict[str, tuple[int, Decimal]]] = defaultdict(dict)
+    pairs: dict[tuple[str, str], Counter[tuple[str, str]]] = defaultdict(Counter)
+    for row in totals.rows:
+        keys, rows = row[: len(categories)], int(str(row[len(categories)]))
+        matching += rows
+        for position, metric in enumerate(metrics):
+            count = int(str(row[len(categories) + 1 + 2 * position]))
+            total = row[len(categories) + 2 + 2 * position]
+            for category, key in zip(categories, keys, strict=True):
+                if key is None or not count:
+                    continue
+                before, value = groups[category, metric].get(str(key), (0, Decimal(0)))
+                groups[category, metric][str(key)] = (before + count, value + numerical(total))
+        for (li, left), (ri, right) in combinations(enumerate(categories), 2):
+            if keys[li] is not None and keys[ri] is not None:
+                pairs[left, right][str(keys[li]), str(keys[ri])] += rows
+    return matching, groups, pairs
 
 
 def pattern_result(
@@ -502,6 +590,7 @@ def pattern_result(
     engine_version: str,
     correlations: Correlation,
     association: Association,
+    totals: QueryResult | None = None,
 ) -> dict[str, Any]:
     if len(value.rows) > MAX_ROWS:
         invalid(
@@ -512,17 +601,28 @@ def pattern_result(
         len(row) != len(value.columns) for row in value.rows
     ):
         invalid("The pattern evidence does not match its declared fields.")
+    sample = request.get("sample")
+    if (bool(sample) and bool(request["categories"])) != (totals is not None):
+        invalid("The exact pattern totals do not match the sampled scan.")
     candidates: list[dict[str, Any]] = []
     checked = 0
     names, metrics, categories = request["columns"], request["metrics"], request["categories"]
     with localcontext() as precision:
         precision.prec = 128
+        matching, exact_groups, exact_pairs = (
+            _exact_totals(totals, request) if totals is not None else (0, {}, {})
+        )
         for left, right in combinations(metrics, 2):
             if len(request["selected"]) == 1 and request["selected"][0] not in {left, right}:
                 continue
             checked += 1
             finding = _numeric(value.rows, names, left, right, request["units"], correlations)
             if finding:
+                if sample:
+                    finding["notes"].append(
+                        sample_label(len(value.rows), sample["source_rows"])
+                        + " Both scores and the chart use only the sampled rows."
+                    )
                 candidates.append(finding)
         for category in categories:
             for metric in request["group_metrics"]:
@@ -532,14 +632,42 @@ def pattern_result(
                 }:
                     continue
                 checked += 1
-                finding = _groups(value.rows, names, category, metric, request["units"][metric])
+                finding = _groups(
+                    value.rows,
+                    names,
+                    category,
+                    metric,
+                    request["units"][metric],
+                    (exact_groups.get((category, metric), {}), matching) if sample else None,
+                )
                 if finding:
                     candidates.append(finding)
         for left, right in combinations(categories, 2):
             if len(request["selected"]) == 1 and request["selected"][0] not in {left, right}:
                 continue
             checked += 1
-            finding = _categories(value.rows, names, left, right, association)
+            if sample:
+                finding = _categories(
+                    exact_pairs.get((left, right), Counter()),
+                    matching,
+                    left,
+                    right,
+                    association,
+                    exact=True,
+                )
+            else:
+                li, ri = names.index(left), names.index(right)
+                finding = _categories(
+                    Counter(
+                        (str(row[li]), str(row[ri]))
+                        for row in value.rows
+                        if row[li] is not None and row[ri] is not None
+                    ),
+                    len(value.rows),
+                    left,
+                    right,
+                    association,
+                )
             if finding:
                 candidates.append(finding)
     focus = set(request.get("focus", []))
@@ -571,7 +699,7 @@ def pattern_result(
         if not evaluated
         else "no_strong_patterns",
         coverage=dict(
-            source_rows=value.records_analyzed,
+            source_rows=sample["source_rows"] if sample else value.records_analyzed,
             filtered_rows=len(value.rows),
             eligible_columns=len(names),
             checked_candidates=checked,
@@ -580,6 +708,17 @@ def pattern_result(
             omitted_findings=max(0, len(candidates) - len(findings)),
             evaluated_candidates=evaluated,
             insufficient_candidates=checked - evaluated,
+            **(
+                dict(
+                    sample=dict(
+                        spec=sample["spec"],
+                        sampled_rows=value.records_analyzed,
+                        exact_matching_rows=matching if totals is not None else None,
+                    )
+                )
+                if sample
+                else {}
+            ),
         ),
         limitations=[
             "Exploratory associations in this file, not causes, predictions, event order "
@@ -590,8 +729,15 @@ def pattern_result(
             "Repeated or related rows may overstate independent support.",
             "Display thresholds are |correlation| >= 0.5, category separation >= 0.2 "
             "and category association >= 0.3; these are exploration rules, not confidence levels.",
-            "Scores use all matching rows and are approximate to six decimal places. "
-            "Source values and counts retain their original exact representation.",
+            (
+                sample_label(value.records_analyzed, sample["source_rows"])
+                + " Relationship scores, group separation scores and scatter charts use the "
+                "sample; group averages, group row counts and category counts use every "
+                "matching row and are exact. Scores are approximate to six decimal places."
+                if sample
+                else "Scores use all matching rows and are approximate to six decimal places. "
+                "Source values and counts retain their original exact representation."
+            ),
             (
                 "At most eight measures and four categories are selected by explicit focus, "
                 "likely outcome names and completeness. Names guide exploration, "

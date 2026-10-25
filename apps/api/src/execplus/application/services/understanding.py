@@ -7,21 +7,26 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
-from io import BytesIO
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from execplus.application.ports import FileParser, ObjectStorage, WorkspaceRepository
+from execplus.application.ports import (
+    ColumnarStore,
+    FileParser,
+    ObjectStorage,
+    WorkspaceRepository,
+)
 from execplus.application.services.dataset_access import (
     dataset_access,
     require_full_access,
     scope_snapshot,
 )
+from execplus.application.validated_tables import revision_table
 from execplus.domain.agent_memory import AgentMemory, validate_memory
 from execplus.domain.dataset_access import DatasetAccess, denied
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.ingestion import AuditEvent, IngestionError, Upload, User
-from execplus.domain.profiling import Revision, TableData, reconstruct
+from execplus.domain.profiling import Revision, TableData
 from execplus.domain.semantics import DatasetView, dataset_view
 from execplus.domain.understanding import (
     DOMAINS,
@@ -54,11 +59,16 @@ def current_meaning(
 
 class UnderstandingService:
     def __init__(
-        self, unit_of_work: UnitOfWork, storage: ObjectStorage, parser: FileParser
+        self,
+        unit_of_work: UnitOfWork,
+        storage: ObjectStorage,
+        parser: FileParser,
+        columnar: ColumnarStore | None = None,
     ) -> None:
         self.uow = unit_of_work
         self.storage = storage
         self.parser = parser
+        self.columnar = columnar
 
     def _snapshot(
         self,
@@ -90,16 +100,8 @@ class UnderstandingService:
             raise IngestionError(
                 "lineage_mismatch", "The retained source no longer matches its revision.", 409
             )
-        content = BytesIO(self.storage.read(upload))
-        self.parser.parse(
-            content, upload.filename, upload.content_type, stored_format=upload.format
-        )
-        return (
-            upload,
-            revision,
-            reconstruct(self.parser.read_table(content, upload.format), revision),
-            access,
-        )
+        table = revision_table(self.storage, self.parser, self.columnar, upload, revision)
+        return upload, revision, table, access
 
     def _recheck_snapshot(
         self,

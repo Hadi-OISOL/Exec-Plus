@@ -46,6 +46,7 @@ type Preview = {
   headers: string[];
   rows: string[][];
   removed_rows: number;
+  sample?: { label: string; rows: number; source_rows: number; apply_limit_rows: number };
 };
 const emptyStep: Step = {
   trim: false,
@@ -351,10 +352,19 @@ export function ProfilePanel({
                 {preview.revision.profile.row_count} rows remaining · Quality
                 score: {preview.revision.profile.quality_score}/100
               </p>
-              <p>
-                First 10 output rows at most. The counts and score cover the
-                full file.
-              </p>
+              {preview.sample ? (
+                <p role="note">
+                  {preview.sample.label} Counts and score above describe that sample.
+                  Applying is available for files up to{" "}
+                  {preview.sample.apply_limit_rows.toLocaleString()} rows; this file has{" "}
+                  {preview.sample.source_rows.toLocaleString()}.
+                </p>
+              ) : (
+                <p>
+                  First 10 output rows at most. The counts and score cover the
+                  full file.
+                </p>
+              )}
               <div className="tableScroll" tabIndex={0} role="region" aria-label="Cleaning preview rows">
                 <table>
                   <thead>

@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from execplus.domain.columnar import ColumnarTable
 from execplus.domain.errors import ClarificationRequiredError, UnsupportedQuestionError
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.profiling import TableData
@@ -449,7 +450,7 @@ def validate_definition(
             item["name"] for item in columns if item["name"].lower() in {"order_id", "orderid"}
         ]
         if any(
-            source[name]["missing"] or source[name]["distinct_count"] != len(table.rows)
+            source[name]["missing"] or source[name]["distinct_count"] != table.row_count
             for name in order_columns
         ):
             raise IngestionError(
@@ -553,12 +554,14 @@ def governed_request(view: DatasetView, table: TableData, request: MetricRequest
                 )
         for name in (request.metric, request.times):
             column = next((item for item in definition["columns"] if item["name"] == name), None)
-            if column and column["missing_policy"] == "needs_review":
-                index = table.headers.index(name)
-                if any(not row[index].strip() for row in table.rows):
-                    raise ClarificationRequiredError(
-                        "Review the missing-value policy before calculating this metric."
-                    )
+            if (
+                column
+                and column["missing_policy"] == "needs_review"
+                and _has_blank(table, column["name"])
+            ):
+                raise ClarificationRequiredError(
+                    "Review the missing-value policy before calculating this metric."
+                )
     # A numeric unit/units field holds quantities, never labels such as kg/USD.
     # Text label columns and explicit unit-column mappings keep the guard.
     fixed_unit_measures = {
@@ -580,8 +583,7 @@ def governed_request(view: DatasetView, table: TableData, request: MetricRequest
         }
     if request.aggregation != AggregationKind.COUNT:
         for name in unit_columns:
-            index = table.headers.index(name)
-            values = {row[index].strip().casefold() for row in table.rows}
+            values = _unit_labels(table, name)
             constrained = any(
                 item.column == name and item.operator in {FilterOperator.EQ, FilterOperator.IEQ}
                 for item in request.filters
@@ -596,6 +598,21 @@ def governed_request(view: DatasetView, table: TableData, request: MetricRequest
                     "with different or missing units."
                 )
     return request
+
+
+def _has_blank(table: TableData, name: str) -> bool:
+    if isinstance(table, ColumnarTable):
+        return table.missing(name) > 0
+    index = table.headers.index(name)
+    return any(not row[index].strip() for row in table.rows)
+
+
+def _unit_labels(table: TableData, name: str) -> set[str]:
+    if isinstance(table, ColumnarTable):
+        labels = {value.casefold() for value in table.values(name, 1000)}
+        return labels | {""} if table.missing(name) else labels
+    index = table.headers.index(name)
+    return {row[index].strip().casefold() for row in table.rows}
 
 
 def preferred_aggregation(view: DatasetView, metric: str) -> AggregationKind:

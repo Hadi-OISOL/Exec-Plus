@@ -34,7 +34,7 @@ from execplus.application.services.lineage import (
 )
 from execplus.application.services.plan_executor import PlanAwareExecutor
 from execplus.application.services.understanding import current_meaning
-from execplus.application.validated_tables import revision_table
+from execplus.application.validated_tables import revision_table, sampled_table
 from execplus.domain.dashboard_templates import TEMPLATES, DashboardTemplate, applicable_templates
 from execplus.domain.errors import ClarificationRequiredError, UnsupportedQuestionError
 from execplus.domain.evidence import receipt, result_evidence, scalar_from_record
@@ -801,6 +801,8 @@ class AnalyticsService:
                         "lineage_mismatch", "The snapshot no longer matches its receipt.", 409
                     )
                 table = self.revision_table(upload, revision)
+                if "sample" in source:
+                    table = sampled_table(table, source["sample"])
                 view = dataset_view(revision.profile)
                 if source.get("understanding_id"):
                     meaning = repo.understanding(

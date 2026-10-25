@@ -397,7 +397,7 @@ def build_runtime(settings: Settings) -> "Runtime":
             else DisabledEmailDelivery(),
             settings.web_origin,
         ),
-        UnderstandingService(SQLUnitOfWork(engine), storage, parser),
+        UnderstandingService(SQLUnitOfWork(engine), storage, parser, columnar),
         CatalogService(SQLUnitOfWork(engine)),
         StudyService(SQLUnitOfWork(engine), analytics),
         OrganizationService(SQLUnitOfWork(engine)),

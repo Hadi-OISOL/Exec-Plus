@@ -24,7 +24,7 @@ type ExplorationResult = {
   engine_version: string;
   findings: PatternFinding[];
   exploratory?: PatternFinding[];
-  coverage: { source_rows: number; filtered_rows: number; eligible_columns: number; checked_candidates: number; suppressed_candidates: number; selected_findings: number };
+  coverage: { source_rows: number; filtered_rows: number; eligible_columns: number; checked_candidates: number; suppressed_candidates: number; selected_findings: number } & SampleCoverage;
   limitations: string[];
   exclusions: { column: string; reason: string }[];
   status: "patterns_found" | "no_strong_patterns" | "insufficient_data";
@@ -43,7 +43,7 @@ export type GroupRelationshipResult = {
   pooled: { support: number; statistics: Correlations; directions: Directions; chart: { kind: "scatter"; x: string; y: string; x_unit?: string; y_unit?: string; points: { x: string; y: string; group: string }[] }; notes: string[] } | null;
   groups: { id: string; label: string; rows: number; complete_pairs: number; excluded_pairs: number; status: "eligible" | "sparse" | "constant" | "unstable"; statistics: Correlations | null; directions: Directions | null }[];
   comparisons: { pearson: { reversal_groups: string[]; same_direction_groups: string[]; weak_groups: string[] }; spearman: { reversal_groups: string[]; same_direction_groups: string[]; weak_groups: string[] } };
-  coverage: { source_rows: number; filtered_rows: number; covered_rows: number; excluded_rows: number; missing_category_rows: number; missing_pair_rows: number; sparse_group_rows: number; constant_group_rows: number; unstable_group_rows: number; observed_groups: number; eligible_groups: number };
+  coverage: { source_rows: number; filtered_rows: number; covered_rows: number; excluded_rows: number; missing_category_rows: number; missing_pair_rows: number; sparse_group_rows: number; constant_group_rows: number; unstable_group_rows: number; observed_groups: number; eligible_groups: number } & SampleCoverage;
   limitations: string[];
   exclusions: { column: string; reason: string }[];
 };
@@ -52,7 +52,7 @@ export type CohortComparisonResult = {
   engine_version: string;
   status: "compared" | "insufficient_data";
   target: { column: string; value: string };
-  coverage: { source_rows: number; filtered_rows: number; target_rows: number; other_rows: number; missing_target_rows: number };
+  coverage: { source_rows: number; filtered_rows: number; target_rows: number; other_rows: number; missing_target_rows: number } & SampleCoverage;
   numeric: { column: string; unit: string; target_count: number; other_count: number; target_mean: string | null; other_mean: string | null; target_median: string | null; other_median: string | null; difference: string | null; standardized_difference: string | null; status: "compared" | "insufficient_data" }[];
   categories: { column: string; levels: { value: string; target_count: number; other_count: number; target_share: string | null; other_share: string | null }[]; target_observed: number; other_observed: number }[];
   limitations: string[];
@@ -62,6 +62,12 @@ export type CohortComparisonResult = {
 };
 export type PatternResult = ExplorationResult | GroupRelationshipResult | CohortComparisonResult;
 export type PatternEvidence = { query_id: string; method_version?: string; result_checksum?: string };
+type SampleCoverage = { source_rows: number; sample?: { sampled_rows: number; exact_matching_rows?: number | null } };
+function SampleNote({ coverage }: { coverage: SampleCoverage }) {
+  if (!coverage.sample) return null;
+  const exact = coverage.sample.exact_matching_rows != null;
+  return <p className="patternSampleNote" role="note">Based on a fixed random sample of {coverage.sample.sampled_rows.toLocaleString()} of {coverage.source_rows.toLocaleString()} rows. {exact ? "Relationship scores, group separation scores and scatter charts use the sample; group averages, row counts and category counts use every row and are exact." : "Every figure here comes from the sample, so treat it as an estimate."}</p>;
+}
 const groupColor = (index: number) => (index >= 0 && index < 8 ? `var(--chart-${index + 1})` : "var(--color-text-muted)");
 
 function PatternChart({ finding }: { finding: PatternFinding }) {
@@ -163,6 +169,7 @@ function GroupRelationshipResults({ result, evidence, sources }: { result: Group
   return <section className={`patternResults groupRelationshipResults ${styles.results}`} aria-label="Relationships within groups">
     <header className="patternOverview"><span className="analysisEyebrow">SAME RECORDS · TWO VIEWS</span><h3>{result.status === "compared" ? "Does the overall pattern hold within groups?" : "More comparable groups are needed"}</h3>
       <p>{result.columns[0]} and {result.columns[1]}, grouped by {result.group_by}. The combined result uses exactly the complete pairs from the eligible groups below.</p>
+      <SampleNote coverage={result.coverage} />
       <dl className="patternCoverage"><div><dt>Usable rows</dt><dd>{result.coverage.covered_rows}</dd></div><div><dt>Usable groups</dt><dd>{result.coverage.eligible_groups}</dd></div><div><dt>Rows left out</dt><dd>{result.coverage.excluded_rows}</dd></div></dl>
     </header>
     {result.pooled ? <>
@@ -225,6 +232,7 @@ function CohortComparisonResults({ result, evidence, sources, onAsk, busy }: {
       <span className="analysisEyebrow">YOUR GROUP · COMPARED WITH THE REST</span>
       <h3>{result.status === "compared" ? `What is different about ${target}?` : `What we can compare for ${target}`}</h3>
       <p><strong>{result.target.column} = {target}</strong>, compared with all other nonmissing values of {result.target.column}. Missing group labels are kept out of both sides.</p>
+      <SampleNote coverage={result.coverage} />
       <dl className="patternCoverage">
         <div><dt>{target} rows</dt><dd>{result.coverage.target_rows}</dd></div>
         <div><dt>Other group rows</dt><dd>{result.coverage.other_rows}</dd></div>
@@ -294,6 +302,7 @@ export function PatternResults({ result, evidence, sources, onAsk, busy = false 
       <span className="analysisEyebrow">MEASURED FROM YOUR FILE</span>
       <h3>{result.findings.length ? "Here is what stands out" : empty}</h3>
       <p>{result.findings.length ? "These relationships appear in the recorded rows. They can guide your next question; they do not prove that one thing caused another." : result.status === "insufficient_data" ? "The available rows or eligible fields are too limited for a supported comparison. Check the details below before adding more data." : "The comparisons did not pass this method’s screening rules. A weak result is useful too: it keeps us from inventing a story."}</p>
+      <SampleNote coverage={result.coverage} />
       <dl className="patternCoverage"><div><dt>Rows checked</dt><dd>{result.coverage.filtered_rows}</dd></div><div><dt>Fields explored</dt><dd>{result.coverage.eligible_columns}</dd></div><div><dt>Comparisons tested</dt><dd>{result.coverage.checked_candidates}</dd></div></dl>
     </header>
     <div className="patternFindings">{result.findings.slice(0, 6).map((finding, index) => <PatternCard key={finding.id} finding={finding} index={index} instance={instance} />)}</div>

@@ -35,6 +35,7 @@ from execplus.application.services.dataset_access import (
 from execplus.application.services.plans import admit
 from execplus.domain.audit import MANAGER_ACTIONS, SHARED_ACTIONS, audit_cursor, parse_audit_cursor
 from execplus.domain.columnar import ColumnarConversion, ColumnarManifest
+from execplus.domain.compute import QueryBudget
 from execplus.domain.dataset_access import DatasetAccess, ScopedUploadMetadata, denied
 from execplus.domain.ingestion import (
     MULTI_TABLE_FORMATS,
@@ -66,11 +67,18 @@ from execplus.domain.profiling import (
     transform,
 )
 from execplus.domain.samples import SAMPLES, sample_csv
+from execplus.domain.sampling import label as sample_label
+from execplus.domain.sampling import sample_positions
+from execplus.domain.sampling import spec as sample_spec
 from execplus.domain.semantics import dataset_view
 from execplus.domain.upload_sessions import require_quota
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 logger = logging.getLogger(__name__)
+
+CLEANING_SAMPLE_ROWS = 10_000
+CLEANING_APPLY_ROWS = QueryBudget().input_rows
+CLEANING_APPLY_CELLS = QueryBudget().input_cells
 
 
 def normalized_email(value: str) -> str:
@@ -1009,7 +1017,20 @@ class WorkspaceService:
             raise IngestionError(
                 "lineage_mismatch", "The source checksum does not match this revision.", 409
             )
-        source = reconstruct(self._table(upload), active)
+        try:
+            source = reconstruct(self._table(upload), active)
+        except IngestionError as error:
+            if error.code != "large_dataset_step":
+                raise
+            if apply:
+                raise IngestionError(
+                    "large_dataset_step",
+                    f"Cleaning can be applied to files up to {CLEANING_APPLY_ROWS:,} rows and "
+                    f"{CLEANING_APPLY_CELLS:,} cells; this file has {upload.row_count:,} rows. "
+                    "The preview shows a sample of what would change.",
+                    422,
+                ) from None
+            return self._sampled_cleaning_preview(actor, upload, active, access, step)
         result = transform(source, step)
         revision = self._make_revision(
             actor,
@@ -1035,6 +1056,43 @@ class WorkspaceService:
                 "removed_rows": len(source.rows) - len(result.rows),
                 "applied": apply,
             }
+
+    def _sampled_cleaning_preview(
+        self,
+        actor: User,
+        upload: Upload,
+        active: Revision,
+        access: DatasetAccess,
+        step: Cleaning,
+    ) -> dict[str, object]:
+        positions = sample_positions(upload.row_count, CLEANING_SAMPLE_ROWS)
+        source = self.parser.read_sample(
+            BytesIO(self.storage.read(upload)), upload.format, positions, upload.row_count
+        )
+        for earlier in active.recipe:
+            source = transform(source, earlier)
+        result = transform(source, step)
+        revision = self._make_revision(
+            actor, upload, result, [*active.recipe, step], active.id, algorithm=active.algorithm
+        )
+        with self.uow() as repo:
+            repo.workspace(upload.workspace_id, lock=True)
+            self._recheck_upload(repo, actor, upload, access, active)
+        return {
+            "revision": revision,
+            "headers": result.headers,
+            "rows": result.rows[:10],
+            "preview_limit": 10,
+            "removed_rows": len(source.rows) - len(result.rows),
+            "applied": False,
+            "sample": {
+                "spec": sample_spec(CLEANING_SAMPLE_ROWS),
+                "rows": len(positions),
+                "source_rows": upload.row_count,
+                "label": sample_label(len(positions), upload.row_count),
+                "apply_limit_rows": CLEANING_APPLY_ROWS,
+            },
+        }
 
     def restore(
         self,

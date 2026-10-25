@@ -82,13 +82,13 @@ def open_table(
         connection.close()
 
 
-def read_source_table(
+@contextmanager
+def _stored_relation(
     content: BinaryIO,
     format: str,
     extension_directory: Path,
     formula_cells: Literal["reject", "keep_as_text"],
-    limit: int,
-) -> tuple[FileStructure, TableData]:
+) -> Iterator[duckdb.DuckDBPyRelation]:
     with tempfile.TemporaryDirectory(prefix="execplus-read-") as work:
         name = "source." + stored_table(format)[0]
         source = Path(work) / name
@@ -97,22 +97,62 @@ def read_source_table(
             shutil.copyfileobj(content, handle, 1024 * 1024)
         content.seek(0)
         with open_table(
-            source,
-            name,
-            Path(work),
-            extension_directory,
-            formula_cells,
-            table=stored_table(format)[1],
+            source, name, Path(work), extension_directory, formula_cells, table=stored_table(format)[1]
         ) as opened:
-            _, relation, _, _ = opened
-            fetched = relation.fetchmany(limit + 1)
-            headers = tuple(str(column) for column in relation.columns)
-    if len(fetched) > limit:
+            yield opened[1]
+
+
+def _text_row(row: tuple[object, ...]) -> tuple[str, ...]:
+    return tuple("" if value is None else str(value) for value in row)
+
+
+def read_source_table(
+    content: BinaryIO,
+    format: str,
+    extension_directory: Path,
+    formula_cells: Literal["reject", "keep_as_text"],
+    limit: int,
+    *,
+    extended_limit: int | None = None,
+    max_cells: int | None = None,
+) -> tuple[FileStructure, TableData]:
+    """Exact text rows; up to `limit`, or up to `extended_limit` while within `max_cells`."""
+    with _stored_relation(content, format, extension_directory, formula_cells) as relation:
+        headers = tuple(str(column) for column in relation.columns)
+        bound = limit
+        if extended_limit and max_cells:
+            bound = max(limit, min(extended_limit, max_cells // max(1, len(headers))))
+        fetched = relation.fetchmany(bound + 1)
+    if len(fetched) > bound:
         raise IngestionError(
             "large_dataset_step",
-            f"This step reads every row and is not yet available for files over {limit:,} rows. "
+            f"This step reads every row and is not yet available for files over {bound:,} rows. "
             "Ask a calculation question instead.",
             422,
         )
-    rows = tuple(tuple("" if value is None else str(value) for value in row) for row in fetched)
+    rows = tuple(_text_row(row) for row in fetched)
     return FileStructure(format, len(rows), len(headers), 1), TableData(headers, rows)
+
+
+def read_source_rows_at(
+    content: BinaryIO,
+    format: str,
+    extension_directory: Path,
+    formula_cells: Literal["reject", "keep_as_text"],
+    positions: tuple[int, ...],
+    total: int,
+) -> TableData:
+    """Exact text rows at sorted zero-based positions, streamed in file order."""
+    wanted = set(positions)
+    rows: list[tuple[str, ...]] = []
+    seen = 0
+    with _stored_relation(content, format, extension_directory, formula_cells) as relation:
+        headers = tuple(str(column) for column in relation.columns)
+        while batch := relation.fetchmany(10_000):
+            rows.extend(_text_row(row) for index, row in enumerate(batch, seen) if index in wanted)
+            seen += len(batch)
+    if seen != total:
+        raise IngestionError(
+            "lineage_mismatch", "The retained source failed its integrity check.", 409
+        )
+    return TableData(headers, tuple(rows))
