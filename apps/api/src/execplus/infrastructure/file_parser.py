@@ -5,7 +5,6 @@ What it does: Rejects unsafe names, formulas, malformed tables, and unsafe workb
 
 import csv
 import re
-import unicodedata
 from datetime import date, datetime
 from io import TextIOWrapper
 from pathlib import PurePosixPath
@@ -17,7 +16,12 @@ from defusedxml.ElementTree import iterparse
 from openpyxl import load_workbook
 from openpyxl.utils.cell import coordinate_to_tuple
 
-from execplus.domain.ingestion import FileStructure, IngestionError
+from execplus.domain.ingestion import (
+    FileStructure,
+    IngestionError,
+    file_too_large,
+    validate_filename,
+)
 from execplus.domain.profiling import TableData
 
 MAX_BYTES = 20 * 1024 * 1024
@@ -29,21 +33,6 @@ MIME_TYPES = {
     ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 }
 CSV_DELIMITERS = {"csv": ",", "csv;s": ";", "csv;t": "\t"}
-
-
-def validate_filename(filename: str) -> str:
-    name = unicodedata.normalize("NFKC", filename).strip()
-    if (
-        not name
-        or len(name) > 200
-        or name.startswith(".")
-        or any(char in name for char in "/\\:%")
-        or any(unicodedata.category(char).startswith("C") for char in name)
-    ):
-        raise IngestionError(
-            "unsafe_filename", "Use a plain filename without paths or control characters.", 422
-        )
-    return name
 
 
 def validate_cell(value: object) -> None:
@@ -78,6 +67,9 @@ def validate_dimensions(rows: int, columns: int) -> None:
 
 
 class StructuredFileParser:
+    def __init__(self, max_bytes: int = MAX_BYTES) -> None:
+        self.max_bytes = max_bytes
+
     def parse(
         self,
         content: BinaryIO,
@@ -126,8 +118,8 @@ class StructuredFileParser:
         content.seek(0, 2)
         size = content.tell()
         content.seek(0)
-        if size > MAX_BYTES:
-            raise IngestionError("file_too_large", "Files must be at most 20 MiB.", 413)
+        if size > self.max_bytes:
+            raise file_too_large(self.max_bytes)
         if size == 0:
             raise IngestionError("empty_file", "The file is empty.", 422)
         prefix = content.read(8)

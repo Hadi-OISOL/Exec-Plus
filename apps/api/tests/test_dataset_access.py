@@ -632,6 +632,8 @@ def test_policy_migration_preserves_existing_tables_and_refuses_nonempty_downgra
         "connector_connections",
         "account_reset_codes",
         "external_identities",
+        "upload_sessions",
+        "user_storage_quotas",
         "oauth_attempts",
         "local_accounts",
         "account_events",

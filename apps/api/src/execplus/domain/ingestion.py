@@ -3,16 +3,46 @@
 What it does: Holds provider-neutral records, role policy, and stable failure codes.
 """
 
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
 
 class IngestionError(Exception):
-    def __init__(self, code: str, message: str, status: int = 400) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        status: int = 400,
+        *,
+        details: dict[str, int] | None = None,
+    ) -> None:
         super().__init__(message)
         self.code = code
         self.status = status
+        self.details = details or {}
+
+
+def validate_filename(filename: str) -> str:
+    name = unicodedata.normalize("NFKC", filename).strip()
+    if (
+        not name
+        or len(name) > 200
+        or name.startswith(".")
+        or any(char in name for char in "/\\:%")
+        or any(unicodedata.category(char).startswith("C") for char in name)
+    ):
+        raise IngestionError(
+            "unsafe_filename", "Use a plain filename without paths or control characters.", 422
+        )
+    return name
+
+
+def file_too_large(limit: int) -> IngestionError:
+    return IngestionError(
+        "file_too_large", f"Files must be at most {limit // (1024 * 1024)} MiB.", 413
+    )
 
 
 def require_seat_limit(limit: int) -> None:

@@ -103,6 +103,8 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
         "connector_connections",
         "account_reset_codes",
         "external_identities",
+        "upload_sessions",
+        "user_storage_quotas",
         "oauth_attempts",
         "local_accounts",
         "account_events",

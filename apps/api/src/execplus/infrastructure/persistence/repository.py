@@ -73,6 +73,7 @@ from execplus.infrastructure.persistence.operations import SQLOperationsReposito
 from execplus.infrastructure.persistence.plans import SQLPlanRepository
 from execplus.infrastructure.persistence.reporting import SQLReportingRepository
 from execplus.infrastructure.persistence.source_imports import SQLSourceMetadataRepository
+from execplus.infrastructure.persistence.upload_sessions import SQLUploadSessionRepository
 
 Record = TypeVar(
     "Record",
@@ -120,6 +121,7 @@ class SQLWorkspaceRepository(
     SQLReportingRepository,
     SQLSourceMetadataRepository,
     SQLPlanRepository,
+    SQLUploadSessionRepository,
 ):
     def __init__(self, connection: Connection) -> None:
         self.connection = connection

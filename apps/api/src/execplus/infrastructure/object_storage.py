@@ -61,7 +61,7 @@ class S3ObjectStorage:
             result = self.client.get_object(Bucket=self.bucket, Key=storage_key(upload))
             body = result["Body"]
             try:
-                content = body.read(20 * 1024 * 1024 + 1)
+                content = body.read(upload.size + 1)
             finally:
                 body.close()
             if (
@@ -76,6 +76,41 @@ class S3ObjectStorage:
             raise IngestionError(
                 "storage_unavailable", "Upload storage is unavailable.", 503
             ) from error
+
+    def put_part(self, key: str, content: bytes, digest: str) -> None:
+        try:
+            self.client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=content,
+                ContentLength=len(content),
+                ContentType="application/octet-stream",
+                Metadata={"sha256": digest},
+            )
+        except (BotoCoreError, ClientError) as error:
+            raise IngestionError(
+                "storage_unavailable", "Upload storage is unavailable. Try again.", 503
+            ) from error
+
+    def read_part(self, key: str, limit: int) -> bytes:
+        try:
+            body = self.client.get_object(Bucket=self.bucket, Key=key)["Body"]
+            try:
+                return body.read(limit + 1)
+            finally:
+                body.close()
+        except (BotoCoreError, ClientError) as error:
+            raise IngestionError(
+                "storage_unavailable", "Upload storage is unavailable.", 503
+            ) from error
+
+    def delete_prefix(self, prefix: str) -> None:
+        if not prefix.startswith("workspaces/") or "/upload-sessions/" not in prefix:
+            raise ValueError("Only upload-session parts can be removed by prefix")
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            for item in page.get("Contents", []):
+                self.client.delete_object(Bucket=self.bucket, Key=item["Key"])
 
     def delete(self, upload: Upload) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=storage_key(upload))
