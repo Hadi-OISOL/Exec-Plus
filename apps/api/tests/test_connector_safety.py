@@ -180,6 +180,8 @@ def test_unconfigured_platforms_are_listed_without_any_connect_form():
         (500, "", "connector_unavailable", 503),
         (503, "", "connector_unavailable", 503),
         (422, "control_plane_database", "connector_host_blocked", 422),
+        (403, "not_read_only", "connector_not_read_only", 403),
+        (422, "tls_unavailable", "connector_tls_unavailable", 422),
     ],
 )
 def test_platform_failures_map_to_stable_user_errors(status, code, expected, http):

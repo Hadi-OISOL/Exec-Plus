@@ -262,6 +262,12 @@ class ConnectorService:
                 "connector_unexpected_response", "The platform sent an unexpected reply.", 502
             ),
         }
+        if error.code == "not_read_only":
+            return IngestionError(
+                "connector_not_read_only",
+                "This account can change data. Connect with a read-only account.",
+                403,
+            )
         if error.code == "tls_unavailable":
             return IngestionError(
                 "connector_tls_unavailable",
