@@ -285,6 +285,8 @@ def build_runtime(settings: Settings) -> "Runtime":
         interpretation_enabled=settings.llm_mode != "disabled",
         context_enabled=settings.agent_context_enabled,
         orchestration_enabled=settings.agent_orchestration_enabled,
+        review_model_enabled=settings.agent_review_model_enabled
+        and settings.llm_mode != "disabled",
         patterns=PatternService(SQLUnitOfWork(engine), analytics, ScipyPatternStatistics()),
     )
     uploads = WorkspaceService(

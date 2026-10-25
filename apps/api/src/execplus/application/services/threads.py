@@ -17,7 +17,12 @@ from execplus.application.conversation import (
     answer_lineage,
     component_rows,
 )
-from execplus.application.conversation_context import ResultContext, capture_follow_ups
+from execplus.application.conversation_context import (
+    ResultContext,
+    ReviewOutcome,
+    capture_follow_ups,
+    capture_review,
+)
 from execplus.application.export_ports import PdfDescriptorProvider
 from execplus.application.memory_context import capture_memory
 from execplus.application.ports import WorkspaceRepository
@@ -44,6 +49,7 @@ from execplus.application.services.narrative_context import (
 from execplus.application.services.response_synthesis import ResponseSynthesisService
 from execplus.application.usage_context import attributed_operation
 from execplus.domain.analysis_plan import report_conversation_plan
+from execplus.domain.answer_review import answer_numbers, unsupported_numbers
 from execplus.domain.context_retrieval import references_earlier_result, retrieve_result
 from execplus.domain.conversation_requirements import is_contextual_reply, starts_new_orientation
 from execplus.domain.decision_analysis import checksum
@@ -819,6 +825,7 @@ class ThreadService:
                 )
         answer: ConversationAnswer | None = None
         memory_use = None
+        review = ReviewOutcome()
         try:
             if self.intent_router.context_enabled and references_earlier_result(turn.question):
                 with self.uow() as repo:
@@ -869,7 +876,11 @@ class ThreadService:
                         answers = ()
                     if answers:
                         prior_result = ResultContext(actor.id, wid, result_turn.id, answers)
-            with capture_memory() as memory_use, capture_follow_ups() as follow_ups:
+            with (
+                capture_memory() as memory_use,
+                capture_follow_ups() as follow_ups,
+                capture_review(review),
+            ):
                 answer = await asyncio.wait_for(
                     self._prepare_report(actor, wid, thread, prior_turns, turn.question)
                     if wants_pdf_export(turn.question)
@@ -1012,6 +1023,8 @@ class ThreadService:
                     evidence["label"] = data.label
                 if follow_ups.questions:
                     evidence["follow_ups"] = follow_ups.questions
+                if review.code:
+                    evidence["review"] = review.code
             if self.response_synthesis is not None:
                 remaining = max(0.001, 100 - (asyncio.get_running_loop().time() - started))
                 try:
@@ -1030,6 +1043,18 @@ class ThreadService:
                             "model_route": "deterministic:structured-answer",
                         },
                     )
+            if evidence.get("review") and evidence.get("narrative"):
+                shown = " ".join(
+                    str(segment.get("text", "")) for segment in evidence["narrative"]["segments"]
+                )
+                if unsupported_numbers(shown, answer_numbers(answer, turn.question)):
+                    evidence.pop("narrative")
+                    evidence["narrative_diagnostics"] = {
+                        "mode": "fallback",
+                        "reason": "review_unsupported_number",
+                        "model_route": "deterministic:structured-answer",
+                    }
+                    evidence["review"] = "fallback:unsupported_number"
             turn = replace(turn, evidence=evidence)
         except ClarificationRequiredError as error:
             answer = None
@@ -1050,7 +1075,8 @@ class ThreadService:
                             "message": error.context.message[:1000],
                             "sources": list(error.context.sources),
                             "choices": list(error.context.choices),
-                        }
+                        },
+                        **({"review": review.code} if review.code else {}),
                     },
                 )
         except UnsupportedQuestionError as error:

@@ -17,7 +17,11 @@ from uuid import UUID
 
 from execplus.application.contracts import ModelMessage, ModelRequest, ModelResponse
 from execplus.application.conversation import EvidenceAnswer, NumericalAnswer, component_rows
-from execplus.application.conversation_context import ResultContext, offer_follow_ups
+from execplus.application.conversation_context import (
+    ResultContext,
+    offer_follow_ups,
+    record_review,
+)
 from execplus.application.memory_context import remember_usage
 from execplus.application.ports import LanguageModel
 from execplus.application.progress import activity, model_call, planned
@@ -39,6 +43,18 @@ from execplus.domain.analysis_plan import (
     pattern_conversation_plan,
 )
 from execplus.domain.answer_presentation import follow_up_questions
+from execplus.domain.answer_review import (
+    MODEL_REVIEW_SYSTEM,
+    MODEL_SECONDS,
+    OPERATION_WORDS,
+    REVIEW_MESSAGES,
+    model_review_prompt,
+    outcome,
+    parse_model_review,
+    plan_issue,
+    review_choices,
+    unguarded_unit_columns,
+)
 from execplus.domain.conversation_requirements import (
     SPENDING,
     asks_derived_measure,
@@ -557,6 +573,7 @@ class IntentRouterService:
         *,
         context_enabled: bool = False,
         orchestration_enabled: bool = False,
+        review_model_enabled: bool = False,
     ) -> None:
         self.model = model
         self.analytics = analytics
@@ -566,6 +583,7 @@ class IntentRouterService:
         self.patterns = patterns
         self.context_enabled = context_enabled
         self.orchestration_enabled = orchestration_enabled
+        self.review_model_enabled = review_model_enabled
         self.diagrams = DataDiagramService(analytics)
         self.report_exports_enabled = False
 
@@ -1023,7 +1041,7 @@ class IntentRouterService:
             if records.kind != QuestionKind.ROWS:
                 raise UnsupportedQuestionError(records.message)
             await planned(conversation_plan(records, description.view.sources))
-            return await self._execute_data(
+            return await self._reviewed_data(
                 actor,
                 workspace_id,
                 dataset_id,
@@ -1041,7 +1059,7 @@ class IntentRouterService:
                     actor, workspace_id, dataset_id, upload_id, description, offered.guide_columns
                 )
             await planned(conversation_plan(offered, description.view.sources))
-            return await self._execute_data(
+            return await self._reviewed_data(
                 actor,
                 workspace_id,
                 dataset_id,
@@ -1554,7 +1572,7 @@ class IntentRouterService:
                 )
             await activity(JobStage.PLANNING, EventStatus.COMPLETED)
             await planned(conversation_plan(fallback, view.sources))
-            return await self._execute_data(
+            return await self._reviewed_data(
                 actor, workspace_id, dataset_id, upload_id, fallback, view, OFFLINE_ROUTE, question
             )
         routed = with_product(
@@ -1965,7 +1983,7 @@ class IntentRouterService:
                 question,
             )
         if routed.kind in {QuestionKind.NUMERICAL, QuestionKind.ROWS}:
-            return await self._execute_data(
+            return await self._reviewed_data(
                 actor, workspace_id, dataset_id, upload_id, routed, view, model_route, question
             )
         if routed.kind == QuestionKind.AMBIGUOUS:
@@ -2597,6 +2615,92 @@ class IntentRouterService:
         return DatasetGuide(
             message, route, columns, suggestions, context.view.sources, context.state, focus
         )
+
+    async def _model_review(
+        self, question: str, routed: RoutedIntent, view: DatasetView
+    ) -> tuple[str, RoutedIntent | None]:
+        try:
+            await model_call()
+            response = await asyncio.wait_for(
+                self.model.complete(
+                    ModelRequest(
+                        messages=(
+                            ModelMessage("system", MODEL_REVIEW_SYSTEM),
+                            ModelMessage("user", model_review_prompt(question, routed, view)),
+                        ),
+                        tier=ModelTier.SMALL,
+                    )
+                ),
+                MODEL_SECONDS,
+            )
+            return parse_model_review(response.content, view)
+        except (
+            IngestionError,
+            ProviderUnavailableError,
+            asyncio.TimeoutError,
+            ValueError,
+            KeyError,
+            TypeError,
+        ):
+            return "", None
+
+    async def _reviewed_data(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        routed: RoutedIntent,
+        view: DatasetView,
+        model_route: str,
+        question: str = "",
+    ) -> NumericalAnswer:
+        """Cross-check the plan against the question, repair once or ask, then execute."""
+        issue, repaired = plan_issue(question, routed, view)
+        if not issue and self.review_model_enabled and not model_route.startswith("deterministic:"):
+            issue, alternative = await self._model_review(question, routed, view)
+            repaired = alternative or routed
+            if issue:
+                model_route += " (model review)"
+        if issue and (repaired is routed or plan_issue(question, repaired, view)[0]):
+            record_review(outcome("clarified", issue))
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    REVIEW_MESSAGES.get(issue, REVIEW_MESSAGES["question_not_answered"]),
+                    view.sources,
+                    review_choices(question, issue, routed, view),
+                )
+            )
+        if issue:
+            routed = repaired
+            model_route += f" (review: {issue})"
+        try:
+            answer = await self._execute_data(
+                actor, workspace_id, dataset_id, upload_id, routed, view, model_route, question
+            )
+        except PlanningClarification:
+            raise
+        except ClarificationRequiredError as error:
+            units = unguarded_unit_columns(routed, view)
+            if not units or routed.request is None:
+                raise
+            record_review("clarified:mixed_units")
+            request = routed.request
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    str(error),
+                    view.sources,
+                    tuple(
+                        f"What is the {OPERATION_WORDS[request.aggregation]} of "
+                        f"{request.metric} by {unit}?"
+                        for unit in units
+                    ),
+                )
+            ) from None
+        record_review(outcome("replanned", issue))
+        return answer
 
     async def _execute_data(
         self,

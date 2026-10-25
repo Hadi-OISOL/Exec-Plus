@@ -383,6 +383,7 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
   font-size: var(--text-caption); font-weight: 550; line-height: 1.5;
 }
 .verifiedBadge { background: var(--color-success-subtle); color: var(--color-success); }
+.reviewNote { margin: 2px 0 6px; font-size: 12px; line-height: 18px; color: var(--color-text-muted); }
 .operationsBadge { background: var(--color-surface-sunken); color: var(--color-text-secondary); text-transform: capitalize; }
 .forecastBadge { background: var(--color-warning-subtle); color: var(--color-warning); }
 .meaningState { padding: 0; color: var(--color-text-muted); }

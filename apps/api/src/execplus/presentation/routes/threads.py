@@ -110,6 +110,7 @@ def _turn_body(turn: ThreadTurn) -> dict[str, object]:
         "status": turn.status,
         "job_id": str(turn.job_id) if turn.job_id else None,
         "request_id": str(turn.request_id) if turn.request_id else None,
+        "review": review if isinstance(review := turn.evidence.get("review"), str) else None,
         "clarification": {"choices": choices}
         if turn.kind == "ambiguous" and isinstance(clarification, dict)
         else None,
