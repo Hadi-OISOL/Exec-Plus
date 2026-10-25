@@ -21,6 +21,7 @@ from execplus.application.services.activation import ActivationService
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.artifacts import ArtifactService
+from execplus.application.services.auto_dashboards import AutoDashboardService
 from execplus.application.services.catalog import CatalogService
 from execplus.application.services.company_consolidation import CompanyConsolidationService
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
@@ -371,6 +372,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         google_access=google_access,
         connectors=connectors,
         local_registration_enabled=settings.local_registration_enabled,
+        brief_values=settings.data_brief_sample_values > 0,
     )
 
 
@@ -413,6 +415,19 @@ class Runtime:
     google_access: GoogleAccessService | None = None
     connectors: ConnectorService | None = None
     local_registration_enabled: bool = True
+    brief_values: bool = False
+
+    @cached_property
+    def auto_dashboards(self) -> AutoDashboardService:
+        return AutoDashboardService(
+            SQLUnitOfWork(self.engine),
+            self.analytics,
+            self.intent_router.patterns.statistics
+            if self.intent_router.patterns
+            else ScipyPatternStatistics(),
+            self.intent_router.model,
+            self.brief_values,
+        )
 
     @cached_property
     def oauth_state(self) -> SqlOAuthState:

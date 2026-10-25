@@ -19,6 +19,7 @@ from execplus.application.source_metadata_ports import SourceMetadataRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
 from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.analysis_plan import AnalysisPlan
+from execplus.domain.auto_dashboard import AutoDashboard
 from execplus.domain.dataset_access import DatasetAccessPolicy
 from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
@@ -267,6 +268,13 @@ class WorkspaceRepository(
     def study_boards(self, workspace_id: UUID) -> tuple[StudyBoard, ...]: ...
     def study_board(self, workspace_id: UUID, board_id: UUID) -> StudyBoard: ...
     def set_study_board(self, board: StudyBoard) -> None: ...
+    def auto_dashboards(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> tuple[AutoDashboard, ...]: ...
+    def auto_dashboard(self, workspace_id: UUID, dashboard_id: UUID) -> AutoDashboard: ...
+    def set_auto_dashboard_shared(
+        self, workspace_id: UUID, dashboard_id: UUID, shared: bool
+    ) -> None: ...
     def view_dismissals(
         self, workspace_id: UUID, dataset_id: UUID, user_id: UUID, understanding_id: UUID
     ) -> list[str]: ...
@@ -490,7 +498,8 @@ class WorkspaceRepository(
         | ForecastRun
         | ForecastComparison
         | AnalysisRun
-        | AnalysisReview,
+        | AnalysisReview
+        | AutoDashboard,
     ) -> None: ...
 
 

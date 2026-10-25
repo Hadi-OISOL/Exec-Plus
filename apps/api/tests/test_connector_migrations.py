@@ -27,6 +27,7 @@ def test_connector_upgrade_preserves_existing_rows(integration):
         "account_reset_codes",
         "oauth_attempts",
         "external_identities",
+        "auto_dashboards",
     }
 
     def snapshot():

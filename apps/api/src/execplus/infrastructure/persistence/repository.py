@@ -31,6 +31,7 @@ from sqlalchemy.sql.selectable import ScalarSelect
 from execplus.application.ports import WorkspaceRepository
 from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
 from execplus.domain.agent_memory import AgentMemory
+from execplus.domain.auto_dashboard import AutoDashboard
 from execplus.domain.dataset_access import DatasetAccessPolicy
 from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
@@ -111,6 +112,7 @@ Record = TypeVar(
     ForecastComparison,
     AnalysisRun,
     AnalysisReview,
+    AutoDashboard,
 )
 
 
@@ -416,6 +418,35 @@ class SQLWorkspaceRepository(
                 s.study_boards.c.workspace_id == board.workspace_id, s.study_boards.c.id == board.id
             )
             .values(**asdict(board))
+        )
+
+    def auto_dashboards(
+        self, workspace_id: UUID, dataset_id: UUID, upload_id: UUID
+    ) -> tuple[AutoDashboard, ...]:
+        return self._many(
+            AutoDashboard,
+            s.auto_dashboards,
+            workspace_id=workspace_id,
+            dataset_id=dataset_id,
+            upload_id=upload_id,
+        )
+
+    def auto_dashboard(self, workspace_id: UUID, dashboard_id: UUID) -> AutoDashboard:
+        return self._one(
+            AutoDashboard, s.auto_dashboards, workspace_id=workspace_id, id=dashboard_id
+        )
+
+    def set_auto_dashboard_shared(
+        self, workspace_id: UUID, dashboard_id: UUID, shared: bool
+    ) -> None:
+        self.auto_dashboard(workspace_id, dashboard_id)
+        self.connection.execute(
+            update(s.auto_dashboards)
+            .where(
+                s.auto_dashboards.c.workspace_id == workspace_id,
+                s.auto_dashboards.c.id == dashboard_id,
+            )
+            .values(shared=shared)
         )
 
     def view_dismissals(
@@ -1169,7 +1200,8 @@ class SQLWorkspaceRepository(
         | ForecastRun
         | ForecastComparison
         | AnalysisRun
-        | AnalysisReview,
+        | AnalysisReview
+        | AutoDashboard,
     ) -> None:
         tables = {
             Workspace: s.workspaces,
@@ -1206,6 +1238,7 @@ class SQLWorkspaceRepository(
             ForecastComparison: s.forecast_comparisons,
             AnalysisRun: s.analysis_runs,
             AnalysisReview: s.analysis_reviews,
+            AutoDashboard: s.auto_dashboards,
         }
         self.connection.execute(tables[type(record)].insert().values(**asdict(record)))
 

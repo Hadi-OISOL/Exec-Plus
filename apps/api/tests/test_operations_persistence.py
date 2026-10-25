@@ -81,6 +81,7 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
     assert job.status_code == 202
     added = {"staff_grants", "staff_audit", "support_tickets", "support_events"}
     later_added = {
+        "auto_dashboards",
         "analysis_runs",
         "analysis_reviews",
         "agent_memories",
