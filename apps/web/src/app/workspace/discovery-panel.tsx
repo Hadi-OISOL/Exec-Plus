@@ -16,7 +16,7 @@ import { InsightsOverview, ProposedActions, proposedFromInsights, useInsights, u
 import type { ProposedItem } from "./insights/insights-overview";
 import { AutoDashboardView } from "./insights/auto-dashboard";
 import type { ActionIntent } from "./insights/insights-model";
-import { AnalystTeam, DataReady, analystTeam, questionChips, useDatasetPurpose } from "./insights/data-ready";
+import { AnalystTeam, DataReady, analystTeam, questionChips, useAnalystReports, useDatasetPurpose } from "./insights/data-ready";
 import { HypothesisChecks } from "./insights/hypotheses";
 import type { RequestStatus } from "./insights/data-ready";
 import styles from "./dashboard-presentation.module.css";
@@ -257,6 +257,7 @@ export function DiscoveryPanel({
   const error = failure?.root === root ? failure.message : "";
   const [attempt, setAttempt] = useState(0);
   const [insights, retryInsights] = useInsights(root, request, enabled);
+  const reports = useAnalystReports(root, request, enabled);
   const knownFields = useMemo(() => discovery?.diagram?.nodes.filter(node => node.kind === "field").map(node => node.label) ?? [], [discovery]);
   const [fields, words] = useInsightWords(insights?.payload, knownFields);
   useEffect(() => {
@@ -288,7 +289,7 @@ export function DiscoveryPanel({
   }, [root, request, attempt, onReady, enabled]);
 
   const insightsStatus: RequestStatus = !insights ? (enabled ? "working" : "waiting") : insights.payload ? "done" : "unavailable";
-  const team = analystTeam({ reading: error ? "unavailable" : discovery ? "done" : "working", insights: { status: insightsStatus, payload: insights?.payload }, dashboard: dashboardStatus, purpose: purpose.status });
+  const team = analystTeam({ reading: error ? "unavailable" : discovery ? "done" : "working", insights: { status: insightsStatus, payload: insights?.payload }, reports, dashboard: dashboardStatus, purpose: purpose.status });
   if (!enabled) return null;
   if (error)
     return (
@@ -373,6 +374,7 @@ export function DiscoveryPanel({
           confirmed={discovery.definition_state === "confirmed"}
           purpose={purpose.payload}
           insights={{ status: insightsStatus, payload: insights?.payload }}
+          reports={reports}
           team={team}
           questions={chips}
           words={words}

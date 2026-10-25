@@ -108,5 +108,5 @@ export function actionIntent(action: InsightAction): ActionIntent | null {
 
 export const analystNames: Record<string, string> = {
   quality: "Data quality", composition: "Composition", distribution: "Distribution",
-  segment: "Segments", relationship: "Relationships", outlier: "Unusual values",
+  segment: "Segments", relationship: "Relationships", outlier: "Unusual values", trend: "Trends",
 };

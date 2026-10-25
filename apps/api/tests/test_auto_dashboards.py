@@ -12,6 +12,7 @@ from contextlib import nullcontext
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pandas as pd
@@ -107,6 +108,9 @@ def context_for(
     )
 
 
+ACTOR = SimpleNamespace(id=uuid4())
+
+
 class FakeAnalytics:
     def __init__(self, table: TableData, context: DescriptionContext) -> None:
         self.table, self.context = table, context
@@ -177,7 +181,7 @@ def brief_for(text: str, units=None, goal="", model=None):
     context = context_for(table, units, goal)
     analytics = FakeAnalytics(table, context)
     service = AutoDashboardService(None, analytics, ScipyPatternStatistics(), model)
-    brief, cards, *_ = asyncio.run(service.brief(None, uuid4(), analytics.dataset, uuid4()))
+    brief, cards, *_ = asyncio.run(service.brief(ACTOR, uuid4(), analytics.dataset, uuid4()))
     return service, analytics, brief, cards
 
 
@@ -310,9 +314,7 @@ def build_tiles(service, analytics, brief, cards, context):
 def test_no_model_uses_the_deterministic_pick_and_different_data_differs():
     units = {"amount": "PKR", "quantity": "units"}
     service, analytics, brief, cards = brief_for(sales_csv(), units)
-    _, sales_tiles, selection = build_tiles(
-        service, analytics, brief, cards, analytics.context
-    )
+    _, sales_tiles, selection = build_tiles(service, analytics, brief, cards, analytics.context)
     assert selection == {"route": boards.ROUTE, "fallback_reason": "not_configured"}
     assert boards.MIN_TILES <= len(sales_tiles) <= boards.MAX_TILES
     total = next(tile for tile in sales_tiles if tile["id"] == "kpi:sum:amount")
@@ -396,7 +398,7 @@ def test_grain_follows_date_span():
 def test_brief_is_cached_per_source():
     service, analytics, _, _ = brief_for(sales_csv())
     executed = len(analytics.persisted)
-    asyncio.run(service.brief(None, uuid4(), analytics.dataset, uuid4()))
+    asyncio.run(service.brief(ACTOR, uuid4(), analytics.dataset, uuid4()))
     assert len(analytics.persisted) == executed
     assert service_module.cached_brief(analytics.context.view.sources) is not None
 
