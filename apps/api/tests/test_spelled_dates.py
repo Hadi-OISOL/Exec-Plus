@@ -13,7 +13,7 @@ from uuid import uuid4
 import pytest
 
 from execplus.domain.columnar import ColumnarManifest, ColumnarTable
-from execplus.domain.errors import QueryDataError
+from execplus.domain.errors import QueryDataError, UnsupportedQuestionError
 from execplus.domain.models import WorkspaceScope
 from execplus.domain.profiling import (
     ALGORITHM,
@@ -192,6 +192,26 @@ async def test_bad_cell_only_blocks_questions_that_use_its_column():
     )
     assert "Fictional Org" not in str(error.value)
     assert "WeWorkRemotely" not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_v6_records_can_be_listed_newest_first_by_a_spelled_date_column():
+    table = leads()
+    view = dataset_view(profile_for(table, PROFILE_V6))
+    dataset_id = uuid4()
+    scope = scope_for(dataset_id)
+    plan = plan_rows(
+        scope, dataset_id, view, RowRequest(order_by=RowOrder("posted_at", "desc")), row_limit=20
+    )
+    result = await DuckDBQueryExecutor(30, 256).execute(plan, scope, table, view)
+    position = result.columns.index("posted_at")
+    dates = [row[position] for row in result.rows]
+    assert dates == sorted(dates, reverse=True)
+    assert dates[-1] == date(2026, 4, 2)
+    with pytest.raises(UnsupportedQuestionError):
+        plan_rows(
+            scope, dataset_id, view, RowRequest(order_by=RowOrder("source", "desc")), row_limit=20
+        )
 
 
 def columnar(tmp_path, table):

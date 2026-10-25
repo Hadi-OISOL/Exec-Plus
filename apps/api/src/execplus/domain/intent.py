@@ -484,10 +484,12 @@ def route_response(raw: str, view: DatasetView) -> RoutedIntent:
                 or not isinstance(raw_order, dict)
                 or set(raw_order) != {"column", "direction"}
                 or not isinstance(raw_order["column"], str)
-                or raw_order["column"] not in view.metrics
+                or not view.orderable(raw_order["column"])
                 or raw_order["direction"] not in ("asc", "desc")
             ):
-                return _unsupported("Order records by one visible numeric field, asc or desc.")
+                return _unsupported(
+                    "Order records by one visible numeric or date field, asc or desc."
+                )
             order_by = RowOrder(raw_order["column"], raw_order["direction"])
         if (
             not isinstance(columns, list)

@@ -14,7 +14,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from execplus.domain.discovery import readable_number
-from execplus.domain.goal_ranking import nouns
+from execplus.domain.goal_ranking import NOT_TEXT, nouns
 from execplus.domain.guidance import DescriptionContext, words
 from execplus.domain.insights import Selection, queryable
 from execplus.domain.models import QueryPlan, Scalar, WorkspaceScope
@@ -92,9 +92,8 @@ def fields(context: DescriptionContext, selection: Selection) -> Fields:
         ),
         None,
     )
-    return Fields(
-        selection.measures, selection.segment_measures, summed, selection.categories, date
-    )
+    categories = tuple(name for name in selection.categories if not NOT_TEXT.search(words(name)))
+    return Fields(selection.measures, selection.segment_measures, summed, categories, date)
 
 
 def candidates(found: Fields) -> list[Spec]:

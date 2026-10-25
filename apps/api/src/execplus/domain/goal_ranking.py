@@ -83,7 +83,7 @@ _SCORE = re.compile(
     r"probability|propensity)\b"
 )
 _DEFAULT = re.compile(r"\b(?:total|overall|combined|composite|final)\b")
-_NOT_TEXT = re.compile(r"\b(?:url|link|website|contact|email|phone|mobile|id|uuid|code)\b")
+NOT_TEXT = re.compile(r"\b(?:url|link|website|contact|email|phone|mobile|id|uuid|code)\b")
 _LABEL = re.compile(r"\b(?:organization|organisation|company|account|customer|client|name|title)\b")
 _NEXT = re.compile(r"\b(?:next|action|step|follow)\b")
 _CATEGORY = re.compile(r"\b(?:source|channel|type|category|segment|status|stage|region|sector)\b")
@@ -150,7 +150,7 @@ def ranking_fields(view: DatasetView) -> RankingFields | None:
         if column.name in view.dimensions
         and column.type == "text"
         and "identifier" not in column.tags
-        and not _NOT_TEXT.search(words(column.name))
+        and not NOT_TEXT.search(words(column.name))
     ]
     next_step = next((name for name in descriptive if _NEXT.search(words(name))), None)
     texts = tuple(name for name in descriptive if name != next_step)

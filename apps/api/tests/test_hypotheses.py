@@ -28,7 +28,7 @@ from test_workspace_integration import identity, invite, upload, workspace
 
 def leads_csv() -> bytes:
     rng = random.Random(7)
-    lines = ["lead_name,source,location,intent_score,fit_score,total_score,posted_at"]
+    lines = ["lead_name,source,location,contact,intent_score,fit_score,total_score,posted_at"]
     sources = ["LinkedIn", "Upwork", "Reddit", "Facebook"]
     start = date(2026, 8, 1)
     for index in range(48):
@@ -39,7 +39,8 @@ def leads_csv() -> bytes:
         location = ["Lahore", "Karachi", "Remote"][rng.randint(0, 2)]
         posted = start + timedelta(days=index * 2)
         lines.append(
-            f"Lead {index},{source},{location},{intent},{fit},{total},{posted.isoformat()}"
+            f"Lead {index},{source},{location},rep{index % 3}@leads.test,"
+            f"{intent},{fit},{total},{posted.isoformat()}"
         )
     return ("\n".join(lines) + "\n").encode()
 
@@ -183,6 +184,7 @@ def test_leads_find_the_linkedin_gap_and_sales_find_one_dominant_region(integrat
     )
     assert gap["status"] == "supported"
     assert gap["question"] == f"What is the average of {measure} by source?"
+    assert not any(":contact" in item["id"] for item in items)
     headers, wid, uid = post_file(integration, sales_csv(), "Sales.csv", "sales-h@example.test")
     items = integration.client.get(
         f"/workspaces/{wid}/uploads/{uid}/hypotheses", headers=headers

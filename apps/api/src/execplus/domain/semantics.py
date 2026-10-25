@@ -158,6 +158,12 @@ class DatasetView:
     def column(self, name: str) -> SemanticColumn | None:
         return next((entry for entry in self.columns if entry.name == name), None)
 
+    def orderable(self, name: str) -> bool:
+        column = self.column(name)
+        return name in self.metrics or (
+            column is not None and (column.type == "date" or column.has_time)
+        )
+
 
 def dataset_view(profile: dict[str, Any]) -> DatasetView:
     columns = tuple(
@@ -439,8 +445,8 @@ def plan_rows(
         raise UnsafeQueryError("The query row limit is outside supported bounds")
     if request.order_by is not None:
         order = request.order_by
-        if request.extremum is not None or order.column not in view.metrics:
-            raise UnsupportedQuestionError("Order records by one visible numeric measure")
+        if request.extremum is not None or not view.orderable(order.column):
+            raise UnsupportedQuestionError("Order records by one visible numeric measure or date")
         sql += f" ORDER BY {quote_identifier(order.column)} {order.direction.upper()} NULLS LAST"
         sql += "".join(f", {quote_identifier(name)}" for name in selected)
     sql += f" LIMIT {row_limit}"

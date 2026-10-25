@@ -257,7 +257,7 @@ _SYSTEM_PROMPT = (
     '{"kind": "rows", "plan": {"columns": [], "filters": [], "limit": 100, '
     '"extremum": {"column": "<numeric measure>", "direction": "max|min"}}}\n'
     '{"kind": "rows", "plan": {"columns": [], "filters": [], "limit": 5, '
-    '"order_by": {"column": "<numeric measure>", "direction": "desc|asc"}}}\n'
+    '"order_by": {"column": "<numeric measure or date field>", "direction": "desc|asc"}}}\n'
     '{"kind": "patterns", "columns": ["<optional fields to scan, empty for all>"]}\n'
     '{"kind": "overview", "columns": ["<column to explain, optional>"], '
     '"focus": "orientation|quality|structure|next_steps"}\n'
