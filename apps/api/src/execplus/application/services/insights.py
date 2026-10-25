@@ -74,7 +74,7 @@ async def _run(
         scope.workspace_id,
         dataset_id,
         name,
-        len(table.rows),
+        table.row_count,
         metric[:100],
         aggregation,
         grouping,

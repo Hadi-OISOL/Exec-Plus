@@ -88,7 +88,7 @@ class CalendarAnalysis:
                     wid,
                     did,
                     dataset_name,
-                    len(table.rows),
+                    table.row_count,
                     raw["metric"],
                     "analysis",
                     (),

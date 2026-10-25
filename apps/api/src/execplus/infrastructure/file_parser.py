@@ -7,7 +7,7 @@ import csv
 import re
 from datetime import date, datetime
 from io import TextIOWrapper
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import BinaryIO, Literal
 from zipfile import BadZipFile, ZipFile
 
@@ -23,6 +23,7 @@ from execplus.domain.ingestion import (
     validate_filename,
 )
 from execplus.domain.profiling import TableData
+from execplus.infrastructure.columnar.source_rows import is_reader_format, read_source_table
 
 MAX_BYTES = 20 * 1024 * 1024
 MAX_CELLS = 1_000_000
@@ -73,7 +74,9 @@ class StructuredFileParser:
         self,
         max_bytes: int = MAX_BYTES,
         formula_cells: Literal["reject", "keep_as_text"] = "reject",
+        extension_directory: Path | None = None,
     ) -> None:
+        self.extension_directory = extension_directory
         self.max_bytes = max_bytes
         self.reject_formulas = formula_cells == "reject"
 
@@ -111,6 +114,11 @@ class StructuredFileParser:
         stored_format: str | None = None,
         captured: list[tuple[str, ...]] | None = None,
     ) -> FileStructure:
+        if is_reader_format(stored_format):
+            structure, table = self._reader_table(content, str(stored_format))
+            if captured is not None:
+                captured.extend((table.headers, *table.rows))
+            return structure
         filename = validate_filename(filename)
         extension = PurePosixPath(filename).suffix.lower()
         if (
@@ -153,7 +161,22 @@ class StructuredFileParser:
             )
         return self._xlsx(content, captured)
 
+    def _reader_table(self, content: BinaryIO, format: str) -> tuple[FileStructure, TableData]:
+        if self.extension_directory is None:
+            raise IngestionError(
+                "unsupported_format", "This stored file type cannot be read here.", 409
+            )
+        return read_source_table(
+            content,
+            format,
+            self.extension_directory,
+            "reject" if self.reject_formulas else "keep_as_text",
+            MAX_ROWS,
+        )
+
     def read_table(self, content: BinaryIO, format: str) -> TableData:
+        if is_reader_format(format):
+            return self._reader_table(content, format)[1]
         content.seek(0)
         if format in CSV_DELIMITERS:
             wrapper = TextIOWrapper(content, encoding="utf-8-sig", newline="")

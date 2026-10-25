@@ -280,7 +280,7 @@ class UnderstandingService:
                         or relationship["cardinality"] == "one_to_one"
                     )
                     if column["missing"] or (
-                        unique_required and column["distinct_count"] != len(table.rows)
+                        unique_required and column["distinct_count"] != table.row_count
                     ):
                         raise IngestionError(
                             "invalid_definition",

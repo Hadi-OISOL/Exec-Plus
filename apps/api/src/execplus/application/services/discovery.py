@@ -60,7 +60,7 @@ async def _distribution(
         workspace_id=scope.workspace_id,
         dataset_id=dataset_id,
         dataset_name=name,
-        records_analyzed=len(table.rows),
+        records_analyzed=table.row_count,
         metric=step.metric,
         aggregation="count",
         grouping=(step.metric,),

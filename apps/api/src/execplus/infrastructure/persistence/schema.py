@@ -256,7 +256,7 @@ uploads = Table(
     Column("storage_key", String(255), nullable=False, unique=True),
     Column("checksum", String(64), nullable=False),
     Column("status", String(12), nullable=False),
-    Column("format", String(5), nullable=False),
+    Column("format", String(16), nullable=False),
     Column("row_count", Integer, nullable=False),
     Column("column_count", Integer, nullable=False),
     Column("created_by", Uuid, ForeignKey("users.id"), nullable=False),

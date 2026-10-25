@@ -472,7 +472,7 @@ class ForecastService:
             scope.workspace_id,
             did,
             name,
-            len(table.rows),
+            table.row_count,
             request.metric,
             request.aggregation.value if kind == "value" else "count",
             request.group_by,

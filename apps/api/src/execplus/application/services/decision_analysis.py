@@ -387,7 +387,7 @@ class DecisionAnalysisService:
             wid,
             did,
             context.name,
-            len(table.rows),
+            table.row_count,
             "Unusual values scan",
             "analysis",
             (),
@@ -546,7 +546,7 @@ class DecisionAnalysisService:
             wid,
             did,
             dataset_name,
-            len(table.rows),
+            table.row_count,
             raw.get(
                 "metric",
                 raw.get("benefit_column", raw.get("sales_column", raw.get("demand_column", ""))),

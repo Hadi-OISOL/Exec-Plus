@@ -48,3 +48,27 @@ class ComputeCapabilities:
     engine_id: str
     operations: frozenset[ComputeOperation]
     budget: QueryBudget
+
+
+@dataclass(frozen=True, slots=True)
+class ColumnarBudget:
+    """Bounds for queries over typed-Parquet (profile-v5) snapshots, which spill to disk."""
+
+    input_rows: int = 50_000_000
+    timeout_seconds: float = 120.0
+    memory_limit_mb: int = 2048
+    threads: int = 4
+    spill_limit_mb: int = 20_480
+    spill_directory: str = ""
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.timeout_seconds) or not 0 < self.timeout_seconds <= 900:
+            raise ValueError("Columnar query time budget must be finite and at most 900 seconds")
+        bounds = (
+            (self.input_rows, 1_000_000_000),
+            (self.memory_limit_mb, 65_536),
+            (self.threads, 32),
+            (self.spill_limit_mb, 1_048_576),
+        )
+        if any(type(value) is not int or not 1 <= value <= maximum for value, maximum in bounds):
+            raise ValueError("Columnar budgets must use positive integers within supported limits")

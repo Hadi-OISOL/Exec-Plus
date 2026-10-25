@@ -5,7 +5,7 @@ What it does: Renders a collapsible floating tray with per-file and overall prog
 
 import { useState } from "react";
 import { Icon } from "./explore-components";
-import { formatBytes, formatDuration } from "./upload-manager";
+import { UPLOAD_ACCEPT, formatBytes, formatDuration } from "./upload-manager";
 import type { UploadItem, UploadManager } from "./upload-manager";
 import styles from "./upload-tray.module.css";
 
@@ -83,7 +83,7 @@ function UploadRow({ item, manager, onOpen }: { item: UploadItem; manager: Uploa
         {item.phase === "needs-file" && (
           <label className={styles.pick}>
             Resume upload — reselect the file
-            <input type="file" accept=".csv,.xlsx" onChange={event => { const file = event.target.files?.[0]; if (file) manager.attach(item.key, file); event.target.value = ""; }} />
+            <input type="file" accept={UPLOAD_ACCEPT} onChange={event => { const file = event.target.files?.[0]; if (file) manager.attach(item.key, file); event.target.value = ""; }} />
           </label>
         )}
         {item.phase === "done" && <button type="button" onClick={() => onOpen(item)}>Open</button>}

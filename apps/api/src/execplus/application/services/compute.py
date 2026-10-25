@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from execplus.application.ports import QueryExecutor
+from execplus.domain.columnar import ColumnarTable
 from execplus.domain.compute import ComputeCapabilities, ComputeOperation
 from execplus.domain.errors import AuthorizationError, QueryCapacityError, UnsafeQueryError
 from execplus.domain.join_paths import JoinPath
@@ -48,6 +49,10 @@ class ComputeBroker:
         if operation not in self.capabilities.operations:
             raise UnsafeQueryError("The configured engine does not support this operation")
         budget = self.capabilities.budget
+        if operation is ComputeOperation.SNAPSHOT_QUERY and all(
+            isinstance(table, ColumnarTable) for table in tables
+        ):
+            return
         if sum(len(table.rows) for table in tables) > budget.input_rows:
             raise UnsafeQueryError("The query exceeds the input row budget")
         if sum(len(table.headers) * len(table.rows) for table in tables) > budget.input_cells:

@@ -62,6 +62,7 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "--strict-config --strict-markers --disable-warnings -q"
 pythonpath = ["apps/api/src"]
 testpaths = ["apps/api/tests", "tests"]
+markers = ["benchmark: heavy measurements, run only with EXECPLUS_RUN_BENCHMARKS=1"]
 
 [tool.ruff]
 line-length = 100

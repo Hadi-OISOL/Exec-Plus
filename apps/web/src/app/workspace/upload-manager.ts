@@ -3,6 +3,14 @@ What it does: Queues files, hashes and sends each chunk with retries, supports p
 
 export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
 export const RESUME_KEY = "execplus.uploads.v1";
+export const UPLOAD_ACCEPT = ".csv,.tsv,.tab,.txt,.xlsx,.xlsm,.xls,.xlsb,.ods,.json,.jsonl,.ndjson,.parquet,.sqlite,.sqlite3,.db,.sav,.zsav,.dta,.sas7bdat,.xpt,.xml,.zip,.gz,.bz2,.xz";
+
+export function uploadContentType(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".csv")) return "text/csv";
+  if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  return "application/octet-stream";
+}
 
 export type UploadPhase = "queued" | "uploading" | "paused" | "processing" | "done" | "failed" | "needs-file";
 export type UploadedFile = { id: string; workspace_id: string; dataset_id: string; filename: string; status: string; [key: string]: unknown };
@@ -91,7 +99,7 @@ export function formatDuration(seconds: number): string {
 export function uploadErrorMessage(code: string | undefined, message: string, size: number): string {
   if (code === "quota_exceeded") return `Not enough storage space for this ${formatBytes(size)} file. Delete files you no longer need or ask an administrator for more space.`;
   if (code === "file_too_large") return `This file is too large. Files can be up to ${formatBytes(MAX_UPLOAD_BYTES)}.`;
-  if (code === "unsupported_format") return "This file type is not supported yet. Choose a CSV or Excel (.xlsx) file.";
+  if (code === "unsupported_format") return "This file type is not supported yet. Choose CSV, TSV, Excel, ODS, JSON, Parquet, SQLite, SPSS, Stata, SAS, XML or a ZIP/GZ archive of one.";
   if (code === "unsafe_filename") return "This file name cannot be used. Rename the file and try again.";
   return message || "The upload failed. Check your connection and try again.";
 }

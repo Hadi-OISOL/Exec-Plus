@@ -10,7 +10,7 @@ import { AccountSecurity, InvitationIdentityApproval } from "./account-security"
 import { OnboardingGuide } from "./onboarding-guide";
 import type { ApiRequest } from "./profile-panel";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { MAX_UPLOAD_BYTES, UploadManager, formatBytes } from "./upload-manager";
+import { MAX_UPLOAD_BYTES, UPLOAD_ACCEPT, UploadManager, formatBytes, uploadContentType } from "./upload-manager";
 import type { UploadItem, UploadedFile } from "./upload-manager";
 import { StorageBar, UploadTray } from "./upload-tray";
 import type { StorageUse } from "./upload-tray";
@@ -868,9 +868,7 @@ export default function WorkspacePage() {
           ),
         );
       }
-      const mime = file.name.toLowerCase().endsWith(".csv")
-        ? "text/csv"
-        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      const mime = uploadContentType(file.name);
       const key = uploader.enqueue(file, targetWorkspace.id, targetDataset, mime);
       uploadContext.current.set(key, { domain: uploadDomain, goal: uploadGoal, section });
       setMessage(`Uploading ${file.name} in the background. You can keep working while it finishes.`);
@@ -1357,7 +1355,7 @@ export default function WorkspacePage() {
                       <input
                         key={workspace?.id ?? "first-upload"}
                         type="file"
-                        accept=".csv,.xlsx"
+                        accept={UPLOAD_ACCEPT}
                         required
                         disabled={busy}
                         onChange={(event) =>
@@ -1367,7 +1365,7 @@ export default function WorkspacePage() {
                       <span>
                         {file
                           ? `${file.name} · ${(file.size / 1024).toFixed(1)} KB`
-                          : "Drop a .csv or .xlsx file here, or click to browse · up to 500 MB"}
+                          : "Drop a CSV, Excel, JSON, Parquet or other data file here, or click to browse · up to 500 MB"}
                       </span>
                     </label>
                     <label>What is this data about? (optional)<select disabled={busy} value={uploadDomain} onChange={event => setUploadDomain(event.target.value)}>{domains.map(item => <option key={item} value={item}>{item === "auto" ? "Help me work it out" : item}</option>)}</select></label>

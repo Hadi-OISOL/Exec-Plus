@@ -251,7 +251,7 @@ class AutoDashboardService:
             listed,
             coverage,
             [card["id"] for card in cards],
-            briefs.samples(context, table.headers, table.rows),
+            briefs.samples(context, table.headers, table.head(briefs.SAMPLE_ROWS)),
             limitations,
         )
         await asyncio.to_thread(

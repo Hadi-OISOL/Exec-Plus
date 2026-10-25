@@ -112,7 +112,7 @@ class PatternService:
             wid,
             did,
             context.name,
-            len(table.rows),
+            table.row_count,
             "Selected pattern fields",
             "analysis",
             (),

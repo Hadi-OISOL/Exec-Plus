@@ -35,13 +35,52 @@ def valid_sha256(value: str | None) -> str | None:
     return lowered
 
 
+READER_EXTENSIONS = frozenset(
+    {
+        ".csv",
+        ".tsv",
+        ".tab",
+        ".txt",
+        ".xlsx",
+        ".xlsm",
+        ".xls",
+        ".xlsb",
+        ".ods",
+        ".json",
+        ".jsonl",
+        ".ndjson",
+        ".parquet",
+        ".sqlite",
+        ".sqlite3",
+        ".db",
+        ".sav",
+        ".zsav",
+        ".dta",
+        ".sas7bdat",
+        ".xpt",
+        ".xml",
+        ".zip",
+        ".gz",
+        ".bz2",
+        ".xz",
+    }
+)
+
+
 def require_supported(filename: str, content_type: str) -> None:
-    suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    allowed = SUPPORTED_TYPES.get(f".{suffix}")
-    if allowed is None or content_type.split(";")[0].strip().lower() not in allowed:
-        raise IngestionError(
-            "unsupported_format", "Choose a CSV or XLSX file with its matching content type.", 415
-        )
+    """CSV/XLSX keep their content-type check; reader formats are checked by magic bytes."""
+    suffix = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    allowed = SUPPORTED_TYPES.get(suffix)
+    if allowed is not None and content_type.split(";")[0].strip().lower() in allowed:
+        return
+    if allowed is None and suffix in READER_EXTENSIONS:
+        return
+    raise IngestionError(
+        "unsupported_format",
+        "Choose a supported data file (CSV, TSV, Excel, ODS, JSON, Parquet, SQLite, SPSS, "
+        "Stata, SAS, XML or a ZIP/GZ archive of one) with its matching content type.",
+        415,
+    )
 
 
 def safe_label(value: str, limit: int, fallback: str) -> str:

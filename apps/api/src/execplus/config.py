@@ -84,6 +84,17 @@ class Settings(BaseSettings):
     query_concurrent_limit: int = Field(default=8, ge=1, le=64)
     query_workspace_concurrent_limit: int = Field(default=4, ge=1, le=64)
     query_queue_seconds: float = Field(default=15.0, ge=0, le=300, allow_inf_nan=False)
+    columnar_ingest_enabled: bool = False
+    columnar_work_directory: str = ""
+    columnar_cache_directory: str = ""
+    columnar_cache_bytes: int = Field(default=20 * 1024**3, ge=1)
+    columnar_ingest_memory_mb: int = Field(default=2048, ge=64, le=65_536)
+    columnar_ingest_threads: int = Field(default=4, ge=1, le=32)
+    columnar_max_rows: int = Field(default=50_000_000, ge=1, le=1_000_000_000)
+    columnar_query_timeout_seconds: float = Field(default=120.0, gt=0, le=900, allow_inf_nan=False)
+    columnar_query_memory_mb: int = Field(default=2048, ge=64, le=65_536)
+    columnar_query_threads: int = Field(default=4, ge=1, le=32)
+    columnar_spill_mb: int = Field(default=20_480, ge=1, le=1_048_576)
     jobs_workspace_limit: int = Field(default=2, ge=1, le=8)
     jobs_lease_seconds: int = Field(default=30, ge=5, le=120)
     jobs_timeout_seconds: int = Field(default=100, ge=1, le=120)

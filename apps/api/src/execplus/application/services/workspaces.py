@@ -6,17 +6,26 @@ What it does: Applies role, seat, tenant, retention, and audit policies through 
 import hashlib
 import logging
 import re
+import shutil
+import tempfile
 import unicodedata
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from pathlib import Path
 from typing import BinaryIO
 from uuid import UUID, uuid4
 
 from execplus.application.plan_context import operation_id
-from execplus.application.ports import FileParser, ObjectStorage, WorkspaceRepository
+from execplus.application.ports import (
+    ColumnarConverter,
+    ColumnarStore,
+    FileParser,
+    ObjectStorage,
+    WorkspaceRepository,
+)
 from execplus.application.services.dataset_access import (
     dataset_access,
     require_full_access,
@@ -25,10 +34,12 @@ from execplus.application.services.dataset_access import (
 )
 from execplus.application.services.plans import admit
 from execplus.domain.audit import MANAGER_ACTIONS, SHARED_ACTIONS, audit_cursor, parse_audit_cursor
+from execplus.domain.columnar import ColumnarConversion, ColumnarManifest
 from execplus.domain.dataset_access import DatasetAccess, ScopedUploadMetadata, denied
 from execplus.domain.ingestion import (
     AuditEvent,
     Dataset,
+    FileStructure,
     IngestionError,
     Invitation,
     Membership,
@@ -39,10 +50,12 @@ from execplus.domain.ingestion import (
     file_too_large,
     require_manager,
     require_seat_limit,
+    validate_filename,
 )
 from execplus.domain.profiling import (
     ALGORITHM,
     CURRENT_ALGORITHM,
+    PROFILE_V5,
     Cleaning,
     Revision,
     TableData,
@@ -83,7 +96,14 @@ class WorkspaceService:
         parser: FileParser,
         max_upload_bytes: int = 500 * 1024 * 1024,
         user_storage_quota_bytes: int = 5 * 1024**3,
+        *,
+        columnar: ColumnarStore | None = None,
+        converter: ColumnarConverter | None = None,
+        workdir: str | None = None,
     ) -> None:
+        self.columnar = columnar
+        self.converter = converter
+        self.workdir = workdir
         self.uow = unit_of_work
         self.storage = storage
         self.parser = parser
@@ -514,6 +534,36 @@ class WorkspaceService:
         _publication_guard: Callable[[WorkspaceRepository, Upload, Revision], None] | None = None,
         _quota_session: UUID | None = None,
     ) -> Upload:
+        with tempfile.TemporaryDirectory(prefix="execplus-ingest-", dir=self.workdir) as work:
+            return self._upload(
+                actor,
+                workspace_id,
+                dataset_id,
+                filename,
+                content_type,
+                content,
+                Path(work),
+                _sample_dataset=_sample_dataset,
+                _sample_id=_sample_id,
+                _publication_guard=_publication_guard,
+                _quota_session=_quota_session,
+            )
+
+    def _upload(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        filename: str,
+        content_type: str,
+        content: BinaryIO,
+        workdir: Path,
+        *,
+        _sample_dataset: Dataset | None,
+        _sample_id: str | None,
+        _publication_guard: Callable[[WorkspaceRepository, Upload, Revision], None] | None,
+        _quota_session: UUID | None,
+    ) -> Upload:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             membership = self._authorize(repo, actor, workspace_id)
@@ -566,7 +616,19 @@ class WorkspaceService:
                     "content_type": content_type,
                 },
             )
-        structure = self.parser.parse(content, filename, content_type)
+        conversion: ColumnarConversion | None = None
+        if self.converter is not None and self.columnar is not None and _sample_id is None:
+            source = workdir / "source"
+            with source.open("wb") as handle:
+                shutil.copyfileobj(content, handle, 1024 * 1024)
+            content.seek(0)
+            conversion = self.converter.convert(source, validate_filename(filename), workdir)
+            source.unlink()
+            structure = FileStructure(
+                conversion.format, conversion.rows, len(conversion.headers), 1
+            )
+        else:
+            structure = self.parser.parse(content, filename, content_type)
         content.seek(0)
         key = f"workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/original"
         upload = Upload(
@@ -586,15 +648,15 @@ class WorkspaceService:
             datetime.now(timezone.utc),
             _sample_id,
         )
-        table = self.parser.read_table(content, structure.format)
-        root = self._make_revision(
-            actor,
-            upload,
-            table,
-            [],
-            None,
-            algorithm=ALGORITHM if _sample_id else CURRENT_ALGORITHM,
-        )
+        if conversion is None:
+            root = self._make_revision(
+                actor,
+                upload,
+                self.parser.read_table(content, structure.format),
+                [],
+                None,
+                algorithm=ALGORITHM if _sample_id else CURRENT_ALGORITHM,
+            )
         content.seek(0)
         attempted = False
         try:
@@ -603,6 +665,28 @@ class WorkspaceService:
                 reauthorize(repo)
             attempted = True
             self.storage.put(upload, content)
+            if conversion is not None and self.columnar is not None:
+                manifest = ColumnarManifest(
+                    self.columnar.put(upload, Path(conversion.parquet), conversion.sha256),
+                    conversion.sha256,
+                    conversion.size,
+                    conversion.rows,
+                    conversion.errors,
+                )
+                root = Revision(
+                    uuid4(),
+                    workspace_id,
+                    dataset_id,
+                    upload.id,
+                    None,
+                    PROFILE_V5,
+                    upload.checksum,
+                    conversion.sha256,
+                    [],
+                    {**conversion.profile, "columnar": manifest.record()},
+                    actor.id,
+                    datetime.now(timezone.utc),
+                )
             with self.uow() as repo:
                 repo.workspace(workspace_id, lock=True)
                 reauthorize(repo)
@@ -641,6 +725,8 @@ class WorkspaceService:
                             retained = False
                     if not retained:
                         self.storage.delete(upload)
+                        if conversion is not None and self.columnar is not None:
+                            self.columnar.delete(upload)
                 except Exception:
                     logger.error(
                         "upload_cleanup_failed workspace_id=%s upload_id=%s",

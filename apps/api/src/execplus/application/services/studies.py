@@ -302,7 +302,7 @@ class StudyService:
                 wid,
                 did,
                 dataset_name,
-                len(table.rows),
+                table.row_count,
                 method["column"],
                 "count",
                 tuple(request.group_by),

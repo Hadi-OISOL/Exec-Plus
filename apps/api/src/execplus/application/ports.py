@@ -4,6 +4,7 @@ What it does: Defines contracts for queries, models, retrieval, and readiness.
 """
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 from uuid import UUID
 
@@ -20,6 +21,7 @@ from execplus.domain.activation import Feedback, ReportDelivery, ReportSchedule
 from execplus.domain.agent_memory import AgentMemory
 from execplus.domain.analysis_plan import AnalysisPlan
 from execplus.domain.auto_dashboard import AutoDashboard
+from execplus.domain.columnar import ColumnarConversion
 from execplus.domain.dataset_access import DatasetAccessPolicy
 from execplus.domain.decision_analysis import AnalysisReview, AnalysisRun
 from execplus.domain.forecast_records import ForecastComparison, ForecastRun
@@ -142,6 +144,20 @@ class ObjectStorage(Protocol):
     def delete(self, upload: "Upload") -> None: ...
 
     def ready(self) -> bool: ...
+
+
+class ColumnarStore(Protocol):
+    def put(self, upload: "Upload", path: Path, sha256: str) -> str: ...
+
+    def local(self, upload: "Upload", key: str, sha256: str, size: int) -> str: ...
+
+    def head(self, path: str, limit: int) -> tuple[tuple[str, ...], ...]: ...
+
+    def delete(self, upload: "Upload") -> None: ...
+
+
+class ColumnarConverter(Protocol):
+    def convert(self, source: Path, filename: str, workdir: Path) -> ColumnarConversion: ...
 
 
 class FileParser(Protocol):
