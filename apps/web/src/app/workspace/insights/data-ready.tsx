@@ -1,5 +1,5 @@
 /* Use case: Greets the user after upload with a "Your data is ready" card that feels like a team of analysts reporting back.
-What it does: Shows file size and a plain summary with primary actions, the dataset purpose (when the server offers it), the top findings with their exact values, the real request status of each analyst and clickable questions that open chat. */
+What it does: Shows file size and a plain summary with primary actions, the dataset purpose (when the server offers it), the top findings with their exact values, each analyst's own live result as it arrives (fetched in parallel), the Trends finding and clickable questions that open chat. */
 
 "use client";
 
@@ -53,22 +53,56 @@ export function useDatasetPurpose(root: string, request: ApiRequest, enabled: bo
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
-export function analystTeam({ reading, insights, dashboard, purpose }: { reading: RequestStatus; insights: { status: RequestStatus; payload?: InsightsPayload }; dashboard: RequestStatus; purpose: RequestStatus }): TeamMember[] {
+export type AnalystReport = { version: string; analyst: string; insights: InsightCard[]; limitations?: string[] };
+export type ReportState = { status: RequestStatus; payload?: AnalystReport };
+export type Reports = Record<string, ReportState>;
+
+export async function loadReport(root: string, analyst: string, request: ApiRequest, signal?: AbortSignal): Promise<ReportState> {
+  try {
+    const payload = await request<AnalystReport>(`${root}/analyst-overview?analyst=${encodeURIComponent(analyst)}`, { signal });
+    return payload?.version === "insights-analyst-v1" ? { status: "done", payload: { ...payload, insights: payload.insights ?? [] } } : { status: "unavailable" };
+  } catch {
+    return { status: "unavailable" };
+  }
+}
+
+export function useAnalystReports(root: string, request: ApiRequest, enabled: boolean): Reports {
+  const [state, setState] = useState<{ root: string; reports: Reports } | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    for (const analyst of Object.keys(analystNames)) {
+      void loadReport(root, analyst, request, controller.signal).then(report => {
+        if (!controller.signal.aborted) setState(current => ({ root, reports: { ...(current?.root === root ? current.reports : {}), [analyst]: report } }));
+      });
+    }
+    return () => controller.abort();
+  }, [root, request, enabled]);
+  return state?.root === root ? state.reports : {};
+}
+
+export function analystTeam({ reading, insights, reports = {}, dashboard, purpose }: { reading: RequestStatus; insights: { status: RequestStatus; payload?: InsightsPayload }; reports?: Reports; dashboard: RequestStatus; purpose: RequestStatus }): TeamMember[] {
   const detail: Record<RequestStatus, string> = { waiting: "Waiting to start", working: "Working on it…", done: "Done", unavailable: "Not available right now" };
   const cards = insights.payload?.insights ?? [];
   return [
     { id: "reader", name: "File reader", status: reading, detail: reading === "done" ? "Read your columns and starting numbers" : reading === "working" ? "Reading your columns…" : detail[reading] },
     ...Object.entries(analystNames).map(([id, name]) => {
-      const found = cards.filter(card => card.analyst === id).length;
-      return { id, name, status: insights.status, detail: insights.status === "done" ? (found ? `Found ${plural(found, "thing")} worth a look` : "Nothing stood out") : insights.status === "working" ? "Checking your data…" : detail[insights.status] };
+      const report = reports[id];
+      const own = report?.status === "done" ? report.payload : undefined;
+      const combined = id !== "trend" && insights.status === "done";
+      const status: RequestStatus = own || combined ? "done" : report?.status ?? (insights.status === "waiting" ? "waiting" : "working");
+      const found = own ? own.insights.length : cards.filter(card => card.analyst === id).length;
+      const quiet = (id === "trend" && own?.limitations?.[0]) || "Nothing stood out";
+      return { id, name, status, detail: status === "done" ? (found ? `Found ${plural(found, "thing")} worth a look` : quiet) : status === "working" ? "Checking your data…" : detail[status] };
     }),
     { id: "dashboard", name: "Dashboard builder", status: dashboard, detail: dashboard === "working" ? "Building your dashboard…" : dashboard === "done" ? "Your dashboard is ready" : detail[dashboard] },
     { id: "purpose", name: "Purpose guide", status: purpose, detail: purpose === "working" ? "Working out how this data can help you…" : purpose === "done" ? "Suggested how to use this data" : detail[purpose] },
   ];
 }
 
-export function topFindings(payload: InsightsPayload | undefined, limit = 4): InsightCard[] {
-  return (payload?.insights ?? []).slice(0, limit);
+export function topFindings(payload: InsightsPayload | undefined, reports: Reports = {}, limit = 4): InsightCard[] {
+  if (!payload) return [];
+  return [...(reports.trend?.payload?.insights ?? []), ...payload.insights].slice(0, limit);
 }
 
 export function profileAnswer(choice: string): string {
@@ -111,12 +145,14 @@ function FindingRow({ card, index, words, onAction, onSee }: { card: InsightCard
   </li>;
 }
 
-export function DataReady({ fileName, rows, columns, seconds, summary, confirmed, purpose, insights, team, questions, words, onAsk, onDashboard, onReview, onQuestion, onAction, onSee }: {
+export function DataReady({ fileName, rows, columns, seconds, summary, confirmed, purpose, insights, reports = {}, team, questions, words, onAsk, onDashboard, onReview, onQuestion, onAction, onSee }: {
   fileName: string; rows: number; columns: number; seconds: string | null; summary: string; confirmed: boolean;
-  purpose?: DatasetPurpose; insights: { status: RequestStatus; payload?: InsightsPayload }; team: TeamMember[]; questions: { label: string; question: string }[];
+  purpose?: DatasetPurpose; insights: { status: RequestStatus; payload?: InsightsPayload }; reports?: Reports; team: TeamMember[]; questions: { label: string; question: string }[];
   words: Words; onAsk: () => void; onDashboard: () => void; onReview: () => void; onQuestion: (question: string) => void; onAction: (intent: ActionIntent) => void; onSee: (id: string) => void;
 }) {
-  const findings = topFindings(insights.payload);
+  const findings = topFindings(insights.payload, reports);
+  const analysts = team.filter(member => member.id in analystNames);
+  const reported = analysts.filter(member => member.status === "done" || member.status === "unavailable").length;
   return <div className={styles.ready}>
     <header className={styles.hero}>
       <span className={styles.mark} aria-hidden="true"><Icon name="check" size={20} /></span>
@@ -142,7 +178,7 @@ export function DataReady({ fileName, rows, columns, seconds, summary, confirmed
     <div className={styles.columns}>
       <div className={styles.main}>
         <section className={styles.know} aria-label="What you should know" aria-busy={insights.status === "working"}>
-          <div className={styles.sectionHead}><h3>What you should know</h3><p>{insights.status === "working" ? "Your analysts are still checking. Findings appear here as soon as they are double-checked." : findings.length ? "The most important findings, each recalculated by an independent check." : insights.status === "done" ? "Nothing stood out strongly yet. Ask a question to dig deeper." : "Findings are not available right now. The numbers below still come from your file."}</p></div>
+          <div className={styles.sectionHead}><h3>What you should know</h3><p>{insights.status === "working" ? `${reported} of ${analysts.length} analysts have reported. The most important findings appear here once all are in, each double-checked.` : findings.length ? "The most important findings, each recalculated by an independent check." : insights.status === "done" ? "Nothing stood out strongly yet. Ask a question to dig deeper." : "Findings are not available right now. The numbers below still come from your file."}</p></div>
           {findings.length > 0 && <ol>{findings.map((card, index) => <FindingRow key={card.id} card={card} index={index} words={words} onAction={onAction} onSee={onSee} />)}</ol>}
         </section>
         {questions.length > 0 && <section className={styles.questions} aria-label="Questions you could ask">

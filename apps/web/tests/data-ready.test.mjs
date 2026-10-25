@@ -27,7 +27,7 @@ function load(file) {
   new Function("require", "module", "exports", output)(local, compiled, compiled.exports);
   return compiled.exports;
 }
-const { DataReady, analystTeam, loadPurpose, profileAnswer, purposePath, questionChips } = load(resolve(dirname(fileURLToPath(import.meta.url)), "../src/app/workspace/insights/data-ready.tsx"));
+const { DataReady, analystTeam, loadPurpose, loadReport, profileAnswer, purposePath, questionChips, topFindings } = load(resolve(dirname(fileURLToPath(import.meta.url)), "../src/app/workspace/insights/data-ready.tsx"));
 
 const root = "/workspaces/w1/datasets/d1/uploads/u1";
 const purpose = {
@@ -78,13 +78,58 @@ test("without a purpose the card falls back to the first reading and its suggest
 
 test("analyst statuses come from real request states", () => {
   const working = analystTeam({ reading: "done", insights: { status: "working" }, dashboard: "waiting", purpose: "unavailable" });
-  assert.deepEqual(working.map(item => item.status), ["done", "working", "working", "working", "working", "working", "working", "waiting", "unavailable"]);
+  assert.deepEqual(working.map(item => item.status), ["done", "working", "working", "working", "working", "working", "working", "working", "waiting", "unavailable"]);
   const done = analystTeam({ reading: "done", insights: { status: "done", payload: insights }, dashboard: "done", purpose: "done" });
   assert.equal(done.find(item => item.id === "segment").detail, "Found 1 thing worth a look");
   assert.equal(done.find(item => item.id === "quality").detail, "Nothing stood out");
   const html = renderToStaticMarkup(createElement(DataReady, props({ insights: { status: "working" } })));
-  assert.match(html, /still checking/);
+  assert.match(html, /analysts have reported/);
   assert.match(html, /aria-busy="true"/);
+});
+
+const trendCard = { id: "trend:amount:day:month", analyst: "trend", title: "How amount changes over time", summary: "Total amount rose from 95 to 336 (+253.68%).",
+  evidence: [{ label: "Growth", value: "253.68", unit: "%" }], actions: [] };
+const report = (analyst, cards, limitations = []) => ({ status: "done", payload: { version: "insights-analyst-v1", analyst, insights: cards, limitations } });
+
+test("each analyst reports on its own as soon as its request finishes", () => {
+  const reports = { segment: report("segment", insights.insights), quality: { status: "unavailable" }, trend: report("trend", [], ["Trends need a date field and a measure; this file has no such pair."]) };
+  const team = analystTeam({ reading: "done", insights: { status: "working" }, reports, dashboard: "waiting", purpose: "waiting" });
+  const byId = Object.fromEntries(team.map(item => [item.id, item]));
+  assert.equal(byId.segment.status, "done");
+  assert.equal(byId.segment.detail, "Found 1 thing worth a look");
+  assert.equal(byId.quality.status, "unavailable");
+  assert.equal(byId.composition.status, "working");
+  assert.equal(byId.trend.status, "done");
+  assert.match(byId.trend.detail, /need a date field/);
+  const html = renderToStaticMarkup(createElement(DataReady, props({ insights: { status: "working" }, reports, team })));
+  assert.match(html, /3 of 7 analysts have reported/);
+  assert.doesNotMatch(html, /Show North deals/);
+});
+
+test("the combined overview still settles analysts while the trend request is pending", () => {
+  const team = analystTeam({ reading: "done", insights: { status: "done", payload: insights }, reports: {}, dashboard: "done", purpose: "done" });
+  const byId = Object.fromEntries(team.map(item => [item.id, item]));
+  assert.equal(byId.segment.status, "done");
+  assert.equal(byId.trend.status, "working");
+});
+
+test("per-analyst requests use the additive query and ignore other versions", async () => {
+  const asked = [];
+  const ok = await loadReport(root, "trend", async path => { asked.push(path); return report("trend", [trendCard]).payload; });
+  assert.deepEqual(asked, [`${root}/analyst-overview?analyst=trend`]);
+  assert.equal(ok.status, "done");
+  assert.equal(ok.payload.insights[0].evidence[0].value, "253.68");
+  assert.equal((await loadReport(root, "trend", async () => ({ version: "insights-v1" }))).status, "unavailable");
+  assert.equal((await loadReport(root, "trend", async () => { throw new Error("422"); })).status, "unavailable");
+});
+
+test("ranked findings wait for the combined ranking and lead with the trend", () => {
+  const reports = { trend: report("trend", [trendCard]) };
+  assert.deepEqual(topFindings(undefined, reports), []);
+  assert.deepEqual(topFindings(insights, reports).map(card => card.id), ["trend:amount:day:month", "segment:a"]);
+  const html = renderToStaticMarkup(createElement(DataReady, props({ reports })));
+  assert.match(html, /253\.68 %/);
+  assert.ok(html.indexOf("How amount changes over time") < html.indexOf("Deal_Value by Region"));
 });
 
 test("profile choices become a chat answer", () => {
