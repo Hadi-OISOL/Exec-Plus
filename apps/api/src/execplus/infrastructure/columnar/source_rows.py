@@ -97,7 +97,12 @@ def _stored_relation(
             shutil.copyfileobj(content, handle, 1024 * 1024)
         content.seek(0)
         with open_table(
-            source, name, Path(work), extension_directory, formula_cells, table=stored_table(format)[1]
+            source,
+            name,
+            Path(work),
+            extension_directory,
+            formula_cells,
+            table=stored_table(format)[1],
         ) as opened:
             yield opened[1]
 
