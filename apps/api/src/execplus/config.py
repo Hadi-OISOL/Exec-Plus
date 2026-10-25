@@ -109,6 +109,9 @@ class Settings(BaseSettings):
     bigquery_enabled: bool = False
     odoo_enabled: bool = False
     database_connector_enabled: bool = False
+    mysql_connector_enabled: bool = False
+    mssql_connector_enabled: bool = False
+    database_connector_max_rows: int = Field(default=1_000_000, ge=1, le=50_000_000)
     connector_allow_private_hosts: bool | None = None
     connector_max_rows: int = Field(default=100_000, ge=1, le=200_000)
 
@@ -137,6 +140,10 @@ class Settings(BaseSettings):
             enabled.append("odoo")
         if self.database_connector_enabled:
             enabled.append("postgresql")
+        if self.mysql_connector_enabled:
+            enabled.append("mysql")
+        if self.mssql_connector_enabled:
+            enabled.append("sqlserver")
         return tuple(enabled)
 
     @model_validator(mode="after")

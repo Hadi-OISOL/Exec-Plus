@@ -15,6 +15,8 @@ dependencies = [
   "sqlalchemy>=2.0,<2.1",
   "alembic>=1.13,<2",
   "psycopg[binary]>=3.2,<4",
+  "PyMySQL==1.2.3",
+  "pymssql==2.4.5",
   "boto3>=1.35,<2",
   "openpyxl>=3.1.5,<4",
   "defusedxml>=0.7,<1",

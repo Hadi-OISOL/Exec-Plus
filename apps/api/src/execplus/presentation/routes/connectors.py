@@ -53,7 +53,7 @@ class CredentialsInput(BaseModel):
 
 class ImportInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    source_id: str = Field(min_length=1, max_length=600)
+    source_id: str = Field(min_length=1, max_length=40_000)
 
 
 class RefreshInput(ImportInput):
@@ -140,6 +140,15 @@ async def sources(
 ) -> object:
     return await run_in_threadpool(
         service.browse, actor, provider, parent, oauth.session_token(request)
+    )
+
+
+@router.post("/connectors/{provider}/preview")
+async def preview(
+    provider: str, body: ImportInput, actor: Actor, service: Service, request: Request
+) -> object:
+    return await run_in_threadpool(
+        service.preview, actor, provider, body.source_id, oauth.session_token(request)
     )
 
 

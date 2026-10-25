@@ -126,6 +126,8 @@ def test_each_platform_is_built_only_from_its_own_settings():
         "zoho_books": dict(zoho_client_id="z", zoho_client_secret="zs"),
         "odoo": dict(odoo_enabled=True),
         "postgresql": dict(database_connector_enabled=True),
+        "mysql": dict(mysql_connector_enabled=True),
+        "sqlserver": dict(mssql_connector_enabled=True),
         "bigquery": dict(bigquery_enabled=True, **google),
     }
     for platform, values in cases.items():
@@ -143,6 +145,8 @@ def test_each_platform_is_built_only_from_its_own_settings():
         dict(bigquery_enabled=True),
         dict(odoo_enabled=True, token_encryption_key=""),
         dict(database_connector_enabled=True, token_encryption_key="not-a-fernet-key"),
+        dict(mysql_connector_enabled=True, token_encryption_key=""),
+        dict(mssql_connector_enabled=True, token_encryption_key="not-a-fernet-key"),
     ],
 )
 def test_half_configured_platforms_refuse_to_start(values):
