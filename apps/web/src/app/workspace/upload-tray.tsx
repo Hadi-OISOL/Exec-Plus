@@ -1,12 +1,12 @@
-/* Use case: Shows background uploads and personal storage use anywhere in the workspace.
-What it does: Renders a collapsible floating tray with per-file and overall progress, pause/resume/cancel/retry controls, reselect-to-resume after reload, and the storage quota bar. */
+/* Use case: Shows background uploads, personal storage use and the other sheets of an uploaded workbook.
+What it does: Renders a collapsible floating tray with per-file and overall progress, pause/resume/cancel/retry controls, reselect-to-resume after reload, the storage quota bar, and a control to import another sheet as its own dataset. */
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "./explore-components";
-import { UPLOAD_ACCEPT, formatBytes, formatDuration } from "./upload-manager";
-import type { UploadItem, UploadManager } from "./upload-manager";
+import { UPLOAD_ACCEPT, formatBytes, formatDuration, hasSheets, otherSheets, sheetSummary } from "./upload-manager";
+import type { SheetListing, UploadItem, UploadManager, UploadedFile } from "./upload-manager";
 import styles from "./upload-tray.module.css";
 
 export type StorageUse = { used_bytes: number; quota_bytes: number; open_upload_bytes: number };
@@ -45,6 +45,41 @@ export function StorageBar({ storage }: { storage: StorageUse }) {
         </p>
       )}
     </div>
+  );
+}
+
+export function SheetChooser({ root, format, request, onImported }: { root: string; format?: string; request: <T>(path: string, options?: RequestInit) => Promise<T>; onImported: (upload: UploadedFile) => Promise<void> }) {
+  const [listing, setListing] = useState<SheetListing | null>(null);
+  const [choice, setChoice] = useState("");
+  const [working, setWorking] = useState(false);
+  const [failure, setFailure] = useState("");
+  useEffect(() => {
+    if (!hasSheets(format)) return;
+    let live = true;
+    request<SheetListing>(`${root}/sheets`).then(value => { if (live) { setListing(value); setChoice(otherSheets(value)[0] ?? ""); } }, () => undefined);
+    return () => { live = false; };
+  }, [root, format, request]);
+  if (!listing || !otherSheets(listing).length) return null;
+  async function importSheet() {
+    setWorking(true);
+    setFailure("");
+    try {
+      await onImported(await request<UploadedFile>(`${root}/sheets/import`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheet: choice }) }));
+    } catch (cause) {
+      setFailure(cause instanceof Error ? cause.message : "The sheet could not be imported.");
+    } finally {
+      setWorking(false);
+    }
+  }
+  return (
+    <section className={`panel ${styles.sheets}`} aria-label="Other sheets in this file">
+      <p>{sheetSummary(listing)}</p>
+      <div className={styles.actions}>
+        <label>Sheet <select value={choice} disabled={working} onChange={event => setChoice(event.target.value)}>{otherSheets(listing).map(name => <option key={name}>{name}</option>)}</select></label>
+        <button type="button" disabled={working || !choice} onClick={() => void importSheet()}>{working ? "Importing…" : "Import another sheet"}</button>
+      </div>
+      {failure && <p className={styles.error} role="alert">{failure}</p>}
+    </section>
   );
 }
 
