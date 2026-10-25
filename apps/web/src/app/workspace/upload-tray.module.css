@@ -1,0 +1,105 @@
+/* Use case: Styles the floating background-upload tray and the storage quota bar.
+What it does: Positions a compact, themed, responsive tray with accessible progress tracks and reduced-motion-aware transitions. */
+
+.tray {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 40;
+  width: min(360px, calc(100vw - 2 * var(--space-4)));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-3);
+  font-size: var(--text-small);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-target);
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.header > span:nth-child(2) { flex: 1; }
+.header:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
+.chevron { color: var(--color-text-muted); }
+
+.overall { margin: 0 var(--space-4) var(--space-2); }
+
+.list { margin: 0; padding: 0 var(--space-4); list-style: none; }
+
+.item { padding: var(--space-3) 0; border-top: 1px solid var(--color-border); }
+.itemHead { display: flex; justify-content: space-between; gap: var(--space-2); min-width: 0; }
+.itemHead strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.phase { flex: none; color: var(--color-text-secondary); }
+.item[data-phase="done"] .phase { color: var(--color-success); }
+.item[data-phase="failed"] .phase { color: var(--color-danger); }
+.item[data-phase="paused"] .phase, .item[data-phase="needs-file"] .phase { color: var(--color-warning); }
+
+.track {
+  position: relative;
+  height: 6px;
+  margin-top: var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+}
+.track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width var(--dur-slow) var(--ease-standard);
+}
+.item[data-phase="done"] .track > span { background: var(--color-success); }
+.item[data-phase="failed"] .track > span { background: var(--color-danger); }
+.item[data-phase="paused"] .track > span { background: var(--color-warning); }
+.track[data-indeterminate] > span { animation: pulse 1.4s var(--ease-standard) 6 alternate; }
+
+@keyframes pulse { from { opacity: 1; } to { opacity: 0.45; } }
+
+.detail { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.error { margin: var(--space-1) 0 0; color: var(--color-danger); }
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.actions button, .pick {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+.actions button:hover, .pick:hover { background: var(--color-surface-hover); }
+.actions button:focus-visible, .pick:focus-within { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.pick { position: relative; display: inline-flex; align-items: center; color: var(--color-primary-text); font-weight: 600; }
+.pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.storage { padding: var(--space-3) var(--space-4) var(--space-4); border-top: 1px solid var(--color-border); }
+.storageText { display: flex; justify-content: space-between; gap: var(--space-2); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.storage[data-level="warning"] .track > span { background: var(--color-warning); }
+.storage[data-level="full"] .track > span { background: var(--color-danger); }
+.storageWarning { margin: var(--space-2) 0 0; color: var(--color-warning); }
+.storage[data-level="full"] .storageWarning { color: var(--color-danger); }
+
+.srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .track > span { transition: none; }
+  .track[data-indeterminate] > span { animation: none; }
+}

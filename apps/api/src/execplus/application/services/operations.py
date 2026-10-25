@@ -157,6 +157,34 @@ class OperationsService:
             )
         return {"user_id": str(user.id), "role": role, "revoked": role is None}
 
+    def set_storage_quota(
+        self, actor: User | None, user_id: UUID, quota_bytes: int | None
+    ) -> dict[str, Any]:
+        if quota_bytes is not None and (type(quota_bytes) is not int or quota_bytes < 0):
+            raise IngestionError("invalid_quota", "Use a nonnegative whole number of bytes.", 422)
+        if actor is None:
+            with self.uow() as repo:
+                repo.user(user_id)
+                repo.set_user_storage_quota(user_id, quota_bytes, None, now())
+                repo.add_staff_audit(
+                    StaffAudit(
+                        uuid4(),
+                        None,
+                        "storage.quota_set",
+                        "operator_cli",
+                        "success",
+                        now(),
+                        resource_id=user_id,
+                    )
+                )
+        else:
+            with self.staff_scope(
+                actor, "storage.quota_set", resource_id=user_id, admin=True
+            ) as repo:
+                repo.user(user_id)
+                repo.set_user_storage_quota(user_id, quota_bytes, actor.id, now())
+        return {"user_id": str(user_id), "quota_bytes": quota_bytes}
+
     def staff(self, actor: User) -> dict[str, Any]:
         with self.staff_scope(actor, "staff.listed") as repo:
             return {"staff": repo.active_staff()}

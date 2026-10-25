@@ -5,11 +5,10 @@ What it does: Rejects unsafe names, formulas, malformed tables, and unsafe workb
 
 import csv
 import re
-import unicodedata
 from datetime import date, datetime
 from io import TextIOWrapper
-from pathlib import PurePosixPath
-from typing import BinaryIO
+from pathlib import Path, PurePosixPath
+from typing import BinaryIO, Literal
 from zipfile import BadZipFile, ZipFile
 
 from defusedxml.common import DefusedXmlException
@@ -17,8 +16,14 @@ from defusedxml.ElementTree import iterparse
 from openpyxl import load_workbook
 from openpyxl.utils.cell import coordinate_to_tuple
 
-from execplus.domain.ingestion import FileStructure, IngestionError
+from execplus.domain.ingestion import (
+    FileStructure,
+    IngestionError,
+    file_too_large,
+    validate_filename,
+)
 from execplus.domain.profiling import TableData
+from execplus.infrastructure.columnar.source_rows import is_reader_format, read_source_table
 
 MAX_BYTES = 20 * 1024 * 1024
 MAX_CELLS = 1_000_000
@@ -31,28 +36,15 @@ MIME_TYPES = {
 CSV_DELIMITERS = {"csv": ",", "csv;s": ";", "csv;t": "\t"}
 
 
-def validate_filename(filename: str) -> str:
-    name = unicodedata.normalize("NFKC", filename).strip()
-    if (
-        not name
-        or len(name) > 200
-        or name.startswith(".")
-        or any(char in name for char in "/\\:%")
-        or any(unicodedata.category(char).startswith("C") for char in name)
-    ):
-        raise IngestionError(
-            "unsafe_filename", "Use a plain filename without paths or control characters.", 422
-        )
-    return name
-
-
-def validate_cell(value: object) -> None:
+def validate_cell(value: object, *, reject_formulas: bool = True) -> None:
     if not isinstance(value, str):
         return
     if any(ord(char) < 32 and char not in "\t\r\n" for char in value):
         raise IngestionError(
             "unsafe_content", "The file contains unsupported control characters.", 422
         )
+    if not reject_formulas:
+        return
     stripped = value.lstrip()
     if stripped.startswith(("=", "+", "@")) or (
         stripped.startswith("-") and not re.fullmatch(r"-\d+(\.\d+)?([eE][+-]?\d+)?", stripped)
@@ -78,6 +70,17 @@ def validate_dimensions(rows: int, columns: int) -> None:
 
 
 class StructuredFileParser:
+    def __init__(
+        self,
+        max_bytes: int = MAX_BYTES,
+        formula_cells: Literal["reject", "keep_as_text"] = "reject",
+        extension_directory: Path | None = None,
+    ) -> None:
+        self.extension_directory = extension_directory
+        self.formula_cells: Literal["reject", "keep_as_text"] = formula_cells
+        self.max_bytes = max_bytes
+        self.reject_formulas = formula_cells == "reject"
+
     def parse(
         self,
         content: BinaryIO,
@@ -112,21 +115,11 @@ class StructuredFileParser:
         stored_format: str | None = None,
         captured: list[tuple[str, ...]] | None = None,
     ) -> FileStructure:
-        format = self.inspect(content, filename, content_type, stored_format=stored_format)
-        if format != "xlsx":
-            return self._csv(content, format, captured)
-        return self._xlsx(content, captured)
-
-    def inspect(
-        self,
-        content: BinaryIO,
-        filename: str,
-        content_type: str,
-        *,
-        stored_format: str | None = None,
-        max_bytes: int = MAX_BYTES,
-    ) -> str:
-        """Run the byte-level checks shared by every reader and return the stored format."""
+        if is_reader_format(stored_format):
+            structure, table = self._reader_table(content, str(stored_format))
+            if captured is not None:
+                captured.extend((table.headers, *table.rows))
+            return structure
         filename = validate_filename(filename)
         extension = PurePosixPath(filename).suffix.lower()
         if (
@@ -141,10 +134,8 @@ class StructuredFileParser:
         content.seek(0, 2)
         size = content.tell()
         content.seek(0)
-        if size > max_bytes:
-            raise IngestionError(
-                "file_too_large", f"Files must be at most {max_bytes // (1024 * 1024)} MiB.", 413
-            )
+        if size > self.max_bytes:
+            raise file_too_large(self.max_bytes)
         if size == 0:
             raise IngestionError("empty_file", "The file is empty.", 422)
         prefix = content.read(8)
@@ -164,14 +155,25 @@ class StructuredFileParser:
             content.seek(0)
             if stored_format is not None and stored_format not in CSV_DELIMITERS:
                 raise IngestionError("unsupported_format", "Stored CSV format is unavailable.", 409)
-            return stored_format or self._csv_format(content)
+            return self._csv(content, stored_format or self._csv_format(content), captured)
         if not prefix.startswith(b"PK\x03\x04"):
             raise IngestionError(
                 "malformed_excel", "The file is not a readable XLSX workbook.", 422
             )
-        return "xlsx"
+        return self._xlsx(content, captured)
+
+    def _reader_table(self, content: BinaryIO, format: str) -> tuple[FileStructure, TableData]:
+        if self.extension_directory is None:
+            raise IngestionError(
+                "unsupported_format", "This stored file type cannot be read here.", 409
+            )
+        return read_source_table(
+            content, format, self.extension_directory, self.formula_cells, MAX_ROWS
+        )
 
     def read_table(self, content: BinaryIO, format: str) -> TableData:
+        if is_reader_format(format):
+            return self._reader_table(content, format)[1]
         content.seek(0)
         if format in CSV_DELIMITERS:
             wrapper = TextIOWrapper(content, encoding="utf-8-sig", newline="")
@@ -239,7 +241,7 @@ class StructuredFileParser:
             columns = len(header)
             validate_dimensions(1, columns)
             for cell in header:
-                validate_cell(cell)
+                validate_cell(cell, reject_formulas=self.reject_formulas)
             if captured is not None:
                 captured.append(tuple(header))
             rows = 0
@@ -253,7 +255,7 @@ class StructuredFileParser:
                 rows += 1
                 validate_dimensions(rows + 1, columns)
                 for cell in row:
-                    validate_cell(cell)
+                    validate_cell(cell, reject_formulas=self.reject_formulas)
                 if captured is not None:
                     captured.append(tuple(row))
             if rows == 0:
@@ -310,7 +312,7 @@ class StructuredFileParser:
                             raise IngestionError(
                                 "merged_cells", "Remove merged cells before uploading.", 422
                             )
-                        if tag == "f":
+                        if tag == "f" and self.reject_formulas:
                             raise IngestionError(
                                 "unsafe_formula",
                                 "Excel formulas are unsupported. Upload values only.",
@@ -357,7 +359,7 @@ class StructuredFileParser:
                 validate_header(list(header))
                 columns = len(header)
                 for cell in header:
-                    validate_cell(cell)
+                    validate_cell(cell, reject_formulas=self.reject_formulas)
                 if captured is not None:
                     captured.append(tuple(str(value) for value in header))
                 count = 0
@@ -377,7 +379,7 @@ class StructuredFileParser:
                     count += 1
                     validate_dimensions(count + 1, columns)
                     for cell in row:
-                        validate_cell(cell)
+                        validate_cell(cell, reject_formulas=self.reject_formulas)
                     if captured is not None:
                         captured.append(
                             tuple(

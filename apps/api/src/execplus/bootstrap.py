@@ -55,6 +55,7 @@ from execplus.application.services.studies import OrganizationService, StudyServ
 from execplus.application.services.summaries import SummaryService
 from execplus.application.services.threads import ThreadService
 from execplus.application.services.understanding import UnderstandingService
+from execplus.application.services.upload_sessions import UploadSessionService
 from execplus.application.services.usage_metering import UsageMeteringService
 from execplus.application.services.webhooks import WebhookService
 from execplus.application.services.workspaces import WorkspaceService
@@ -201,7 +202,11 @@ def build_runtime(settings: Settings) -> "Runtime":
         if settings.google_enabled and settings.environment not in {"local", "test"}
         else LocalSessionIdentity(engine, settings.environment)
     )
-    parser = StructuredFileParser()
+    parser = StructuredFileParser(
+        settings.max_upload_bytes,
+        formula_cells=settings.formula_cells,
+        extension_directory=Path(settings.duckdb_extension_directory),
+    )
     columnar = S3ColumnarStore(
         client,
         settings.object_store_bucket,
@@ -278,8 +283,11 @@ def build_runtime(settings: Settings) -> "Runtime":
         storage,
         parser,
         settings.max_upload_bytes,
+        settings.user_storage_quota_bytes,
         columnar=columnar if settings.columnar_ingest_enabled else None,
         converter=DuckDBColumnarConverter(
+            extension_directory=Path(settings.duckdb_extension_directory),
+            formula_cells=settings.formula_cells,
             memory_limit_mb=settings.columnar_ingest_memory_mb,
             threads=settings.columnar_ingest_threads,
             spill_limit_mb=settings.columnar_spill_mb,
@@ -419,6 +427,9 @@ def build_runtime(settings: Settings) -> "Runtime":
         google_access=google_access,
         connectors=connectors,
         local_registration_enabled=settings.local_registration_enabled,
+        upload_chunk_bytes=settings.upload_chunk_bytes,
+        upload_inline_bytes=settings.upload_inline_bytes,
+        upload_session_hours=settings.upload_session_hours,
     )
 
 
@@ -461,6 +472,20 @@ class Runtime:
     google_access: GoogleAccessService | None = None
     connectors: ConnectorService | None = None
     local_registration_enabled: bool = True
+    upload_chunk_bytes: int = 8 * 1024 * 1024
+    upload_inline_bytes: int = 20 * 1024 * 1024
+    upload_session_hours: int = 24
+
+    @cached_property
+    def upload_sessions(self) -> UploadSessionService:
+        return UploadSessionService(
+            SQLUnitOfWork(self.engine),
+            self.service.storage,
+            self.service,
+            chunk_bytes=self.upload_chunk_bytes,
+            inline_bytes=self.upload_inline_bytes,
+            session_hours=self.upload_session_hours,
+        )
 
     @cached_property
     def oauth_state(self) -> SqlOAuthState:

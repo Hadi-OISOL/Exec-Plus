@@ -21,6 +21,9 @@ COPY THIRD_PARTY_NOTICES.md ./
 COPY apps/web/public/third-party ./third-party
 
 RUN pip install --no-cache-dir .
+ENV EXECPLUS_DUCKDB_EXTENSION_DIRECTORY=/opt/execplus/duckdb-extensions
+RUN python -c "import duckdb; c = duckdb.connect(config={'extension_directory': '/opt/execplus/duckdb-extensions'}); [c.install_extension(name) for name in ('excel', 'sqlite_scanner')]" \
+    && chmod -R a+rX,go-w /opt/execplus
 RUN useradd --create-home --uid 10001 execplus && chmod -R a+rX /app
 
 USER execplus

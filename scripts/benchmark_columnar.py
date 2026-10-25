@@ -99,9 +99,9 @@ def generate(path: Path, rows: int, seed: int = 26) -> dict[str, Any]:
 
 def _ingest(source: str, work: str, queue: Any) -> None:
     started = time.perf_counter()
-    conversion = DuckDBColumnarConverter(memory_limit_mb=2048, threads=4).convert(
-        Path(source), "csv", Path(work)
-    )
+    conversion = DuckDBColumnarConverter(
+        extension_directory=Path("data/duckdb-extensions"), memory_limit_mb=2048, threads=4
+    ).convert(Path(source), Path(source).name, Path(work))
     queue.put(
         {
             "seconds": time.perf_counter() - started,

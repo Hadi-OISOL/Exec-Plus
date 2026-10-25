@@ -36,7 +36,7 @@ def test_hosted_route_requires_an_api_key() -> None:
         )
 
 
-@pytest.mark.parametrize("limit", [0, 20 * 1024 * 1024 + 1])
+@pytest.mark.parametrize("limit", [0, 2 * 1024**3])
 def test_upload_limit_cannot_exceed_product_cap(limit):
     with pytest.raises(ValidationError):
         Settings(_env_file=None, max_upload_bytes=limit)

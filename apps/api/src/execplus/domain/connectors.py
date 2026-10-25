@@ -16,6 +16,7 @@ from uuid import UUID
 
 from execplus.domain.google_oauth import MAX_CELLS, MAX_COLUMNS, MAX_ROWS
 from execplus.domain.ingestion import IngestionError
+from execplus.domain.upload_sessions import safe_label
 
 XERO_DATE = re.compile(r"/Date\((-?\d+)(?:[+-]\d{4})?\)/")
 MAX_DEPTH = 3
@@ -209,9 +210,7 @@ def records_to_csv(records: list[dict[str, Any]]) -> bytes:
 
 def connector_filename(platform: str, account: str, source: str) -> str:
     parts = [part for part in (platform, account, source) if part]
-    label = re.sub(r"[\\/\x00-\x1f]", " ", " - ".join(parts))
-    label = " ".join(label.split())[:96] or "Imported data"
-    return f"{label}.csv"
+    return f"{safe_label(' - '.join(parts), 96, 'Imported data')}.csv"
 
 
 def unconfigured_platforms(configured: Iterable[str]) -> list[dict[str, Any]]:

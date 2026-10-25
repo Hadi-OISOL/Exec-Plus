@@ -5,16 +5,27 @@ tables, checks typed Parquet values, refusal rules and recorded conversion error
 """
 
 import csv
+import gzip
+import json
+import os
 import random
 from decimal import Decimal
+from pathlib import Path
 
 import duckdb
 import pytest
+from openpyxl import Workbook
 
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.profiling import PROFILE_V5, TableData, profile_for
 from execplus.infrastructure.columnar.converter import DuckDBColumnarConverter
 
+EXTENSIONS = Path(
+    os.environ.get(
+        "EXECPLUS_DUCKDB_EXTENSION_DIRECTORY",
+        Path(__file__).resolve().parents[3] / "data" / "duckdb-extensions",
+    )
+)
 POOL = {
     "number": ["1", "2.50", "-3", "1e3", "100e-2", "0.000", "12345678901234.123456", " 7 ", ""],
     "when": ["2024-01-05", "2024-02-30", "2023-12-31", "", "2024-01-05T10:00:00"],
@@ -36,12 +47,16 @@ def write(path, headers, rows, delimiter=","):
         writer.writerows(rows)
 
 
-def convert(tmp_path, headers, rows, format="csv"):
+def converter(**options):
+    return DuckDBColumnarConverter(extension_directory=EXTENSIONS, memory_limit_mb=1024, **options)
+
+
+def convert(tmp_path, headers, rows, **options):
     source = tmp_path / "source.csv"
-    write(source, headers, rows, {"csv": ",", "csv;s": ";", "csv;t": "\t"}[format])
+    write(source, headers, rows)
     work = tmp_path / "work"
     work.mkdir()
-    return DuckDBColumnarConverter(memory_limit_mb=256, threads=2).convert(source, format, work)
+    return converter(**options).convert(source, "source.csv", work)
 
 
 @pytest.mark.parametrize("seed", range(40))
@@ -122,18 +137,18 @@ def test_conflicting_column_is_kept_as_text_with_legacy_message(tmp_path):
 )
 def test_unsafe_or_blank_rows_are_refused(tmp_path, rows, code):
     with pytest.raises(IngestionError) as error:
-        convert(tmp_path, ("name", "value"), rows)
+        convert(tmp_path, ("name", "value"), rows, formula_cells="reject")
     assert error.value.code == code
 
 
-def test_inconsistent_columns_are_refused(tmp_path):
+def test_short_rows_follow_the_shared_reader(tmp_path):
     source = tmp_path / "source.csv"
     source.write_text("a,b\n1,2\n3\n", encoding="utf-8")
     work = tmp_path / "work"
     work.mkdir()
-    with pytest.raises(IngestionError) as error:
-        DuckDBColumnarConverter(memory_limit_mb=128).convert(source, "csv", work)
-    assert error.value.code == "malformed_csv"
+    result = converter().convert(source, "source.csv", work)
+    assert result.headers == ("a,b",)
+    assert result.profile["columns"][0]["type"] == "text"
 
 
 def test_semicolon_and_bom_sources_convert(tmp_path):
@@ -141,6 +156,93 @@ def test_semicolon_and_bom_sources_convert(tmp_path):
     source.write_bytes("﻿region;amount\nNorth;1.5\nSouth;2\n".encode())
     work = tmp_path / "work"
     work.mkdir()
-    result = DuckDBColumnarConverter(memory_limit_mb=128).convert(source, "csv;s", work)
+    result = converter().convert(source, "source.csv", work)
+    assert result.format == "r:csv"
     assert result.headers == ("region", "amount")
     assert result.profile["columns"][1]["type"] == "decimal"
+
+
+def _sum(result, column):
+    connection = duckdb.connect()
+    return connection.execute(
+        f'SELECT sum("{column}"), typeof(sum("{column}")) FROM read_parquet(?)', [result.parquet]
+    ).fetchone()
+
+
+def _write_source(source, name, rows):
+    if name.endswith("json"):
+        records = [{"region": r, "amount": a, "day": d} for r, a, d in rows]
+        lines = [json.dumps(item) for item in records]
+        text = "\n".join(lines) if name.endswith("ndjson") else json.dumps(records)
+        source.write_text(text, encoding="utf-8")
+    elif name.endswith(".gz"):
+        text = "region,amount,day\n" + "\n".join(map(",".join, rows))
+        source.write_bytes(gzip.compress(text.encode()))
+    elif name.endswith(".tsv"):
+        text = "region\tamount\tday\n" + "\n".join("\t".join(row) for row in rows)
+        source.write_text(text, encoding="utf-8")
+    else:
+        duckdb.connect().execute(
+            "COPY (SELECT * FROM (VALUES ('North', 0.10::DECIMAL(10,2), DATE '2024-01-01'), "
+            "('South', 0.20::DECIMAL(10,2), DATE '2024-01-02')) t(region, amount, day)) "
+            f"TO '{source}' (FORMAT parquet)"
+        )
+
+
+@pytest.mark.parametrize(
+    "name", ["data.ndjson", "data.json", "data.csv.gz", "data.parquet", "data.tsv"]
+)
+def test_reader_formats_convert_to_exact_typed_parquet(tmp_path, name):
+    source = tmp_path / name
+    _write_source(source, name, [("North", "0.10", "2024-01-01"), ("South", "0.20", "2024-01-02")])
+    work = tmp_path / "work"
+    work.mkdir()
+    result = converter().convert(source, name, work)
+    assert result.format.startswith("r:")
+    types = {column["name"]: column["type"] for column in result.profile["columns"]}
+    assert types == {"region": "text", "amount": "decimal", "day": "date"}
+    assert _sum(result, "amount") == (Decimal("0.300000000000"), "DECIMAL(38,12)")
+
+
+@pytest.mark.skipif(
+    not any(EXTENSIONS.glob(f"v{duckdb.__version__}/*/excel.duckdb_extension")),
+    reason="bundled DuckDB excel extension is not installed",
+)
+def test_excel_scientific_notation_text_is_typed_exactly_as_read(tmp_path):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["code", "amount", "big"])
+    sheet.append(["A", 0.1, 12345678901234568])
+    sheet.append(["B", 0.2, 2])
+    source = tmp_path / "book.xlsx"
+    workbook.save(source)
+    work = tmp_path / "work"
+    work.mkdir()
+    result = converter().convert(source, "book.xlsx", work)
+    assert result.errors == {}
+    assert _sum(result, "amount")[0] == Decimal("0.3")
+    connection = duckdb.connect()
+    big = connection.execute("SELECT big FROM read_parquet(?)", [result.parquet]).fetchall()
+    assert big == [(12345678901234570,), (2,)]
+
+
+def test_upload_sessions_accept_exactly_the_reader_extensions():
+    from execplus.domain.upload_sessions import READER_EXTENSIONS, require_supported
+    from execplus.infrastructure.readers.detection import EXTENSIONS as DETECTED
+
+    assert frozenset(DETECTED) == READER_EXTENSIONS
+    require_supported("orders.parquet", "application/octet-stream")
+    require_supported("orders.csv", "text/csv")
+    for name, kind in (("orders.csv", "application/pdf"), ("orders.pdf", "application/pdf")):
+        with pytest.raises(IngestionError):
+            require_supported(name, kind)
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [("a.csv", "r:csv"), ("a.b.csv.gz", "r:csv.gz"), ("x.backup.zip", "r:zip"), ("s.SAV", "r:sav")],
+)
+def test_stored_reader_format_names(filename, expected):
+    from execplus.infrastructure.columnar.source_rows import stored_format
+
+    assert stored_format(filename) == expected

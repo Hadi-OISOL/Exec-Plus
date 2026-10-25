@@ -6,8 +6,9 @@ profile aggregates, decides types with the profile-v4 rules and casts once to Pa
 """
 
 import hashlib
+from dataclasses import replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import duckdb
 
@@ -15,8 +16,14 @@ from execplus.domain.columnar import ColumnarConversion, ColumnStats, profile_fr
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.profiling import MISSING_PLACEHOLDERS
 from execplus.domain.semantics import quote_identifier
-from execplus.infrastructure.columnar.readers import READERS, sql_text
+from execplus.infrastructure.columnar.source_rows import open_table, stored_format
+from execplus.infrastructure.file_parser import MAX_COLUMNS, validate_cell, validate_header
 from execplus.infrastructure.query.duckdb_executor import conversion_message
+
+
+def sql_text(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
 
 _SPACE = (
     "\t\n\r \x85\xa0\u1680"
@@ -106,65 +113,69 @@ class DuckDBColumnarConverter:
     def __init__(
         self,
         *,
+        extension_directory: Path,
+        formula_cells: Literal["reject", "keep_as_text"] = "keep_as_text",
         memory_limit_mb: int = 2048,
         threads: int = 4,
         spill_limit_mb: int = 20_480,
         max_rows: int = 50_000_000,
     ) -> None:
+        self.extension_directory = extension_directory
+        self.formula_cells = formula_cells
         self.memory_limit_mb = memory_limit_mb
         self.threads = threads
         self.spill_limit_mb = spill_limit_mb
         self.max_rows = max_rows
 
-    def _connect(self, source: Path, workdir: Path) -> duckdb.DuckDBPyConnection:
-        connection = duckdb.connect(
-            ":memory:",
-            config={
-                "memory_limit": f"{self.memory_limit_mb}MB",
-                "threads": str(self.threads),
-                "temp_directory": str(workdir / "spill"),
-                "max_temp_directory_size": f"{self.spill_limit_mb}MB",
-                "autoinstall_known_extensions": "false",
-                "autoload_known_extensions": "false",
-                "allow_unsigned_extensions": "false",
-                "allow_community_extensions": "false",
-            },
-        )
-        connection.execute("SET TimeZone = 'UTC'")
-        connection.execute("SET enable_progress_bar = false")
-        connection.execute(f"SET allowed_paths = [{sql_text(str(source))}]")
-        connection.execute(f"SET allowed_directories = [{sql_text(str(workdir) + '/')}]")
-        connection.execute("SET enable_external_access = false")
-        connection.execute("SET lock_configuration = true")
-        for macro in _MACROS:
-            connection.execute(macro)
-        return connection
-
-    def convert(self, source: Path, format: str, workdir: Path) -> ColumnarConversion:
-        reader = READERS.get(format)
-        if reader is None:
-            raise IngestionError("unsupported_format", "This stored format is unavailable.", 409)
-        connection = self._connect(source, workdir)
-        try:
+    def convert(self, source: Path, filename: str, workdir: Path) -> ColumnarConversion:
+        format = stored_format(filename)
+        with open_table(
+            source,
+            filename,
+            workdir,
+            self.extension_directory,
+            self.formula_cells,
+            memory_limit_mb=self.memory_limit_mb,
+            threads=self.threads,
+            max_temp_bytes=self.spill_limit_mb * 1024 * 1024,
+        ) as (connection, relation, _):
+            headers = tuple(str(column) for column in relation.columns)
+            validate_header(list(headers))
+            if len(headers) > MAX_COLUMNS:
+                raise IngestionError(
+                    "unsupported_structure",
+                    "The table exceeds supported row, column, or cell limits.",
+                    422,
+                )
+            for header in headers:
+                validate_cell(header, reject_formulas=self.formula_cells == "reject")
             raw = workdir / "raw.parquet"
             try:
-                headers, relation = reader(connection, source, format, workdir)
+                for macro in _MACROS:
+                    connection.execute(macro)
                 relation.project(
                     ", ".join(f"#{index + 1}::VARCHAR AS c{index}" for index in range(len(headers)))
                 ).write_parquet(str(raw), compression="zstd")
-            except duckdb.Error as error:
+            except duckdb.OutOfMemoryException as error:
                 raise IngestionError(
-                    "malformed_csv",
-                    "CSV rows must have consistent columns and well-formed UTF-8 quoting.",
+                    "conversion_failed",
+                    "The file needs more memory to prepare than this server allows.",
                     422,
                 ) from error
-            return self._typed(connection, headers, raw, workdir)
-        except duckdb.Error as error:
-            raise IngestionError(
-                "conversion_failed", "The file could not be prepared for large-data queries.", 422
-            ) from error
-        finally:
-            connection.close()
+            except duckdb.Error as error:
+                raise IngestionError(
+                    "unreadable_file",
+                    "The file could not be read. Check that rows have consistent columns.",
+                    422,
+                ) from error
+            try:
+                return replace(self._typed(connection, headers, raw, workdir), format=format)
+            except duckdb.Error as error:
+                raise IngestionError(
+                    "conversion_failed",
+                    "The file could not be prepared for large-data queries.",
+                    422,
+                ) from error
 
     def _typed(
         self,
@@ -204,7 +215,7 @@ class DuckDBColumnarConverter:
             raise IngestionError(
                 "unsafe_content", "The file contains unsupported control characters.", 422
             )
-        if any(entry[-1] for entry in values):
+        if self.formula_cells == "reject" and any(entry[-1] for entry in values):
             raise IngestionError(
                 "unsafe_formula", "Formula-like cells are unsupported. Upload values only.", 422
             )
@@ -318,6 +329,7 @@ class DuckDBColumnarConverter:
         staged.unlink()
         raw.unlink()
         return ColumnarConversion(
+            "",
             headers,
             profile,
             str(parquet),

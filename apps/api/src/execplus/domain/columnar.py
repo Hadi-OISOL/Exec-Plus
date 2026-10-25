@@ -82,6 +82,7 @@ class ColumnarManifest:
 
 @dataclass(frozen=True, slots=True)
 class ColumnarConversion:
+    format: str
     headers: tuple[str, ...]
     profile: dict[str, object]
     parquet: str

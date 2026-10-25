@@ -8,8 +8,12 @@
 - **Opt-in.** `EXECPLUS_COLUMNAR_INGEST_ENABLED=true` makes every new non-sample CSV/XLSX upload
   a **profile-v5** upload. With it off (default) nothing changes. Profile v1–v4 uploads, their
   revisions and receipts keep the in-memory path byte for byte.
-- **Ingest (once, per upload).** `DuckDBColumnarConverter` streams the stored file through DuckDB
-  as text (`all VARCHAR`), writes a raw Parquet stage, then:
+- **Ingest (once, per upload).** `DuckDBColumnarConverter` opens the stored file with the shared
+  format readers (`infrastructure/readers.open_source`, first table, every column VARCHAR, on
+  `hardened_connection`), so every reader format is accepted: CSV/TSV/TXT, Excel, ODS, JSON/NDJSON,
+  Parquet, SQLite, SPSS/Stata/SAS, XML and ZIP/GZ/BZ2/XZ archives of them. The upload records the
+  stored format as `r:<suffix>` (e.g. `r:csv.gz`; migration **0033** widens `uploads.format` to
+  16 characters). It writes a raw text Parquet stage, then:
   1. validates every cell in SQL (formula-like cells, control characters, blank rows),
   2. computes exact per-column aggregates (type counts, distinct counts, placeholders, date and
      date-time ranges, decimal scale, duplicates),
@@ -34,10 +38,12 @@
   50M rows, 2 GB memory, 4 threads, 120 s, spill up to 20 GB.
 - **Replay** reopens the same revision → same Parquet (checksum-verified) → same SQL → same
   result. Integration test deletes the cache before replay to force a verified re-download.
-- **Row-level features** (understanding, cleaning, guidance, patterns, label matching…) still
-  read the original file through the legacy parser, so they keep exact strings but work only up
-  to 100,000 rows; above that they return `large_dataset_step` instead of loading millions of
-  rows into Python.
+- **Row-level features** (understanding, cleaning, guidance, patterns, label matching…) read the
+  original file again through the same reader (`StructuredFileParser` routes `r:` formats), so
+  they see exactly the strings the Parquet was built from, but only up to 100,000 rows; above
+  that they return `large_dataset_step` instead of loading millions of rows into Python.
+- **Chunked uploads.** `UploadSessionService.process` calls `WorkspaceService.upload` on the
+  assembled temp file, so big files are converted in the worker after `complete`.
 
 ## Settings
 
@@ -75,10 +81,12 @@ Reproduce with
 
 ## Known limits
 
-- Ingest runs inside the upload request (a thread, not the event loop); the Phase 1 background
-  upload/jobs path should call the same `WorkspaceService.upload` from the worker.
-- XLSX still uses the bounded openpyxl validator (legacy XLSX limits); swap in the
-  formats-agent reader (`open_source`) for big workbooks. Only UTF-8 CSV is accepted.
+- Small files (below the session inline threshold) still convert inside the request thread.
+- Multi-sheet/multi-table files use the first table; a table picker is not built yet.
+- Reader behaviour is inherited: the Excel extension returns numbers as text with 16
+  significant digits (`12345678901234568` arrives as `1.234567890123457e+16` and is stored as
+  `12345678901234570`); a malformed CSV whose rows have different widths can be sniffed as a
+  single text column instead of being refused (legacy CSV refused it).
 - Edge differences from v4 (v5 is a new version, old files unaffected): non-ASCII digits are
   not numbers; values like `.5`, `1.`, `1_000` in numeric columns or `20240101` in date columns
   are refused at query time; DuckDB skips fully empty lines that the legacy parser rejected.

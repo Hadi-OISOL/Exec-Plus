@@ -14,7 +14,7 @@ from pydantic import Field, ValidationError
 
 from execplus.application.services.monitoring import MonitoringService
 from execplus.application.services.refresh import RefreshService, editor
-from execplus.domain.ingestion import IngestionError
+from execplus.domain.ingestion import IngestionError, file_too_large
 from execplus.presentation.routes.analytics import query_body
 from execplus.presentation.routes.studies import Input
 from execplus.presentation.routes.workspaces import Actor
@@ -112,7 +112,7 @@ async def stage(
         raise IngestionError("invalid_refresh", "Invalid refresh options.", 422) from exc
     content = await file.read(refresh.uploads.max_upload_bytes + 1)
     if len(content) > refresh.uploads.max_upload_bytes:
-        raise IngestionError("file_too_large", "Files must be at most 20 MiB.", 413)
+        raise file_too_large(refresh.uploads.max_upload_bytes)
     return asdict(
         refresh.stage(
             actor,

@@ -5,10 +5,12 @@ typed-Parquet snapshot, plus a 200,000-row exact check and conversion-error refu
 """
 
 import csv
+import os
 import random
 from dataclasses import replace
 from datetime import datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -40,6 +42,12 @@ from execplus.domain.semantics import (
 from execplus.infrastructure.columnar.converter import DuckDBColumnarConverter
 from execplus.infrastructure.query.duckdb_executor import DuckDBQueryExecutor
 
+EXTENSIONS = Path(
+    os.environ.get(
+        "EXECPLUS_DUCKDB_EXTENSION_DIRECTORY",
+        Path(__file__).resolve().parents[3] / "data" / "duckdb-extensions",
+    )
+)
 HEADERS = ("region", "sale_date", "revenue", "units", "seen at", "score")
 
 
@@ -70,9 +78,9 @@ def columnar_snapshot(tmp_path, headers, rows):
         writer.writerows(rows)
     work = tmp_path / "work"
     work.mkdir()
-    conversion = DuckDBColumnarConverter(memory_limit_mb=512, threads=2).convert(
-        source, "csv", work
-    )
+    conversion = DuckDBColumnarConverter(
+        extension_directory=EXTENSIONS, memory_limit_mb=512, threads=2
+    ).convert(source, "source.csv", work)
     manifest = ColumnarManifest(
         "key", conversion.sha256, conversion.size, conversion.rows, conversion.errors
     )

@@ -47,8 +47,10 @@ from execplus.domain.ingestion import (
     Upload,
     User,
     Workspace,
+    file_too_large,
     require_manager,
     require_seat_limit,
+    validate_filename,
 )
 from execplus.domain.profiling import (
     ALGORITHM,
@@ -64,6 +66,7 @@ from execplus.domain.profiling import (
 )
 from execplus.domain.samples import SAMPLES, sample_csv
 from execplus.domain.semantics import dataset_view
+from execplus.domain.upload_sessions import require_quota
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 logger = logging.getLogger(__name__)
@@ -91,7 +94,8 @@ class WorkspaceService:
         unit_of_work: UnitOfWork,
         storage: ObjectStorage,
         parser: FileParser,
-        max_upload_bytes: int = 20 * 1024 * 1024,
+        max_upload_bytes: int = 500 * 1024 * 1024,
+        user_storage_quota_bytes: int = 5 * 1024**3,
         *,
         columnar: ColumnarStore | None = None,
         converter: ColumnarConverter | None = None,
@@ -104,6 +108,24 @@ class WorkspaceService:
         self.storage = storage
         self.parser = parser
         self.max_upload_bytes = max_upload_bytes
+        self.user_storage_quota_bytes = user_storage_quota_bytes
+
+    def storage_usage(
+        self, repo: WorkspaceRepository, user_id: UUID, exclude: UUID | None = None
+    ) -> tuple[int, int, int]:
+        quota = repo.user_storage_quota(user_id)
+        return (
+            repo.user_stored_bytes(user_id),
+            repo.user_reserved_bytes(user_id, exclude),
+            self.user_storage_quota_bytes if quota is None else quota,
+        )
+
+    def check_storage(
+        self, repo: WorkspaceRepository, user_id: UUID, size: int, exclude: UUID | None = None
+    ) -> None:
+        repo.lock_user_storage(user_id)
+        stored, reserved, quota = self.storage_usage(repo, user_id, exclude)
+        require_quota(stored + reserved, quota, size)
 
     def _authorize(
         self, repo: WorkspaceRepository, actor: User, workspace_id: UUID, *, manager: bool = False
@@ -510,6 +532,7 @@ class WorkspaceService:
         _sample_dataset: Dataset | None = None,
         _sample_id: str | None = None,
         _publication_guard: Callable[[WorkspaceRepository, Upload, Revision], None] | None = None,
+        _quota_session: UUID | None = None,
     ) -> Upload:
         with tempfile.TemporaryDirectory(prefix="execplus-ingest-", dir=self.workdir) as work:
             return self._upload(
@@ -523,6 +546,7 @@ class WorkspaceService:
                 _sample_dataset=_sample_dataset,
                 _sample_id=_sample_id,
                 _publication_guard=_publication_guard,
+                _quota_session=_quota_session,
             )
 
     def _upload(
@@ -538,6 +562,7 @@ class WorkspaceService:
         _sample_dataset: Dataset | None,
         _sample_id: str | None,
         _publication_guard: Callable[[WorkspaceRepository, Upload, Revision], None] | None,
+        _quota_session: UUID | None,
     ) -> Upload:
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
@@ -560,7 +585,7 @@ class WorkspaceService:
         content.seek(0, 2)
         size = content.tell()
         if size > self.max_upload_bytes:
-            raise IngestionError("file_too_large", "Files must be at most 20 MiB.", 413)
+            raise file_too_large(self.max_upload_bytes)
         with self.uow() as repo:
             repo.workspace(workspace_id, lock=True)
             reauthorize(repo)
@@ -568,6 +593,7 @@ class WorkspaceService:
             repo.check_plan_stock(workspace_id, "storage_bytes", size, datetime.now(timezone.utc))
             if _sample_dataset is not None:
                 repo.check_plan_stock(workspace_id, "datasets", 1, datetime.now(timezone.utc))
+            self.check_storage(repo, actor.id, size, _quota_session)
         content.seek(0)
         digest = hashlib.sha256()
         while chunk := content.read(65536):
@@ -592,17 +618,14 @@ class WorkspaceService:
             )
         conversion: ColumnarConversion | None = None
         if self.converter is not None and self.columnar is not None and _sample_id is None:
-            format = self.parser.inspect(
-                content, filename, content_type, max_bytes=self.max_upload_bytes
-            )
             source = workdir / "source"
             with source.open("wb") as handle:
                 shutil.copyfileobj(content, handle, 1024 * 1024)
             content.seek(0)
-            conversion = self.converter.convert(source, format, workdir)
+            conversion = self.converter.convert(source, validate_filename(filename), workdir)
             source.unlink()
             structure = FileStructure(
-                format, conversion.rows, len(conversion.headers), int(format == "xlsx")
+                conversion.format, conversion.rows, len(conversion.headers), 1
             )
         else:
             structure = self.parser.parse(content, filename, content_type)
@@ -671,6 +694,7 @@ class WorkspaceService:
                 repo.check_plan_stock(
                     workspace_id, "storage_bytes", size, datetime.now(timezone.utc)
                 )
+                self.check_storage(repo, actor.id, size, _quota_session)
                 if _sample_dataset is not None:
                     repo.check_plan_stock(workspace_id, "datasets", 1, datetime.now(timezone.utc))
                     repo.add(_sample_dataset)

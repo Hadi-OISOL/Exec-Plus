@@ -393,6 +393,8 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
                 "connector_connections",
                 "account_reset_codes",
                 "external_identities",
+                "upload_sessions",
+                "user_storage_quotas",
                 "oauth_attempts",
                 "local_accounts",
                 "account_events",
