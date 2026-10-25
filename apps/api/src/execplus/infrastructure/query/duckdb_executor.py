@@ -16,7 +16,8 @@ from threading import Event, Lock
 import duckdb
 from sqlglot import exp
 
-from execplus.domain.compute import QueryBudget
+from execplus.domain.columnar import ColumnarTable
+from execplus.domain.compute import ColumnarBudget, QueryBudget
 from execplus.domain.errors import AuthorizationError, QueryDataError, UnsafeQueryError
 from execplus.domain.join_paths import LEFT_VIEW_NAME, RIGHT_VIEW_NAME, JoinPath
 from execplus.domain.models import QueryPlan, QueryResult, Scalar, WorkspaceScope
@@ -83,6 +84,20 @@ def _coerce(value: str, kind: str, scale: int = 12) -> Scalar:
     return value
 
 
+def conversion_message(name: str, row_number: int, kind: str, scale: int) -> str:
+    requirement = {
+        "integer": "a whole number in the signed 64-bit range",
+        "decimal": f"a decimal fitting 38 digits with {scale} decimal places",
+        "date": "a valid date in YYYY-MM-DD format",
+        "datetime": "a valid date-time such as YYYY-MM-DD HH:MM:SS",
+        "boolean": "true or false",
+    }.get(kind, "the column's expected type")
+    return (
+        f'Column "{name}", data row {row_number}: expected {requirement}. '
+        "Correct the source and upload a new version. No values were rounded or skipped."
+    )
+
+
 def _column(
     table: TableData, name: str, kind: str, placeholders: bool = False
 ) -> tuple[str, list[Scalar]]:
@@ -122,17 +137,7 @@ def _column(
         try:
             converted.append(_coerce(value, kind, scale))
         except UnsafeQueryError:
-            requirement = {
-                "integer": "a whole number in the signed 64-bit range",
-                "decimal": f"a decimal fitting 38 digits with {scale} decimal places",
-                "date": "a valid date in YYYY-MM-DD format",
-                "datetime": "a valid date-time such as YYYY-MM-DD HH:MM:SS",
-                "boolean": "true or false",
-            }.get(kind, "the column's expected type")
-            raise QueryDataError(
-                f'Column "{name}", data row {row_number}: expected {requirement}. '
-                "Correct the source and upload a new version. No values were rounded or skipped."
-            ) from None
+            raise QueryDataError(conversion_message(name, row_number, kind, scale)) from None
     sql_type = f"DECIMAL(38, {scale})" if kind == "decimal" else _DUCKDB_TYPES[kind]
     return sql_type, converted
 
@@ -141,7 +146,7 @@ def _kind(column: SemanticColumn) -> str:
     return "datetime" if column.has_time and column.type == "date" else column.type
 
 
-def _project(table: TableData, query: exp.Select, table_name: str) -> TableData:
+def _required(table: TableData, query: exp.Select, table_name: str) -> set[str]:
     required = {
         column.name
         for column in query.find_all(exp.Column)
@@ -150,6 +155,24 @@ def _project(table: TableData, query: exp.Select, table_name: str) -> TableData:
     aliases = {selection.alias for selection in query.expressions if selection.alias}
     if required - set(table.headers) - aliases:
         raise UnsafeQueryError("The query references an unavailable source column")
+    return required & set(table.headers)
+
+
+def _load_parquet(
+    connection: duckdb.DuckDBPyConnection, table: ColumnarTable, table_name: str
+) -> None:
+    path = table.parquet_path()
+    literal = "'" + path.replace("'", "''") + "'"
+    connection.execute(f"SET allowed_paths = [{literal}]")
+    connection.execute("SET enable_external_access = false")
+    connection.execute("SET lock_configuration = true")
+    connection.execute(
+        f"CREATE VIEW {quote_identifier(table_name)} AS SELECT * FROM read_parquet({literal})"
+    )
+
+
+def _project(table: TableData, query: exp.Select, table_name: str) -> TableData:
+    required = _required(table, query, table_name)
     indices = [index for index, name in enumerate(table.headers) if name in required]
     return TableData(
         tuple(table.headers[index] for index in indices),
@@ -173,7 +196,9 @@ class DuckDBQueryExecutor:
         insert_batch_size: int = 5000,
         *,
         budget: QueryBudget | None = None,
+        columnar: ColumnarBudget | None = None,
     ) -> None:
+        self.columnar = columnar or ColumnarBudget()
         self.budget = budget or QueryBudget(
             timeout_seconds=timeout_seconds, memory_limit_mb=memory_limit_mb
         )
@@ -196,17 +221,36 @@ class DuckDBQueryExecutor:
         tables: set[str],
         records: int,
         load: Callable[[duckdb.DuckDBPyConnection], None],
+        *,
+        columnar: bool = False,
     ) -> QueryResult:
         if plan.workspace_id != scope.workspace_id or not scope.permits_dataset(plan.dataset_id):
             raise AuthorizationError("The query does not belong to the authorized workspace")
         query = validated_query(plan.sql, tables, len(plan.params))
-        connection = duckdb.connect(
-            ":memory:",
-            config={
+        limits = (
+            {
+                "memory_limit": f"{self.columnar.memory_limit_mb}MB",
+                "threads": str(self.columnar.threads),
+                "max_temp_directory_size": f"{self.columnar.spill_limit_mb}MB",
+                **(
+                    {"temp_directory": self.columnar.spill_directory}
+                    if self.columnar.spill_directory
+                    else {}
+                ),
+            }
+            if columnar
+            else {
                 "memory_limit": f"{self._memory_limit_mb}MB",
                 "threads": str(self.budget.threads),
                 "max_temp_directory_size": "0B",
                 "enable_external_access": "false",
+            }
+        )
+        timeout = self.columnar.timeout_seconds if columnar else self._timeout_seconds
+        connection = duckdb.connect(
+            ":memory:",
+            config={
+                **limits,
                 "autoinstall_known_extensions": "false",
                 "autoload_known_extensions": "false",
                 "allow_unsigned_extensions": "false",
@@ -309,7 +353,7 @@ class DuckDBQueryExecutor:
 
         task = asyncio.create_task(asyncio.to_thread(run))
         try:
-            return await asyncio.wait_for(asyncio.shield(task), timeout=self._timeout_seconds)
+            return await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
         except (asyncio.TimeoutError, asyncio.CancelledError) as error:
             cancelled.set()
             with guard:
@@ -324,13 +368,30 @@ class DuckDBQueryExecutor:
     async def execute(
         self, plan: QueryPlan, scope: WorkspaceScope, table: TableData, view: DatasetView
     ) -> QueryResult:
-        self._check_inputs(table)
+        if not isinstance(table, ColumnarTable):
+            self._check_inputs(table)
+        elif table.row_count > self.columnar.input_rows:
+            raise UnsafeQueryError("The query exceeds the input row budget")
         query = validated_query(plan.sql, {VIEW_NAME}, len(plan.params))
         if query.find(exp.Subquery) is not None and (
             len(plan.params) % 2
             or plan.params[: len(plan.params) // 2] != plan.params[len(plan.params) // 2 :]
         ):
             raise UnsafeQueryError("The extremum must bind identical inner and outer filters")
+        if isinstance(table, ColumnarTable):
+            columnar = table
+            required = _required(columnar, query, VIEW_NAME)
+            for name in required:
+                if name in columnar.manifest.errors:
+                    raise QueryDataError(columnar.manifest.errors[name])
+            return await self._run(
+                plan,
+                scope,
+                {VIEW_NAME},
+                columnar.row_count,
+                lambda connection: _load_parquet(connection, columnar, VIEW_NAME),
+                columnar=True,
+            )
         return await self._run(
             plan,
             scope,

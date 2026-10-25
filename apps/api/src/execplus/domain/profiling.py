@@ -19,7 +19,8 @@ ALGORITHM = "profile-v1"
 PROFILE_V2 = "profile-v2"
 PROFILE_V3 = "profile-v3"
 CURRENT_ALGORITHM = "profile-v4"
-ALGORITHMS = frozenset({ALGORITHM, PROFILE_V2, PROFILE_V3, CURRENT_ALGORITHM})
+PROFILE_V5 = "profile-v5"
+ALGORITHMS = frozenset({ALGORITHM, PROFILE_V2, PROFILE_V3, CURRENT_ALGORITHM, PROFILE_V5})
 MISSING_PLACEHOLDERS = frozenset(
     {"n/a", "na", "n.a.", "null", "none", "nan", "#n/a", "\u2014", "\u2013"}
 )
@@ -43,6 +44,10 @@ class TableData:
             [self.headers, self.rows], ensure_ascii=False, separators=(",", ":")
         ).encode()
         return hashlib.sha256(encoded).hexdigest()
+
+    @property
+    def row_count(self) -> int:
+        return len(self.rows)
 
 
 @dataclass(frozen=True)
@@ -316,7 +321,9 @@ def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
         return profile(table)
     if algorithm not in ALGORITHMS:
         raise IngestionError("unsupported_version", "This profiling version is unavailable.", 409)
-    placeholders = _typed_placeholder_columns(table) if algorithm == CURRENT_ALGORITHM else {}
+    placeholders = (
+        _typed_placeholder_columns(table) if algorithm in {CURRENT_ALGORITHM, PROFILE_V5} else {}
+    )
     table = _blank_placeholders(table, set(placeholders))
     result = profile(table)
     columns = cast(list[dict[str, Any]], result["columns"])
@@ -338,7 +345,7 @@ def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
                 | {"identifier" if identifier else "calendar_component"}
             ),
         )
-    if algorithm in {PROFILE_V3, CURRENT_ALGORITHM}:
+    if algorithm in {PROFILE_V3, CURRENT_ALGORITHM, PROFILE_V5}:
         _with_datetimes(table, result)
     for index, count in placeholders.items():
         columns[index]["missing_placeholders"] = count
@@ -387,6 +394,8 @@ def transform(table: TableData, step: Cleaning) -> TableData:
 def reconstruct(table: TableData, revision: Revision) -> TableData:
     if revision.algorithm not in ALGORITHMS:
         raise IngestionError("unsupported_version", "This profiling version is unavailable.", 409)
+    if "columnar" in revision.profile and not revision.recipe:
+        return table
     for step in revision.recipe:
         table = transform(table, step)
     if table.checksum() != revision.output_checksum:

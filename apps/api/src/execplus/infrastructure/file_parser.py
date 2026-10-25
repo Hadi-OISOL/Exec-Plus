@@ -112,6 +112,21 @@ class StructuredFileParser:
         stored_format: str | None = None,
         captured: list[tuple[str, ...]] | None = None,
     ) -> FileStructure:
+        format = self.inspect(content, filename, content_type, stored_format=stored_format)
+        if format != "xlsx":
+            return self._csv(content, format, captured)
+        return self._xlsx(content, captured)
+
+    def inspect(
+        self,
+        content: BinaryIO,
+        filename: str,
+        content_type: str,
+        *,
+        stored_format: str | None = None,
+        max_bytes: int = MAX_BYTES,
+    ) -> str:
+        """Run the byte-level checks shared by every reader and return the stored format."""
         filename = validate_filename(filename)
         extension = PurePosixPath(filename).suffix.lower()
         if (
@@ -126,8 +141,10 @@ class StructuredFileParser:
         content.seek(0, 2)
         size = content.tell()
         content.seek(0)
-        if size > MAX_BYTES:
-            raise IngestionError("file_too_large", "Files must be at most 20 MiB.", 413)
+        if size > max_bytes:
+            raise IngestionError(
+                "file_too_large", f"Files must be at most {max_bytes // (1024 * 1024)} MiB.", 413
+            )
         if size == 0:
             raise IngestionError("empty_file", "The file is empty.", 422)
         prefix = content.read(8)
@@ -147,12 +164,12 @@ class StructuredFileParser:
             content.seek(0)
             if stored_format is not None and stored_format not in CSV_DELIMITERS:
                 raise IngestionError("unsupported_format", "Stored CSV format is unavailable.", 409)
-            return self._csv(content, stored_format or self._csv_format(content), captured)
+            return stored_format or self._csv_format(content)
         if not prefix.startswith(b"PK\x03\x04"):
             raise IngestionError(
                 "malformed_excel", "The file is not a readable XLSX workbook.", 422
             )
-        return self._xlsx(content, captured)
+        return "xlsx"
 
     def read_table(self, content: BinaryIO, format: str) -> TableData:
         content.seek(0)

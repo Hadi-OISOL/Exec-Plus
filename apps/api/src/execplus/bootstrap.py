@@ -3,6 +3,7 @@
 What it does: Selects disabled, local, or hosted model adapters at the application edge.
 """
 
+import tempfile
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
@@ -58,8 +59,15 @@ from execplus.application.services.usage_metering import UsageMeteringService
 from execplus.application.services.webhooks import WebhookService
 from execplus.application.services.workspaces import WorkspaceService
 from execplus.config import Settings
-from execplus.domain.compute import ComputeCapabilities, ComputeOperation, QueryBudget
+from execplus.domain.compute import (
+    ColumnarBudget,
+    ComputeCapabilities,
+    ComputeOperation,
+    QueryBudget,
+)
 from execplus.infrastructure.allocation.cp_sat import CpSatAllocationSolver
+from execplus.infrastructure.columnar.converter import DuckDBColumnarConverter
+from execplus.infrastructure.columnar.store import S3ColumnarStore
 from execplus.infrastructure.connectors.base import HostPolicy
 from execplus.infrastructure.connectors.bigquery import BigQueryConnector
 from execplus.infrastructure.connectors.database import PostgresConnector
@@ -194,6 +202,15 @@ def build_runtime(settings: Settings) -> "Runtime":
         else LocalSessionIdentity(engine, settings.environment)
     )
     parser = StructuredFileParser()
+    columnar = S3ColumnarStore(
+        client,
+        settings.object_store_bucket,
+        Path(
+            settings.columnar_cache_directory
+            or Path(tempfile.gettempdir()) / "execplus-columnar-cache"
+        ),
+        settings.columnar_cache_bytes,
+    )
     budget = QueryBudget(
         timeout_seconds=settings.query_timeout_seconds,
         memory_limit_mb=settings.query_memory_limit_mb,
@@ -209,7 +226,19 @@ def build_runtime(settings: Settings) -> "Runtime":
         {
             "duckdb": ComputeEngine(
                 ComputeCapabilities("duckdb", frozenset(ComputeOperation), budget),
-                DuckDBQueryExecutor(budget.timeout_seconds, budget.memory_limit_mb, budget=budget),
+                DuckDBQueryExecutor(
+                    budget.timeout_seconds,
+                    budget.memory_limit_mb,
+                    budget=budget,
+                    columnar=ColumnarBudget(
+                        input_rows=settings.columnar_max_rows,
+                        timeout_seconds=settings.columnar_query_timeout_seconds,
+                        memory_limit_mb=settings.columnar_query_memory_mb,
+                        threads=settings.columnar_query_threads,
+                        spill_limit_mb=settings.columnar_spill_mb,
+                        spill_directory=settings.columnar_work_directory,
+                    ),
+                ),
             )
         },
         "duckdb",
@@ -221,6 +250,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         executor,
         AnswerAssembler(),
         settings.query_row_limit,
+        columnar,
     )
     usage_metering = UsageMeteringService(SQLUsageUnitOfWork(engine))
     model = build_language_model(settings, metering=usage_metering)
@@ -240,7 +270,22 @@ def build_runtime(settings: Settings) -> "Runtime":
         orchestration_enabled=settings.agent_orchestration_enabled,
         patterns=PatternService(SQLUnitOfWork(engine), analytics, ScipyPatternStatistics()),
     )
-    uploads = WorkspaceService(SQLUnitOfWork(engine), storage, parser, settings.max_upload_bytes)
+    uploads = WorkspaceService(
+        SQLUnitOfWork(engine),
+        storage,
+        parser,
+        settings.max_upload_bytes,
+        columnar=columnar if settings.columnar_ingest_enabled else None,
+        converter=DuckDBColumnarConverter(
+            memory_limit_mb=settings.columnar_ingest_memory_mb,
+            threads=settings.columnar_ingest_threads,
+            spill_limit_mb=settings.columnar_spill_mb,
+            max_rows=settings.columnar_max_rows,
+        )
+        if settings.columnar_ingest_enabled
+        else None,
+        workdir=settings.columnar_work_directory or None,
+    )
     refresh = RefreshService(SQLUnitOfWork(engine), uploads, analytics)
     threads = ThreadService(
         SQLUnitOfWork(engine),

@@ -11,11 +11,16 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from io import BytesIO
 from typing import cast
 from uuid import UUID, uuid4
 
-from execplus.application.ports import FileParser, ObjectStorage, QueryExecutor, WorkspaceRepository
+from execplus.application.ports import (
+    ColumnarStore,
+    FileParser,
+    ObjectStorage,
+    QueryExecutor,
+    WorkspaceRepository,
+)
 from execplus.application.progress import activity
 from execplus.application.services.answers import AnswerAssembler
 from execplus.application.services.dataset_access import (
@@ -29,7 +34,7 @@ from execplus.application.services.lineage import (
 )
 from execplus.application.services.plan_executor import PlanAwareExecutor
 from execplus.application.services.understanding import current_meaning
-from execplus.application.validated_tables import read_validated_table
+from execplus.application.validated_tables import revision_table
 from execplus.domain.dashboard_templates import TEMPLATES, DashboardTemplate, applicable_templates
 from execplus.domain.errors import ClarificationRequiredError, UnsupportedQuestionError
 from execplus.domain.evidence import receipt, result_evidence, scalar_from_record
@@ -44,7 +49,7 @@ from execplus.domain.models import (
     VerifiedMetricAnswer,
     WorkspaceScope,
 )
-from execplus.domain.profiling import Revision, TableData, reconstruct
+from execplus.domain.profiling import Revision, TableData
 from execplus.domain.semantics import (
     RECORD_COUNT,
     VALUE_ALIAS,
@@ -97,7 +102,9 @@ class AnalyticsService:
         executor: QueryExecutor,
         assembler: AnswerAssembler,
         row_limit: int = 10_000,
+        columnar: ColumnarStore | None = None,
     ) -> None:
+        self.columnar = columnar
         self.uow = unit_of_work
         self.storage = storage
         self.parser = parser
@@ -105,17 +112,16 @@ class AnalyticsService:
         self.assembler = assembler
         self.row_limit = row_limit
 
+    def revision_table(self, upload: Upload, revision: Revision) -> TableData:
+        return revision_table(self.storage, self.parser, self.columnar, upload, revision)
+
     def _authorize(self, repo: WorkspaceRepository, actor: User, workspace_id: UUID) -> Membership:
         return repo.membership(workspace_id, actor.id)
 
     def _revision_snapshot(
         self, upload: Upload, revision: Revision
     ) -> tuple[TableData, DatasetView]:
-        content = BytesIO(self.storage.read(upload))
-        table = read_validated_table(
-            self.parser, content, upload.filename, upload.content_type, upload.format
-        )
-        table = reconstruct(table, revision)
+        table = self.revision_table(upload, revision)
         if revision.source_checksum != upload.checksum:
             raise IngestionError("lineage_mismatch", "The source integrity check failed.", 409)
         source = {
@@ -314,13 +320,7 @@ class AnalyticsService:
                 raise IngestionError(
                     "lineage_mismatch", "The retained source failed verification.", 409
                 )
-            content = BytesIO(self.storage.read(upload))
-            table = reconstruct(
-                read_validated_table(
-                    self.parser, content, upload.filename, upload.content_type, upload.format
-                ),
-                revision,
-            )
+            table = self.revision_table(upload, revision)
             frozen_source = {
                 key: source[key]
                 for key in (
@@ -368,7 +368,7 @@ class AnalyticsService:
             workspace_id=scope.workspace_id,
             dataset_id=dataset_id,
             dataset_name=dataset_name,
-            records_analyzed=len(table.rows),
+            records_analyzed=table.row_count,
             metric=request.label,
             aggregation=request.aggregation.value,
             grouping=request.group_by,
@@ -422,7 +422,7 @@ class AnalyticsService:
             workspace_id=scope.workspace_id,
             dataset_id=dataset_id,
             dataset_name=dataset_name,
-            records_analyzed=len(table.rows),
+            records_analyzed=table.row_count,
             metric="(all columns)",
             aggregation="rows",
             grouping=(),
@@ -800,13 +800,7 @@ class AnalyticsService:
                     raise IngestionError(
                         "lineage_mismatch", "The snapshot no longer matches its receipt.", 409
                     )
-                content = BytesIO(self.storage.read(upload))
-                table = reconstruct(
-                    read_validated_table(
-                        self.parser, content, upload.filename, upload.content_type, upload.format
-                    ),
-                    revision,
-                )
+                table = self.revision_table(upload, revision)
                 view = dataset_view(revision.profile)
                 if source.get("understanding_id"):
                     meaning = repo.understanding(
