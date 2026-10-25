@@ -40,6 +40,30 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 26 — big-data intake, all formats, DB connectors and auto dashboards live
+
+- Release **f42cbca87ff37e6f** (code 835cec1; test-only follow-up 7d7257f) is active on
+  **0034** (0032 upload_sessions/user_storage_quotas, 0033 wider uploads.format, 0034
+  auto_dashboards). Checked backups 20261025T111605Z (pre) / 20261025T111929Z (post).
+  Kit: `data/verification/2026-10-26-claude-release/` (build uses `--network host` for
+  bundled DuckDB extensions; web built with the public API URL when public mode is on).
+- Public site https://syntelio.173-208-151-137.sslip.io (Caddy, `deploy/vps/go-public.sh`).
+- New: resumable 8 MiB-chunk uploads to 500 MiB, background upload tray, 5 GiB per-user
+  quota (`/me/storage`, staff override), Sheets filename sanitizing; format readers
+  (`infrastructure/readers/`: CSV/TSV/TXT, XLSX/XLSM/XLS/XLSB/ODS, JSON/NDJSON, Parquet,
+  SQLite, SAV/DTA/SAS7BDAT/XPT, XML, ZIP/GZ/BZ2/XZ; formula cells kept as text);
+  profile-v5 columnar Parquet ingest (`EXECPLUS_COLUMNAR_INGEST_ENABLED=true` on VPS);
+  MySQL/MariaDB + SQL Server read-only connectors (PostgreSQL also enabled on VPS);
+  dataset brief + per-dataset auto dashboards. Demo plan 500 MiB/5 GiB; 79 live workspace
+  plans reassigned via the staff plan service.
+- Evidence: backend full suite 4,065 pass / 0 fail (agent run on merged code); web 126/126;
+  browser 124 pass / 14 fail / 4 skip — all 14 were e2e upload helpers on the legacy
+  endpoint, fixed test-only and rechecked (data-brief 8/8; 25 pass / 2 model skips).
+  Live: public sign-up/login, 5 GiB storage, chunked upload, connectors listed; a 1,000,000-row
+  CSV uploaded in 5 chunks and processed in 6.5 s with the exact revenue sum in the brief.
+- Limits: understanding/cleaning/guidance/patterns read ≤100k rows on big files (clear error);
+  multi-sheet files use the first sheet; refresh staging still uses the old 20 MiB path.
+
 ### October 24 — Syntelio rename, chat history and code-only feature closure live
 
 - Release **4028b7309e58531f** (commit 7933409) is active on **0031** (additive
