@@ -18,8 +18,8 @@ x-api: &api
   security_opt: [no-new-privileges:true]
   cap_drop: [ALL]
   read_only: true
-  tmpfs: ["/tmp:size=1g,mode=1777"]
-  mem_limit: 4g
+  tmpfs: ["/tmp:size=4g,mode=1777"]
+  mem_limit: 12g
   cpus: 8
   logging:
     driver: local
@@ -82,7 +82,7 @@ services:
     restart: unless-stopped
     command: [python, -m, execplus.manage, process-jobs, --watch, --concurrency, "4", --poll-seconds, "0.5"]
     stop_grace_period: 120s
-    mem_limit: 2g
+    mem_limit: 6g
     cpus: 4
     depends_on:
       api: {condition: service_healthy}
