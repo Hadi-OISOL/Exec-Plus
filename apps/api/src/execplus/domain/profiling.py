@@ -20,11 +20,46 @@ PROFILE_V2 = "profile-v2"
 PROFILE_V3 = "profile-v3"
 CURRENT_ALGORITHM = "profile-v4"
 PROFILE_V5 = "profile-v5"
-ALGORITHMS = frozenset({ALGORITHM, PROFILE_V2, PROFILE_V3, CURRENT_ALGORITHM, PROFILE_V5})
+PROFILE_V6 = "profile-v6"
+ALGORITHMS = frozenset(
+    {ALGORITHM, PROFILE_V2, PROFILE_V3, CURRENT_ALGORITHM, PROFILE_V5, PROFILE_V6}
+)
 MISSING_PLACEHOLDERS = frozenset(
     {"n/a", "na", "n.a.", "null", "none", "nan", "#n/a", "\u2014", "\u2013"}
 )
 _DATETIME = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})?")
+SPELLED_DATE = (
+    "(?i)(?:(?:([a-z]{3,9}),? +)?(?:([0-9]{1,2}) +([a-z]{3,9})[.]?,? +([0-9]{4})"
+    "|([a-z]{3,9})[.]? +([0-9]{1,2}),? +([0-9]{4}))"
+    "(?: +([0-9]{2}):([0-9]{2})(?::([0-9]{2}))?(?: *(?:gmt|utc|ut|z|[+-][0-9]{2}:?[0-9]{2}))?)?"
+    "|[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.][0-9]{1,6})?)?"
+    "(?:Z|[+-][0-9]{2}:[0-9]{2})?)"
+)
+_SPELLED_DATE = re.compile(SPELLED_DATE)
+_MONTH_NAMES = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+]
+_MONTHS = {
+    **{name: number for number, name in enumerate(_MONTH_NAMES, 1)},
+    **{name[:3]: number for number, name in enumerate(_MONTH_NAMES, 1)},
+    "sept": 9,
+}
+_WEEKDAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+_WEEKDAYS = {
+    **{name: number for number, name in enumerate(_WEEKDAY_NAMES)},
+    **{name[:3]: number for number, name in enumerate(_WEEKDAY_NAMES)},
+}
 
 
 class Cleaning(TypedDict):
@@ -80,8 +115,35 @@ class UsageEvent:
     created_at: datetime
 
 
-def cell_type(value: str) -> str:
+def parse_date(value: str) -> date | None:
+    """Reads one unambiguous date as written (ISO, ISO date-time, or a spelled month)."""
     value = value.strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            return None
+    match = _SPELLED_DATE.fullmatch(value)
+    if match is None:
+        return None
+    weekday, day, month, year, month2, day2, year2, hour, minute, second = match.groups()
+    try:
+        if day is None and month2 is None:
+            return datetime.fromisoformat(value).date()
+        parsed = date(int(year or year2), _MONTHS[(month or month2).lower()], int(day or day2))
+    except (KeyError, ValueError):
+        return None
+    if hour is not None and (int(hour) > 23 or int(minute) > 59 or int(second or 0) > 59):
+        return None
+    if weekday is not None and _WEEKDAYS.get(weekday.lower()) != parsed.weekday():
+        return None
+    return parsed
+
+
+def cell_type(value: str, spelled_dates: bool = False) -> str:
+    value = value.strip()
+    if spelled_dates and _SPELLED_DATE.fullmatch(value):
+        return "date" if parse_date(value) else "invalid_date"
     if not value:
         return "empty"
     if value.lower() in {"true", "false"}:
@@ -102,12 +164,12 @@ def cell_type(value: str) -> str:
     return "text"
 
 
-def profile(table: TableData) -> dict[str, object]:
+def profile(table: TableData, spelled_dates: bool = False) -> dict[str, object]:
     columns: list[dict[str, object]] = []
     missing = conflicts = invalid = 0
     for index, name in enumerate(table.headers):
         values = [row[index].strip() for row in table.rows]
-        types = Counter(cell_type(value) for value in values)
+        types = Counter(cell_type(value, spelled_dates) for value in values)
         present = len(values) - types["empty"]
         words = set(re.findall(r"[a-z]+", name.lower()))
         date_hint = bool(words & {"date", "day"})
@@ -131,7 +193,9 @@ def profile(table: TableData) -> dict[str, object]:
             tags.append("identifier")
         if inferred == "date":
             tags.append("date")
-        dates = sorted(value for value in values if cell_type(value) == "date")
+        dates = sorted(
+            str(parse_date(value)) for value in values if cell_type(value, spelled_dates) == "date"
+        )
         columns.append(
             {
                 "name": name,
@@ -302,7 +366,7 @@ def _blank_placeholders(table: TableData, indices: set[int]) -> TableData:
     )
 
 
-def _typed_placeholder_columns(table: TableData) -> dict[int, int]:
+def _typed_placeholder_columns(table: TableData, spelled_dates: bool) -> dict[int, int]:
     counts = {
         index: sum(is_missing_placeholder(row[index]) for row in table.rows)
         for index in range(len(table.headers))
@@ -310,7 +374,7 @@ def _typed_placeholder_columns(table: TableData) -> dict[int, int]:
     counts = {index: count for index, count in counts.items() if count}
     if not counts:
         return {}
-    blanked = profile(_blank_placeholders(table, set(counts)))
+    blanked = profile(_blank_placeholders(table, set(counts)), spelled_dates)
     columns = cast(list[dict[str, Any]], blanked["columns"])
     return {
         index: count
@@ -324,11 +388,14 @@ def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
         return profile(table)
     if algorithm not in ALGORITHMS:
         raise IngestionError("unsupported_version", "This profiling version is unavailable.", 409)
+    spelled = algorithm == PROFILE_V6
     placeholders = (
-        _typed_placeholder_columns(table) if algorithm in {CURRENT_ALGORITHM, PROFILE_V5} else {}
+        _typed_placeholder_columns(table, spelled)
+        if algorithm in {CURRENT_ALGORITHM, PROFILE_V5, PROFILE_V6}
+        else {}
     )
     table = _blank_placeholders(table, set(placeholders))
-    result = profile(table)
+    result = profile(table, spelled)
     columns = cast(list[dict[str, Any]], result["columns"])
     for index, column in enumerate(columns):
         identifier = _identifier_header(str(column["name"]))
@@ -348,7 +415,7 @@ def profile_for(table: TableData, algorithm: str) -> dict[str, object]:
                 | {"identifier" if identifier else "calendar_component"}
             ),
         )
-    if algorithm in {PROFILE_V3, CURRENT_ALGORITHM, PROFILE_V5}:
+    if algorithm in {PROFILE_V3, CURRENT_ALGORITHM, PROFILE_V5, PROFILE_V6}:
         _with_datetimes(table, result)
     for index, count in placeholders.items():
         columns[index]["missing_placeholders"] = count

@@ -1,7 +1,8 @@
-"""Use case: Converts one retained upload into typed Parquet and its profile-v5 profile.
+"""Use case: Converts one retained upload into typed Parquet and its profile-v6 profile.
 
 What it does: Streams the source through DuckDB as text, validates cells, computes exact
-profile aggregates, decides types with the profile-v4 rules and casts once to Parquet
+profile aggregates, decides types with the in-memory profile-v6 rules (spelled-month dates
+are read by the same Python parser) and casts once to Parquet
 (DECIMAL(38,s), BIGINT, DATE, TIMESTAMP, BOOLEAN, VARCHAR) under memory and spill limits.
 """
 
@@ -11,10 +12,11 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import duckdb
+from duckdb.func import FunctionNullHandling
 
 from execplus.domain.columnar import ColumnarConversion, ColumnStats, profile_from_stats
 from execplus.domain.ingestion import IngestionError
-from execplus.domain.profiling import MISSING_PLACEHOLDERS
+from execplus.domain.profiling import MISSING_PLACEHOLDERS, SPELLED_DATE, parse_date
 from execplus.domain.semantics import quote_identifier
 from execplus.infrastructure.columnar.source_rows import open_table, stored_format
 from execplus.infrastructure.file_parser import MAX_COLUMNS, validate_cell, validate_header
@@ -54,6 +56,9 @@ _MACROS = (
     "CREATE MACRO date_shape(t) AS regexp_full_match(t, '[0-9]{4}-[0-9]{2}-[0-9]{2}')",
     "CREATE MACRO is_date(t) AS CASE WHEN date_shape(t) THEN left(t, 4) <> '0000' "
     "AND try_cast(t AS DATE) IS NOT NULL ELSE false END",
+    f"CREATE MACRO spelled(t) AS regexp_full_match(t, {sql_text(SPELLED_DATE)})",
+    "CREATE MACRO any_date(t) AS CASE WHEN is_date(t) THEN try_cast(t AS DATE) "
+    "WHEN spelled(t) THEN spelled_date(t) END",
     f"CREATE MACRO aware(t) AS right(t, 1) = 'Z' OR regexp_matches(t, {sql_text(_OFFSET)})",
     "CREATE MACRO moment(t) AS CASE "
     "WHEN is_date(t) THEN try_cast(t AS DATE)::TIMESTAMP "
@@ -75,14 +80,14 @@ _STATS = (
     "count(*) FILTER (WHERE {t} = '')",
     "count(*) FILTER (WHERE lower({t}) IN ('true', 'false'))",
     "count(*) FILTER (WHERE {d})",
-    "count(*) FILTER (WHERE {ds} AND NOT {d})",
+    "count(*) FILTER (WHERE ({ds} OR {sp}) AND NOT {d})",
     "count(*) FILTER (WHERE {sc} = 0)",
     "count(*) FILTER (WHERE {sc} > 0)",
     "count(DISTINCT {t}) FILTER (WHERE {t} <> '')",
     "count(*) FILTER (WHERE {p})",
     "count(DISTINCT {t}) FILTER (WHERE {p})",
-    "min({t}) FILTER (WHERE {d})",
-    "max({t}) FILTER (WHERE {d})",
+    "CAST(min({dv}) AS VARCHAR)",
+    "CAST(max({dv}) AS VARCHAR)",
     "min(try_cast({t} AS DOUBLE)) FILTER (WHERE {sc} = 0)",
     "max(try_cast({t} AS DOUBLE)) FILTER (WHERE {sc} = 0)",
     "count({m})",
@@ -96,7 +101,8 @@ _STATS = (
 )
 _DERIVED = (
     "{t}, {c}, CASE WHEN is_num({t}) THEN num_scale({t}) END AS sc{i}, "
-    "date_shape({t}) AS ds{i}, is_date({t}) AS d{i}, moment({t}) AS m{i}, "
+    "date_shape({t}) AS ds{i}, spelled({t}) AS sp{i}, any_date({t}) AS dv{i}, "
+    "dv{i} IS NOT NULL AS d{i}, moment({t}) AS m{i}, "
     "lower({t}) IN " + _PLACEHOLDERS + " AS p{i}"
 )
 
@@ -151,6 +157,14 @@ class DuckDBColumnarConverter:
                 validate_cell(header, reject_formulas=self.formula_cells == "reject")
             raw = workdir / "raw.parquet"
             try:
+                connection.create_function(
+                    "spelled_date",
+                    lambda value: None if value is None else parse_date(value),
+                    ["varchar"],
+                    "date",
+                    null_handling=FunctionNullHandling.SPECIAL,
+                    side_effects=False,
+                )
                 for macro in _MACROS:
                     connection.execute(macro)
                 relation.project(
@@ -194,6 +208,8 @@ class DuckDBColumnarConverter:
                 "sc": f"sc{index}",
                 "ds": f"ds{index}",
                 "d": f"d{index}",
+                "dv": f"dv{index}",
+                "sp": f"sp{index}",
                 "m": f"m{index}",
                 "p": f"p{index}",
             }
@@ -283,7 +299,7 @@ class DuckDBColumnarConverter:
                     f"{v} = '' OR (is_num({v}) AND num_scale({v}) <= {scale} "
                     f"AND {decimal} IS NOT NULL)",
                 ),
-                "date": (f"try_cast(nullif({v}, '') AS DATE)", f"{v} = '' OR is_date({v})"),
+                "date": (f"any_date({v})", f"{v} = '' OR any_date({v}) IS NOT NULL"),
                 "datetime": (f"moment({v})", f"{v} = '' OR moment({v}) IS NOT NULL"),
                 "boolean": (
                     f"CASE lower({v}) WHEN 'true' THEN true WHEN 'false' THEN false END",

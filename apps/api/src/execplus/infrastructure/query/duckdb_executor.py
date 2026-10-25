@@ -8,6 +8,7 @@ import asyncio
 import json
 from collections.abc import Callable
 from contextlib import suppress
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal, InvalidOperation, localcontext
 from functools import lru_cache
@@ -21,7 +22,12 @@ from execplus.domain.compute import ColumnarBudget, QueryBudget
 from execplus.domain.errors import AuthorizationError, QueryDataError, UnsafeQueryError
 from execplus.domain.join_paths import LEFT_VIEW_NAME, RIGHT_VIEW_NAME, JoinPath
 from execplus.domain.models import QueryPlan, QueryResult, Scalar, WorkspaceScope
-from execplus.domain.profiling import TableData, is_missing_placeholder, parse_datetime
+from execplus.domain.profiling import (
+    TableData,
+    is_missing_placeholder,
+    parse_date,
+    parse_datetime,
+)
 from execplus.domain.semantics import VIEW_NAME, DatasetView, SemanticColumn, quote_identifier
 from execplus.infrastructure.query.validation import validated_query
 
@@ -71,7 +77,13 @@ def _coerce(value: str, kind: str, scale: int = 12) -> Scalar:
                 raise ValueError("Invalid boolean")
             return value.lower() == "true"
         if kind == "date":
-            return date.fromisoformat(value)
+            try:
+                return date.fromisoformat(value)
+            except ValueError:
+                parsed_date = parse_date(value)
+                if parsed_date is None:
+                    raise
+                return parsed_date
         if kind == "datetime":
             parsed = parse_datetime(value)
             if parsed is None:
@@ -88,7 +100,7 @@ def conversion_message(name: str, row_number: int, kind: str, scale: int) -> str
     requirement = {
         "integer": "a whole number in the signed 64-bit range",
         "decimal": f"a decimal fitting 38 digits with {scale} decimal places",
-        "date": "a valid date in YYYY-MM-DD format",
+        "date": "an unambiguous date such as 2026-04-02 or 2 Apr 2026, not 02/04/2026",
         "datetime": "a valid date-time such as YYYY-MM-DD HH:MM:SS",
         "boolean": "true or false",
     }.get(kind, "the column's expected type")
@@ -156,6 +168,36 @@ def _required(table: TableData, query: exp.Select, table_name: str) -> set[str]:
     if required - set(table.headers) - aliases:
         raise UnsafeQueryError("The query references an unavailable source column")
     return required & set(table.headers)
+
+
+def _display_only(query: exp.Select) -> set[str]:
+    """Columns only shown or used as trailing tie-breakers; their bad cells may stay text."""
+    if query.args.get("distinct") is not None:
+        return set()
+    strict = query.copy()
+    order = strict.args.get("order")
+    trailing = [item.this for item in order.expressions[1:]] if order is not None else []
+    shown = {node.name for node in [*strict.expressions, *trailing] if isinstance(node, exp.Column)}
+    strict.set("expressions", [exp.Star()])
+    if order is not None:
+        order.set("expressions", order.expressions[:1])
+    return shown - {column.name for column in strict.find_all(exp.Column)}
+
+
+def _tolerant(
+    table: TableData, view: DatasetView, query: exp.Select
+) -> tuple[TableData, DatasetView]:
+    """Shows display-only columns with unconvertible cells as their original text."""
+    shown = _display_only(query)
+    columns = []
+    for column in view.columns:
+        if column.name in shown and column.name in table.headers and column.type != "text":
+            try:
+                _column(table, column.name, _kind(column), column.missing_placeholders)
+            except QueryDataError:
+                column = replace(column, type="text", has_time=False)
+        columns.append(column)
+    return table, replace(view, columns=tuple(columns))
 
 
 def _load_parquet(
@@ -381,7 +423,7 @@ class DuckDBQueryExecutor:
             raise UnsafeQueryError("The extremum must bind identical inner and outer filters")
         if isinstance(table, ColumnarTable):
             columnar = table
-            required = _required(columnar, query, VIEW_NAME)
+            required = _required(columnar, query, VIEW_NAME) - _display_only(query)
             for name in required:
                 if name in columnar.manifest.errors:
                     raise QueryDataError(columnar.manifest.errors[name])
@@ -398,7 +440,9 @@ class DuckDBQueryExecutor:
             scope,
             {VIEW_NAME},
             len(table.rows),
-            lambda connection: self._load(connection, _project(table, query, VIEW_NAME), view),
+            lambda connection: self._load(
+                connection, *_tolerant(_project(table, query, VIEW_NAME), view, query)
+            ),
         )
 
     async def execute_join(

@@ -19,6 +19,7 @@ from execplus.domain.semantics import (
     FilterOperator,
     MetricFilter,
     MetricRequest,
+    RowOrder,
     RowRequest,
     dataset_view,
     plan_query,
@@ -100,6 +101,18 @@ async def test_projection_cannot_make_a_nonexistent_source_column_queryable():
 
 
 @pytest.mark.asyncio
+async def test_record_list_shows_an_unconvertible_display_column_as_text():
+    data = TableData(("amount", "other"), (("0.1", "1"), ("0.2", "2"), ("0.3", "PrivateCell")))
+    view = dataset_view(profile(data))
+    did = uuid4()
+    authorized = scope(did)
+    plan = plan_rows(authorized, did, view, RowRequest(), row_limit=100)
+    result = await DuckDBQueryExecutor(5, 64).execute(plan, authorized, data, view)
+    assert [row[1] for row in result.rows] == ["1", "2", "PrivateCell"]
+    assert result.matched_records == 3
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("reference", ["metric", "filter", "group", "rows"])
 async def test_every_referenced_column_is_still_checked_without_exposing_values(reference):
     data = TableData(("amount", "other"), (("0.1", "1"), ("0.2", "2"), ("0.3", "PrivateCell")))
@@ -116,7 +129,9 @@ async def test_every_referenced_column_is_still_checked_without_exposing_values(
         filters=(MetricFilter("other", FilterOperator.EQ, 1),) if reference == "filter" else (),
     )
     plan = (
-        plan_rows(authorized, did, view, RowRequest(), row_limit=100)
+        plan_rows(
+            authorized, did, view, RowRequest(order_by=RowOrder("other", "desc")), row_limit=100
+        )
         if reference == "rows"
         else plan_query(authorized, did, view, request, row_limit=100)
     )

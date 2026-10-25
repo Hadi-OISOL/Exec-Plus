@@ -1,8 +1,9 @@
-"""Use case: Describes Parquet-backed profile-v5 snapshots and their scale-safe profiles.
+"""Use case: Describes Parquet-backed profile-v5/v6 snapshots and their scale-safe profiles.
 
-What it does: Turns exact per-column aggregate counts into the profile-v4-compatible
-profile-v5 shape, records the immutable columnar manifest, and supplies a table whose
-rows are only materialized from the retained original when a row-level feature needs them.
+What it does: Turns exact per-column aggregate counts into the profile-v6 shape (profile-v4
+rules plus spelled-month dates; earlier uploads keep their stored profile-v5), records the
+immutable columnar manifest, and supplies a table whose rows are only materialized from
+the retained original when a row-level feature needs them.
 """
 
 import re
@@ -12,7 +13,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from execplus.domain.ingestion import IngestionError
-from execplus.domain.profiling import PROFILE_V5, TableData, _identifier_header
+from execplus.domain.profiling import PROFILE_V6, TableData, _identifier_header
 
 COLUMNAR_FORMAT = "parquet-v1"
 _CALENDAR_BOUNDS = {"day": 31, "dayofmonth": 31, "month": 12, "monthofyear": 12, "year": 9999}
@@ -202,7 +203,7 @@ def profile_from_stats(
     rows: int,
     duplicates: int,
 ) -> dict[str, object]:
-    """Applies profile-v4 inference rules to exact aggregates, labelled profile-v5."""
+    """Applies the in-memory profile-v6 rules to exact aggregates."""
     blanked = typed_placeholder_columns(headers, stats, rows)
     columns = []
     for name, entry in zip(headers, stats, strict=True):
@@ -293,7 +294,7 @@ def profile_from_stats(
     penalty = sum(Decimal(count) / max(total, 1) for _, count, total, _ in checks)
     score = (Decimal(100) - 20 * penalty).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return {
-        "algorithm": PROFILE_V5,
+        "algorithm": PROFILE_V6,
         "row_count": rows,
         "column_count": len(headers),
         "columns": columns,

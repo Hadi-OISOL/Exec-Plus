@@ -1,4 +1,4 @@
-"""Use case: Proves profile-v5 columnar ingest keeps profile-v4 meaning and exact values.
+"""Use case: Proves profile-v6 columnar ingest keeps the in-memory meaning and exact values.
 
 What it does: Compares DuckDB aggregate profiles with the in-memory profile rules on varied
 tables, checks typed Parquet values, refusal rules and recorded conversion errors.
@@ -17,7 +17,7 @@ import pytest
 from openpyxl import Workbook
 
 from execplus.domain.ingestion import IngestionError
-from execplus.domain.profiling import PROFILE_V5, TableData, profile_for
+from execplus.domain.profiling import PROFILE_V6, TableData, profile_for
 from execplus.infrastructure.columnar.converter import DuckDBColumnarConverter
 
 EXTENSIONS = Path(
@@ -37,6 +37,13 @@ POOL = {
     "month": ["1", "12", "7", ""],
     "order no": ["001", "002", "002", "17"],
     "Birthday": ["2024-01-01", "x"],
+    "posted": ["2026-07-09", "Thu, 02 Apr 2026", "Fri, 02 Apr 2026", "2 April 2026", "02/04/2026"],
+    "seen": [
+        "Apr 2, 2026",
+        "31 Feb 2026",
+        "Tue, 30 Jun 2026 10:00:00 GMT",
+        "2026-04-02T23:00-05:00",
+    ],
 }
 
 
@@ -60,7 +67,7 @@ def convert(tmp_path, headers, rows, **options):
 
 
 @pytest.mark.parametrize("seed", range(40))
-def test_profile_v5_matches_in_memory_rules(tmp_path, seed):
+def test_profile_v6_matches_in_memory_rules(tmp_path, seed):
     generator = random.Random(seed)
     headers = tuple(generator.sample(sorted(POOL), k=generator.randint(2, len(POOL))))
     rows = [
@@ -69,7 +76,7 @@ def test_profile_v5_matches_in_memory_rules(tmp_path, seed):
     ]
     rows = [row if any(value.strip() for value in row) else ("x", *row[1:]) for row in rows]
     result = convert(tmp_path, headers, rows)
-    expected = profile_for(TableData(headers, tuple(rows)), PROFILE_V5)
+    expected = profile_for(TableData(headers, tuple(rows)), PROFILE_V6)
     assert result.profile == expected
     assert result.rows == len(rows)
 
@@ -124,6 +131,47 @@ def test_conflicting_column_is_kept_as_text_with_legacy_message(tmp_path):
         "amount": 'Column "amount", data row 4: expected a whole number in the signed 64-bit '
         "range. Correct the source and upload a new version. No values were rounded or skipped."
     }
+
+
+def test_spelled_dates_become_the_same_typed_dates(tmp_path):
+    rows = [
+        ("2026-07-09", "a"),
+        ("Thu, 02 Apr 2026", "b"),
+        ("Tue, 30 Jun 2026 10:00:00 +0000", "c"),
+        ("April 2 2026", "d"),
+        ("", "e"),
+    ]
+    result = convert(tmp_path, ("posted_at", "note"), rows)
+    assert result.errors == {}
+    assert result.profile["columns"][0]["type"] == "date"
+    assert result.profile["columns"][0]["date_min"] == "2026-04-02"
+    values = (
+        duckdb.connect()
+        .execute(f"SELECT posted_at FROM read_parquet('{result.parquet}')")
+        .fetchall()
+    )
+    assert [str(value) for (value,) in values] == [
+        "2026-07-09",
+        "2026-04-02",
+        "2026-06-30",
+        "2026-04-02",
+        "None",
+    ]
+
+
+def test_ambiguous_numeric_date_is_flagged_not_nulled(tmp_path):
+    rows = [("2026-07-09",), ("2026-07-10",), ("02/04/2026",)]
+    result = convert(tmp_path, ("posted_at",), rows)
+    assert result.errors["posted_at"].startswith(
+        'Column "posted_at", data row 3: expected an unambiguous date such as '
+        "2026-04-02 or 2 Apr 2026, not 02/04/2026."
+    )
+    values = (
+        duckdb.connect()
+        .execute(f"SELECT posted_at FROM read_parquet('{result.parquet}')")
+        .fetchall()
+    )
+    assert values[2] == ("02/04/2026",)
 
 
 @pytest.mark.parametrize(

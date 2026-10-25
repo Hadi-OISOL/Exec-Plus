@@ -14,6 +14,7 @@ from execplus.domain.ingestion import IngestionError
 from execplus.domain.profiling import (
     ALGORITHM,
     CURRENT_ALGORITHM,
+    PROFILE_V6,
     Revision,
     TableData,
     profile,
@@ -118,7 +119,7 @@ def test_new_retail_records_filter_cancellation_codes_and_replay(integration):
     )
     owner, wid, root = prepare(env, model, content=content)
     revision = env.client.get(root + "/profile", headers=owner).json()
-    assert revision["algorithm"] == revision["profile"]["algorithm"] == CURRENT_ALGORITHM
+    assert revision["algorithm"] == revision["profile"]["algorithm"] == PROFILE_V6
     answer = env.client.post(
         root + "/ask",
         headers=owner,
@@ -222,7 +223,7 @@ def test_cleaning_preserves_parent_profile_version_and_samples_keep_v1(integrati
     else:
         owner, _, root = prepare(env, ScriptedModel(), content=b"day,amount\n1,2\n2,3\n")
     original = env.client.get(root + "/profile", headers=owner).json()
-    expected = ALGORITHM if sample else CURRENT_ALGORITHM
+    expected = ALGORITHM if sample else PROFILE_V6
     assert original["algorithm"] == expected
     cleaned = env.client.post(
         root + "/cleaning/apply",

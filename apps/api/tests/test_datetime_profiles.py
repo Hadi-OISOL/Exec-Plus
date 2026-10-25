@@ -22,6 +22,7 @@ from execplus.domain.profiling import (
     CURRENT_ALGORITHM,
     PROFILE_V2,
     PROFILE_V3,
+    PROFILE_V6,
     TableData,
     parse_datetime,
     profile_for,
@@ -223,7 +224,7 @@ async def test_new_iot_upload_answers_daily_average_trend_exactly_with_replay(in
     headers, actor, wid, did, uid, threads = thread_setup(integration, iot_csv(rows), DAILY_AVG)
     path = f"/workspaces/{wid}/datasets/{did}/uploads/{uid}/profile"
     profiled = integration.client.get(path, headers=headers).json()
-    assert profiled["algorithm"] == CURRENT_ALGORITHM
+    assert profiled["algorithm"] == PROFILE_V6
     assert column(profiled["profile"], "timestamp")["datetime"] is True
     thread = await threads.start_thread(actor, wid, did, uid)
     answer, turn = await threads.ask(actor, wid, thread.id, "Show daily average temperature trend")
