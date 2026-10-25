@@ -193,7 +193,7 @@ def build_runtime(settings: Settings) -> "Runtime":
         if settings.google_enabled and settings.environment not in {"local", "test"}
         else LocalSessionIdentity(engine, settings.environment)
     )
-    parser = StructuredFileParser()
+    parser = StructuredFileParser(formula_cells=settings.formula_cells)
     budget = QueryBudget(
         timeout_seconds=settings.query_timeout_seconds,
         memory_limit_mb=settings.query_memory_limit_mb,

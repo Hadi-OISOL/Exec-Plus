@@ -94,7 +94,7 @@ def test_shared_parser_has_no_cross_request_rows_or_retained_values():
     with ThreadPoolExecutor(max_workers=4) as pool:
         values = list(pool.map(read, range(20)))
     assert [table.rows for table in values] == [((f"private-{i}", str(i)),) for i in range(20)]
-    assert vars(parser) == {}
+    assert vars(parser) == {"reject_formulas": True}
 
 
 def test_old_parser_port_falls_back_without_requiring_the_new_capability():

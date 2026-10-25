@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     smtp_security: Literal["ssl", "starttls", "none"] = "ssl"
     smtp_ca_file: str = ""
     vector_mode: Literal["disabled"] = "disabled"
+    formula_cells: Literal["reject", "keep_as_text"] = "keep_as_text"
+    duckdb_extension_directory: str = "/opt/execplus/duckdb-extensions"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
     web_origin: str = "http://localhost:3000"
     local_registration_enabled: bool = True
