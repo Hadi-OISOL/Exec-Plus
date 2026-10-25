@@ -46,9 +46,9 @@ test("no connectors configured shows every platform as not set up, with nothing 
   const panel = page.getByRole("region", { name: "Connect your data", exact: true });
   await expect(panel.getByText("No data platforms are set up on this server yet.", { exact: true })).toBeVisible();
   await expect(panel.getByRole("button", { name: /^Connect / })).toHaveCount(0);
-  await panel.getByText("Not set up on this server (7)").click();
+  await panel.getByText("Not set up on this server (9)").click();
   const missing = panel.getByRole("list", { name: "Platforms not set up" });
-  for (const label of ["Google Sheets", "QuickBooks Online", "Xero", "Zoho Books", "Odoo", "PostgreSQL database", "Google BigQuery"]) {
+  for (const label of ["Google Sheets", "QuickBooks Online", "Xero", "Zoho Books", "Odoo", "PostgreSQL database", "MySQL or MariaDB database", "Microsoft SQL Server database", "Google BigQuery"]) {
     await expect(missing.getByText(label, { exact: true })).toBeVisible();
   }
 });
@@ -81,6 +81,61 @@ test("a database or Odoo user fills the form, connects, browses and imports a so
   await expect(page.getByText("imported from Odoo", { exact: false })).toBeVisible();
   expect(bodies).toEqual([{ source_id: "invoices" }]);
   await expect(page.getByLabel("Profile upload").locator("option:checked")).toHaveText("Imported.csv");
+});
+
+test("a database user picks TLS, sees row counts, previews a table and imports a custom SELECT", async ({ page }) => {
+  const person = account();
+  let connected = false;
+  let credentials: unknown = null;
+  const previews: unknown[] = [];
+  const bodies: unknown[] = [];
+  const mysql = () => ({
+    id: "mysql", label: "MySQL or MariaDB database", kind: "credentials", description: "Tables and queries", connected,
+    account: connected ? "shop@db.example" : "", queries: true,
+    fields: [
+      { name: "host", label: "Host", secret: false, placeholder: "", required: true, options: [] },
+      { name: "password", label: "Password", secret: true, placeholder: "", required: true, options: [] },
+      { name: "tls", label: "Encryption (TLS)", secret: false, placeholder: "", required: false, options: ["require", "verify"] },
+    ],
+  });
+  await page.route("**/connectors", route => route.fulfill({ json: [mysql()] }));
+  await page.route("**/connectors/mysql/credentials", route => {
+    credentials = route.request().postDataJSON();
+    connected = true;
+    return route.fulfill({ json: { connected: true, account: "shop@db.example" } });
+  });
+  await page.route("**/connectors/mysql/sources**", route => {
+    const parent = new URL(route.request().url()).searchParams.get("parent");
+    return route.fulfill({ json: parent ? [{ id: "table/shop/orders", label: "orders", container: false, rows: 300000 }] : [{ id: "schema/shop", label: "shop", container: true, rows: null }] });
+  });
+  await page.route("**/connectors/mysql/preview", route => {
+    previews.push(route.request().postDataJSON());
+    return route.fulfill({ json: { columns: ["id", "amount"], rows: [["1", "12345678901234.5678"]] } });
+  });
+  await mockImport(page, person, "mysql", bodies);
+  await signIn(page, person.token);
+  const panel = page.getByRole("region", { name: "Connect your data", exact: true });
+  await panel.getByRole("button", { name: "Connect MySQL or MariaDB database", exact: true }).click();
+  await panel.getByLabel("Host").fill("db.example");
+  await panel.getByLabel("Password").fill("pw");
+  await panel.getByLabel("Encryption (TLS)").selectOption("verify");
+  await panel.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(panel).toContainText("Connected as shop@db.example");
+  expect(credentials).toEqual({ values: { host: "db.example", password: "pw", tls: "verify" } });
+  await panel.getByRole("button", { name: "Choose data", exact: true }).click();
+  await panel.getByRole("button", { name: "shop ›", exact: true }).click();
+  await expect(panel.getByText("about 300,000 rows")).toBeVisible();
+  await panel.getByRole("button", { name: "Preview orders", exact: true }).click();
+  const shown = panel.getByRole("region", { name: "Preview of orders" });
+  await expect(shown.getByRole("cell", { name: "12345678901234.5678" })).toBeVisible();
+  await panel.getByLabel("Or import the result of your own SELECT query").fill("SELECT id, amount FROM shop.orders");
+  await panel.getByRole("button", { name: "Preview query", exact: true }).click();
+  await expect(panel.getByRole("region", { name: "Preview of Custom query" })).toBeVisible();
+  await panel.getByRole("button", { name: "Import query results", exact: true }).click();
+  await expect(page.getByText("imported from MySQL or MariaDB database", { exact: false })).toBeVisible();
+  const sql = `query/${encodeURIComponent("SELECT id, amount FROM shop.orders")}`;
+  expect(previews).toEqual([{ source_id: "table/shop/orders" }, { source_id: sql }]);
+  expect(bodies).toEqual([{ source_id: sql }]);
 });
 
 test("browsing a hierarchy drills into containers and the breadcrumb goes back", async ({ page }) => {
