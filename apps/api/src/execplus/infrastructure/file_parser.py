@@ -77,7 +77,6 @@ class StructuredFileParser:
         extension_directory: Path | None = None,
     ) -> None:
         self.extension_directory = extension_directory
-        self.formula_cells: Literal["reject", "keep_as_text"] = formula_cells
         self.max_bytes = max_bytes
         self.reject_formulas = formula_cells == "reject"
 
@@ -168,7 +167,11 @@ class StructuredFileParser:
                 "unsupported_format", "This stored file type cannot be read here.", 409
             )
         return read_source_table(
-            content, format, self.extension_directory, self.formula_cells, MAX_ROWS
+            content,
+            format,
+            self.extension_directory,
+            "reject" if self.reject_formulas else "keep_as_text",
+            MAX_ROWS,
         )
 
     def read_table(self, content: BinaryIO, format: str) -> TableData:
