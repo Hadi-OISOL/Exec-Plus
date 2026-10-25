@@ -1,5 +1,5 @@
 /* Use case: Proves resumable background uploads, the upload tray and the storage bar in a real browser.
-What it does: Mocks only the upload-session and storage API with Playwright routes (real sign-in, workspace and final upload) and checks chunking, navigation, pause/resume, leave warnings, quota errors and resume after reload. */
+What it does: Mocks only the upload-session and storage API with Playwright routes (real sign-in, workspace and final upload) and checks chunking, navigation, pause/resume, leave warnings, quota errors, resume after reload and importing another workbook sheet. */
 
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
@@ -31,7 +31,7 @@ function bigCsv(bytes: number) {
 
 type Session = { id: string; wid: string; did: string; filename: string; size: number; chunks: Buffer[]; status: string };
 
-function mockUploads(page: Page, session: string, options: { storage?: { used_bytes: number; quota_bytes: number }; quotaExceeded?: boolean; holdChunk?: number } = {}) {
+function mockUploads(page: Page, session: string, options: { storage?: { used_bytes: number; quota_bytes: number }; quotaExceeded?: boolean; holdChunk?: number; stored?: { type: string; data: Buffer } } = {}) {
   const sessions = new Map<string, Session>();
   const puts: number[] = [];
   let release: () => void = () => undefined;
@@ -71,7 +71,7 @@ function mockUploads(page: Page, session: string, options: { storage?: { used_by
       }
       if (method === "POST" && action === "complete") {
         current.status = "complete";
-        const stored = await page.request.post(`${api}/workspaces/${current.wid}/datasets/${current.did}/uploads?filename=${encodeURIComponent(current.filename)}`, { headers: { Authorization: `Bearer ${session}`, "Content-Type": "text/csv" }, data: Buffer.from("region,amount\nNorth,12.50\nSouth,7.25\n") });
+        const stored = await page.request.post(`${api}/workspaces/${current.wid}/datasets/${current.did}/uploads?filename=${encodeURIComponent(current.filename)}`, { headers: { Authorization: `Bearer ${session}`, "Content-Type": options.stored?.type ?? "text/csv" }, data: options.stored?.data ?? Buffer.from("region,amount\nNorth,12.50\nSouth,7.25\n") });
         return reply(route, 201, { upload: await stored.json() });
       }
       if (method === "DELETE") { sessions.delete(sid); return reply(route, 204); }
@@ -183,4 +183,32 @@ test("after a reload the user reselects the same file and the upload continues f
   expect(Buffer.concat(stored.chunks).equals(file)).toBe(true);
   expect(server.puts.filter(index => index === 0)).toHaveLength(1);
   expect(await page.evaluate(() => window.localStorage.getItem("execplus.uploads.v1"))).toBe("[]");
+});
+
+const WORKBOOK = [
+  "import base64, io, openpyxl",
+  "book = openpyxl.Workbook(); book.active.title = 'Cover'",
+  "rows = {'Leads': [('name', 'amount'), ('Ana', '0.10'), ('Bo', '0.20')], 'Archive': [('name', 'amount')] + [('old%d' % i, '%d.5' % i) for i in range(4)], 'Notes': [('note',), ('call back',)]}",
+  "for name, values in rows.items():\n    sheet = book.create_sheet(name)\n    [sheet.append(row) for row in values]",
+  "out = io.BytesIO(); book.save(out); print(base64.b64encode(out.getvalue()).decode())",
+].join("\n");
+
+test("a workbook with several sheets offers to import another sheet as its own dataset", async ({ page }) => {
+  test.setTimeout(150_000);
+  const session = token(`sheets-${randomUUID()}@example.test`);
+  const data = Buffer.from(execFileSync("python3", ["-c", WORKBOOK], { encoding: "utf8" }).trim(), "base64");
+  const server = mockUploads(page, session, { stored: { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data } });
+  await server.ready;
+  await signIn(page, session);
+  await page.getByLabel("CSV or Excel file").setInputFiles({ name: "leads.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: data });
+  await page.getByRole("button", { name: "Upload file", exact: true }).click();
+  await finishInitialReview(page);
+  const sheets = page.getByRole("region", { name: "Other sheets in this file", exact: true });
+  test.skip(!(await sheets.isVisible({ timeout: 15_000 }).catch(() => false)) && process.env.EXECPLUS_COLUMNAR_INGEST_ENABLED !== "true", "needs EXECPLUS_COLUMNAR_INGEST_ENABLED=true and the DuckDB excel extension");
+  await expect(sheets).toContainText("This file has 3 sheets: Leads (2 rows), Archive (4 rows), Notes (1 row). Imported: Leads.");
+  await sheets.getByLabel("Sheet").selectOption("Archive");
+  await sheets.getByRole("button", { name: "Import another sheet", exact: true }).click();
+  await finishInitialReview(page);
+  await expect(page.getByLabel("Dataset", { exact: true }).locator("option:checked")).toHaveText("leads - Archive");
+  await expect(page.getByRole("region", { name: "Other sheets in this file", exact: true })).toContainText("Imported: Archive.");
 });

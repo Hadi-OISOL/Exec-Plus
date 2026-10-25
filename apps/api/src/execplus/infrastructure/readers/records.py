@@ -371,12 +371,15 @@ def sheet_rows(rows: Iterable[list[Any]]) -> Iterator[Row]:
             yield dict(zip(names, texts, strict=False))
 
 
-def calamine_sheets(path: Path) -> list[str]:
+def calamine_sheets(path: Path) -> list[tuple[str, int]]:
     from python_calamine import CalamineWorkbook, PasswordError
 
     try:
         with CalamineWorkbook.from_path(str(path)) as workbook:
-            return list(workbook.sheet_names)
+            return [
+                (name, max(workbook.get_sheet_by_name(name).height - 1, 0))
+                for name in workbook.sheet_names
+            ]
     except PasswordError as error:
         raise IngestionError("encrypted_workbook", "Remove the workbook password.", 422) from error
     except Exception as error:

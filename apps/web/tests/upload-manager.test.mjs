@@ -1,5 +1,5 @@
 /* Use case: Protects resumable background uploads without a web server.
-What it does: Checks chunk bounds, per-chunk SHA-256, retries, pause/resume, resume after reload, legacy fallback and friendly quota errors against an in-memory upload-session API. */
+What it does: Checks chunk bounds, per-chunk SHA-256, retries, pause/resume, resume after reload, legacy fallback, friendly quota errors and other-sheet summaries against an in-memory upload-session API. */
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -9,7 +9,7 @@ import ts from "typescript";
 
 const source = await readFile(new URL("../src/app/workspace/upload-manager.ts", import.meta.url), "utf8");
 const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { UploadManager, chunkBounds, sha256Hex, withRetry, readRecords, uploadErrorMessage, formatBytes, RESUME_KEY, MAX_UPLOAD_BYTES } = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
+const { UploadManager, chunkBounds, sha256Hex, withRetry, readRecords, uploadErrorMessage, formatBytes, RESUME_KEY, MAX_UPLOAD_BYTES, hasSheets, otherSheets, sheetSummary } = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
 
 function memoryStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -211,4 +211,17 @@ test("quota and size failures produce clear messages", async () => {
   assert.match(uploadErrorMessage("unsupported_format", "", 1), /not supported/);
   assert.equal(formatBytes(2.1 * 1024 ** 3), "2.1 GB");
   assert.equal(formatBytes(5 * 1024 ** 3), "5 GB");
+});
+
+test("workbook sheets: only spreadsheet formats ask, empty and imported sheets are not offered", () => {
+  assert.equal(hasSheets("r:xlsx"), true);
+  assert.equal(hasSheets("r:ods#2"), true);
+  assert.equal(hasSheets("xlsx"), true);
+  assert.equal(hasSheets("r:csv"), false);
+  assert.equal(hasSheets("csv;s"), false);
+  assert.equal(hasSheets(undefined), false);
+  const listing = { imported: "Leads", sheets: [{ name: "Cover", rows: 0 }, { name: "Leads", rows: 1200 }, { name: "Archive", rows: 1 }, { name: "Notes", rows: null }] };
+  assert.deepEqual(otherSheets(listing), ["Archive", "Notes"]);
+  assert.equal(sheetSummary(listing), "This file has 3 sheets: Leads (1,200 rows), Archive (1 row), Notes. Imported: Leads.");
+  assert.deepEqual(otherSheets({ imported: "Only", sheets: [{ name: "Only", rows: 3 }] }), []);
 });

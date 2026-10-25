@@ -157,7 +157,13 @@ class ColumnarStore(Protocol):
 
 
 class ColumnarConverter(Protocol):
-    def convert(self, source: Path, filename: str, workdir: Path) -> ColumnarConversion: ...
+    def convert(
+        self, source: Path, filename: str, workdir: Path, table: str | None = None
+    ) -> ColumnarConversion: ...
+
+    def tables(
+        self, source: Path, filename: str, workdir: Path
+    ) -> tuple[tuple[str, int | None], ...]: ...
 
 
 class FileParser(Protocol):

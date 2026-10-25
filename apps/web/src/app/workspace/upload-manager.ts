@@ -1,5 +1,5 @@
 /* Use case: Runs resumable chunked file uploads in the background of the workspace.
-What it does: Queues files, hashes and sends each chunk with retries, supports pause/resume/cancel, and remembers in-progress sessions (never file contents) so an upload can resume after a reload. */
+What it does: Queues files, hashes and sends each chunk with retries, supports pause/resume/cancel, and remembers in-progress sessions (never file contents) so an upload can resume after a reload, and summarizes the other sheets of an uploaded workbook. */
 
 export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
 export const RESUME_KEY = "execplus.uploads.v1";
@@ -94,6 +94,22 @@ export function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.ceil(seconds)} s left`;
   if (seconds < 3600) return `${Math.ceil(seconds / 60)} min left`;
   return `${Math.floor(seconds / 3600)} h ${Math.ceil((seconds % 3600) / 60)} min left`;
+}
+
+export type SheetListing = { sheets: { name: string; rows: number | null }[]; imported: string | null };
+
+export function hasSheets(format: string | undefined): boolean {
+  return /^(r:)?(xlsx|xlsm|xls|xlsb|ods|sqlite)(#\d+)?$/.test(format ?? "");
+}
+
+export function otherSheets(listing: SheetListing): string[] {
+  return listing.sheets.filter(sheet => sheet.rows !== 0 && sheet.name !== listing.imported).map(sheet => sheet.name);
+}
+
+export function sheetSummary(listing: SheetListing): string {
+  const filled = listing.sheets.filter(sheet => sheet.rows !== 0);
+  const names = filled.map(sheet => (sheet.rows === null ? sheet.name : `${sheet.name} (${sheet.rows.toLocaleString("en-US")} ${sheet.rows === 1 ? "row" : "rows"})`));
+  return `This file has ${filled.length} sheets: ${names.join(", ")}. Imported: ${listing.imported ?? "the first sheet"}.`;
 }
 
 export function uploadErrorMessage(code: string | undefined, message: string, size: number): string {

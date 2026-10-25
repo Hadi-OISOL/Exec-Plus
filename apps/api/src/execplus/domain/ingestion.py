@@ -8,6 +8,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+MULTI_TABLE_FORMATS = frozenset({"xlsx", "xlsm", "xls", "xlsb", "ods", "sqlite"})
+
+
+def stored_table(format: str) -> tuple[str, int]:
+    """Split a stored upload format such as "r:xlsx#2" into its file suffix and table index."""
+    base, _, index = format.removeprefix("r:").partition("#")
+    return base, int(index) if index.isdecimal() else 0
+
 
 class IngestionError(Exception):
     def __init__(

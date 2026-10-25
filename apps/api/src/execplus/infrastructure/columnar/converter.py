@@ -21,6 +21,7 @@ from execplus.domain.semantics import quote_identifier
 from execplus.infrastructure.columnar.source_rows import open_table, stored_format
 from execplus.infrastructure.file_parser import MAX_COLUMNS, validate_cell, validate_header
 from execplus.infrastructure.query.duckdb_executor import conversion_message
+from execplus.infrastructure.readers import ReaderOptions, open_source
 
 
 def sql_text(value: str) -> str:
@@ -133,8 +134,18 @@ class DuckDBColumnarConverter:
         self.spill_limit_mb = spill_limit_mb
         self.max_rows = max_rows
 
-    def convert(self, source: Path, filename: str, workdir: Path) -> ColumnarConversion:
-        format = stored_format(filename)
+    def tables(
+        self, source: Path, filename: str, workdir: Path
+    ) -> tuple[tuple[str, int | None], ...]:
+        (workdir / "read").mkdir(parents=True, exist_ok=True)
+        options = ReaderOptions(workdir / "read", self.extension_directory, "keep_as_text")
+        return tuple(
+            (info.name, info.approx_rows) for info in open_source(source, filename, options).tables
+        )
+
+    def convert(
+        self, source: Path, filename: str, workdir: Path, table: str | None = None
+    ) -> ColumnarConversion:
         with open_table(
             source,
             filename,
@@ -144,7 +155,9 @@ class DuckDBColumnarConverter:
             memory_limit_mb=self.memory_limit_mb,
             threads=self.threads,
             max_temp_bytes=self.spill_limit_mb * 1024 * 1024,
-        ) as (connection, relation, _):
+            table=table,
+        ) as (connection, relation, _, index):
+            format = stored_format(filename, index)
             headers = tuple(str(column) for column in relation.columns)
             validate_header(list(headers))
             if len(headers) > MAX_COLUMNS:

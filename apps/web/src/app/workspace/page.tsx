@@ -12,7 +12,7 @@ import type { ApiRequest } from "./profile-panel";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MAX_UPLOAD_BYTES, UPLOAD_ACCEPT, UploadManager, formatBytes, uploadContentType } from "./upload-manager";
 import type { UploadItem, UploadedFile } from "./upload-manager";
-import { StorageBar, UploadTray } from "./upload-tray";
+import { SheetChooser, StorageBar, UploadTray } from "./upload-tray";
 import type { StorageUse } from "./upload-tray";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -178,6 +178,7 @@ type Upload = {
   row_count: number;
   column_count: number;
   status: string;
+  format?: string;
 };
 type User = { id: string; email: string };
 
@@ -1334,6 +1335,7 @@ export default function WorkspacePage() {
               )}
               {workspace && manager && !["admin", "usage"].includes(section) && <UsageNotice workspaceId={workspace.id} view={section} request={request} />}
               {workspace && dataset && !["admin", "memory", "team"].includes(section) && <DatasetAccessNotice root={`/workspaces/${workspace.id}/datasets/${dataset}`} view={section} request={request} />}
+              {workspace && dataset && selectedUpload && ["overview", "data"].includes(section) && <SheetChooser key={selectedUpload.id} root={`/workspaces/${workspace.id}/datasets/${dataset}/uploads/${selectedUpload.id}`} format={selectedUpload.format} request={request} onImported={async imported => { setDatasets(await request<Dataset[]>(`/workspaces/${imported.workspace_id}/datasets`)); await openUploaded(imported); }} />}
               <div hidden={section !== "data"} className="dataLibraryGrid">
                 <section
                   className="panel uploadStart"
@@ -1439,7 +1441,7 @@ export default function WorkspacePage() {
                   <details className="uploadOptions">
                     <summary>Supported files & limits</summary>
                     <p>
-                      CSV in UTF-8 or XLSX with one sheet, up to 20 MiB. Use
+                      CSV in UTF-8 or a spreadsheet (the first sheet with data is imported; you can import other sheets afterwards), up to 20 MiB. Use
                       unique headers, values only, and no merged cells. Maximum
                       100,000 rows, 1,000 columns, and 1,000,000 cells including
                       the header. Your original file is retained.

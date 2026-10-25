@@ -97,6 +97,9 @@ What it does: Positions a compact, themed, responsive tray with accessible progr
 .storageWarning { margin: var(--space-2) 0 0; color: var(--color-warning); }
 .storage[data-level="full"] .storageWarning { color: var(--color-danger); }
 
+.sheets { display: grid; gap: var(--space-2); }
+.sheets p { margin: 0; }
+
 .srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 @media (prefers-reduced-motion: reduce) {

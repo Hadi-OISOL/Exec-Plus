@@ -237,6 +237,35 @@ async def upload(
     return public_upload(result)
 
 
+class SheetInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sheet: str = Field(min_length=1, max_length=255)
+
+
+@router.get("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/sheets")
+def upload_sheets(
+    workspace_id: UUID, dataset_id: UUID, upload_id: UUID, actor: Actor, service: Service
+) -> object:
+    return service.upload_sheets(actor, workspace_id, dataset_id, upload_id)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/sheets/import",
+    status_code=201,
+)
+def import_sheet(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: SheetInput,
+    actor: Actor,
+    service: Service,
+) -> object:
+    return public_upload(
+        service.import_sheet(actor, workspace_id, dataset_id, upload_id, body.sheet)
+    )
+
+
 @router.get("/workspaces/{workspace_id}/datasets/{dataset_id}/uploads/{upload_id}/content")
 def download(
     workspace_id: UUID, dataset_id: UUID, upload_id: UUID, actor: Actor, service: Service
