@@ -1,0 +1,19 @@
+/* Use case: Lays out the "Things we checked for you" list, its exact figures and the useful/not-useful vote.
+What it does: Reuses shared design tokens, wraps at 320px, keeps 36px+ targets and marks the pressed vote. */
+
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.list li { display: grid; gap: 4px; padding-top: 12px; border-top: 1px solid var(--color-border); font-size: 14px; line-height: 20px; min-width: 0; }
+.list li:first-child { padding-top: 0; border-top: 0; }
+.list li > span { color: var(--color-text-secondary); }
+.evidence { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: 12px; line-height: 18px; color: var(--color-text-muted); }
+.evidence div { display: flex; gap: 4px; }
+.evidence dt { margin: 0; }
+.evidence dd { margin: 0; color: var(--color-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.rule { margin: 0; font-size: 12px; line-height: 18px; color: var(--color-text-muted); }
+.votes { display: inline-flex; gap: 6px; }
+.vote { min-height: 36px; padding: 6px 12px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-full); background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: 13px; cursor: pointer; }
+.vote[aria-pressed="true"] { border-color: var(--color-primary); background: var(--color-primary-subtle); color: var(--color-primary-text); font-weight: 600; }
+.vote:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.reasons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--color-text-secondary); }
+.rest summary { min-height: 36px; display: flex; align-items: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); }
+.rest[open] summary { margin-bottom: 8px; }

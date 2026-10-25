@@ -17,6 +17,7 @@ import type { ProposedItem } from "./insights/insights-overview";
 import { AutoDashboardView } from "./insights/auto-dashboard";
 import type { ActionIntent } from "./insights/insights-model";
 import { AnalystTeam, DataReady, analystTeam, questionChips, useDatasetPurpose } from "./insights/data-ready";
+import { HypothesisChecks } from "./insights/hypotheses";
 import type { RequestStatus } from "./insights/data-ready";
 import styles from "./dashboard-presentation.module.css";
 import overview from "./discovery-panel.module.css";
@@ -380,6 +381,7 @@ export function DiscoveryPanel({
           onReview={onReview}
           onQuestion={onQuestion}
           onAction={act}
+          checks={<HypothesisChecks root={root} request={request} enabled={enabled} words={words} onQuestion={onQuestion} />}
           onSee={id => scrollTo(document.querySelector<HTMLElement>(`[data-insight="${CSS.escape(id)}"]`) ?? document.querySelector<HTMLElement>('[aria-label="Analyst overview"]'))}
         />
         {discovery.definition_state !== "confirmed" && <div className={overview.meaningPrompt}>

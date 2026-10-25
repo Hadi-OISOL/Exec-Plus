@@ -104,6 +104,18 @@ class S3ObjectStorage:
                 "storage_unavailable", "Upload storage is unavailable.", 503
             ) from error
 
+    def read_optional(self, key: str, limit: int) -> bytes | None:
+        try:
+            return self.read_part(key, limit)
+        except IngestionError as error:
+            cause = error.__cause__
+            if isinstance(cause, ClientError) and cause.response.get("Error", {}).get("Code") in {
+                "NoSuchKey",
+                "404",
+            }:
+                return None
+            raise
+
     def delete_prefix(self, prefix: str) -> None:
         if not prefix.startswith("workspaces/") or "/upload-sessions/" not in prefix:
             raise ValueError("Only upload-session parts can be removed by prefix")
