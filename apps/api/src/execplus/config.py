@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     upload_inline_bytes: int = Field(default=20 * 1024 * 1024, ge=0, le=2 * 1024**3 - 1)
     upload_session_hours: int = Field(default=24, ge=1, le=168)
     user_storage_quota_bytes: int = Field(default=5 * 1024**3, ge=0, le=10**12)
+    formula_cells: Literal["reject", "keep_as_text"] = "keep_as_text"
+    duckdb_extension_directory: str = "/opt/execplus/duckdb-extensions"
     web_origin: str = "http://localhost:3000"
     local_registration_enabled: bool = True
     trusted_proxies: list[str] = Field(default_factory=list)

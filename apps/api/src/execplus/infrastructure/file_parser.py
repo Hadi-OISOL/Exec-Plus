@@ -8,7 +8,7 @@ import re
 from datetime import date, datetime
 from io import TextIOWrapper
 from pathlib import PurePosixPath
-from typing import BinaryIO
+from typing import BinaryIO, Literal
 from zipfile import BadZipFile, ZipFile
 
 from defusedxml.common import DefusedXmlException
@@ -35,13 +35,15 @@ MIME_TYPES = {
 CSV_DELIMITERS = {"csv": ",", "csv;s": ";", "csv;t": "\t"}
 
 
-def validate_cell(value: object) -> None:
+def validate_cell(value: object, *, reject_formulas: bool = True) -> None:
     if not isinstance(value, str):
         return
     if any(ord(char) < 32 and char not in "\t\r\n" for char in value):
         raise IngestionError(
             "unsafe_content", "The file contains unsupported control characters.", 422
         )
+    if not reject_formulas:
+        return
     stripped = value.lstrip()
     if stripped.startswith(("=", "+", "@")) or (
         stripped.startswith("-") and not re.fullmatch(r"-\d+(\.\d+)?([eE][+-]?\d+)?", stripped)
@@ -67,8 +69,13 @@ def validate_dimensions(rows: int, columns: int) -> None:
 
 
 class StructuredFileParser:
-    def __init__(self, max_bytes: int = MAX_BYTES) -> None:
+    def __init__(
+        self,
+        max_bytes: int = MAX_BYTES,
+        formula_cells: Literal["reject", "keep_as_text"] = "reject",
+    ) -> None:
         self.max_bytes = max_bytes
+        self.reject_formulas = formula_cells == "reject"
 
     def parse(
         self,
@@ -214,7 +221,7 @@ class StructuredFileParser:
             columns = len(header)
             validate_dimensions(1, columns)
             for cell in header:
-                validate_cell(cell)
+                validate_cell(cell, reject_formulas=self.reject_formulas)
             if captured is not None:
                 captured.append(tuple(header))
             rows = 0
@@ -228,7 +235,7 @@ class StructuredFileParser:
                 rows += 1
                 validate_dimensions(rows + 1, columns)
                 for cell in row:
-                    validate_cell(cell)
+                    validate_cell(cell, reject_formulas=self.reject_formulas)
                 if captured is not None:
                     captured.append(tuple(row))
             if rows == 0:
@@ -285,7 +292,7 @@ class StructuredFileParser:
                             raise IngestionError(
                                 "merged_cells", "Remove merged cells before uploading.", 422
                             )
-                        if tag == "f":
+                        if tag == "f" and self.reject_formulas:
                             raise IngestionError(
                                 "unsafe_formula",
                                 "Excel formulas are unsupported. Upload values only.",
@@ -332,7 +339,7 @@ class StructuredFileParser:
                 validate_header(list(header))
                 columns = len(header)
                 for cell in header:
-                    validate_cell(cell)
+                    validate_cell(cell, reject_formulas=self.reject_formulas)
                 if captured is not None:
                     captured.append(tuple(str(value) for value in header))
                 count = 0
@@ -352,7 +359,7 @@ class StructuredFileParser:
                     count += 1
                     validate_dimensions(count + 1, columns)
                     for cell in row:
-                        validate_cell(cell)
+                        validate_cell(cell, reject_formulas=self.reject_formulas)
                     if captured is not None:
                         captured.append(
                             tuple(
