@@ -30,17 +30,23 @@ _MOMENT = (
     r"(:[0-9]{2}(\.[0-9]{1,6})?)?(Z|[+-][0-9]{2}:[0-9]{2})?"
 )
 _OFFSET = r"[+-][0-9]{2}:[0-9]{2}$"
+_WS = r"[\t\n\r \x{85}\x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}]"
+_FORMULA = "^" + _WS + "*[=+@-]"
+_NEGATIVE = _WS + r"*-[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?"
 _MACROS = (
-    f"CREATE MACRO s(v) AS trim(coalesce(v, ''), {sql_text(_SPACE)})",
+    f"CREATE MACRO s(v) AS CASE WHEN regexp_matches(coalesce(v, ''), {sql_text(f'^{_WS}|{_WS}$')}) "
+    f"THEN trim(v, {sql_text(_SPACE)}) ELSE coalesce(v, '') END",
     f"CREATE MACRO is_num(t) AS regexp_full_match(t, {sql_text(_NUMBER)})",
     r"CREATE MACRO digits(t) AS replace(regexp_extract(t, '^-?([0-9]+(\.[0-9]+)?)', 1), '.', '')",
     r"CREATE MACRO places(t) AS length(regexp_extract(t, '\.([0-9]+)', 1)) - coalesce("
     r"try_cast(nullif(regexp_extract(t, '[eE]([+-]?[0-9]+)$', 1), '') AS BIGINT), 0)",
-    "CREATE MACRO num_scale(t) AS CASE WHEN replace(digits(t), '0', '') = '' THEN 0 "
+    "CREATE MACRO num_scale(t) AS CASE WHEN NOT contains(lower(t), 'e') "
+    "THEN length(rtrim(split_part(t, '.', 2), '0')) "
+    "WHEN replace(digits(t), '0', '') = '' THEN 0 "
     "ELSE greatest(0, places(t) - (length(digits(t)) - length(rtrim(digits(t), '0')))) END",
     "CREATE MACRO date_shape(t) AS regexp_full_match(t, '[0-9]{4}-[0-9]{2}-[0-9]{2}')",
-    "CREATE MACRO is_date(t) AS date_shape(t) AND left(t, 4) <> '0000' "
-    "AND try_cast(t AS DATE) IS NOT NULL",
+    "CREATE MACRO is_date(t) AS CASE WHEN date_shape(t) THEN left(t, 4) <> '0000' "
+    "AND try_cast(t AS DATE) IS NOT NULL ELSE false END",
     f"CREATE MACRO aware(t) AS right(t, 1) = 'Z' OR regexp_matches(t, {sql_text(_OFFSET)})",
     "CREATE MACRO moment(t) AS CASE "
     "WHEN is_date(t) THEN try_cast(t AS DATE)::TIMESTAMP "
@@ -55,35 +61,36 @@ _MACROS = (
     "ELSE try_cast(t AS TIMESTAMP) END END",
     "CREATE MACRO control(v) AS regexp_matches(coalesce(v, ''), "
     r"'[\x01-\x08\x0b\x0c\x0e-\x1f]')",
-    f"CREATE MACRO formula(v) AS starts_with(ltrim(coalesce(v, ''), {sql_text(_SPACE)}), '=') "
-    f"OR starts_with(ltrim(coalesce(v, ''), {sql_text(_SPACE)}), '+') "
-    f"OR starts_with(ltrim(coalesce(v, ''), {sql_text(_SPACE)}), '@') "
-    f"OR (starts_with(ltrim(coalesce(v, ''), {sql_text(_SPACE)}), '-') AND NOT "
-    f"regexp_full_match(ltrim(coalesce(v, ''), {sql_text(_SPACE)}), "
-    r"'-[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?'))",
+    f"CREATE MACRO formula(v) AS regexp_matches(coalesce(v, ''), {sql_text(_FORMULA)}) "
+    f"AND NOT regexp_full_match(v, {sql_text(_NEGATIVE)})",
 )
 _STATS = (
     "count(*) FILTER (WHERE {t} = '')",
     "count(*) FILTER (WHERE lower({t}) IN ('true', 'false'))",
-    "count(*) FILTER (WHERE is_date({t}))",
-    "count(*) FILTER (WHERE date_shape({t}) AND NOT is_date({t}))",
-    "count(*) FILTER (WHERE is_num({t}) AND num_scale({t}) = 0)",
-    "count(*) FILTER (WHERE is_num({t}) AND num_scale({t}) > 0)",
+    "count(*) FILTER (WHERE {d})",
+    "count(*) FILTER (WHERE {ds} AND NOT {d})",
+    "count(*) FILTER (WHERE {sc} = 0)",
+    "count(*) FILTER (WHERE {sc} > 0)",
     "count(DISTINCT {t}) FILTER (WHERE {t} <> '')",
-    "count(*) FILTER (WHERE lower({t}) IN " + _PLACEHOLDERS + ")",
-    "count(DISTINCT {t}) FILTER (WHERE lower({t}) IN " + _PLACEHOLDERS + ")",
-    "min({t}) FILTER (WHERE is_date({t}))",
-    "max({t}) FILTER (WHERE is_date({t}))",
-    "min(try_cast({t} AS DOUBLE)) FILTER (WHERE is_num({t}) AND num_scale({t}) = 0)",
-    "max(try_cast({t} AS DOUBLE)) FILTER (WHERE is_num({t}) AND num_scale({t}) = 0)",
-    "count(moment({t}))",
-    "count(*) FILTER (WHERE moment({t}) IS NOT NULL AND NOT date_shape({t}))",
-    "count(*) FILTER (WHERE moment({t}) IS NOT NULL AND NOT date_shape({t}) AND aware({t}))",
-    "strftime(min(moment({t})), '%Y-%m-%d')",
-    "strftime(max(moment({t})), '%Y-%m-%d')",
-    "coalesce(max(num_scale({t})) FILTER (WHERE is_num({t})), 0)",
+    "count(*) FILTER (WHERE {p})",
+    "count(DISTINCT {t}) FILTER (WHERE {p})",
+    "min({t}) FILTER (WHERE {d})",
+    "max({t}) FILTER (WHERE {d})",
+    "min(try_cast({t} AS DOUBLE)) FILTER (WHERE {sc} = 0)",
+    "max(try_cast({t} AS DOUBLE)) FILTER (WHERE {sc} = 0)",
+    "count({m})",
+    "count(*) FILTER (WHERE {m} IS NOT NULL AND NOT {ds})",
+    "count(*) FILTER (WHERE {m} IS NOT NULL AND NOT {ds} AND aware({t}))",
+    "strftime(min({m}), '%Y-%m-%d')",
+    "strftime(max({m}), '%Y-%m-%d')",
+    "coalesce(max({sc}), 0)",
     "bool_or(control({c}))",
     "bool_or(formula({c}))",
+)
+_DERIVED = (
+    "{t}, {c}, CASE WHEN is_num({t}) THEN num_scale({t}) END AS sc{i}, "
+    "date_shape({t}) AS ds{i}, is_date({t}) AS d{i}, moment({t}) AS m{i}, "
+    "lower({t}) IN " + _PLACEHOLDERS + " AS p{i}"
 )
 
 
@@ -124,6 +131,7 @@ class DuckDBColumnarConverter:
             },
         )
         connection.execute("SET TimeZone = 'UTC'")
+        connection.execute("SET enable_progress_bar = false")
         connection.execute(f"SET allowed_paths = [{sql_text(str(source))}]")
         connection.execute(f"SET allowed_directories = [{sql_text(str(workdir) + '/')}]")
         connection.execute("SET enable_external_access = false")
@@ -167,15 +175,25 @@ class DuckDBColumnarConverter:
     ) -> ColumnarConversion:
         source = f"read_parquet({sql_text(str(raw))})"
         stripped = ", ".join(f"s(c{index}) AS t{index}, c{index}" for index in range(len(headers)))
-        aggregates = [
-            template.format(t=f"t{index}", c=f"c{index}")
+        names = [
+            {
+                "i": index,
+                "t": f"t{index}",
+                "c": f"c{index}",
+                "sc": f"sc{index}",
+                "ds": f"ds{index}",
+                "d": f"d{index}",
+                "m": f"m{index}",
+                "p": f"p{index}",
+            }
             for index in range(len(headers))
-            for template in _STATS
         ]
+        aggregates = [template.format(**entry) for entry in names for template in _STATS]
+        derived = ", ".join(_DERIVED.format(**entry) for entry in names)
         blank_row = " AND ".join(f"t{index} = ''" for index in range(len(headers)))
         row = connection.execute(
             f"SELECT count(*), count(*) FILTER (WHERE {blank_row}), {', '.join(aggregates)} "
-            f"FROM (SELECT {stripped} FROM {source})"
+            f"FROM (SELECT {derived} FROM (SELECT {stripped} FROM {source}))"
         ).fetchone()
         if row is None:
             raise IngestionError("empty_table", "Include at least one data row.", 422)
@@ -236,6 +254,13 @@ class DuckDBColumnarConverter:
             v = value(index)
             kind = "datetime" if column.get("datetime") is True else str(column["type"])
             scale = min(scales[index], 38)
+            decimal = f"try_cast({v} AS DECIMAL(38, {scale}))"
+            if int(values[index][-3]) <= 18:
+                narrow = f"try_cast({v} AS DECIMAL(18, {int(values[index][-3])}))"
+                decimal = (
+                    f"CASE WHEN {narrow} IS NOT NULL THEN {narrow}::DECIMAL(38, {scale}) "
+                    f"ELSE {decimal} END"
+                )
             typed, valid = {
                 "integer": (
                     f"try_cast(nullif({v}, '') AS BIGINT)",
@@ -243,9 +268,9 @@ class DuckDBColumnarConverter:
                     f"AND try_cast({v} AS BIGINT) IS NOT NULL)",
                 ),
                 "decimal": (
-                    f"try_cast(nullif({v}, '') AS DECIMAL(38, {scale}))",
+                    f"CASE WHEN {v} <> '' THEN {decimal} END",
                     f"{v} = '' OR (is_num({v}) AND num_scale({v}) <= {scale} "
-                    f"AND try_cast({v} AS DECIMAL(38, {scale})) IS NOT NULL)",
+                    f"AND {decimal} IS NOT NULL)",
                 ),
                 "date": (f"try_cast(nullif({v}, '') AS DATE)", f"{v} = '' OR is_date({v})"),
                 "datetime": (f"moment({v})", f"{v} = '' OR moment({v}) IS NOT NULL"),
@@ -255,12 +280,19 @@ class DuckDBColumnarConverter:
                 ),
             }.get(kind, (f"nullif(t{index}, '')", "true"))
             expressions.append((typed, valid, kind))
-        checks = ", ".join(
-            f"min(file_row_number) FILTER (WHERE NOT ({valid}))" for _, valid, _ in expressions
+        staged = workdir / "staged.parquet"
+        staging = ", ".join(
+            f"{typed} AS v{index}, NOT ({valid}) AS b{index}"
+            for index, (typed, valid, _) in enumerate(expressions)
         )
+        connection.execute(
+            f"COPY (SELECT file_row_number AS r, {staging} FROM (SELECT file_row_number, "
+            f"{stripped} FROM read_parquet({sql_text(str(raw))}, file_row_number = true))) "
+            f"TO {sql_text(str(staged))} (FORMAT parquet, COMPRESSION uncompressed)"
+        )
+        checks = ", ".join(f"min(r) FILTER (WHERE b{index})" for index in range(len(headers)))
         first_bad = connection.execute(
-            f"SELECT {checks} FROM (SELECT file_row_number, {stripped} "
-            f"FROM read_parquet({sql_text(str(raw))}, file_row_number = true))"
+            f"SELECT {checks} FROM read_parquet({sql_text(str(staged))})"
         ).fetchone()
         errors: dict[str, str] = {}
         selections = []
@@ -271,10 +303,19 @@ class DuckDBColumnarConverter:
                 typed = f"nullif(t{index}, '')"
             selections.append(f"{typed} AS {quote_identifier(name)}")
         parquet = workdir / "typed.parquet"
-        connection.execute(
-            f"COPY (SELECT {', '.join(selections)} FROM (SELECT {stripped} FROM {source})) "
-            f"TO {sql_text(str(parquet))} (FORMAT parquet, COMPRESSION zstd)"
+        final = (
+            f"SELECT {', '.join(selections)} FROM (SELECT {stripped} FROM {source})"
+            if errors
+            else "SELECT "
+            + ", ".join(
+                f"v{index} AS {quote_identifier(name)}" for index, name in enumerate(headers)
+            )
+            + f" FROM read_parquet({sql_text(str(staged))})"
         )
+        connection.execute(
+            f"COPY ({final}) TO {sql_text(str(parquet))} (FORMAT parquet, COMPRESSION zstd)"
+        )
+        staged.unlink()
         raw.unlink()
         return ColumnarConversion(
             headers,

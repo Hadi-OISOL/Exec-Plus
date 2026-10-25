@@ -256,6 +256,7 @@ class DuckDBQueryExecutor:
                 "allow_unsigned_extensions": "false",
             },
         )
+        connection.execute("SET enable_progress_bar = false")
         cancelled = Event()
         closed = Event()
         guard = Lock()
