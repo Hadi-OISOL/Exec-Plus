@@ -53,7 +53,23 @@
 
 ## Measurements
 
-See the "Measured" section added after the benchmark run; reproduce with
+October 25, local machine (8 cores, 14 GiB RAM, NVMe), DuckDB 1.5.6, ingest and queries
+each in a fresh process, ingest 2 GB / 4 threads, queries 2 GB / 4 threads. Synthetic CSV with
+8 columns (2 identifiers, region, date, product, 2-decimal amount incl. negatives, integer,
+note). Query times are on a warm local Parquet file (no object-store download), 3 runs.
+Every answer equalled exact integer-cent arithmetic computed while generating the file.
+
+| Rows | CSV | Parquet | Ingest | Ingest peak RSS | Query peak RSS | SUM | AVG | Group by region | Top-10 customers (100k groups) | Monthly trend |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1,000,000 | 104 MB | 12.5 MB | 6.7 s | 540 MiB | 175 MiB | 0.04 s | 0.04 s | 0.05 s | 0.13 s | 0.07 s (0.31 first) |
+| 10,000,000 | 1.05 GB | 125 MB | 61.4 s | 2,063 MiB | 408 MiB | 0.16 s | 0.18 s | 0.20 s | 0.80 s | 0.37 s (0.62 first) |
+
+Ingest phases at 1M rows: text stage ≈0.8 s, validation + profile aggregates ≈4 s, duplicate
+count 0.3 s, typed staging ≈1 s, final Parquet 0.3 s. DuckDB's VARCHAR → `DECIMAL(38,s)` cast was
+~250× slower than `DECIMAL(18,s)`, so values are cast narrow-then-widened when they fit.
+The legacy path cannot load these sizes at all (200,000-row / 2,000,000-cell bound).
+
+Reproduce with
 `PYTHONPATH=apps/api/src python scripts/benchmark_columnar.py --rows 1000000 10000000`
 (or `EXECPLUS_RUN_BENCHMARKS=1 pytest -m benchmark`). Data is generated on the fly.
 
