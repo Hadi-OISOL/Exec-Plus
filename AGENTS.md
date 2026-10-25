@@ -40,6 +40,30 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### October 25 (evening) — goal-aware agents, spelled dates and eight-agent merge live
+
+- Release **33acf3748e711cee** (commit 0114968; merges 259e856) is active on unchanged **0034**.
+  An earlier same-day candidate eb771f71bee9e2d6 was activated first; the live check found two
+  defects fixed in 0114968. Checked backups 20261025T135422Z / 20261025T140358Z (pre) and
+  20261025T140514Z (post, checksums OK). Kit: `data/verification/2026-10-27-claude-release/`
+  (unchanged-0034 variant; check helpers must sit in the upload root, not `helpers/`).
+- Trigger: the owner's "AI Leads — Master" upload failed with a posted_at date error and gave no
+  goal-oriented answer. New: profile-v6 spelled dates ("Thu, 02 Apr 2026"; ambiguous 02/04/2026
+  stays invalid) with display-only bad cells no longer blocking answers; persona ranking
+  (`domain/goal_ranking.py`, "hottest lead for a software engineer") and `dataset-purpose-v1`;
+  answer reviewer (`domain/answer_review.py`); `hypotheses-v1` with private like/dislike;
+  "Your data is ready" card, live per-analyst cards and Trends analyst (shared analyst runs);
+  multi-sheet listing/import (`r:xlsx#n`); big columnar files for understanding/guidance/patterns
+  with labelled fixed-seed samples; MySQL TLS-off fix; 500 MiB refresh staging via upload
+  sessions; record lists sortable by date; API 12g/tmpfs 4g, jobs 6g.
+- Evidence: merged targeted backend 576 + 259 + 206 + 140 passed / 0 failed (no single full-suite
+  run on the merged commit; analyst branch full suite 3,955/0 at 95%); web 141/141, tsc/eslint,
+  next build; browser specs per agent branch only. Live fictional leads check: upload, purpose,
+  hypotheses, trend analyst, sheets, SWE ranking, grouped average and date-sorted list pass.
+- Limits: hypotheses on tiny files can group by free-text columns; reviewer misses dropped values
+  that name no field; existing v5 uploads keep posted_at as text until re-uploaded. RD-Agent
+  pilot is offline research only (`docs/reports/rd-agent-pilot.md`), not in the product.
+
 ### October 26 — big-data intake, all formats, DB connectors and auto dashboards live
 
 - Release **f42cbca87ff37e6f** (code 835cec1; test-only follow-up 7d7257f) is active on
