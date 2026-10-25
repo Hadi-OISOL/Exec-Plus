@@ -79,6 +79,19 @@ class MultivariateInput(SourceInput):
         return self
 
 
+class PredictionInput(Input):
+    name: str = Field(min_length=1, max_length=100)
+    revision_id: UUID
+    understanding_id: UUID
+    kind: Literal["robust_distribution"] = "robust_distribution"
+    model: Literal["prediction-model-v1"] = "prediction-model-v1"
+    target_column: str = Field(min_length=1, max_length=200)
+    input_columns: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(
+        default_factory=list, max_length=30
+    )
+    positive_label: str | None = Field(default=None, min_length=1, max_length=200)
+
+
 class CalendarInput(SourceInput):
     kind: Literal["robust_distribution"] = "robust_distribution"
     metric: str = Field(min_length=1, max_length=200)
@@ -550,6 +563,20 @@ async def multivariate_anomalies(
 ) -> object:
     return await analyses.create(
         actor, workspace_id, dataset_id, upload_id, optional_raw(body, "target_false_alarm_rate")
+    )
+
+
+@router.post(SOURCE + "/prediction-models", status_code=201)
+async def prediction_models(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    upload_id: UUID,
+    body: PredictionInput,
+    actor: Actor,
+    analyses: Service,
+) -> object:
+    return await analyses.create(
+        actor, workspace_id, dataset_id, upload_id, body.model_dump(mode="json")
     )
 
 
