@@ -120,6 +120,44 @@ class S3ColumnarStore:
             connection.close()
         return tuple(tuple(_text(value) for value in row) for row in rows)
 
+    def _fetch(self, sql: str, parameters: list[object]) -> list[tuple[object, ...]]:
+        connection = duckdb.connect(config={"enable_external_access": "true"})
+        try:
+            return connection.execute(sql, parameters).fetchall()
+        except duckdb.BinderException as error:
+            if "file_row_number" in str(error):
+                raise IngestionError(
+                    "large_dataset_step",
+                    "A column named file_row_number prevents this step on big files. "
+                    "Rename it and upload again.",
+                    422,
+                ) from None
+            raise
+        finally:
+            connection.close()
+
+    def values(self, path: str, column: str, limit: int) -> tuple[str, ...]:
+        name = '"' + column.replace('"', '""') + '"'
+        rows = self._fetch(
+            f"SELECT {name} FROM read_parquet(?, file_row_number=true) WHERE {name} IS NOT NULL "
+            f"GROUP BY {name} ORDER BY min(file_row_number) LIMIT ?",
+            [path, limit],
+        )
+        return tuple(_text(row[0]) for row in rows)
+
+    def missing(self, path: str, column: str) -> int:
+        name = '"' + column.replace('"', '""') + '"'
+        rows = self._fetch(f"SELECT count(*) - count({name}) FROM read_parquet(?)", [path])
+        return int(str(rows[0][0]))
+
+    def rows_at(self, path: str, positions: tuple[int, ...]) -> tuple[tuple[str, ...], ...]:
+        rows = self._fetch(
+            "SELECT * EXCLUDE (file_row_number) FROM read_parquet(?, file_row_number=true) "
+            "WHERE file_row_number IN (SELECT unnest(?::BIGINT[])) ORDER BY file_row_number",
+            [path, list(positions)],
+        )
+        return tuple(tuple(_text(value) for value in row) for row in rows)
+
     def _prune(self, keep: Path) -> None:
         files = sorted(
             (item for item in self.cache_dir.glob("*.parquet") if item != keep),

@@ -12,6 +12,7 @@ from execplus.application.ports import ColumnarStore, FileParser, ObjectStorage
 from execplus.domain.columnar import ColumnarManifest, ColumnarTable
 from execplus.domain.ingestion import FileStructure, IngestionError, Upload
 from execplus.domain.profiling import Revision, TableData, reconstruct
+from execplus.domain.sampling import parse_spec
 
 MATERIALIZE_LIMIT = 100_000
 
@@ -100,4 +101,13 @@ def revision_table(
         path,
         rows,
         lambda limit: store.head(path(), limit),
+        store,
     )
+
+
+def sampled_table(table: TableData, spec: str) -> TableData:
+    """The recorded fixed-seed sample of a Parquet-backed snapshot."""
+    if not isinstance(table, ColumnarTable):
+        raise IngestionError("lineage_mismatch", "The sampled snapshot is unavailable.", 409)
+    seed, size = parse_spec(spec)
+    return table.sample(size, seed)

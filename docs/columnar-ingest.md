@@ -38,10 +38,49 @@
   50M rows, 2 GB memory, 4 threads, 120 s, spill up to 20 GB.
 - **Replay** reopens the same revision → same Parquet (checksum-verified) → same SQL → same
   result. Integration test deletes the cache before replay to force a verified re-download.
-- **Row-level features** (understanding, cleaning, guidance, patterns, label matching…) read the
-  original file again through the same reader (`StructuredFileParser` routes `r:` formats), so
-  they see exactly the strings the Parquet was built from, but only up to 100,000 rows; above
-  that they return `large_dataset_step` instead of loading millions of rows into Python.
+- **Row-level features** read the original file again through the same reader
+  (`StructuredFileParser` routes `r:` formats) only when they really need every original
+  string, up to 100,000 rows (200,000 rows / 2,000,000 cells for cleaning and cleaned
+  revisions, the legacy query budget). Big files use the paths in the next section.
+
+## Big files: exact checks and disclosed samples
+
+| Feature | Profile-v5/v6 file (samples only above the bound) | Exact or sampled |
+|---|---|---|
+| Data understanding (overview, save) | Lazy Parquet table; the one-row-per-order check uses the row count | Exact |
+| Governed checks (missing-value policy, unit columns) | `ColumnarTable.missing` / `values` over the Parquet | Exact |
+| Guidance label lists, label-variant (quality) notes, filter-label matching | Distinct values from Parquet (first-seen order, ≤100,000 labels; matching is skipped above that and the exact filter runs as written) | Exact |
+| Pattern scan: numeric relationships, group separation score | Fixed-seed sample of 10,000 rows | Sampled, labelled |
+| Pattern scan: group averages, group row counts, category counts and association | One extra governed query `SELECT cats…, COUNT(*), COUNT(m), SUM(m)… GROUP BY cats` over every row | Exact |
+| Compare groups / selected-group comparison | Fixed-seed sample of 10,000 rows | Sampled, labelled |
+| Cleaning preview | Fixed-seed sample of 10,000 original rows (raw strings) | Sampled, labelled |
+| Cleaning apply | Full file up to 200,000 rows / 2,000,000 cells; above that a clear `large_dataset_step` | Exact |
+
+- **Sample method** (`domain/sampling.py`, `floyd-splitmix64-v1`, seed 20261026): Floyd's
+  algorithm picks positions uniformly without replacement, driven by a splitmix64 generator,
+  so the same file always gives the same sample on any Python or DuckDB version. Positions
+  are file row numbers of the verified Parquet (`rows_at`) or of the original file (cleaning).
+- **Receipts.** A sampled query records `"sample": "floyd-splitmix64-v1/20261026/10000"` inside
+  its source; generic replay (`/queries/{id}/replay`) rebuilds the same sample from the
+  checksum-verified Parquet. Pattern evidence adds `totals_query_id` for the exact totals
+  receipt; reopening replays both. Old evidence has no sample and is unchanged.
+- **Query grammar.** The validator now also accepts several `COUNT(*)`/`COUNT(field)`/
+  `SUM(field)` totals in one query when nothing else is computed (no DISTINCT, products,
+  CASE or subqueries). Every other plan keeps the one-aggregation rule.
+- **Labels.** Pattern results carry `coverage.sample` and a limitation sentence ("Based on a
+  fixed random sample of 10,000 of N rows …"); sampled findings carry a note; exact group and
+  category findings say they use every row. The web shows the sample note above the
+  results and in the cleaning preview.
+- **Why cleaning apply is not columnar yet.** A cleaned revision is rebuilt from the original
+  file and recipe by many callers (refresh, joins, brief, restore, restricted views) and is
+  queried in memory. Writing cleaned revisions as their own Parquet would need all of those
+  to change, so apply keeps the in-memory path within the legacy query budget.
+
+Measured October 25 on the synthetic 300,000-row test file (local machine, isolated
+PostgreSQL/MinIO): upload + ingest ≈2 s; understanding overview 0.09 s, save 0.03 s;
+guidance answers 0.1–0.6 s; pattern scan 1.9 s, reopen 2.7 s; sampled cleaning preview
+1.6 s; cleaning apply of a 150,000-row file 5.4 s. Before this change every one of these
+steps on that file returned `large_dataset_step` (patterns refused above 10,000 rows).
 - **Chunked uploads.** `UploadSessionService.process` calls `WorkspaceService.upload` on the
   assembled temp file, so big files are converted in the worker after `complete`.
 
@@ -91,5 +130,7 @@ Reproduce with
   not numbers; values like `.5`, `1.`, `1_000` in numeric columns or `20240101` in date columns
   are refused at query time; DuckDB skips fully empty lines that the legacy parser rejected.
 - Joins, restricted (row/column policy) views and cleaned child revisions use the legacy
-  in-memory path (≤ legacy bounds). Upload size is still capped by the Phase 1 settings.
+  in-memory path (≤ legacy bounds). Spacing-only label variants are not reported for profile-v5/v6
+  files because the Parquet text is already trimmed (queries treat them as one label).
+  Upload size is still capped by the Phase 1 settings.
 - Parquet adds storage (≈12 % of CSV size in the benchmark) and backup volume.

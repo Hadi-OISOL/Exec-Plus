@@ -153,6 +153,12 @@ class ColumnarStore(Protocol):
 
     def head(self, path: str, limit: int) -> tuple[tuple[str, ...], ...]: ...
 
+    def values(self, path: str, column: str, limit: int) -> tuple[str, ...]: ...
+
+    def missing(self, path: str, column: str) -> int: ...
+
+    def rows_at(self, path: str, positions: tuple[int, ...]) -> tuple[tuple[str, ...], ...]: ...
+
     def delete(self, upload: "Upload") -> None: ...
 
 
@@ -162,6 +168,10 @@ class ColumnarConverter(Protocol):
 
 class FileParser(Protocol):
     def read_table(self, content: BinaryIO, format: str) -> TableData: ...
+
+    def read_sample(
+        self, content: BinaryIO, format: str, positions: tuple[int, ...], total: int
+    ) -> TableData: ...
 
     def parse(
         self,

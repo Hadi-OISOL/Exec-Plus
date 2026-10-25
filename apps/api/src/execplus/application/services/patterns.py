@@ -13,6 +13,8 @@ from execplus.application.progress import activity
 from execplus.application.services.analytics import AnalyticsService, UnitOfWork
 from execplus.application.services.dataset_access import authorize_sources, dataset_access
 from execplus.application.services.forecasts import read_complete
+from execplus.application.validated_tables import sampled_table
+from execplus.domain import sampling
 from execplus.domain.cohort_comparison import (
     EVIDENCE_VERSION as COHORT_EVIDENCE_VERSION,
 )
@@ -24,6 +26,7 @@ from execplus.domain.cohort_comparison import (
     cohort_request,
     cohort_result,
 )
+from execplus.domain.columnar import ColumnarTable
 from execplus.domain.decision_analysis import checksum
 from execplus.domain.errors import ClarificationRequiredError
 from execplus.domain.evidence import receipt
@@ -36,10 +39,55 @@ from execplus.domain.group_relationships import (
 )
 from execplus.domain.ingestion import IngestionError, User
 from execplus.domain.jobs import EventStatus, JobStage
-from execplus.domain.models import CalculationLineage, QueryResult
-from execplus.domain.patterns import VERSION, pattern_plan, pattern_request, pattern_result
+from execplus.domain.models import CalculationLineage, QueryPlan, QueryResult, WorkspaceScope
+from execplus.domain.patterns import (
+    MAX_ROWS,
+    REQUEST_VERSION,
+    VERSION,
+    pattern_plan,
+    pattern_request,
+    pattern_result,
+)
+from execplus.domain.profiling import TableData
+from execplus.domain.semantics import DatasetView
 
 EVIDENCE_VERSION = "pattern-evidence-v1"
+
+
+def with_sample(table: TableData, request: dict[str, Any]) -> dict[str, Any]:
+    """Big Parquet snapshots scan a disclosed fixed-seed sample of row-level evidence."""
+    if isinstance(table, ColumnarTable) and table.row_count > MAX_ROWS:
+        return {
+            **request,
+            "sample": dict(spec=sampling.spec(MAX_ROWS), source_rows=table.row_count),
+        }
+    return request
+
+
+def sampled_input(
+    table: TableData, view: DatasetView, request: dict[str, Any]
+) -> tuple[TableData, DatasetView]:
+    sample = request.get("sample")
+    if not sample:
+        return table, view
+    return sampled_table(table, sample["spec"]), sampled_view(view, request)
+
+
+def sampled_view(view: DatasetView, request: dict[str, Any]) -> DatasetView:
+    sample = request.get("sample")
+    if not sample:
+        return view
+    return replace(
+        view, sources=tuple({**source, "sample": sample["spec"]} for source in view.sources)
+    )
+
+
+def needs_totals(request: dict[str, Any]) -> bool:
+    return (
+        bool(request.get("sample"))
+        and request.get("version") == REQUEST_VERSION
+        and bool(request["categories"])
+    )
 
 
 class PatternService:
@@ -60,13 +108,24 @@ class PatternService:
                 )
 
     def _result(
-        self, value: QueryResult, request: dict[str, Any], *, grouped: bool
+        self,
+        value: QueryResult,
+        request: dict[str, Any],
+        *,
+        grouped: bool,
+        totals: QueryResult | None = None,
     ) -> dict[str, Any]:
         if request.get("version") == "cohort-comparison-request-v1":
-            return cohort_result(value, request, self.statistics.engine_version)
+            return self._disclosed(
+                cohort_result(value, request, self.statistics.engine_version), value, request
+            )
         if grouped:
-            return group_relationship_result(
-                value, request, self.statistics.engine_version, self.statistics.correlations
+            return self._disclosed(
+                group_relationship_result(
+                    value, request, self.statistics.engine_version, self.statistics.correlations
+                ),
+                value,
+                request,
             )
         return pattern_result(
             value,
@@ -74,7 +133,51 @@ class PatternService:
             self.statistics.engine_version,
             self.statistics.correlations,
             self.statistics.categorical_association,
+            totals,
         )
+
+    @staticmethod
+    def _disclosed(
+        result: dict[str, Any], value: QueryResult, request: dict[str, Any]
+    ) -> dict[str, Any]:
+        sample = request.get("sample")
+        if not sample:
+            return result
+        return {
+            **result,
+            "coverage": {
+                **result["coverage"],
+                "source_rows": sample["source_rows"],
+                "sample": dict(spec=sample["spec"], sampled_rows=value.records_analyzed),
+            },
+            "limitations": [
+                sampling.label(value.records_analyzed, sample["source_rows"])
+                + " Every figure in this comparison uses only the sampled rows.",
+                *result["limitations"],
+            ],
+        }
+
+    async def _run(
+        self,
+        actor: User,
+        plan: QueryPlan,
+        lineage: CalculationLineage,
+        scope: WorkspaceScope,
+        table: TableData,
+        view: DatasetView,
+    ) -> QueryResult:
+        await activity(JobStage.QUERY, EventStatus.STARTED)
+        try:
+            value = await self.analytics.executor.execute(plan, scope, table, view)
+        except (Exception, asyncio.CancelledError):
+            self.analytics._persist(
+                actor, replace(lineage, receipt=receipt(plan, view.sources, None))
+            )
+            await activity(JobStage.QUERY, EventStatus.FAILED)
+            raise
+        self.analytics._persist(actor, replace(lineage, receipt=receipt(plan, view.sources, value)))
+        await activity(JobStage.QUERY, EventStatus.COMPLETED)
+        return value
 
     async def discover(
         self,
@@ -92,14 +195,16 @@ class PatternService:
             lambda: self.analytics.descriptive_snapshot(actor, wid, did, uid)
         )
         grouped = group_by is not None
-        request = (
+        request = with_sample(
+            table,
             cohort_request(context, table, target[0], target[1], columns)
             if target is not None
             else group_relationship_request(context, table, columns, group_by)
             if group_by is not None
-            else pattern_request(context, table, columns)
+            else pattern_request(context, table, columns),
         )
         view = context.view
+        run_table, run_view = sampled_input(table, view, request)
         plan = (
             cohort_plan
             if target is not None
@@ -112,7 +217,7 @@ class PatternService:
             wid,
             did,
             context.name,
-            table.row_count,
+            run_table.row_count,
             "Selected pattern fields",
             "analysis",
             (),
@@ -125,18 +230,27 @@ class PatternService:
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
         )
         self._current(actor, wid, did, uid)
-        await activity(JobStage.QUERY, EventStatus.STARTED)
-        try:
-            value = await self.analytics.executor.execute(plan, scope, table, view)
-        except (Exception, asyncio.CancelledError):
-            self.analytics._persist(
-                actor, replace(lineage, receipt=receipt(plan, view.sources, None))
+        value = await self._run(actor, plan, lineage, scope, run_table, run_view)
+        totals = None
+        totals_plan = None
+        if needs_totals(request):
+            totals_plan = pattern_plan(scope, did, view, request, totals=True)
+            totals = await self._run(
+                actor,
+                totals_plan,
+                replace(
+                    lineage,
+                    query_id=totals_plan.query_id,
+                    records_analyzed=table.row_count,
+                    sql=totals_plan.sql,
+                ),
+                scope,
+                table,
+                view,
             )
-            await activity(JobStage.QUERY, EventStatus.FAILED)
-            raise
-        self.analytics._persist(actor, replace(lineage, receipt=receipt(plan, view.sources, value)))
-        await activity(JobStage.QUERY, EventStatus.COMPLETED)
-        result = await read_complete(lambda: self._result(value, request, grouped=grouped))
+        result = await read_complete(
+            lambda: self._result(value, request, grouped=grouped, totals=totals)
+        )
         await read_complete(
             lambda: self.analytics.recheck_description(actor, wid, did, uid, view.sources)
         )
@@ -157,6 +271,7 @@ class PatternService:
             result=result,
             request_checksum=checksum(request),
             result_checksum=checksum(result),
+            **({"totals_query_id": str(totals_plan.query_id)} if totals_plan else {}),
         )
 
     async def compare_cohort(
@@ -172,6 +287,34 @@ class PatternService:
         return await self.discover(
             actor, wid, did, uid, columns, target=(target_column, target_value)
         )
+
+    def _check_record(
+        self,
+        actor: User,
+        wid: UUID,
+        did: UUID,
+        plan: QueryPlan,
+        view: DatasetView,
+        invalid: IngestionError,
+    ) -> None:
+        with self.uow() as repo:
+            repo.membership(wid, actor.id)
+            record = repo.query_execution(wid, plan.query_id)
+            if record.actor_id != actor.id or record.aggregation != "analysis":
+                raise IngestionError(
+                    "not_found", "The private pattern evidence is unavailable.", 404
+                )
+            expected = receipt(plan, view.sources, None)
+            if (
+                record.dataset_id != did
+                or record.sql != plan.sql
+                or record.receipt.get("outcome") != "executed"
+                or any(
+                    record.receipt.get(key) != expected[key]
+                    for key in ("version", "sources", "parameters")
+                )
+            ):
+                raise invalid
 
     async def reopen(self, actor: User, wid: UUID, evidence: dict[str, Any]) -> dict[str, Any]:
         invalid = IngestionError(
@@ -205,7 +348,8 @@ class PatternService:
             _, scope, table, view = await read_complete(
                 lambda: self.analytics.context_at(actor, wid, source)
             )
-            request = (
+            request = with_sample(
+                table,
                 cohort_request(
                     context,
                     table,
@@ -226,37 +370,31 @@ class PatternService:
                     table,
                     tuple(evidence["request"]["selected"]),
                     selection_version=evidence["request"].get("selection_version"),
-                )
+                ),
             )
             if request != evidence["request"]:
                 raise invalid
-            qid = UUID(evidence["query_id"])
             plan = replace(
                 (cohort_plan if cohort else group_relationship_plan if grouped else pattern_plan)(
                     scope, did, view, request
                 ),
-                query_id=qid,
+                query_id=UUID(evidence["query_id"]),
             )
-            with self.uow() as repo:
-                repo.membership(wid, actor.id)
-                record = repo.query_execution(wid, qid)
-                if record.actor_id != actor.id or record.aggregation != "analysis":
-                    raise IngestionError(
-                        "not_found", "The private pattern evidence is unavailable.", 404
-                    )
-                expected = receipt(plan, view.sources, None)
-                if (
-                    record.dataset_id != did
-                    or record.sql != plan.sql
-                    or record.receipt.get("outcome") != "executed"
-                    or any(
-                        record.receipt.get(key) != expected[key]
-                        for key in ("version", "sources", "parameters")
-                    )
-                ):
-                    raise invalid
-            value, _ = await self.analytics.replay(actor, wid, qid)
-            result = await read_complete(lambda: self._result(value, request, grouped=grouped))
+            self._check_record(actor, wid, did, plan, sampled_view(view, request), invalid)
+            value, _ = await self.analytics.replay(actor, wid, plan.query_id)
+            totals = None
+            if needs_totals(request):
+                totals_plan = replace(
+                    pattern_plan(scope, did, view, request, totals=True),
+                    query_id=UUID(evidence["totals_query_id"]),
+                )
+                self._check_record(actor, wid, did, totals_plan, view, invalid)
+                totals, _ = await self.analytics.replay(actor, wid, totals_plan.query_id)
+            elif "totals_query_id" in evidence:
+                raise invalid
+            result = await read_complete(
+                lambda: self._result(value, request, grouped=grouped, totals=totals)
+            )
             if result != evidence["result"] or checksum(result) != evidence["result_checksum"]:
                 raise invalid
             with self.uow() as repo:

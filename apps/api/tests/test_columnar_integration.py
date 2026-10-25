@@ -22,6 +22,7 @@ def enable_columnar(env, tmp_path):
         extension_directory=Path("/nonexistent"), memory_limit_mb=1024, threads=2
     )
     env.runtime.analytics.columnar = store
+    env.runtime.understanding.columnar = store
     return store
 
 

@@ -154,6 +154,14 @@ def _validate_extremum(query: exp.Select) -> None:
         raise UnsafeQueryError("The extremum must use the same field, table and filters")
 
 
+def _plain_totals(query: exp.Select, aggregates: list[exp.AggFunc]) -> bool:
+    """Several exact COUNT/SUM totals of bare fields, with nothing else computed."""
+    return query.find(exp.Subquery, exp.Distinct, exp.Mul, exp.Case, exp.If) is None and all(
+        isinstance(node, exp.Count | exp.Sum) and isinstance(node.this, exp.Column | exp.Star)
+        for node in aggregates
+    )
+
+
 def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
     try:
         statements = parse(sql, read="duckdb")
@@ -198,7 +206,8 @@ def validated_query(sql: str, tables: set[str], params: int) -> exp.Select:
         for node in query.find_all(exp.Cast)
     ):
         raise UnsafeQueryError("Only a calendar period or field may be converted to a date")
-    if len(list(query.find_all(exp.AggFunc))) > 1 + _calendar_days(query):
+    aggregates = list(query.find_all(exp.AggFunc))
+    if len(aggregates) > 1 + _calendar_days(query) and not _plain_totals(query, aggregates):
         raise UnsafeQueryError("Only one verified aggregation per query is supported")
     references = list(query.find_all(exp.Table))
     if not references or any(

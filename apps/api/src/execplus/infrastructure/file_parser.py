@@ -16,6 +16,7 @@ from defusedxml.ElementTree import iterparse
 from openpyxl import load_workbook
 from openpyxl.utils.cell import coordinate_to_tuple
 
+from execplus.domain.compute import QueryBudget
 from execplus.domain.ingestion import (
     FileStructure,
     IngestionError,
@@ -23,12 +24,18 @@ from execplus.domain.ingestion import (
     validate_filename,
 )
 from execplus.domain.profiling import TableData
-from execplus.infrastructure.columnar.source_rows import is_reader_format, read_source_table
+from execplus.infrastructure.columnar.source_rows import (
+    is_reader_format,
+    read_source_rows_at,
+    read_source_table,
+)
 
 MAX_BYTES = 20 * 1024 * 1024
 MAX_CELLS = 1_000_000
 MAX_COLUMNS = 1000
 MAX_ROWS = 100_000
+READER_QUERY_BUDGET_ROWS = QueryBudget().input_rows
+READER_QUERY_BUDGET_CELLS = QueryBudget().input_cells
 MIME_TYPES = {
     ".csv": {"text/csv", "application/csv", "text/plain"},
     ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
@@ -172,6 +179,24 @@ class StructuredFileParser:
             self.extension_directory,
             "reject" if self.reject_formulas else "keep_as_text",
             MAX_ROWS,
+            extended_limit=READER_QUERY_BUDGET_ROWS,
+            max_cells=READER_QUERY_BUDGET_CELLS,
+        )
+
+    def read_sample(
+        self, content: BinaryIO, format: str, positions: tuple[int, ...], total: int
+    ) -> TableData:
+        if self.extension_directory is None or not is_reader_format(format):
+            raise IngestionError(
+                "unsupported_format", "This stored file type cannot be sampled here.", 409
+            )
+        return read_source_rows_at(
+            content,
+            format,
+            self.extension_directory,
+            "reject" if self.reject_formulas else "keep_as_text",
+            positions,
+            total,
         )
 
     def read_table(self, content: BinaryIO, format: str) -> TableData:

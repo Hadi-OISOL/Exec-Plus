@@ -10,10 +10,11 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
+from typing import Any, Protocol
 
 from execplus.domain.ingestion import IngestionError
 from execplus.domain.profiling import PROFILE_V6, TableData, _identifier_header
+from execplus.domain.sampling import SEED, sample_positions
 
 COLUMNAR_FORMAT = "parquet-v1"
 _CALENDAR_BOUNDS = {"day": 31, "dayofmonth": 31, "month": 12, "monthofyear": 12, "year": 9999}
@@ -93,6 +94,14 @@ class ColumnarConversion:
     errors: dict[str, str]
 
 
+class ParquetReader(Protocol):
+    def values(self, path: str, column: str, limit: int) -> tuple[str, ...]: ...
+
+    def missing(self, path: str, column: str) -> int: ...
+
+    def rows_at(self, path: str, positions: tuple[int, ...]) -> tuple[tuple[str, ...], ...]: ...
+
+
 class ColumnarTable(TableData):
     """A snapshot queried from typed Parquet; legacy row consumers get the original strings."""
 
@@ -101,6 +110,7 @@ class ColumnarTable(TableData):
     _materialize: Callable[[], TableData]
     _head: Callable[[int], tuple[tuple[str, ...], ...]]
     _rows: tuple[tuple[str, ...], ...] | None
+    _reader: ParquetReader | None
 
     def __init__(
         self,
@@ -109,7 +119,9 @@ class ColumnarTable(TableData):
         parquet_path: Callable[[], str],
         materialize: Callable[[], TableData],
         head: Callable[[int], tuple[tuple[str, ...], ...]] | None = None,
+        reader: ParquetReader | None = None,
     ) -> None:
+        object.__setattr__(self, "_reader", reader)
         object.__setattr__(self, "headers", headers)
         object.__setattr__(self, "manifest", manifest)
         object.__setattr__(self, "_parquet_path", parquet_path)
@@ -140,6 +152,26 @@ class ColumnarTable(TableData):
 
     def parquet_path(self) -> str:
         return self._parquet_path()
+
+    def _scan(self) -> ParquetReader:
+        if self._reader is None:
+            raise IngestionError(
+                "storage_unavailable", "The columnar snapshot is unavailable.", 503
+            )
+        return self._reader
+
+    def values(self, name: str, limit: int) -> tuple[str, ...]:
+        """Exact distinct non-missing values over every row, first-seen order, at most `limit`."""
+        return self._scan().values(self.parquet_path(), name, limit)
+
+    def missing(self, name: str) -> int:
+        """Exact count of missing cells over every row."""
+        return self._scan().missing(self.parquet_path(), name)
+
+    def sample(self, size: int, seed: int = SEED) -> TableData:
+        """A reproducible uniform sample of rows as canonical text, kept in file order."""
+        positions = sample_positions(self.row_count, size, seed)
+        return TableData(self.headers, self._scan().rows_at(self.parquet_path(), positions))
 
     def checksum(self) -> str:
         return self.manifest.sha256
