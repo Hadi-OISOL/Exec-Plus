@@ -29,6 +29,7 @@ def test_connector_upgrade_preserves_existing_rows(integration):
         "external_identities",
         "upload_sessions",
         "user_storage_quotas",
+        "auto_dashboards",
     }
 
     def snapshot():

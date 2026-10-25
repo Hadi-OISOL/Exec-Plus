@@ -1584,3 +1584,32 @@ user_storage_quotas = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False),
     CheckConstraint("quota_bytes >= 0", name="user_storage_quota_bounds"),
 )
+auto_dashboards = Table(
+    "auto_dashboards",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("workspace_id", Uuid, nullable=False),
+    Column("dataset_id", Uuid, nullable=False),
+    Column("upload_id", Uuid, nullable=False),
+    Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("number", Integer, nullable=False),
+    Column("shared", Boolean, nullable=False),
+    Column("revision_id", Uuid, nullable=False),
+    Column("payload", JSON, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["workspace_id", "dataset_id", "upload_id"],
+        ["uploads.workspace_id", "uploads.dataset_id", "uploads.id"],
+        name="auto_dashboard_upload",
+    ),
+    UniqueConstraint(
+        "workspace_id",
+        "dataset_id",
+        "upload_id",
+        "owner_id",
+        "number",
+        name="auto_dashboard_version",
+    ),
+    CheckConstraint("number >= 1", name="auto_dashboard_number"),
+    Index("auto_dashboard_upload_time", "workspace_id", "dataset_id", "upload_id", "created_at"),
+)
