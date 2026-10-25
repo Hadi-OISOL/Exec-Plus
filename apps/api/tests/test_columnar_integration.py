@@ -6,10 +6,9 @@ checks the stored manifest, exact grouped sums, receipt replay and legacy upload
 
 from decimal import Decimal
 
-from test_workspace_integration import dataset, identity, upload, workspace
-
 from execplus.infrastructure.columnar.converter import DuckDBColumnarConverter
 from execplus.infrastructure.columnar.store import S3ColumnarStore
+from test_workspace_integration import dataset, identity, upload, workspace
 
 
 def enable_columnar(env, tmp_path):

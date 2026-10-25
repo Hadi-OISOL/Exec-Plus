@@ -15,6 +15,7 @@ import random
 import statistics
 import sys
 import time
+from collections.abc import Callable
 from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any
@@ -138,7 +139,7 @@ async def _queries(
     with localcontext() as context:
         context.prec = 50
         average = (Decimal(expected["total"]) / 100 / expected["rows"]).quantize(Decimal("1e-12"))
-    checks = {
+    checks: dict[str, tuple[MetricRequest, Callable[[Any], bool]]] = {
         "sum": (
             MetricRequest("amount", AggregationKind.SUM),
             lambda rows: _cents(rows[0][0]) == expected["total"],

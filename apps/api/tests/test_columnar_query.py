@@ -7,12 +7,14 @@ typed-Parquet snapshot, plus a 200,000-row exact check and conversion-error refu
 import csv
 import random
 from dataclasses import replace
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 
 from execplus.application.services.compute import ComputeBroker, ComputeEngine
+from execplus.application.validated_tables import revision_table
 from execplus.domain.columnar import ColumnarManifest, ColumnarTable
 from execplus.domain.compute import (
     ColumnarBudget,
@@ -21,8 +23,9 @@ from execplus.domain.compute import (
     QueryBudget,
 )
 from execplus.domain.errors import QueryDataError, UnsafeQueryError
+from execplus.domain.ingestion import IngestionError, Upload
 from execplus.domain.models import WorkspaceScope
-from execplus.domain.profiling import PROFILE_V5, TableData, profile_for
+from execplus.domain.profiling import PROFILE_V5, Revision, TableData, profile_for
 from execplus.domain.semantics import (
     AggregationKind,
     FilterOperator,
@@ -74,9 +77,7 @@ def columnar_snapshot(tmp_path, headers, rows):
         "key", conversion.sha256, conversion.size, conversion.rows, conversion.errors
     )
     legacy = TableData(tuple(headers), tuple(tuple(row) for row in rows))
-    table = ColumnarTable(
-        conversion.headers, manifest, lambda: conversion.parquet, lambda: legacy
-    )
+    table = ColumnarTable(conversion.headers, manifest, lambda: conversion.parquet, lambda: legacy)
     return table, dataset_view(conversion.profile), legacy, conversion
 
 
@@ -177,3 +178,33 @@ async def test_row_budget_and_conversion_errors_refuse_queries(tmp_path):
     lazy = ColumnarTable(table.headers, tampered, table.parquet_path, lambda: TableData(("a",), ()))
     with pytest.raises(Exception, match="integrity"):
         _ = lazy.rows
+
+
+def test_revision_table_verifies_manifest_and_bounds_row_reads():
+    now = datetime.now(timezone.utc)
+    upload = Upload(
+        *(uuid4(), uuid4(), uuid4(), "a.csv", "text/csv", 10, "k", "src", "stored", "csv"),
+        *(3, 1, uuid4(), now),
+    )
+    manifest = ColumnarManifest("key", "parquet-sha", 5, 3, {})
+    profile = {"columns": [{"name": "amount"}], "columnar": manifest.record()}
+    revision = Revision(
+        *(uuid4(), upload.workspace_id, upload.dataset_id, upload.id, None, PROFILE_V5),
+        *("src", "parquet-sha", [], profile, uuid4(), now),
+    )
+
+    class Store:
+        def local(self, upload, key, sha256, size):
+            return "/cached.parquet"
+
+    table = revision_table(None, None, Store(), upload, revision, materialize_limit=2)
+    assert isinstance(table, ColumnarTable)
+    assert table.parquet_path() == "/cached.parquet"
+    assert table.row_count == 3
+    with pytest.raises(IngestionError) as error:
+        _ = table.rows
+    assert error.value.code == "large_dataset_step"
+    for store, broken in ((Store(), replace(revision, output_checksum="other")), (None, revision)):
+        with pytest.raises(IngestionError) as error:
+            revision_table(None, None, store, upload, broken)
+        assert error.value.code == "lineage_mismatch"
