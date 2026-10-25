@@ -91,6 +91,26 @@ from execplus.domain.free_text import (
     summarise,
     summary_message,
 )
+from execplus.domain.goal_ranking import ROUTE as GOAL_ROUTE
+from execplus.domain.goal_ranking import (
+    SELECTION_PROMPT,
+    GoalQuestion,
+    RankingFields,
+    asks_hot,
+    choose_score,
+    goal_question,
+    nouns,
+    parse_selection,
+    persona_choices,
+    persona_keywords,
+    persona_question,
+    persona_tokens,
+    profile_choices,
+    rank_rows,
+    ranking_fields,
+    ranking_message,
+    selection_input,
+)
 from execplus.domain.guidance import (
     DescriptionContext,
     explain_dataset,
@@ -1030,6 +1050,13 @@ class IntentRouterService:
                 description.view,
                 "deterministic:offered-question-v1",
                 question,
+            )
+        goal = goal_question(question)
+        goal_fields = ranking_fields(description.view) if goal else None
+        if goal is not None and goal_fields is not None:
+            require_current_context()
+            return await self._rank_for_goal(
+                actor, workspace_id, dataset_id, upload_id, description, question, goal, goal_fields
             )
         if re.search(
             r"\b(rates?|ratio|per|minus|divided|percentage)\b|[\u2212\u2013]| - ", question
@@ -2227,6 +2254,140 @@ class IntentRouterService:
             ClarificationContext(
                 prior.question if prior else question, message, context.view.sources, choices
             )
+        )
+
+    async def _goal_selection(
+        self, question: str, persona: str, fields: RankingFields
+    ) -> tuple[str | None, tuple[str, ...], tuple[str, ...], str]:
+        """Model-suggested score/text columns and persona words; any failure uses the rule."""
+        if not self.interpretation_enabled:
+            return None, (), (), ""
+        try:
+            await model_call()
+            response = await asyncio.wait_for(
+                self.model.complete(
+                    ModelRequest(
+                        messages=(
+                            ModelMessage("system", SELECTION_PROMPT),
+                            ModelMessage("user", selection_input(question, persona, fields)),
+                        ),
+                        tier=ModelTier.LARGE,
+                    )
+                ),
+                timeout=30,
+            )
+            score, texts, keywords = parse_selection(response.content, fields)
+        except (ProviderUnavailableError, UnverifiedAnswerError, TimeoutError, ValueError):
+            return None, (), (), ""
+        return score, texts, keywords, f"{response.provider}:{response.model}:goal-ranking-v1"
+
+    async def _rank_for_goal(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        dataset_id: UUID,
+        upload_id: UUID,
+        description: DescriptionContext,
+        question: str,
+        goal: GoalQuestion,
+        fields: RankingFields,
+    ) -> DatasetGuide:
+        """Rank records for a persona by one stated rule over exact returned rows."""
+        view = description.view
+        persona = goal.persona or (
+            description.agent_memory.role if description.agent_memory else ""
+        )
+        persona = persona or description.private_goal
+        if not persona_tokens(persona):
+            _, table, _ = await read_complete(
+                lambda: self.analytics.descriptive_snapshot(
+                    actor, workspace_id, dataset_id, upload_id
+                )
+            )
+            labels = profile_choices(table.headers, table.rows, fields.texts)
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    persona_question(description.name)
+                    + " You can also save your role in My memory so I remember it.",
+                    view.sources,
+                    persona_choices(description.name, labels),
+                )
+            )
+        score, texts, extra, model_route = await self._goal_selection(question, persona, fields)
+        if texts:
+            fields = replace(fields, texts=texts)
+        choice = choose_score(question, fields, view, score)
+        if choice.column is None:
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    "This file has several scores ("
+                    + ", ".join(fields.scores)
+                    + "). Which one should decide what counts as "
+                    + ("hot" if asks_hot(question) else "best")
+                    + " for you?",
+                    view.sources,
+                    choice.choices,
+                )
+            )
+        route = model_route or GOAL_ROUTE
+        columns = tuple(
+            dict.fromkeys(
+                (
+                    *fields.labels,
+                    *fields.scores,
+                    *fields.texts,
+                    *((fields.next_step,) if fields.next_step else ()),
+                )
+            )
+        )
+        limit = self.analytics.row_limit
+        result, _ = await self.analytics.query_records(
+            actor,
+            workspace_id,
+            dataset_id,
+            upload_id,
+            RowRequest(columns=columns, order_by=RowOrder(choice.column, "desc")),
+            limit,
+            route,
+            view.sources,
+        )
+        ranked = rank_rows(
+            result.columns, result.rows, fields, choice.column, persona_keywords(persona, extra)
+        )
+        if not ranked:
+            _, plural = nouns(description.name)
+            raise PlanningClarification(
+                ClarificationContext(
+                    question,
+                    f"None of the {result.records_analyzed:,} {plural} mention “{persona}” or "
+                    f"related words in {', '.join(fields.texts)}. Which skills or role "
+                    "should I look for instead?",
+                    view.sources,
+                    persona_choices(
+                        description.name,
+                        profile_choices(result.columns, result.rows, fields.texts),
+                    ),
+                )
+            )
+        base = question.strip().rstrip("?.! ")
+        return DatasetGuide(
+            ranking_message(
+                description.name,
+                goal.persona,
+                fields,
+                choice,
+                ranked,
+                result.records_analyzed,
+                len(result.rows) >= limit,
+                asks_hot(question),
+            ),
+            route,
+            (choice.column, *fields.texts),
+            tuple(f"{base}? Rank by {name}." for name in fields.scores if name != choice.column),
+            view.sources,
+            description.state,
         )
 
     async def _reorder(
