@@ -33,7 +33,7 @@ function Tile({ tile, index, words, onSave, saved }: { tile: DashboardTile; inde
   </article>;
 }
 
-export function AutoDashboardView({ root, request, enabled, fields = [], onReview }: { root: string; request: ApiRequest; enabled: boolean; fields?: string[]; onReview: () => void }) {
+export function AutoDashboardView({ root, request, enabled, fields = [], onReview, onStatus }: { root: string; request: ApiRequest; enabled: boolean; fields?: string[]; onReview: () => void; onStatus?: (status: "working" | "done" | "unavailable") => void }) {
   const [state, setState] = useState<State>(null);
   const [attempt, setAttempt] = useState(0);
   const [editing, setEditing] = useState<string[] | null>(null);
@@ -48,9 +48,11 @@ export function AutoDashboardView({ root, request, enabled, fields = [], onRevie
       .catch(cause => { if (!controller.signal.aborted) setState({ root, error: cause instanceof Error ? cause.message : "The dashboard could not load." }); });
     return () => controller.abort();
   }, [root, request, attempt, enabled]);
-  if (!enabled) return null;
   const current = state?.root === root ? state : null;
   const dashboard = current?.data?.dashboard;
+  const status = !current ? "working" : current.error || !dashboard ? "unavailable" : "done";
+  useEffect(() => { if (enabled) onStatus?.(status); }, [enabled, status, onStatus]);
+  if (!enabled) return null;
   const words: Words = text => humanizeFields(text, [...fields, ...(dashboard?.candidates.flatMap(item => item.columns) ?? [])]);
   const workspace = root.split("/datasets/")[0];
 

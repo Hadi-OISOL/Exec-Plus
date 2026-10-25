@@ -889,7 +889,7 @@ export default function WorkspacePage() {
     setAnalysisIntent("descriptive");
     setSection("overview");
     setMessage(
-      contextSaved ? `${upload.filename} is ready. Let’s check what it means together.` : "File uploaded successfully. Your optional context could not be saved; add it under Data understanding.",
+      contextSaved ? `${upload.filename} is uploaded. Your analyst team is reading it now.` : "File uploaded successfully. Your optional context could not be saved; add it under Data understanding.",
     );
   }
 

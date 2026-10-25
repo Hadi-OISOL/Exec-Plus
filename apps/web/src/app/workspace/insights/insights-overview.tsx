@@ -7,7 +7,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type { ApiRequest } from "../profile-panel";
 import { Icon } from "../explore-components";
-import { KitChart, useReducedMotion } from "../charts/kit-chart";
+import { KitChart } from "../charts/kit-chart";
 import { humanizeFields, humanizeSpec, readableMetric } from "../charts/chart-values";
 import { StatTile } from "../charts/stat-tile";
 import { actionIntent, analystNames, chartSpecFromInsight, insightFields } from "./insights-model";
@@ -76,15 +76,6 @@ const sections: [string, string, string[]][] = [
   ["quality", "Data quality", ["quality"]],
 ];
 
-function FindingsStrip({ cards, words, onReveal }: { cards: InsightCard[]; words: Words; onReveal: (card: InsightCard) => void }) {
-  return <ol className={styles.strip} aria-label="Top findings">
-    {cards.map((card, index) => <li key={card.id} style={{ "--i": index } as CSSProperties}>
-      <a href={`#insight-${card.id}`} onClick={event => { event.preventDefault(); onReveal(card); }}><span className={styles.kind} data-tone={kindTone(card.analyst)}><Icon name={kindIcon(card.analyst)} size={13} />{analystNames[card.analyst] ?? card.analyst}</span>
-        <strong>{words(card.title)}</strong><span className={styles.stripSummary}>{words(card.summary)}</span><span className={styles.stripLink}>See the chart and evidence<Icon name="arrow" size={13} /></span></a>
-    </li>)}
-  </ol>;
-}
-
 export type ProposedItem = { key: string; label: string; reason?: string; group: string; run: () => void };
 
 export function proposedFromInsights(actions: InsightAction[], onAction: (intent: ActionIntent) => void, words: Words = plain): ProposedItem[] {
@@ -148,21 +139,9 @@ function CardGrid({ cards, onAction, fields }: { cards: InsightCard[]; onAction:
 function InsightsBoard({ payload, onAction, fields, words }: { payload: InsightsPayload; onAction: (intent: ActionIntent) => void; fields: string[]; words: Words }) {
   const tabs = useMemo(() => insightTabs(payload.insights), [payload]);
   const [selected, setSelected] = useState("highlights");
-  const [pending, setPending] = useState({ id: "", tick: 0 });
-  const reducedMotion = useReducedMotion();
   const baseId = useId();
   const active = tabs.find(tab => tab.key === selected) ?? tabs[0];
   const kpis = payload.kpis;
-  useEffect(() => {
-    if (!pending.id) return;
-    const card = document.querySelector<HTMLElement>(`[data-insight="${CSS.escape(pending.id)}"]`);
-    if (!card) return;
-    card.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
-    card.focus({ preventScroll: true });
-    card.dataset.highlight = "true";
-    const timer = window.setTimeout(() => { delete card.dataset.highlight; }, 1600);
-    return () => { window.clearTimeout(timer); delete card.dataset.highlight; };
-  }, [pending, reducedMotion]);
   function choose(key: string, focus = false) {
     setSelected(key);
     if (focus) document.getElementById(`${baseId}-tab-${key}`)?.focus();
@@ -174,11 +153,6 @@ function InsightsBoard({ payload, onAction, fields, words }: { payload: Insights
     event.preventDefault();
     choose(tabs[(next + tabs.length) % tabs.length].key, true);
   }
-  function reveal(card: InsightCard) {
-    const home = tabs.find(tab => tab.key !== "highlights" && tab.cards.some(item => item.id === card.id)) ?? tabs[0];
-    setSelected(home.key);
-    setPending(current => ({ id: card.id, tick: current.tick + 1 }));
-  }
   return <>
     <div className={styles.tabs} role="tablist" aria-label="Analyst overview sections" onKeyDown={keys}>
       {tabs.map(tab => <button key={tab.key} id={`${baseId}-tab-${tab.key}`} type="button" role="tab" aria-selected={tab.key === active.key} aria-controls={`${baseId}-panel`} tabIndex={tab.key === active.key ? 0 : -1} onClick={() => choose(tab.key)}>
@@ -187,7 +161,6 @@ function InsightsBoard({ payload, onAction, fields, words }: { payload: Insights
     </div>
     <div className={styles.panel} id={`${baseId}-panel`} role="tabpanel" aria-labelledby={`${baseId}-tab-${active.key}`} data-insight-tab={active.key}>
       {active.key === "highlights" ? <>
-        {payload.insights.length > 0 && <FindingsStrip cards={payload.insights.slice(0, 3)} words={words} onReveal={reveal} />}
         {kpis.length > 0 && <KpiRow kpis={kpis} words={words} />}
         {active.cards.length > 0 && <CardGrid cards={active.cards} onAction={onAction} fields={fields} />}
         <p className={styles.tabHint}>Every finding was recalculated by an independent check before being shown.{payload.definition_state !== "confirmed" ? " Meanings are inferred until you confirm them." : ""}{payload.insights.length - active.cards.length > 0 ? ` ${payload.insights.length - active.cards.length} more findings are grouped in the tabs above.` : ""}</p>

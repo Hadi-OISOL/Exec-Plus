@@ -84,7 +84,7 @@ test("first file needs no setup and opens sourced discoveries with useful conver
   });
   await openFindings(page);
   await discovery
-    .getByRole("button", { name: "Ask about this file", exact: true })
+    .getByRole("button", { name: "Ask Syntelio", exact: true })
     .click();
   await expect(page.getByLabel("Your question")).toBeFocused();
   await page.setViewportSize({ width: 1280, height: 900 });

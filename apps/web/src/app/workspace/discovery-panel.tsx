@@ -1,7 +1,7 @@
 /* Use case: Gives every uploaded table a useful first reading without a setup form.
 What it does: Shows source-backed discoveries, data checks and relevant questions with inspectable query evidence. */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import { Icon } from "./explore-components";
 import { WorkspaceLoading } from "./workspace-loading";
@@ -9,12 +9,15 @@ import { PatternResults, type PatternResult, type PatternEvidence } from "./patt
 import { DiagramResults, type DatasetDiagram } from "./diagram-results";
 import { AnswerVisualization } from "./answer-visualization";
 import { compareExactNumeric, displayMetric } from "./visualization-values";
-import { CountUpValue, StatTile } from "./charts/stat-tile";
+import { CountUpValue } from "./charts/stat-tile";
+import { useReducedMotion } from "./charts/kit-chart";
 import { donutEligible } from "./charts/chart-values";
 import { InsightsOverview, ProposedActions, proposedFromInsights, useInsights, useInsightWords } from "./insights/insights-overview";
 import type { ProposedItem } from "./insights/insights-overview";
 import { AutoDashboardView } from "./insights/auto-dashboard";
 import type { ActionIntent } from "./insights/insights-model";
+import { AnalystTeam, DataReady, analystTeam, questionChips, useDatasetPurpose } from "./insights/data-ready";
+import type { RequestStatus } from "./insights/data-ready";
 import styles from "./dashboard-presentation.module.css";
 import overview from "./discovery-panel.module.css";
 
@@ -242,8 +245,13 @@ export function DiscoveryPanel({
   enabled: boolean;
   expert?: boolean;
 }) {
-  const [loaded, setLoaded] = useState<{ root: string; discovery: Discovery } | null>(null);
+  const [loaded, setLoaded] = useState<{ root: string; discovery: Discovery; seconds: string } | null>(null);
   const discovery = loaded?.root === root ? loaded.discovery : null;
+  const purpose = useDatasetPurpose(root, request, enabled);
+  const [dashboardState, setDashboardState] = useState<{ root: string; status: RequestStatus } | null>(null);
+  const dashboardStatus = dashboardState?.root === root ? dashboardState.status : "waiting";
+  const reportDashboard = useCallback((status: RequestStatus) => setDashboardState({ root, status }), [root]);
+  const reducedMotion = useReducedMotion();
   const [failure, setFailure] = useState<{ root: string; message: string } | null>(null);
   const error = failure?.root === root ? failure.message : "";
   const [attempt, setAttempt] = useState(0);
@@ -255,11 +263,12 @@ export function DiscoveryPanel({
     let active = true;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
+      const started = performance.now();
       request<Discovery>(`${root}/discovery`, { signal: controller.signal })
         .then((result) => {
           if (active) {
             setFailure(null);
-            setLoaded({ root, discovery: result });
+            setLoaded({ root, discovery: result, seconds: ((performance.now() - started) / 1000).toFixed(1) });
             onReady(result.suggestions);
           }
         })
@@ -277,6 +286,8 @@ export function DiscoveryPanel({
     };
   }, [root, request, attempt, onReady, enabled]);
 
+  const insightsStatus: RequestStatus = !insights ? (enabled ? "working" : "waiting") : insights.payload ? "done" : "unavailable";
+  const team = analystTeam({ reading: error ? "unavailable" : discovery ? "done" : "working", insights: { status: insightsStatus, payload: insights?.payload }, dashboard: dashboardStatus, purpose: purpose.status });
   if (!enabled) return null;
   if (error)
     return (
@@ -308,7 +319,8 @@ export function DiscoveryPanel({
         aria-label="First reading of your data"
         aria-busy="true"
       >
-        <WorkspaceLoading title="Getting to know your data" detail="Checking columns and calculating useful starting points from your file." />
+        <WorkspaceLoading title="Your analyst team is reading your data" detail="Checking columns and calculating useful starting points from your file." />
+        <AnalystTeam members={team} />
         <p className="readingHint">
           You can start a conversation while this loads.
         </p>
@@ -321,12 +333,22 @@ export function DiscoveryPanel({
     else if (intent.type === "anomalies") onAnalysis?.("anomalies", intent.metric);
     else if (intent.type === "scenario") onScenario?.(intent.metric, intent.aggregation);
   };
+  const chips = questionChips(purpose.payload, discovery.suggestions);
   const proposed: ProposedItem[] = [
     ...proposedFromInsights(insights?.payload?.next_actions ?? [], act, words),
     ...(onAnalysis ? discovery.analysis_suggestions ?? [] : []).map(item => ({ key: `analysis:${item.tool}:${item.metric ?? ""}`, label: words(item.label), reason: words(item.reason), group: "Check", run: () => onAnalysis?.(item.tool, item.metric) })),
     ...(onScenario ? discovery.scenario_metrics ?? [] : []).map(item => ({ key: `scenario:${item.metric}:${item.aggregation}`, label: `What if ${item.metric.replaceAll("_", " ")} changes?`, reason: `Start from the ${item.aggregation === "avg" ? "average" : "total"} in this file and adjust it yourself. Hypothetical arithmetic, not a prediction.`, group: "What-if", run: () => onScenario?.(item.metric, item.aggregation) })),
     ...discovery.suggestions.slice(0, 4).map(question => ({ key: `ask:${question}`, label: words(question), group: "Ask", run: () => onQuestion(question) })),
-  ].filter((item, index, all) => all.findIndex(other => other.label.toLowerCase() === item.label.toLowerCase()) === index);
+  ].filter((item, index, all) => all.findIndex(other => other.label.toLowerCase() === item.label.toLowerCase()) === index)
+    .filter(item => item.group !== "Ask" || !chips.some(chip => words(chip.label).toLowerCase() === item.label.toLowerCase()));
+  const scrollTo = (target: HTMLElement | null) => {
+    if (!target) return;
+    target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+    target.focus({ preventScroll: true });
+    target.dataset.highlight = "true";
+    window.setTimeout(() => { delete target.dataset.highlight; }, 1600);
+  };
+  const dashboardId = `dashboard-${discovery.sources[0]?.revision_id ?? "current"}`;
   const metricGroups = [
     ...new Set(
       discovery.findings
@@ -341,30 +363,29 @@ export function DiscoveryPanel({
   return (
     <section className={`discoveryPanel ${overview.overview}`} aria-label="First reading of your data">
       <div className={`discoveryIntro ${overview.intro}`}>
-        <div className="discoveryTitle">
-          <span className="readingMark">
-            <Icon name="sparkle" size={23} />
-          </span>
-          <div>
-            <h2>Here’s what’s in your data</h2>
-          </div>
-        </div>
-        <p className="discoveryFilename">{discovery.dataset_name}</p>
-        <p className={overview.summary}>{words(discovery.summary.split("\n\n")[0])}</p>
-        <span className="meaningState">{discovery.definition_state === "confirmed" ? "Confirmed meanings" : "Inferred meanings — not confirmed"}</span>
-        {!insights?.payload?.kpis.length && <div className={`discoveryShape ${overview.shape}`} aria-label="File structure">
-          <StatTile label="Rows" value={discovery.shape.rows.toLocaleString()} />
-          <StatTile label="Columns" value={discovery.shape.columns.toLocaleString()} />
-          <StatTile label={discovery.shape.metrics === 1 ? "Measure" : "Measures"} value={String(discovery.shape.metrics)} />
-          <StatTile label={discovery.shape.dimensions === 1 ? "Category" : "Categories"} value={String(discovery.shape.dimensions)} />
-        </div>}
+        <DataReady
+          fileName={discovery.dataset_name}
+          rows={discovery.shape.rows}
+          columns={discovery.shape.columns}
+          seconds={loaded?.seconds ?? null}
+          summary={discovery.summary.split("\n\n")[0]}
+          confirmed={discovery.definition_state === "confirmed"}
+          purpose={purpose.payload}
+          insights={{ status: insightsStatus, payload: insights?.payload }}
+          team={team}
+          questions={chips}
+          words={words}
+          onAsk={onChat}
+          onDashboard={() => scrollTo(document.getElementById(dashboardId))}
+          onReview={onReview}
+          onQuestion={onQuestion}
+          onAction={act}
+          onSee={id => scrollTo(document.querySelector<HTMLElement>(`[data-insight="${CSS.escape(id)}"]`) ?? document.querySelector<HTMLElement>('[aria-label="Analyst overview"]'))}
+        />
         {discovery.definition_state !== "confirmed" && <div className={overview.meaningPrompt}>
           <div><strong>Help me put these numbers in context</strong><p>Confirm what one record represents and the units of your measures. This helps keep comparisons meaningful.</p></div>
           <button type="button" onClick={onReview}>Review data meaning<Icon name="arrow" size={15} /></button>
         </div>}
-        <button className="discoveryChatJump" type="button" onClick={onChat}>
-          <Icon name="chat" size={16} /> Ask about this file
-        </button>
         <details className="discoveryProvenance">
           <summary>Source & interpretation</summary>
           {discovery.summary.split("\n\n").map((paragraph, index) => <p key={index}>{words(paragraph)}</p>)}
@@ -390,7 +411,7 @@ export function DiscoveryPanel({
           ))}
         </details>
       </div>
-      <AutoDashboardView root={root} request={request} enabled={enabled} fields={fields} onReview={onReview} />
+      <div id={dashboardId} tabIndex={-1}><AutoDashboardView root={root} request={request} enabled={enabled} fields={fields} onReview={onReview} onStatus={reportDashboard} /></div>
       <InsightsOverview state={insights} retry={retryInsights} onAction={act} fields={fields} words={words} />
       {discovery.findings.length > 0 && <details className={`legacyCalculations ${overview.legacy}`} open={Boolean(insights?.error || (insights && !insights.payload?.insights.length))}>
       <summary>More detail: individual calculations</summary>
