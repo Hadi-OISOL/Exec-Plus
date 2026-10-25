@@ -29,8 +29,8 @@ What it does: Uses shared light/dark design tokens, stacks to one column down to
 .main { display: grid; gap: 20px; min-width: 0; }
 .know, .questions, .team { display: grid; gap: 12px; min-width: 0; padding: 18px 20px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .know ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.know li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding-top: 12px; border-top: 1px solid var(--color-border); }
-.know li:first-child { padding-top: 0; border-top: 0; }
+.know ol > li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+.know ol > li:first-child { padding-top: 0; border-top: 0; }
 .rank { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radius-full); background: var(--color-primary-subtle); color: var(--color-primary-text); font-size: 13px; font-weight: 700; }
 .finding { display: grid; gap: 4px; min-width: 0; font-size: 14px; line-height: 20px; }
 .finding > span { color: var(--color-text-secondary); }
