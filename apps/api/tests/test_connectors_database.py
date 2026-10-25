@@ -4,6 +4,7 @@ What it does: Builds a throwaway schema and checks listing, copying, caps, safet
 """
 
 import os
+import tempfile
 from uuid import uuid4
 
 import pytest
@@ -183,3 +184,61 @@ def test_the_control_plane_database_is_never_an_eligible_source(database):
         )
     other = PostgresConnector(HostPolicy(True), (own[0], own[1], "some_other_database"))
     assert other.validate(credentials)
+
+
+def test_tables_show_row_counts_and_previews_and_queries_follow_the_read_only_rules(database):
+    schema, credentials, engine = database
+    with engine.connect() as connection:
+        connection.execute(text(f'ANALYZE "{schema}".orders'))
+    session = ConnectorSession("", credentials)
+    listed = {item.label: item for item in connector().sources(session, f"schema/{schema}")}
+    assert listed["orders"].rows == 5 and listed["paid_orders"].rows is None
+    preview = connector().preview(session, f"table/{schema}/orders")
+    assert preview["columns"] == ["id", "customer", "amount", "paid", "placed", "meta"]
+    assert preview["rows"][0][:3] == ["1", "Customer 1", "12.50"]
+    query = connector().preview(
+        session, f"query/SELECT amount::text || ':x' AS label FROM \"{schema}\".orders WHERE id = 2"
+    )
+    assert query == {"columns": ["label"], "rows": [["25.00:x"]]}
+    for hostile in (
+        f'DELETE FROM "{schema}".orders',
+        f'SELECT 1; DELETE FROM "{schema}".orders',
+        f'WITH gone AS (DELETE FROM "{schema}".orders RETURNING *) SELECT * FROM gone',
+        "SELECT pg_sleep(5)",
+        "SELECT set_config('default_transaction_read_only', 'off', false)",
+        "SELECT query_to_xml('DELETE FROM x', true, true, '')",
+        f'SELECT * FROM "{schema}".orders FOR UPDATE',
+        "SELECT 1 -- note",
+        f'SELECT * INTO "{schema}".copy FROM "{schema}".orders',
+    ):
+        with pytest.raises(IngestionError) as refused:
+            connector().preview(session, "query/" + hostile)
+        assert refused.value.code == "connector_query_refused", hostile
+    with engine.connect() as connection:
+        count = connection.execute(text(f'SELECT count(*) FROM "{schema}".orders')).scalar_one()
+    assert count == 5
+
+
+def test_streamed_exports_match_the_previous_import_file_exactly(database):
+    schema, credentials, _ = database
+    session = ConnectorSession("", credentials)
+    legacy = records_to_csv(connector().fetch(session, f"table/{schema}/orders", 1000))
+    with tempfile.TemporaryFile() as target:
+        count = connector().export(
+            session, f"table/{schema}/orders", target, max_rows=1000, max_bytes=1 << 20
+        )
+        target.seek(0)
+        assert count == 5 and target.read() == legacy
+    with tempfile.TemporaryFile() as target, pytest.raises(IngestionError) as capped:
+        connector().export(session, f"table/{schema}/orders", target, max_rows=4, max_bytes=1 << 20)
+    assert capped.value.code == "source_too_large"
+
+
+def test_tls_choices_map_to_postgres_modes_and_plain_text_needs_a_trusted_deployment(database):
+    _, credentials, _ = database
+    assert connector().validate({**credentials, "tls": "off"})
+    assert connector()._connect_args("verify")["sslmode"] == "verify-full"
+    assert connector()._connect_args("")["sslmode"] == "prefer"
+    assert PostgresConnector(HostPolicy(False))._connect_args("")["sslmode"] == "require"
+    with pytest.raises(ConnectorApiError):
+        PostgresConnector(HostPolicy(False))._tls({"tls": "off"})

@@ -4,7 +4,7 @@ What it does: Keeps platform APIs, drivers and credentials behind protocols the 
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol
+from typing import Any, BinaryIO, Literal, Protocol
 from uuid import UUID, uuid4
 
 from execplus.domain.connectors import Source
@@ -16,6 +16,8 @@ class ConnectorField:
     label: str
     secret: bool = False
     placeholder: str = ""
+    required: bool = True
+    options: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,20 @@ class OAuthConnector(Connector, Protocol):
 
 class CredentialConnector(Connector, Protocol):
     def validate(self, credentials: dict[str, str]) -> str: ...
+
+
+class DatabaseConnector(CredentialConnector, Protocol):
+    def preview(self, session: ConnectorSession, source_id: str) -> dict[str, Any]: ...
+
+    def export(
+        self,
+        session: ConnectorSession,
+        source_id: str,
+        target: BinaryIO,
+        *,
+        max_rows: int,
+        max_bytes: int,
+    ) -> int: ...
 
 
 @dataclass(frozen=True)

@@ -156,6 +156,8 @@ def test_no_connectors_means_an_empty_catalog_and_clear_errors(integration):
         "zoho_books",
         "odoo",
         "postgresql",
+        "mysql",
+        "sqlserver",
         "bigquery",
     ]
     assert all(
@@ -182,6 +184,8 @@ def test_the_catalog_lists_each_platform_with_its_form_and_the_callers_connectio
         "xero",
         "zoho_books",
         "postgresql",
+        "mysql",
+        "sqlserver",
         "bigquery",
     }
     assert catalog["odoo"]["kind"] == "credentials" and catalog["quickbooks"]["kind"] == "oauth"
@@ -345,7 +349,7 @@ def test_credentials_are_validated_then_sealed_and_unknown_fields_are_dropped(in
         and json.loads(vault.unseal(sealed))["context"]["api_key"] == "  secret-key \t"
     )
     listing = integration.client.get("/connectors/odoo/sources", headers=owner).json()
-    assert listing == [dict(id="invoices", label="Customer invoices", container=False)]
+    assert listing == [dict(id="invoices", label="Customer invoices", container=False, rows=None)]
     assert credentials.sessions[-1] == ConnectorSession(
         "", {"url": "https://odoo.example", "api_key": "  secret-key \t"}
     )
@@ -476,7 +480,12 @@ def test_import_needs_membership_a_connection_and_a_valid_request(integration):
         ).status_code
         == 401
     )
-    for body in ({}, {"source_id": ""}, {"source_id": "x" * 601}, {"source_id": "a", "extra": 1}):
+    for body in (
+        {},
+        {"source_id": ""},
+        {"source_id": "x" * 40_001},
+        {"source_id": "a", "extra": 1},
+    ):
         assert (
             integration.client.post(
                 f"{base}/connectors/quickbooks/import", headers=owner, json=body

@@ -7,11 +7,12 @@ import hashlib
 import json
 import logging
 import secrets
+import tempfile
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import datetime, timezone
 from io import BytesIO
-from typing import Any, TypeVar
+from typing import Any, BinaryIO, TypeVar
 from urllib.parse import unquote
 from uuid import UUID, uuid4
 
@@ -22,6 +23,7 @@ from execplus.application.connector_ports import (
     ConnectorConnections,
     ConnectorSession,
     CredentialConnector,
+    DatabaseConnector,
     OAuthConnector,
 )
 from execplus.application.google_ports import TokenVault
@@ -29,7 +31,12 @@ from execplus.application.oauth_ports import OAuthState
 from execplus.application.ports import WorkspaceRepository
 from execplus.application.services.refresh import RefreshService, editor
 from execplus.application.services.workspaces import WorkspaceService
-from execplus.domain.connectors import connector_filename, records_to_csv, valid_provider
+from execplus.domain.connectors import (
+    connector_filename,
+    records_to_csv,
+    row_limit_exceeded,
+    valid_provider,
+)
 from execplus.domain.google_oauth import new_pkce
 from execplus.domain.ingestion import AuditEvent, IngestionError, Upload, User
 from execplus.domain.refresh import RefreshCandidate
@@ -54,6 +61,7 @@ class ConnectorService:
         public_api_url: str,
         web_origin: str,
         max_rows: int,
+        database_max_rows: int | None = None,
     ) -> None:
         self.oauth = oauth
         self.connectors = connectors
@@ -64,6 +72,7 @@ class ConnectorService:
         self.api_url = public_api_url.rstrip("/")
         self.web_origin = web_origin.rstrip("/")
         self.max_rows = max_rows
+        self.database_max_rows = database_max_rows or max_rows
 
     def _connector(self, provider: str) -> Connector:
         connector = self.connectors.get(valid_provider(provider))
@@ -83,6 +92,12 @@ class ConnectorService:
             raise IngestionError("unknown_connector", "That platform uses sign-in instead.", 404)
         return connector  # type: ignore[return-value]
 
+    def _database(self, provider: str) -> DatabaseConnector:
+        connector = self._connector(provider)
+        if not hasattr(connector, "export"):
+            raise IngestionError("unknown_connector", "That platform cannot run queries.", 404)
+        return connector  # type: ignore[return-value]
+
     def catalog(self, actor: User) -> list[dict[str, Any]]:
         connected = {item.provider: item for item in self.connections.list(actor.id)}
         return [
@@ -97,12 +112,15 @@ class ConnectorService:
                         label=item.label,
                         secret=item.secret,
                         placeholder=item.placeholder,
+                        required=item.required,
+                        options=list(item.options),
                     )
                     for item in connector.fields
                 ],
                 connected=connector.id in connected,
                 account=connected[connector.id].display_name if connector.id in connected else "",
                 configured=True,
+                queries=hasattr(connector, "export"),
             )
             for connector in self.connectors.values()
         ]
@@ -178,7 +196,7 @@ class ConnectorService:
             for key, value in values.items()
             if key in known and isinstance(value, str)
         }
-        if any(not credentials.get(name) for name in known if name != "port"):
+        if any(not credentials.get(item.name) for item in connector.fields if item.required):
             raise IngestionError("connector_missing_field", "Fill in every field.", 422)
         browser = secrets.token_urlsafe(32)
         state = self.oauth.begin(
@@ -244,6 +262,18 @@ class ConnectorService:
                 "connector_unexpected_response", "The platform sent an unexpected reply.", 502
             ),
         }
+        if error.code == "not_read_only":
+            return IngestionError(
+                "connector_not_read_only",
+                "This account can change data. Connect with a read-only account.",
+                403,
+            )
+        if error.code == "tls_unavailable":
+            return IngestionError(
+                "connector_tls_unavailable",
+                "That server does not offer an encrypted connection. Turn on TLS for it.",
+                422,
+            )
         if error.code == "control_plane_database":
             return IngestionError(
                 "connector_host_blocked", "Syntelio's own database cannot be used as a source.", 422
@@ -333,9 +363,23 @@ class ConnectorService:
         connector, session, connection = self._session(actor, provider)
         items = self._call(lambda: connector.sources(session, parent))
         self.oauth.assert_connection(actor.id, session_token, connector.id, connection.version)
-        return [dict(id=item.id, label=item.label, container=item.container) for item in items]
+        return [
+            dict(id=item.id, label=item.label, container=item.container, rows=item.rows)
+            for item in items
+        ]
+
+    def preview(
+        self, actor: User, provider: str, source_id: str, session_token: str
+    ) -> dict[str, Any]:
+        database = self._database(provider)
+        _, session, connection = self._session(actor, provider)
+        result = self._call(lambda: database.preview(session, source_id))
+        self.oauth.assert_connection(actor.id, session_token, database.id, connection.version)
+        return result
 
     def _label(self, connector: Connector, session: ConnectorSession, source_id: str) -> str:
+        if source_id.startswith("query/"):
+            return "Custom query"
         if "/" in source_id:
             return unquote(source_id.rsplit("/", 1)[1])
         known = {item.id: item.label for item in connector.sources(session, None)}
@@ -343,16 +387,31 @@ class ConnectorService:
 
     def _snapshot(
         self, actor: User, provider: str, source_id: str, session_token: str
-    ) -> tuple[str, bytes, Callable[[WorkspaceRepository, str, UUID, UUID], None]]:
+    ) -> tuple[str, BinaryIO, Callable[[WorkspaceRepository, str, UUID, UUID], None]]:
         connector, session, connection = self._session(actor, provider)
-        records = self._call(lambda: connector.fetch(session, source_id, self.max_rows + 1))
-        if len(records) > self.max_rows:
-            raise IngestionError(
-                "source_too_large",
-                "That source exceeds the import row limit. Choose a smaller source.",
-                413,
-            )
-        content = records_to_csv(records)
+        content: BinaryIO
+        if hasattr(connector, "export"):
+            database: DatabaseConnector = connector  # type: ignore[assignment]
+            content = tempfile.TemporaryFile()  # noqa: SIM115
+            try:
+                self._call(
+                    lambda: database.export(
+                        session,
+                        source_id,
+                        content,
+                        max_rows=self.database_max_rows,
+                        max_bytes=self.uploads.max_upload_bytes,
+                    )
+                )
+            except BaseException:
+                content.close()
+                raise
+            content.seek(0)
+        else:
+            records = self._call(lambda: connector.fetch(session, source_id, self.max_rows + 1))
+            if len(records) > self.max_rows:
+                raise row_limit_exceeded()
+            content = BytesIO(records_to_csv(records))
         filename = connector_filename(
             connector.label, connection.display_name, self._label(connector, session, source_id)
         )
@@ -393,17 +452,18 @@ class ConnectorService:
     ) -> Upload:
         self.uploads.get_dataset(actor, workspace_id, dataset_id)
         filename, content, publish = self._snapshot(actor, provider, source_id, session_token)
-        upload = self.uploads.upload(
-            actor,
-            workspace_id,
-            dataset_id,
-            filename,
-            "text/csv",
-            BytesIO(content),
-            _publication_guard=lambda repo, upload, _revision: publish(
-                repo, "connector.imported", upload.workspace_id, upload.id
-            ),
-        )
+        with content:
+            upload = self.uploads.upload(
+                actor,
+                workspace_id,
+                dataset_id,
+                filename,
+                "text/csv",
+                content,
+                _publication_guard=lambda repo, upload, _revision: publish(
+                    repo, "connector.imported", upload.workspace_id, upload.id
+                ),
+            )
         logger.info(
             "connector_import provider=%s outcome=success upload_id=%s", provider, upload.id
         )
@@ -422,7 +482,9 @@ class ConnectorService:
     ) -> RefreshCandidate:
         with refresh.uow() as repo:
             editor(repo, actor, workspace_id, dataset_id)
-        filename, content, publish = self._snapshot(actor, provider, source_id, session_token)
+        filename, stream, publish = self._snapshot(actor, provider, source_id, session_token)
+        with stream:
+            content = stream.read()
         candidate = refresh.stage(
             actor,
             workspace_id,

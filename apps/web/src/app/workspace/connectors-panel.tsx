@@ -6,7 +6,14 @@ import type { FormEvent } from "react";
 import type { ApiRequest } from "./profile-panel";
 import styles from "./connectors-panel.module.css";
 
-type Field = { name: string; label: string; secret: boolean; placeholder: string };
+type Field = {
+  name: string;
+  label: string;
+  secret: boolean;
+  placeholder: string;
+  required?: boolean;
+  options?: string[];
+};
 type Platform = {
   id: string;
   label: string;
@@ -16,8 +23,15 @@ type Platform = {
   connected: boolean;
   account: string;
   configured?: boolean;
+  queries?: boolean;
 };
-type Item = { id: string; label: string; container: boolean };
+type Item = { id: string; label: string; container: boolean; rows?: number | null };
+type Preview = { sourceId: string; label: string; columns: string[]; rows: string[][] };
+const TLS_LABELS: Record<string, string> = {
+  require: "Required",
+  verify: "Required, with a verified certificate",
+  off: "Off (trusted private networks only)",
+};
 type Crumb = { id: string | null; label: string };
 export type ConnectorChoice = {
   provider: string;
@@ -38,6 +52,8 @@ export function ConnectorsPanel({
   const [platforms, setPlatforms] = useState<Platform[] | null>(null);
   const [form, setForm] = useState<{ id: string; values: Record<string, string> } | null>(null);
   const [browsing, setBrowsing] = useState<{ platform: Platform; trail: Crumb[]; items: Item[] } | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -124,6 +140,7 @@ export function ConnectorsPanel({
 
   async function list(platform: Platform, trail: Crumb[]) {
     setBrowsing(null);
+    setPreview(null);
     const parent = trail[trail.length - 1]?.id ?? null;
     const query = parent ? `?parent=${encodeURIComponent(parent)}` : "";
     try {
@@ -134,6 +151,34 @@ export function ConnectorsPanel({
       setForm(null);
       throw cause;
     }
+  }
+
+  function show(platform: Platform, sourceId: string, label: string) {
+    return attempt(async () => {
+      const result = await request<{ columns: string[]; rows: string[][] }>(
+        `/connectors/${platform.id}/preview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_id: sourceId }),
+        },
+      );
+      setPreview({ sourceId, label, ...result });
+    });
+  }
+
+  function importQuery(platform: Platform) {
+    return attempt(() =>
+      onImport({
+        provider: platform.id,
+        sourceId: `query/${encodeURIComponent(query.trim())}`,
+        platform: platform.label,
+        title: `${platform.label} - Custom query`,
+      }).then(() => {
+        setBrowsing(null);
+        setPreview(null);
+      }),
+    );
   }
 
   function choose(item: Item) {
@@ -200,6 +245,24 @@ export function ConnectorsPanel({
                 {platform.fields.map(field => (
                   <label key={field.name}>
                     {field.label}
+                    {field.options?.length ? (
+                      <select
+                        value={form.values[field.name] ?? ""}
+                        onChange={event =>
+                          setForm({
+                            id: platform.id,
+                            values: { ...form.values, [field.name]: event.target.value },
+                          })
+                        }
+                      >
+                        <option value="">Server default</option>
+                        {field.options.map(option => (
+                          <option key={option} value={option}>
+                            {TLS_LABELS[option] ?? option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
                     <input
                       type={field.secret ? "password" : "text"}
                       placeholder={field.placeholder}
@@ -212,6 +275,7 @@ export function ConnectorsPanel({
                         })
                       }
                     />
+                    )}
                   </label>
                 ))}
                 <div className={styles.actions}>
@@ -245,10 +309,89 @@ export function ConnectorsPanel({
                       <button type="button" disabled={busy || disabled} onClick={() => choose(item)}>
                         {item.container ? `${item.label} ›` : `Import ${item.label}`}
                       </button>
+                      {!item.container && platform.queries && (
+                        <button
+                          type="button"
+                          className={styles.secondary}
+                          disabled={busy || disabled}
+                          onClick={() => show(platform, item.id, item.label)}
+                        >
+                          Preview {item.label}
+                        </button>
+                      )}
+                      {typeof item.rows === "number" && (
+                        <span className={styles.rows}>about {item.rows.toLocaleString()} rows</span>
+                      )}
                     </li>
                   ))}
                   {!browsing.items.length && <li>Nothing to show here.</li>}
                 </ul>
+                {platform.queries && (
+                  <div className={styles.query}>
+                    <label>
+                      Or import the result of your own SELECT query
+                      <textarea
+                        rows={3}
+                        maxLength={10000}
+                        spellCheck={false}
+                        placeholder="SELECT region, amount FROM sales.orders WHERE year = 2026"
+                        value={query}
+                        onChange={event => setQuery(event.target.value)}
+                      />
+                    </label>
+                    <span>
+                      One read-only SELECT, without comments. Writes, extra statements and locks are refused.
+                    </span>
+                    <div className={styles.actions}>
+                      <button
+                        type="button"
+                        className={styles.secondary}
+                        disabled={busy || disabled || !query.trim()}
+                        onClick={() =>
+                          show(platform, `query/${encodeURIComponent(query.trim())}`, "Custom query")
+                        }
+                      >
+                        Preview query
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy || disabled || !query.trim()}
+                        onClick={() => importQuery(platform)}
+                      >
+                        Import query results
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {preview && (
+                  <div className={styles.preview} role="region" aria-label={`Preview of ${preview.label}`}>
+                    <strong>
+                      First {preview.rows.length} rows of {preview.label}
+                    </strong>
+                    <div className={styles.scroll}>
+                      <table>
+                        <thead>
+                          <tr>
+                            {preview.columns.map(column => (
+                              <th key={column} scope="col">
+                                {column}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.rows.map((row, index) => (
+                            <tr key={index}>
+                              {row.map((value, column) => (
+                                <td key={column}>{value}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </li>

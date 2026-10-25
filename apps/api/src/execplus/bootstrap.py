@@ -63,7 +63,11 @@ from execplus.domain.compute import ComputeCapabilities, ComputeOperation, Query
 from execplus.infrastructure.allocation.cp_sat import CpSatAllocationSolver
 from execplus.infrastructure.connectors.base import HostPolicy
 from execplus.infrastructure.connectors.bigquery import BigQueryConnector
-from execplus.infrastructure.connectors.database import PostgresConnector
+from execplus.infrastructure.connectors.database import (
+    MySqlConnector,
+    PostgresConnector,
+    SqlServerConnector,
+)
 from execplus.infrastructure.connectors.odoo import OdooConnector
 from execplus.infrastructure.connectors.quickbooks import QuickBooksConnector
 from execplus.infrastructure.connectors.xero import XeroConnector
@@ -171,6 +175,10 @@ def build_connectors(settings: Settings) -> dict[str, Connector]:
         found["postgresql"] = PostgresConnector(
             policy, (own.host or "localhost", own.port or 5432, own.database or "")
         )
+    if settings.mysql_connector_enabled:
+        found["mysql"] = MySqlConnector(policy)
+    if settings.mssql_connector_enabled:
+        found["sqlserver"] = SqlServerConnector(policy)
     return found
 
 
@@ -279,6 +287,7 @@ def build_runtime(settings: Settings) -> "Runtime":
             public_api_url=settings.public_api_url,
             web_origin=settings.web_origin,
             max_rows=settings.connector_max_rows,
+            database_max_rows=settings.database_connector_max_rows,
         )
         if connector_set and vault
         else None

@@ -6,12 +6,13 @@ What it does: Flattens nested records, converts provider dates and writes bounde
 import csv
 import json
 import re
-from collections.abc import Iterable
+import tempfile
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from io import BytesIO, StringIO
-from typing import Any
+from typing import Any, BinaryIO
 from uuid import UUID
 
 from execplus.domain.google_oauth import MAX_CELLS, MAX_COLUMNS, MAX_ROWS
@@ -29,6 +30,8 @@ KNOWN_PLATFORMS = (
     ("zoho_books", "Zoho Books"),
     ("odoo", "Odoo"),
     ("postgresql", "PostgreSQL database"),
+    ("mysql", "MySQL or MariaDB database"),
+    ("sqlserver", "Microsoft SQL Server database"),
     ("bigquery", "Google BigQuery"),
 )
 
@@ -82,6 +85,7 @@ class Source:
     id: str
     label: str
     container: bool = False
+    rows: int | None = None
 
 
 def valid_provider(value: str) -> str:
@@ -206,6 +210,90 @@ def records_to_csv(records: list[dict[str, Any]]) -> bytes:
     for row in rows:
         write_row([row.get(name, "") for name in columns])
     return output.getvalue()
+
+
+def _portable(value: Any) -> str:
+    if isinstance(value, bytes | bytearray | memoryview):
+        raise IngestionError(
+            "connector_binary_value", "Leave binary columns out of the import.", 422
+        )
+    return scalar(value)
+
+
+def row_limit_exceeded() -> IngestionError:
+    return IngestionError(
+        "source_too_large",
+        "That source exceeds the import row limit. Choose a smaller source.",
+        413,
+    )
+
+
+def write_rows_csv(
+    columns: Sequence[str],
+    rows: Iterable[Sequence[Any]],
+    target: BinaryIO,
+    *,
+    max_rows: int,
+    max_bytes: int,
+) -> int:
+    names = list(columns)
+    if not names or any(not name for name in names):
+        raise IngestionError("unnamed_source_columns", "Give every column a name.", 422)
+    if len(set(names)) != len(names):
+        raise IngestionError(
+            "ambiguous_source_columns", "Two columns have the same name. Rename one.", 422
+        )
+    if len(names) > MAX_COLUMNS:
+        raise source_too_large()
+    encoder = json.JSONEncoder(default=_portable, ensure_ascii=False)
+    with tempfile.TemporaryFile() as spool:
+        count, nested, counted = 0, False, set[str]()
+        for row in rows:
+            count += 1
+            if count > max_rows:
+                raise row_limit_exceeded()
+            record = dict(zip(names, row, strict=True))
+            if any(isinstance(value, dict | list) for value in record.values()):
+                nested = True
+                counted |= structured_lists(record)
+            spool.write(encoder.encode(list(record.values())).encode("utf-8") + b"\n")
+            if spool.tell() > 4 * max_bytes:
+                raise source_too_large()
+        if not count:
+            raise IngestionError("empty_source", "That source has no records to import.", 422)
+
+        def records() -> Iterable[dict[str, str]]:
+            spool.seek(0)
+            origins: dict[str, tuple[str, ...]] = {}
+            for line in spool:
+                yield flatten(
+                    dict(zip(names, json.loads(line), strict=True)),
+                    counted=frozenset(counted),
+                    origins=origins,
+                )
+
+        header = names
+        if nested:
+            seen: dict[str, None] = {}
+            for flat in records():
+                seen.update(dict.fromkeys(flat))
+                if len(seen) > MAX_COLUMNS:
+                    raise source_too_large()
+            header = list(seen)
+        start = target.tell()
+
+        def write(values: list[str]) -> None:
+            line = StringIO()
+            csv.writer(line, lineterminator="\n").writerow(values)
+            content = line.getvalue().encode("utf-8")
+            if target.tell() - start + len(content) > max_bytes:
+                raise source_too_large()
+            target.write(content)
+
+        write(header)
+        for flat in records():
+            write([flat.get(name, "") for name in header])
+    return count
 
 
 def connector_filename(platform: str, account: str, source: str) -> str:
