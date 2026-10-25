@@ -2121,6 +2121,7 @@ export default function WorkspacePage() {
                       key={`refresh-${root}-${revisionTick}`}
                       root={root}
                       request={request}
+                      transport={authorizedResponse}
                       onReview={reviewUnderstanding}
                       onActivated={async (id) => {
                         const available = await request<Upload[]>(

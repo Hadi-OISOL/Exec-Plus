@@ -1385,7 +1385,11 @@ test("refresh retains a safe baseline and delivers a private evidenced KPI alert
     mimeType: "text/csv",
     buffer: Buffer.from("city,amount\nKarachi,0.30\nLahore,0.20\n"),
   });
+  const chunked = page.waitForRequest((sent) =>
+    sent.url().endsWith("/refresh/candidates/from-upload-session"),
+  );
   await panel.getByRole("button", { name: "Validate staged file" }).click();
+  await chunked;
   await expect(panel.getByRole("status")).toContainText("File queued");
   await panel
     .getByRole("button", { name: "Activate snapshot", exact: true })

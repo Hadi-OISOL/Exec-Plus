@@ -212,3 +212,32 @@ test("quota and size failures produce clear messages", async () => {
   assert.equal(formatBytes(2.1 * 1024 ** 3), "2.1 GB");
   assert.equal(formatBytes(5 * 1024 ** 3), "5 GB");
 });
+
+test("a finalize step completes the session into a refresh candidate without ingesting or remembering it", async () => {
+  const server = fakeServer();
+  const storage = memoryStorage();
+  const finalized = [];
+  const manager = new UploadManager({ transport: server.transport, userId: "u1", storage, backoffMs: 1 });
+  manager.enqueue(namedFile("city,amount\nK,1\n"), "w1", "d1", "text/csv", async (sessionId, signal) => {
+    finalized.push(sessionId);
+    assert.ok(signal instanceof AbortSignal);
+    assert.deepEqual(readRecords(storage), []);
+    return { id: "candidate-1", status: "queued" };
+  });
+  const [item] = await finished(manager);
+  assert.equal(item.phase, "done");
+  assert.deepEqual(item.outcome, { id: "candidate-1", status: "queued" });
+  assert.deepEqual(finalized, ["s1"]);
+  assert.equal(Buffer.from(server.sessions.get("s1").bytes).toString(), "city,amount\nK,1\n");
+  assert.equal(server.log.some(line => line.endsWith("/complete")), false);
+  assert.equal(storage.values.has(RESUME_KEY), false);
+});
+
+test("finalized uploads never fall back to the legacy dataset upload", async () => {
+  const server = fakeServer({ legacy: true });
+  const manager = new UploadManager({ transport: server.transport, userId: "u1", backoffMs: 1 });
+  manager.enqueue(namedFile("city,amount\n"), "w1", "d1", "text/csv", async () => ({}));
+  const [item] = await finished(manager);
+  assert.equal(item.phase, "failed");
+  assert.equal(server.log.some(line => line.includes("/uploads?filename=")), false);
+});

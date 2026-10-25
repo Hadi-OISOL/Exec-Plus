@@ -1,6 +1,7 @@
 """Use case: Exposes staged refresh, descriptive monitoring and private in-app alerts.
 
 What it does: Validates bounded inputs and serializes exact query evidence for workspace members.
+Large refresh files arrive through a resumable upload session that is completed into a candidate.
 """
 
 import json
@@ -14,6 +15,7 @@ from pydantic import Field, ValidationError
 
 from execplus.application.services.monitoring import MonitoringService
 from execplus.application.services.refresh import RefreshService, editor
+from execplus.application.services.upload_sessions import UploadSessionService
 from execplus.domain.ingestion import IngestionError, file_too_large
 from execplus.presentation.routes.analytics import query_body
 from execplus.presentation.routes.studies import Input
@@ -38,6 +40,14 @@ Refresh = Annotated[RefreshService, Depends(refresh_service)]
 Monitoring = Annotated[MonitoringService, Depends(monitoring_service)]
 
 
+def upload_sessions(request: Request) -> UploadSessionService:
+    value: UploadSessionService = request.app.state.runtime.upload_sessions
+    return value
+
+
+UploadSessions = Annotated[UploadSessionService, Depends(upload_sessions)]
+
+
 class Dates(Input):
     as_of: datetime
     coverage_start: date | None = None
@@ -60,6 +70,10 @@ class StageInput(Dates):
     mode: str = Field(max_length=10)
     keys: list[str] = Field(default_factory=list, max_length=4)
     duplicates: str = Field(max_length=20)
+
+
+class SessionStageInput(StageInput):
+    session_id: UUID
 
 
 class ReviewInput(Input):
@@ -124,6 +138,37 @@ async def stage(
             **body.model_dump(),
         )
     )
+
+
+@router.post(DATA + "/refresh/candidates/from-upload-session", status_code=201)
+def stage_uploaded(
+    workspace_id: UUID,
+    dataset_id: UUID,
+    body: SessionStageInput,
+    actor: Actor,
+    refresh: Refresh,
+    sessions: UploadSessions,
+) -> object:
+    with refresh.uow() as repo:
+        editor(repo, actor, workspace_id, dataset_id)
+    options = body.model_dump()
+    session_id = options.pop("session_id")
+    candidate = sessions.consume(
+        actor,
+        workspace_id,
+        session_id,
+        dataset_id,
+        lambda session, content: refresh.stage(
+            actor,
+            workspace_id,
+            dataset_id,
+            filename=session.filename,
+            content_type=session.content_type or "application/octet-stream",
+            content=content,
+            **options,
+        ),
+    )
+    return asdict(candidate)
 
 
 @router.post(ROOT + "/refresh-candidates/{candidate_id}/review")

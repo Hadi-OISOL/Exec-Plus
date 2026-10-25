@@ -1,7 +1,8 @@
 """Use case: Accepts large files as resumable, checksummed chunks and ingests them once complete.
 
 What it does: Stores each chunk in object storage, enforces owner-only sessions and per-user
-quotas, then streams the parts through the existing single-upload ingestion path.
+quotas, then streams the parts through the existing single-upload ingestion path or hands the
+assembled file to another consumer such as staged refresh.
 """
 
 import hashlib
@@ -12,7 +13,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import PurePosixPath
 from tempfile import TemporaryFile
-from typing import Any, BinaryIO, cast
+from typing import Any, BinaryIO, TypeVar, cast
 from uuid import UUID, uuid4
 
 from execplus.application.ports import ObjectStorage, WorkspaceRepository
@@ -42,6 +43,8 @@ from execplus.domain.upload_sessions import (
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 logger = logging.getLogger(__name__)
 LEASE = timedelta(minutes=30)
+CONSUMED = "consumed_elsewhere"
+T = TypeVar("T")
 
 
 def now() -> datetime:
@@ -229,9 +232,14 @@ class UploadSessionService:
             "status": session.status,
         }
 
-    def complete(
-        self, actor: User, workspace_id: UUID, session_id: UUID
-    ) -> tuple[dict[str, Any], bool]:
+    def _claim(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        session_id: UUID,
+        dataset_id: UUID | None = None,
+        marker: str | None = None,
+    ) -> tuple[UploadSession, dict[str, Any]]:
         with self.uow() as repo:
             self._member(repo, actor, workspace_id)
             session = repo.upload_session(workspace_id, session_id, actor.id, lock=True)
@@ -244,14 +252,63 @@ class UploadSessionService:
                 raise IngestionError(
                     "upload_incomplete", f"Send chunk {session.next_chunk} before completing.", 409
                 )
+            if marker is not None and session.dataset_id != dataset_id:
+                raise IngestionError(
+                    "session_mismatch", "This upload session belongs to another dataset.", 409
+                )
             session = replace(
-                session, status=PROCESSING, lease_until=timestamp + LEASE, updated_at=timestamp
+                session,
+                status=PROCESSING,
+                lease_until=timestamp + LEASE,
+                error_code=marker,
+                updated_at=timestamp,
             )
             repo.set_upload_session(session)
-            view = self._view(repo, session)
+            return session, self._view(repo, session)
+
+    def complete(
+        self, actor: User, workspace_id: UUID, session_id: UUID
+    ) -> tuple[dict[str, Any], bool]:
+        session, view = self._claim(actor, workspace_id, session_id)
         if session.size_bytes > self.inline_bytes:
             return view, True
         return self.process(session.id, reraise=True), False
+
+    def consume(
+        self,
+        actor: User,
+        workspace_id: UUID,
+        session_id: UUID,
+        dataset_id: UUID,
+        use: Callable[[UploadSession, bytes], T],
+    ) -> T:
+        session, _ = self._claim(actor, workspace_id, session_id, dataset_id, CONSUMED)
+        try:
+            with TemporaryFile(mode="w+b") as content:
+                self._assemble(session, cast(BinaryIO, content))
+                result = use(session, content.read())
+        except IngestionError as error:
+            self._close(session, FAILED, error.code, str(error)[:300])
+            raise
+        except Exception:
+            logger.exception("upload_session_consume_failed session_id=%s", session.id)
+            self._close(session, FAILED, "internal_error", "The file could not be processed.")
+            raise
+        self._close(session, COMPLETED, None, None)
+        return result
+
+    def _close(
+        self, session: UploadSession, status: str, code: str | None, message: str | None
+    ) -> None:
+        outcome = replace(
+            session, status=status, error_code=code, error_message=message, lease_until=None
+        )
+        with self.uow() as repo:
+            repo.workspace(session.workspace_id, lock=True)
+            outcome = replace(outcome, updated_at=now())
+            repo.set_upload_session(outcome)
+            self._audit(repo, outcome, f"upload_session.{status}")
+        self._discard_parts(outcome)
 
     def process(self, session_id: UUID, *, reraise: bool = False) -> dict[str, Any]:
         with self.uow() as repo:
@@ -259,6 +316,12 @@ class UploadSessionService:
             actor = repo.user(session.created_by)
             if session.status != PROCESSING:
                 return self._view(repo, session)
+        if session.error_code == CONSUMED:
+            self._close(
+                session, FAILED, "interrupted", "Staging this file was interrupted. Send it again."
+            )
+            with self.uow() as repo:
+                return self._view(repo, repo.upload_session_by_id(session_id))
         failure: IngestionError | None = None
         try:
             with TemporaryFile(mode="w+b") as content:
