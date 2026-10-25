@@ -1,4 +1,4 @@
-"""Use case: Exposes the exact dataset brief and each dataset's automatic dashboard.
+"""Use case: Exposes the exact dataset brief, dataset purpose and each automatic dashboard.
 
 What it does: Authorizes callers, attributes model usage and serializes dashboard versions.
 """
@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from execplus.application.services.auto_dashboards import AutoDashboardService
+from execplus.application.services.dataset_purpose import purpose
 from execplus.application.usage_context import usage_scope
 from execplus.domain.auto_dashboard import AutoDashboard
 from execplus.domain.usage_metering import UsageAttribution
@@ -52,6 +53,13 @@ async def dataset_brief(
 ) -> object:
     brief, *_ = await dashboards.brief(actor, workspace_id, dataset_id, upload_id)
     return brief
+
+
+@router.get(ROOT + "/uploads/{upload_id}/dataset-purpose")
+async def dataset_purpose(
+    workspace_id: UUID, upload_id: UUID, actor: Actor, request: Request
+) -> object:
+    return await purpose(request.app.state.runtime.analytics, actor, workspace_id, upload_id)
 
 
 @router.get(SOURCE + "/auto-dashboard")

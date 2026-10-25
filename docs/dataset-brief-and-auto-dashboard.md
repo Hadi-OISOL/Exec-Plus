@@ -63,3 +63,34 @@ existing descriptive study, which can then be pinned on a six-pin dashboard).
 - The overview requests both the dashboard and the analyst overview, so analysts run twice per
   first visit.
 - Column names containing reserved query words are skipped (shared SQL guard).
+
+## Dataset purpose — `dataset-purpose-v1` (October 26)
+
+`GET /workspaces/{wid}/uploads/{uid}/dataset-purpose` (member of the workspace; dataset access
+policy applies through the same snapshot as the brief; 404 for an unknown upload).
+
+`{"version","summary","benefits":[str],"suggested_questions":[{"title","question"}],
+"profile_question":{"question","choices":[str]}|null}` — built by `domain/goal_ranking.py`
+without a model. Counts come from the profile; every suggested question routes in chat
+(goal ranking, `Which <cat> has the highest average <score>?`, `How many records are there by
+<cat>?`; the newest-records question needs the planner model). `profile_question` appears only
+for rankable files when the caller has no saved role; choices are role labels whose vocabulary
+appears in the file's text. Save the answer through `PUT /workspaces/{wid}/agent-memory` (`role`).
+
+## Goal ranking in chat — `deterministic:goal-ranking-v1`
+
+"If I am a software engineer, which lead is the most hot for me?" / "Which leads are the best
+fit for me?" (role from the question, else saved memory role, else private goal; otherwise one
+"What do you do?" clarification with clickable role choices). Needs a numeric score-like measure
+(score, priority, rating, intent, fit…) and descriptive text columns (URL/contact/id excluded).
+
+- Score: a score named in the question; else the model's suggestion (if enabled); else the single
+  total/overall score, disclosed with re-rank buttons for the others; else one score; else a
+  clarification listing each score as a clickable full question.
+- One governed row query (`query_records`, receipt route above or `<provider>:<model>:goal-ranking-v1`)
+  returns the rows ordered by that score. The server keeps rows whose text contains at least one
+  persona keyword (persona words plus a fixed role vocabulary plus up to 15 model-suggested
+  letter-only words; whole token, or prefix for words of five letters or more), then orders by
+  score desc, matched-word count desc, original order. Top 5 are shown with exact values.
+- No match: one clarification with role choices found in the returned text.
+- The model may only pick listed columns and words; any invalid reply uses the rule above.
