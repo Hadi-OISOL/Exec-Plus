@@ -133,6 +133,18 @@ agent_memories = Table(
     CheckConstraint("version > 0", name="agent_memory_version"),
     CheckConstraint("explanation_style IN ('concise', 'step_by_step')", name="agent_memory_style"),
 )
+user_profiles = Table(
+    "user_profiles",
+    metadata,
+    Column("user_id", Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("version", Integer, nullable=False),
+    Column("preferred_name", String(120), nullable=False),
+    Column("answers", JSON, nullable=False),
+    Column("completed_at", DateTime(timezone=True)),
+    Column("skipped_at", DateTime(timezone=True)),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("version > 0", name="user_profile_version"),
+)
 invitations = Table(
     "invitations",
     metadata,

@@ -149,54 +149,14 @@ table, .kpiValue, .discoveryValue, .studyValue, .observationValue, .sourceStats 
 :focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
 .workbench [hidden], .analyticsShell [hidden] { display: none !important; }
 
-/* 3. Landing page -------------------------------------------------------- */
-main:not(.workbench) { width: min(1160px, calc(100% - 32px)); margin: 0 auto; }
-main:not(.workbench) > nav { min-height: 72px; display: flex; align-items: center; border-bottom: 1px solid var(--color-border); }
+/* 3. Shared brand mark and eyebrow -------------------------------------- */
+.eyebrow { margin: 0 0 var(--space-2); color: var(--color-primary-text); font-size: var(--text-overline); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 .brand { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--color-text); font-size: 1.0625rem; font-weight: 650; letter-spacing: -0.02em; text-decoration: none; }
 .brand:hover { text-decoration: none; }
 .brandMark {
   display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0;
   border-radius: var(--radius-md); background: var(--color-primary); color: var(--color-on-primary);
   font-size: 0.8125rem; font-weight: 700; letter-spacing: -0.02em;
-}
-.eyebrow { margin: 0 0 var(--space-2); color: var(--color-primary-text); font-size: var(--text-overline); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
-.hero { padding: var(--space-16) 0; }
-.hero h1 { max-width: 16ch; margin: var(--space-4) 0; font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 650; letter-spacing: -0.035em; line-height: 1.05; }
-.heroCopy { max-width: 60ch; color: var(--color-text-secondary); font-size: clamp(1rem, 1.6vw, 1.1875rem); line-height: 1.6; }
-.hero > p { max-width: 70ch; color: var(--color-text-secondary); }
-.heroActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-5); margin-top: var(--space-6); }
-.primaryAction { display: inline-flex; padding: 12px 18px; border-radius: var(--radius-sm); background: var(--color-primary); color: var(--color-on-primary); font-weight: 600; }
-.primaryAction:hover { background: var(--color-primary-hover); text-decoration: none; }
-.principles { display: grid; grid-template-columns: repeat(4, 1fr); border-block: 1px solid var(--color-border); }
-.principles article { padding: var(--space-6); border-right: 1px solid var(--color-border); }
-.principles article:last-child { border-right: 0; }
-.principles span, .flow span { color: var(--color-primary-text); font-weight: 600; font-variant-numeric: tabular-nums; }
-.principles h2 { margin: var(--space-8) 0 0; font-size: var(--text-h3); line-height: 1.4; }
-.architecture, .next { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); padding: var(--space-16) 0; }
-.architecture h2, .next h2 { margin: var(--space-3) 0 var(--space-5); font-size: clamp(1.75rem, 3.5vw, 2.5rem); font-weight: 650; letter-spacing: -0.03em; line-height: 1.15; }
-.architecture p { max-width: 56ch; color: var(--color-text-secondary); line-height: 1.7; }
-.flow { padding: var(--space-2) var(--space-6); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-1); }
-.flow div { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: var(--space-3); min-height: 72px; border-bottom: 1px solid var(--color-border); }
-.flow div:last-child { border-bottom: 0; }
-.flow small { color: var(--color-text-muted); }
-.next { margin-bottom: var(--space-16); padding: var(--space-10); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
-.next ol { margin: 0; padding: 0; list-style: none; counter-reset: next-item; }
-.next li { counter-increment: next-item; padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); font-weight: 600; }
-.next li::before { content: "0" counter(next-item); margin-right: var(--space-4); color: var(--color-primary-text); }
-footer { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-8) 0; border-top: 1px solid var(--color-border); color: var(--color-text-muted); font-size: var(--text-small); }
-@media (max-width: 800px) {
-  .principles { grid-template-columns: 1fr 1fr; }
-  .principles article:nth-child(2) { border-right: 0; }
-  .principles article:nth-child(-n + 2) { border-bottom: 1px solid var(--color-border); }
-  .architecture, .next { grid-template-columns: 1fr; gap: var(--space-8); }
-  .next { padding: var(--space-6); }
-  footer { flex-direction: column; }
-}
-@media (max-width: 480px) {
-  .principles { grid-template-columns: 1fr; }
-  .principles article { border-right: 0; border-bottom: 1px solid var(--color-border); }
-  .flow div { grid-template-columns: 32px 1fr; }
-  .flow small { display: none; }
 }
 
 /* 4. App shell ---------------------------------------------------------- */
@@ -416,13 +376,11 @@ footer { display: flex; justify-content: space-between; gap: var(--space-4); pad
 .emptyWorkspace p { max-width: 46ch; color: var(--color-text-secondary); }
 .workbench.analyticsShell .emptyWorkspace > button { margin-top: var(--space-4); border-color: var(--color-primary); background: var(--color-primary); color: var(--color-on-primary); }
 .emptyFlow { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-6); color: var(--color-text-muted); font-size: var(--text-small); }
-.loginPanel { max-width: 460px; margin: var(--space-10) auto var(--space-16); padding: var(--space-8); box-shadow: var(--shadow-3); }
-.loginPanel h2 { font-size: var(--text-h1); }
+.loginPanel { max-width: 440px; margin: var(--space-8) auto var(--space-16); padding: var(--space-8); border-radius: var(--radius-xl); box-shadow: var(--shadow-2); }
 .loginPanel h3 { margin-top: var(--space-8); padding-top: var(--space-6); border-top: 1px solid var(--color-border); }
-.workbench.analyticsShell .loginPanel button { width: 100%; }
+.workbench.analyticsShell .loginPanel .operatorSession button { width: 100%; }
 .workbench.analyticsShell .loginPanel .secondaryAction { border-color: var(--color-border-strong); background: var(--color-surface); color: var(--color-text); }
 .workbench.analyticsShell .loginPanel .secondaryAction:hover:not(:disabled) { background: var(--color-surface-hover); }
-.loginPanel > form:has(.secondaryAction) { margin-top: var(--space-4); }
 .loginPanel form { align-items: stretch; }
 .operatorSession p { margin: 0; color: var(--color-text-secondary); font-size: var(--text-small); }
 @media (max-width: 480px) { .loginPanel { margin: var(--space-4) auto var(--space-8); padding: var(--space-5) var(--space-4); } }

@@ -38,6 +38,7 @@ from execplus.domain.understanding import (
     unit_suggestions,
     validate_definition,
 )
+from execplus.domain.user_profile import UserProfile, validate_answers, validate_text
 
 UnitOfWork = Callable[[], AbstractContextManager[WorkspaceRepository]]
 
@@ -356,6 +357,43 @@ class UnderstandingService:
                 )
             )
             return preference
+
+    def profile(self, actor: User) -> UserProfile:
+        with self.uow() as repo:
+            return repo.user_profile(actor.id)
+
+    def save_profile(
+        self,
+        actor: User,
+        expected_version: int,
+        preferred_name: str = "",
+        answers: dict[str, Any] | None = None,
+        status: str = "completed",
+        *,
+        forget: bool = False,
+    ) -> UserProfile:
+        name = validate_text(preferred_name)
+        chosen = validate_answers(answers or {})
+        with self.uow() as repo:
+            repo.require_active_actor(actor.id)
+            current = repo.user_profile(actor.id)
+            if current.version != expected_version:
+                raise IngestionError(
+                    "profile_conflict", "Your profile changed. Reload it before saving again.", 409
+                )
+            now = datetime.now(timezone.utc)
+            profile = UserProfile(
+                actor.id,
+                current.version + 1,
+                name,
+                chosen,
+                None if forget or status != "completed" else now,
+                None if forget or status != "skipped" else now,
+                now,
+            )
+            repo.save_user_profile(profile)
+            repo.account_event(actor.id, f"profile.{'forgotten' if forget else status}", now)
+            return profile
 
     def memory(self, actor: User, workspace_id: UUID) -> AgentMemory:
         with self.uow() as repo:

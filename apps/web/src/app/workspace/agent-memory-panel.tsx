@@ -15,7 +15,7 @@ type AgentMemory = {
   updated_at: string | null;
 };
 
-export function AgentMemoryPanel({ workspaceId, request }: { workspaceId: string; request: ApiRequest }) {
+export function AgentMemoryPanel({ workspaceId, request, onRedoProfile }: { workspaceId: string; request: ApiRequest; onRedoProfile?: () => void }) {
   const [memory, setMemory] = useState<AgentMemory | null>(null);
   const [role, setRole] = useState("");
   const [focus, setFocus] = useState("");
@@ -82,6 +82,6 @@ export function AgentMemoryPanel({ workspaceId, request }: { workspaceId: string
         {!forgetOpen ? <button type="button" disabled={busy} onClick={() => setForgetOpen(true)}>Forget my memory</button> : <div><p>Clear your saved role, focus and explanation preference? Existing conversations keep their original replies.</p><div><button type="button" disabled={busy || conflict} onClick={() => void change(true)}>Clear saved memory</button><button type="button" disabled={busy} onClick={() => setForgetOpen(false)}>Keep memory</button></div></div>}
       </div>}
     </div>
-    <aside className="studioMemoryNotes"><span className="studioEyebrow">HOW IT HELPS</span><h3>Your preferences travel with you.</h3><p>New readings, explanations and starter suggestions can use this memory across your files in this workspace.</p><ul><li><Icon name="check" size={17} /><span><strong>Private to you</strong>Other workspace members do not share your memory.</span></li><li><Icon name="data" size={17} /><span><strong>Data keeps its own meaning</strong>Saved business definitions and file-specific goals stay separate.</span></li><li><Icon name="prepare" size={17} /><span><strong>You stay in control</strong>Edit or forget your preferences here. Existing replies stay unchanged.</span></li></ul><p className="studioMemoryFootnote">This is saved context, not automatic learning from every conversation. It guides explanations; it does not change calculated results or grant access to data.</p></aside>
+    <aside className="studioMemoryNotes"><span className="studioEyebrow">HOW IT HELPS</span><h3>Your preferences travel with you.</h3><p>New readings, explanations and starter suggestions can use this memory across your files in this workspace.</p><ul><li><Icon name="check" size={17} /><span><strong>Private to you</strong>Other workspace members do not share your memory.</span></li><li><Icon name="data" size={17} /><span><strong>Data keeps its own meaning</strong>Saved business definitions and file-specific goals stay separate.</span></li><li><Icon name="prepare" size={17} /><span><strong>You stay in control</strong>Edit or forget your preferences here. Existing replies stay unchanged.</span></li></ul>{onRedoProfile && <p><strong>About you</strong><br />Your get-to-know-you answers apply across all your workspaces. <button type="button" className="secondaryAction" onClick={onRedoProfile}>Redo the questions</button></p>}<p className="studioMemoryFootnote">This is saved context, not automatic learning from every conversation. It guides explanations; it does not change calculated results or grant access to data.</p></aside>
   </section>;
 }

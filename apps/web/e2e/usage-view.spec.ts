@@ -4,7 +4,7 @@ What it does: Uploads a file, lowers the dataset allowance to the current count,
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { finishInitialReview, navigateTo } from "./workspace-helpers";
+import { finishInitialReview, navigateTo, skipOnboarding } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 
@@ -23,6 +23,7 @@ test("owners see exact usage, daily history and limit notices; staff see the wor
   const signed = page.waitForResponse(response => response.url().endsWith("/auth/login") && response.request().method() === "POST");
   await login.getByRole("button", { name: "Sign in with password", exact: true }).click();
   const headers = { Authorization: `Bearer ${(await (await signed).json()).token}` };
+  await skipOnboarding(page);
   await expect(page.getByText(`Signed in as ${email}`, { exact: true })).toBeVisible();
   const wid = await page.getByRole("combobox", { name: "Current workspace", exact: true }).inputValue();
 

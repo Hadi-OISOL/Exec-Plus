@@ -4,6 +4,15 @@ What it does: Leaves optional reading and verifies the requested working view is
 import { expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+export async function skipOnboarding(page: Page) {
+  const skip = page.getByRole("button", { name: "Skip for now", exact: true });
+  await expect(skip.or(page.getByText("Signed in as", { exact: false }).first())).toBeVisible({ timeout: 20_000 });
+  if (await skip.isVisible()) {
+    await skip.click();
+    await expect(skip).toBeHidden();
+  }
+}
+
 export async function selectAnalysisFocus(page: Page, value: "descriptive" | "predictive" | "prescriptive" | "all") {
   const label = { descriptive: "Descriptive", predictive: "Predictive", prescriptive: "Prescriptive", all: "All supported" }[value];
   await page.getByRole("combobox", { name: "Analysis focus", exact: true }).click();

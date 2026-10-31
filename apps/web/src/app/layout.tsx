@@ -14,8 +14,8 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Syntelio",
-  description: "Synthesized Enterprise Intelligence: verified conversational analytics for structured business data",
+  title: "Syntelio — Ask your data, get verified answers",
+  description: "Upload a spreadsheet or connect a database, ask in plain language and get answers, charts, forecasts and unusual-value checks. Every number is computed by a read-only engine and traceable to its rows.",
 };
 
 type RootLayoutProps = Readonly<{

@@ -2,6 +2,7 @@
 What it does: Uses an isolated synthetic Google principal and the real account API without any provider calls. */
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
+import { skipOnboarding } from "./workspace-helpers";
 
 function externalAccount(): { email: string; token: string; id: string } {
   const setup = `
@@ -36,6 +37,7 @@ test("Google account settings show the actual sign-in method without local passw
   await page.goto("/workspace");
   await page.getByLabel("Session token", { exact: true }).fill(person.token);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await skipOnboarding(page);
   await expect(page.getByText(`Signed in as ${person.email}`, { exact: true })).toBeVisible();
   await page.getByRole("navigation", { name: "Workspace navigation" }).getByRole("button", { name: "Team & settings", exact: true }).click();
   const security = page.getByRole("region", { name: "Your account settings", exact: true });

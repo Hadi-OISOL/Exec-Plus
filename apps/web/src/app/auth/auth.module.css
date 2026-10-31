@@ -1,0 +1,79 @@
+/* Use case: Styles the shared sign-in, sign-up and reset form and the standalone auth pages.
+What it does: Uses the design tokens for a centered card, Google button, divider, fields and links in both themes with reduced-motion-aware entrance. */
+
+.page {
+  min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; justify-items: center;
+  padding: var(--space-6) var(--space-4);
+  background: radial-gradient(60% 50% at 50% 0%, var(--color-primary-subtle), transparent 70%), var(--color-bg);
+}
+.brand { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--color-text); font-size: 1.0625rem; font-weight: 650; letter-spacing: -0.02em; }
+.brand:hover { text-decoration: none; }
+.mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--color-primary); color: var(--color-on-primary); font-size: 0.8125rem; font-weight: 700; }
+.card {
+  width: min(100%, 440px); align-self: center; margin-block: var(--space-8);
+  padding: var(--space-8); background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-2);
+}
+.foot { color: var(--color-text-muted); font-size: var(--text-small); }
+.foot a { margin-inline: var(--space-2); }
+
+.access { display: grid; gap: var(--space-4); }
+.access h1 { margin: 0; font-size: 1.625rem; font-weight: 650; letter-spacing: -0.025em; line-height: 1.2; }
+.title + .lead { margin: 0; }
+.lead { margin: 0; color: var(--color-text-secondary); font-size: var(--text-body-lg); line-height: 1.55; }
+.access form { margin: 0; }
+.access form:has(.google) { display: block; }
+
+.google, .submit, .access input:not([type="checkbox"]) {
+  width: 100%; min-height: 44px; border-radius: var(--radius-md); font: inherit; font-size: var(--text-body-lg);
+}
+.google {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-3);
+  padding: 0 var(--space-4); border: 1px solid var(--color-border-strong); background: var(--color-surface);
+  color: var(--color-text); font-weight: 550; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
+}
+.google:hover:not(:disabled) { background: var(--color-surface-hover); border-color: var(--color-text-muted); }
+.divider { display: flex; align-items: center; gap: var(--space-3); margin: 0; color: var(--color-text-muted); font-size: var(--text-small); }
+.divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--color-border); }
+
+.access .form { display: grid; align-items: stretch; gap: var(--space-2); margin: 0; }
+.form label { display: block; width: auto; color: var(--color-text); font-size: var(--text-body); font-weight: 550; }
+.form input { padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); background: var(--color-surface); color: var(--color-text); }
+.form input:hover:not(:disabled):not(:focus) { border-color: var(--color-text-muted); }
+.form input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-subtle); outline: 0; }
+.form input:disabled { background: var(--color-surface-sunken); color: var(--color-text-muted); }
+.form input[aria-invalid="true"] { border-color: var(--color-danger); }
+.form input + label, .form small + label, .form .labelRow { margin-top: var(--space-2); }
+.form small { color: var(--color-text-muted); font-size: var(--text-small); line-height: 1.5; }
+.labelRow { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+.labelRow .link { font-size: var(--text-small); }
+.passwordField { position: relative; }
+.passwordField input { padding-inline-end: 4.5rem; }
+.reveal {
+  position: absolute; inset-block: 4px; inset-inline-end: 4px; min-width: 0 !important; min-height: 0 !important; padding: 0 var(--space-3);
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-primary-text); font: inherit; font-size: var(--text-small); font-weight: 600; cursor: pointer;
+}
+.reveal:hover:not(:disabled) { background: var(--color-surface-hover); }
+.submit {
+  margin-top: var(--space-4); padding: 0 var(--space-4); border: 1px solid var(--color-primary); background: var(--color-primary);
+  color: var(--color-on-primary); font-weight: 600; cursor: pointer; box-shadow: var(--shadow-1);
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.submit:hover:not(:disabled) { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+.google:disabled, .submit:disabled, .reveal:disabled, .link:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.error { margin: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-danger); border-radius: var(--radius-md); background: var(--color-danger-subtle); color: var(--color-danger); font-size: var(--text-body); }
+.alt { margin: 0; color: var(--color-text-secondary); font-size: var(--text-body); text-align: center; }
+.link { display: inline; min-width: 0 !important; min-height: 0 !important; padding: 0; border: 0; background: none; color: var(--color-primary-text); font: inherit; font-weight: 600; cursor: pointer; }
+.link:hover { text-decoration: underline; background: none !important; }
+.privacy { margin: 0; color: var(--color-text-muted); font-size: var(--text-caption); line-height: 1.5; text-align: center; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .card, .access { animation: authRise var(--dur-slow) var(--ease-emphasized) both; }
+  @keyframes authRise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+@media (max-width: 480px) {
+  .page { padding: var(--space-4); }
+  .card { margin-block: var(--space-4); padding: var(--space-6) var(--space-5); }
+}

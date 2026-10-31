@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { finishInitialReview, navigateTo } from "./workspace-helpers";
+import { finishInitialReview, navigateTo, skipOnboarding } from "./workspace-helpers";
 
 const api = "http://127.0.0.1:8001";
 const password = "synthetic browser passphrase 27";
@@ -20,6 +20,7 @@ async function nativeLogin(page: Page, email: string, secret = password) {
   const result = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/auth/login"));
   await access.getByRole("button", { name: "Sign in with password", exact: true }).click();
   const body = await (await result).json();
+  await skipOnboarding(page);
   await expect(page.getByText(`Signed in as ${email}`, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeEnabled();
   return { token: body.token as string, userId: body.user.id as string, headers: { Authorization: `Bearer ${body.token}` } };
@@ -47,9 +48,10 @@ test("native signup creates a private workspace and the guide resumes without cl
   await access.getByLabel("Account password", { exact: true }).fill(password);
   await access.getByLabel("Confirm account password", { exact: true }).fill(password);
   const signedIn = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/auth/login"));
-  await access.getByRole("button", { name: "Create local account", exact: true }).click();
+  await access.getByRole("button", { name: "Create account", exact: true }).click();
   const created = await (await signedIn).json();
   const session = { token: created.token as string, userId: created.user.id as string, headers: { Authorization: `Bearer ${created.token}` } };
+  await skipOnboarding(page);
   await expect(page.getByText(`Signed in as ${email}`, { exact: true })).toBeVisible();
   await expect(page.getByText("Your private workspace is ready", { exact: false })).toBeVisible();
   await page.reload();

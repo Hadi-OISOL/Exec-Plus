@@ -5,10 +5,10 @@ What it does: Implements scoped lookups and transaction-scoped PostgreSQL row lo
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from typing import TypeVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Connection,
@@ -68,6 +68,7 @@ from execplus.domain.studies import (
 )
 from execplus.domain.threads import Thread, ThreadSummary, ThreadTurn
 from execplus.domain.understanding import DataPreference, Understanding
+from execplus.domain.user_profile import UserProfile
 from execplus.infrastructure.persistence import schema as s
 from execplus.infrastructure.persistence.jobs import SQLJobRepository
 from execplus.infrastructure.persistence.operations import SQLOperationsRepository
@@ -556,10 +557,12 @@ class SQLWorkspaceRepository(
             .mappings()
             .first()
         )
-        return AgentMemory(**row) if row else AgentMemory(workspace_id, user_id)
+        memory = AgentMemory(**row) if row else AgentMemory(workspace_id, user_id)
+        return replace(memory, profile=self.user_profile(user_id))
 
     def save_agent_memory(self, memory: AgentMemory) -> None:
-        values = asdict(memory)
+        values = asdict(replace(memory, profile=None))
+        del values["profile"]
         self.connection.execute(
             insert(s.agent_memories)
             .values(**values)
@@ -570,6 +573,29 @@ class SQLWorkspaceRepository(
                     for key, value in values.items()
                     if key not in {"workspace_id", "user_id"}
                 },
+            )
+        )
+
+    def user_profile(self, user_id: UUID) -> UserProfile:
+        row = self.connection.execute(select(s.user_profiles).filter_by(user_id=user_id))
+        found = row.mappings().first()
+        return UserProfile(**found) if found else UserProfile(user_id)
+
+    def save_user_profile(self, profile: UserProfile) -> None:
+        values = asdict(profile)
+        self.connection.execute(
+            insert(s.user_profiles)
+            .values(**values)
+            .on_conflict_do_update(
+                index_elements=["user_id"],
+                set_={key: value for key, value in values.items() if key != "user_id"},
+            )
+        )
+
+    def account_event(self, user_id: UUID, action: str, now: datetime, reason: str = "") -> None:
+        self.connection.execute(
+            insert(s.account_events).values(
+                id=uuid4(), user_id=user_id, action=action, reason=reason, created_at=now
             )
         )
 

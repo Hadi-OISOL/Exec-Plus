@@ -149,7 +149,7 @@ def model_input(
     profile: dict[str, Any],
     definition: dict[str, Any],
     samples: dict[str, Any] | None = None,
-    personal_memory: dict[str, str] | None = None,
+    personal_memory: dict[str, Any] | None = None,
 ) -> str:
     return json.dumps(
         {**model_metadata(profile, definition, samples), "personal_memory": personal_memory or {}},

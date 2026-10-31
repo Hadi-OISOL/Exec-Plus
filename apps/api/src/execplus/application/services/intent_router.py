@@ -2596,8 +2596,10 @@ class IntentRouterService:
                 "The file or definitions changed. Ask a new question about the current version."
             )
         if not self.interpretation_enabled and is_greeting(question):
+            memory = current.agent_memory
+            name = memory.profile.preferred_name if memory and memory.profile else ""
             return DatasetGuide(
-                "Hey! Good to see you. What's on your mind?",
+                f"Hey{', ' + name if name else ''}! Good to see you. What's on your mind?",
                 "deterministic:greeting-v2",
                 sources=current.view.sources,
                 definition_state=current.state,

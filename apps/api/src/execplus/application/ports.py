@@ -63,6 +63,7 @@ from execplus.domain.studies import (
 from execplus.domain.threads import Thread, ThreadSummary, ThreadTurn
 from execplus.domain.understanding import DataPreference, Understanding
 from execplus.domain.upload_sessions import UploadSession
+from execplus.domain.user_profile import UserProfile
 
 
 class QueryExecutor(Protocol):
@@ -380,6 +381,14 @@ class WorkspaceRepository(
     def agent_memory(self, workspace_id: UUID, user_id: UUID) -> AgentMemory: ...
 
     def save_agent_memory(self, memory: AgentMemory) -> None: ...
+
+    def user_profile(self, user_id: UUID) -> UserProfile: ...
+
+    def save_user_profile(self, profile: UserProfile) -> None: ...
+
+    def account_event(
+        self, user_id: UUID, action: str, now: datetime, reason: str = ""
+    ) -> None: ...
 
     def dataset_access_policy(
         self, workspace_id: UUID, dataset_id: UUID

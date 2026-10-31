@@ -5,9 +5,13 @@ What it does: Connects uploads, verified insights, conversations, preparation an
 
 import { allowedExportPath } from "./export-path";
 import { WorkspaceSelect } from "./workspace-select";
-import { AccountAccess } from "./account-access";
+import { AuthForm } from "../auth/auth-form";
+import type { AuthMode } from "../auth/auth-form";
 import { AccountSecurity, InvitationIdentityApproval } from "./account-security";
 import { OnboardingGuide } from "./onboarding-guide";
+import { OnboardingFlow } from "./onboarding/onboarding-flow";
+import { profileNeeded } from "./onboarding/onboarding-values";
+import type { ProfileView } from "./onboarding/onboarding-values";
 import type { ApiRequest } from "./profile-panel";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MAX_UPLOAD_BYTES, UPLOAD_ACCEPT, UploadManager, formatBytes, uploadContentType } from "./upload-manager";
@@ -185,6 +189,8 @@ type User = { id: string; email: string };
 export default function WorkspacePage() {
   const [section, setSection] = useState("overview");
   const [nativeAccount, setNativeAccount] = useState(false);
+  const [profile, setProfile] = useState<ProfileView | null>(null);
+  const [onboarding, setOnboarding] = useState(false);
   const [savedSelection, setSavedSelection] = useState<{ root: string; id: string } | null>(null);
   const [chatSelection, setChatSelection] = useState<{ root: string; id: string } | null>(null);
   const chat = useRef<ChatHandle>(null);
@@ -194,6 +200,7 @@ export default function WorkspacePage() {
   const [briefFor, setBriefFor] = useState("");
   const [briefManual, setBriefManual] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const oauthHandled = useRef(false);
   const oauthSessionRef = useRef<(sessionToken: string) => Promise<void>>(async () => undefined);
   const skippedBriefs = useRef(new Set<string>());
@@ -592,14 +599,16 @@ export default function WorkspacePage() {
 
   async function loadSession(sessionRequest: ApiRequest) {
       const current = await sessionRequest<User>("/auth/me");
-      const [available, access, account] = await Promise.all([
+      const [available, access, account, ownProfile] = await Promise.all([
         sessionRequest<Workspace[]>("/workspaces"),
         sessionRequest<{ role: StaffRole }>("/admin/access"),
         sessionRequest<{ kind: string }>("/auth/account"),
+        sessionRequest<ProfileView>("/me/profile").catch(() => null),
       ]);
       setUser(current);
       setStaffRole(access.role);
       setNativeAccount(account.kind === "local_password");
+      setProfile(ownProfile); setOnboarding(profileNeeded(ownProfile, account.kind));
       setWorkspaces(available);
       const params = new URLSearchParams(window.location.search);
       const selected =
@@ -781,6 +790,7 @@ export default function WorkspacePage() {
     setToken(""); setUser(null); setWorkspace(null); setWorkspaces([]); setDatasets([]); setDataset("");
     setMembers([]); setStaffRole(null); setSavedSelection(null); setInvitations([]); setUploads([]);
     setFile(null); setMessage(""); setError(""); setNativeAccount(false); setSection("data");
+    setProfile(null); setOnboarding(false);
   }
 
   async function createWorkspace(event: FormEvent<HTMLFormElement>) {
@@ -1080,6 +1090,7 @@ export default function WorkspacePage() {
       </p>
     </div>
   );
+  if (user && onboarding && profile) return <OnboardingFlow key={user.id} request={request} initial={profile} onDone={(next) => { setProfile(next); setOnboarding(false); }} />;
   return (
     <ExportDownloadContext.Provider value={downloadExport}><main
       className={`workspaceApp workbench analyticsShell ${user ? "isSignedIn" : "isSignedOut"}`}
@@ -1215,14 +1226,7 @@ export default function WorkspacePage() {
           )}
           {!user ? (
             <section className="panel loginPanel">
-              <AccountAccess api={api} onSession={signInWithPassword} />
-              {googleEnabled && (
-                <form method="get" action={`${api}/auth/google/start`}>
-                  <button type="submit" className="secondaryAction" disabled={busy}>
-                    Continue with Google
-                  </button>
-                </form>
-              )}
+              <AuthForm mode={authMode} switchMode={setAuthMode} api={api} onSession={signInWithPassword} />
               {process.env.NEXT_PUBLIC_EXECPLUS_OPERATOR_SIGNIN === "1" && (
               <form onSubmit={signIn} className="operatorSession" aria-label="Operator session">
                 <h3>Operator session</h3>
@@ -1817,7 +1821,7 @@ export default function WorkspacePage() {
                   </section>
                 )}
               </div>
-              {workspace && section === "memory" && <AgentMemoryPanel key={`${workspace.id}-${user.id}`} workspaceId={workspace.id} request={request} />}
+              {workspace && section === "memory" && <AgentMemoryPanel key={`${workspace.id}-${user.id}`} workspaceId={workspace.id} request={request} onRedoProfile={() => setOnboarding(true)} />}
               {workspace && section === "team" && (
                 <OrganizationPanel
                   key={workspace.id}
@@ -1831,6 +1835,7 @@ export default function WorkspacePage() {
                   }}
                 />
               )}
+              {section === "team" && profile && <p className="panel"><strong>About you:</strong> {profile.status === "completed" ? `Profile saved${profile.preferred_name ? ` for ${profile.preferred_name}` : ""}.` : "The get-to-know-you questions are not answered yet."} <button type="button" className="secondaryAction" onClick={() => setOnboarding(true)}>{profile.status === "completed" ? "Redo the questions" : "Answer the questions"}</button></p>}
               {workspace && section === "team" && <ConsolidationPanel key={`consolidation-${workspace.id}-${user.id}`} request={request} actorId={user.id} />}
               {workspace && section === "audit" && (
                 <AuditPanel

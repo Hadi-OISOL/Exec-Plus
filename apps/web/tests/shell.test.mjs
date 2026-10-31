@@ -1,26 +1,20 @@
-/* Use case: Verifies the initial product shell remains honest about delivery state.
-What it does: Protects trust language and distinguishes verified analytics from pending provider evaluations. */
+/* Use case: Verifies the public website keeps its trust promises and drops engineering jargon.
+What it does: Checks the landing names the read-only engine and lineage, links to the login and sign-up pages and no longer exposes phases or evaluation gates. */
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const pageUrl = new URL("../src/app/page.tsx", import.meta.url);
+const page = await readFile(new URL("../src/app/page.tsx", import.meta.url), "utf8");
 
-test("the shell states the verified-computation promise", async () => {
-  const page = await readFile(pageUrl, "utf8");
-
-  assert.match(page, /Trust the answer/);
-  assert.match(page, /controlled query engine/);
-  assert.match(page, /Answer and lineage/);
+test("the website states the verified-computation promise", () => {
+  assert.match(page, /read-only engine/);
+  assert.match(page, /Lineage on every answer/);
+  assert.match(page, /never supplies or rounds a number/);
 });
 
-test("the shell distinguishes verified analytics from pending provider evaluations", async () => {
-  const page = await readFile(pageUrl, "utf8");
-
-  assert.match(page, /Remaining evaluation gates/);
-  assert.match(page, /verified dashboards, saved analyses and workspace sharing are available/);
-  assert.match(page, /href="\/workspace"/);
-  assert.match(page, /Proactive insights and hybrid knowledge/);
+test("the website links to the account pages and hides engineering state", () => {
+  assert.match(page, /href="\/login"/);
+  assert.match(page, /href="\/signup"/);
+  assert.doesNotMatch(page, /evaluation gates|phase|Explore the foundation|Open your workspace/i);
 });
-

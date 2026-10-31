@@ -66,6 +66,7 @@ from execplus.presentation.routes.threads import router as threads_router
 from execplus.presentation.routes.understanding import router as understanding_router
 from execplus.presentation.routes.upload_sessions import router as upload_sessions_router
 from execplus.presentation.routes.usage_metering import router as usage_metering_router
+from execplus.presentation.routes.user_profile import router as user_profile_router
 from execplus.presentation.routes.workspaces import router as workspace_router
 
 
@@ -228,6 +229,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     application.include_router(google_router)
     application.include_router(connectors_router)
     application.include_router(upload_sessions_router)
+    application.include_router(user_profile_router)
 
     @application.exception_handler(IngestionError)
     async def ingestion_error(request: Request, error: IngestionError) -> JSONResponse:

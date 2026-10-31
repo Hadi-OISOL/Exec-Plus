@@ -374,6 +374,7 @@ def test_empty_memory_migration_round_trip_preserves_0017_rows(integration):
             set(s.metadata.tables)
             - {
                 "auto_dashboards",
+                "user_profiles",
                 "agent_memories",
                 "dataset_access_policies",
                 "incidents",
