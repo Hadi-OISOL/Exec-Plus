@@ -118,6 +118,7 @@ def test_0015_preserves_all_0014_tables_forecasts_receipts_and_jobs(integration)
         "request_metrics",
         "request_metric_batches",
         "incident_alert_policies",
+        "user_profiles",
     }
     original_tables = set(s.metadata.tables) - added - later_added
 

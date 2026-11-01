@@ -30,6 +30,7 @@ def test_connector_upgrade_preserves_existing_rows(integration):
         "upload_sessions",
         "user_storage_quotas",
         "auto_dashboards",
+        "user_profiles",
     }
 
     def snapshot():

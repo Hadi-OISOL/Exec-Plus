@@ -1,7 +1,7 @@
 {
   "file_use_case": "Maintains the original 64-item VC checklist after verified Syntelio deliveries.",
   "responsibility": "Records plain-language feature status, repository evidence and report content without customer data or credentials.",
-  "date": "2026-10-24",
+  "date": "2026-11-01",
   "guardrail": "Do not advertise full predictive or prescriptive analytics yet.",
   "rows": [
     {
@@ -175,7 +175,7 @@
       "section": "Month 1",
       "feature": "Natural-language questions",
       "status": "done",
-      "note": "Registered data/document, diagram and PDF tools retain evidence. Whole-file understanding now shares one reading route; both reported paraphrases and simpler follow-ups pass live checks. New tasks end stale calculation context; genuine numerical follow-ups retain exact queries. Private context never changes numeric filters. Oct 21: planner supports ranking/top-N and record ordering, app-generated questions and an offline planner answer without the model; answers carry chart type, exact shares and grounded follow-ups. Live DeepSeek check 7/7 incl. Roman Urdu on release 955612bb1c42d2bc. A top-N-by-average ranking defect was found live and fixed.",
+      "note": "Registered data/document, diagram and PDF tools retain evidence. Whole-file understanding now shares one reading route; both reported paraphrases and simpler follow-ups pass live checks. New tasks end stale calculation context; genuine numerical follow-ups retain exact queries. Private context never changes numeric filters. Oct 21: planner supports ranking/top-N and record ordering, app-generated questions and an offline planner answer without the model; answers carry chart type, exact shares and grounded follow-ups. Live DeepSeek check 7/7 incl. Roman Urdu on release 955612bb1c42d2bc. A top-N-by-average ranking defect was found live and fixed. Nov 1: hosted greetings and social replies address the user by their saved preferred name; planner receives wording-only private preferences.",
       "evidence": [
         "apps/api/src/execplus/application/services/intent_router.py",
         "apps/api/src/execplus/application/services/threads.py",
@@ -200,7 +200,8 @@
         "apps/api/tests/test_understanding_routing.py",
         "apps/api/tests/test_conversation_boundaries.py",
         "docs/insights-engine.md",
-        "data/verification/2026-10-20-claude-release (ignored live checks)"
+        "data/verification/2026-10-20-claude-release (ignored live checks)",
+        "docs/user-profile-onboarding.md"
       ],
       "evidence_groups": [
         "E2",
@@ -1011,7 +1012,7 @@
       "section": "Commercial readiness",
       "feature": "Automated onboarding",
       "status": "done",
-      "note": "Native registration and workspace provisioning connect to a private versioned setup guide: upload/sample, quality and meaning review, safe cleaning, first analysis/dashboard, recommendations and teammates. Resume, pause/skip, explicit Finish and reopen pass through the actual UI/backend; shared corrections still require confirmation. The code is active in private release 4fff22633f0c5f44 on 0029, and synthetic API/UI setup persistence checks pass. Production onboarding, verified-email recovery/delivery and representative customer acceptance remain open. Oct 21: units are suggested from column names (one-click accept, never auto-confirmed) and an agriculture domain suggestion; 7 of 12 farm-file unit questions become one click. Broader automated onboarding remains Partial. October 22 (private release f590a4a813287580 on 0030): registration signs in automatically and opens the first-upload guide; reset codes support recovery. October 24 (release 4028b7309e58531f on 0031): chat history: each user's private 'Your chats' list, reopen a full past chat and continue it in the same file and context; rename and hide. October 24 reassessment: done for the private-demo scope; remaining items are external/production: verified-email recovery and delivery (needs SMTP and a domain) and representative customer acceptance.",
+      "note": "Native registration and workspace provisioning connect to a private versioned setup guide: upload/sample, quality and meaning review, safe cleaning, first analysis/dashboard, recommendations and teammates. Resume, pause/skip, explicit Finish and reopen pass through the actual UI/backend; shared corrections still require confirmation. The code is active in private release 4fff22633f0c5f44 on 0029, and synthetic API/UI setup persistence checks pass. Production onboarding, verified-email recovery/delivery and representative customer acceptance remain open. Oct 21: units are suggested from column names (one-click accept, never auto-confirmed) and an agriculture domain suggestion; 7 of 12 farm-file unit questions become one click. Broader automated onboarding remains Partial. October 22 (private release f590a4a813287580 on 0030): registration signs in automatically and opens the first-upload guide; reset codes support recovery. October 24 (release 4028b7309e58531f on 0031): chat history: each user's private 'Your chats' list, reopen a full past chat and continue it in the same file and context; rename and hide. October 24 reassessment: done for the private-demo scope; remaining items are external/production: verified-email recovery and delivery (needs SMTP and a domain) and representative customer acceptance. Nov 1: new-user onboarding profile live — 18 skippable single/multi/text questions shown once to self-service accounts (preferred name, role, industry, goals, answer style, language, number format…), stored per user (migration 0035), used only for wording/greetings/depth, never calculations or meanings; public landing site and dedicated /login, /signup, /reset pages with Google sign-in. Verified-email onboarding and guided product tours remain open.",
       "evidence": [
         "apps/web/src/app/workspace/page.tsx",
         "apps/api/src/execplus/application/services/activation.py",
@@ -1035,7 +1036,8 @@
         "docs/verification-codex-private-release.md",
         "docs/insights-engine.md",
         "data/verification/2026-10-20-claude-release (ignored live checks)",
-        "docs/partial-feature-reassessment-20261024.md"
+        "docs/partial-feature-reassessment-20261024.md",
+        "docs/user-profile-onboarding.md"
       ],
       "roadmap": "October 17 Phase 1 accepted locally on 0027; included in active private release 4fff22633f0c5f44 on schema 0029 from checkpoint 00be9da. Local tests and private-release checks retain their separate evidence scopes. All eight production gates remain open.",
       "evidence_groups": [

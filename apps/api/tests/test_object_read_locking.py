@@ -134,7 +134,7 @@ def test_source_metadata_change_during_parse_never_publishes_old_snapshot(
 
     monkeypatch.setattr(env.runtime.service.parser, "parse", changing_parse)
     response = request(env, headers, root, route, profile, meaning)
-    assert calls == 1
+    assert calls == 1, (response.status_code, response.text[:300])
     assert response.status_code == 409, response.text
     assert counts(env) == before
 

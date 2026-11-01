@@ -40,6 +40,30 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### November 1 — Public website, auth pages and new-user onboarding profile live
+
+- Releases **ca17ca8973053b8c** (commit 7894027; migration **0034→0035** `user_profiles`) and
+  **fc8db1325ef4532d** (commit b0b0a2c; planner gets wording-only private preferences) are
+  active. Checked backups 20261101T152023Z/152100Z and 20261101T155208Z/155241Z.
+  Kit: `data/verification/2026-10-31-claude-release/` (migration + unchanged-0035 variants).
+- Landing `/` is a product site (nav Log in / Create account, shipped features only, how it
+  works, trust, FAQ; no phases/gates copy); `/login`, `/signup`, `/reset` share one auth form
+  with Google sign-in; the workspace signed-out state reuses it with the old test labels.
+- Per-user profile questionnaire (`/me/profile`, 18 skippable questions, shown once to
+  self-service accounts, "Redo the questions" under My memory) feeds the private memory
+  context (preferred name, role, industry, goals, answer style, language, number format) for
+  wording only — never calculations, filters, plans, permissions or meaning confirmation.
+  `docs/user-profile-onboarding.md`. Live: hosted greeting "Hello Hadi!", 15 answers saved,
+  pages 200, account disabled (`live-check-onboarding-2.json`).
+- Evidence: web 147/147, types/lint/build; full browser 140 pass / 4 model skips / 1 fail
+  (background-uploads multi-sheet: needs a DuckDB Excel extension absent here; fails on
+  5da81fd too); full backend: all pass after three migration round-trip lists learned
+  `user_profiles`, except `test_object_read_locking` [understanding, save_meaning], which
+  also fail on 5da81fd (pre-existing: those routes no longer parse the source). Audit rows
+  9/47 annotated; `docs/reports/Syntelio_Latest_Changes_2026-11-01.docx/.pdf` (50/12/2).
+- In progress: a tasteskill v2 (`.agents/skills/design-taste-frontend`, pinned 12af471, MIT)
+  redesign pass of the public pages; not deployed yet.
+
 ### October 25 (evening) — goal-aware agents, spelled dates and eight-agent merge live
 
 - Release **601548ad55ec16f0** (commit f7f35b3: no-AI "Build a prediction model" recipe, `docs/prediction-models.md`; 9261b35 no chat jumps on reopen; 9b49992 CSS fix for the squeezed hypotheses column; on 33acf3748e711cee / 0114968; merges 259e856) is active on unchanged **0034**.
