@@ -40,6 +40,27 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### November 2 (later) — Workspace rethemed to the receipt design system
+
+- Release **e323b16d11976f39** (commit 0c1c587; web only, unchanged 0035) is active; checked
+  backups 20261101T205607Z (pre) / 20261101T205640Z (post), both checksums OK. Kit:
+  `data/verification/2026-10-31-claude-release/` (`activate-unchanged-0035.sh` variant).
+- Three parallel builders (W1 tokens/shell, W2 charts/insight cards, W3 panel sweep) remapped
+  the in-app workspace to the public-site palette without changing structure, labels or test
+  ids: `globals.css` keeps every token/class name but now resolves to paper canvas, green
+  rail, saffron actions with ink text, Fraunces headings/figures, Plex Mono tables and an
+  ink-stamp verified badge in light and dark; chart palette and heatmap ramp read tokens at
+  render time; insight cards are paper receipts with a Double-checked stamp; panel modules
+  lost their last hard-coded colours (new `workspace/ask-panel.module.css`).
+- Evidence: web typecheck/lint (2 img warnings)/149 tests/next build; W1 contrast table all
+  text >= 4.5:1; full browser suite on this tree running at release time (previous full run
+  140 pass / 4 skip / 1 pre-existing fail); live: 4 pages 200, profile saved, "Hello Hadi!"
+  greeting, account disabled, six loopback listeners, timers active, live CSS carries the
+  new tokens. Screenshots in `data/verification/2026-11-02-claude/screens/workspace/`.
+- Limits: this is a retheme only; the structural step (overview as receipt board, chat
+  answers as receipts) is not started and needs the owner's go. Dark mode keeps ink-green
+  panels and uses paper only for receipt cards (lead decision).
+
 ### November 2 — Receipt-led public frontend live (design-studio run)
 
 - Release **f719403b7602531d** (commit 6aa216c; web only, unchanged 0035) is active; checked
