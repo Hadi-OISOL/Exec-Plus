@@ -40,6 +40,25 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### November 2 — Receipt-led public frontend live (design-studio run)
+
+- Release **f719403b7602531d** (commit 6aa216c; web only, unchanged 0035) is active; checked
+  backups 20261101T200005Z/200037Z. Three competing directions (bencium-innovative,
+  frontend-design, bencium-impact + ecc taste) all converged on "every number comes with a
+  receipt"; the lead chose the impact colour world (field #0f3b2e, paper #f4ecd8, saffron
+  #ff9f1c, mint kicker, saffron-ink #8a4600 for text on paper) with Fraunces display and
+  IBM Plex Mono inside receipts (both OFL, self-hosted; rows in THIRD_PARTY_NOTICES.md).
+- Shared kit `apps/web/src/app/site/{site-tokens.css,kit.ts,receipt/**,paper-field.module.css}`:
+  Receipt/Stamp/PrintReveal (tape feed, row reveal, bar growth, stamp spring; all behind
+  prefers-reduced-motion). Landing, live ask box, auth split screen and onboarding use it.
+  Direction mocks and notes live in ignored `.taste-skill/directions/` and `.taste-skill/`.
+- Evidence: web typecheck/lint/149 tests/next build; taste lint 0/0 on landing+kit, inspect
+  1 defended FAIL (few-pictures); WCAG review no blockers, should-fix items applied;
+  auth/onboarding/appearance specs pass except the pre-existing local-accounts:36 guide step;
+  live: 4 pages 200, 0 broken images, Fraunces loaded, profile + "Hello Hadi!" greeting pass.
+- Limits: the in-app workspace keeps its own Inter/blue design system; no photographs of the
+  audience's world yet; ecc GateGuard hook now asks for facts before shell commands.
+
 ### November 1 — Public website, auth pages and new-user onboarding profile live
 
 - Releases **ca17ca8973053b8c** (commit 7894027; migration **0034→0035** `user_profiles`) and
