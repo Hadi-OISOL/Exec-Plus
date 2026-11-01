@@ -61,8 +61,13 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   `user_profiles`, except `test_object_read_locking` [understanding, save_meaning], which
   also fail on 5da81fd (pre-existing: those routes no longer parse the source). Audit rows
   9/47 annotated; `docs/reports/Syntelio_Latest_Changes_2026-11-01.docx/.pdf` (50/12/2).
-- In progress: a tasteskill v2 (`.agents/skills/design-taste-frontend`, pinned 12af471, MIT)
-  redesign pass of the public pages; not deployed yet.
+- Release **7247ece618d9edc7** (commit bacce0a; web only) is active: the public pages were
+  rebuilt with tasteskill v2 (`.agents/skills/design-taste-frontend`, pinned 12af471, MIT):
+  "sentence as layout" direction, a poster hero whose missing word is a real chart, a working
+  question box with exact precomputed farm-file figures and receipt, four-stage slider, real
+  product crops as evidence, split-screen auth pages; light/dark, reduced-motion safe, no new
+  dependencies or third-party assets. Checked backups 20261101T180103Z/180135Z. Live: 4 pages
+  200, 0 broken images, profile + greeting check unchanged. Notes in ignored `.taste-skill/`.
 
 ### October 25 (evening) — goal-aware agents, spelled dates and eight-agent merge live
 
