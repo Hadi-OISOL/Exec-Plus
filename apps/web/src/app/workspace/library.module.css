@@ -18,8 +18,8 @@ What it does: Scopes responsive gallery, toolbar and result styling without chan
 .viewSwitch svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; }
 .count { color: var(--muted); font-size: .74rem; align-self: center; white-space: nowrap; padding-top: 16px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(255px, 100%), 1fr)); gap: 16px; margin-bottom: 24px; }
-.card { display: flex; flex-direction: column; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, var(--color-surface)); box-shadow: 0 2px 4px rgba(19, 31, 52, .025); }
-.card:hover { border-color: color-mix(in srgb, var(--green) 42%, var(--line)); box-shadow: 0 5px 16px rgba(19, 31, 52, .05); }
+.card { display: flex; flex-direction: column; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, var(--color-surface)); box-shadow: var(--shadow-1); }
+.card:hover { border-color: color-mix(in srgb, var(--green) 42%, var(--line)); box-shadow: var(--shadow-2); }
 .cardTop { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .cardIcon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; color: var(--green); background: color-mix(in srgb, var(--green) 8%, var(--color-surface)); flex-shrink: 0; }
 .cardType { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }

@@ -1,5 +1,5 @@
 /* Use case: Gives every kit chart one shared light and dark appearance.
-What it does: Supplies the validated eight-color categorical order from docs/ui-design-reference.md §7 and resolves the page's design tokens (--chart-1…8, then --color-text, --color-text-muted, --color-border, --color-surface) when they are defined. */
+What it does: Supplies the receipt palette (ink green, saffron, saffron-ink, mint, olive, brown, slate-teal, sand) as fallbacks and resolves the page's design tokens (--chart-1…8, then --color-text, --color-text-muted, --color-border, --color-surface) at render time, including a brown → paper → green diverging ramp mixed from those tokens. */
 
 export type ChartTokens = {
   series: string[];
@@ -13,16 +13,16 @@ export type ChartTokens = {
 };
 
 const light: ChartTokens = {
-  series: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
-  ink: "#161b26", muted: "#677080", grid: "#e1e5eb", surface: "#ffffff", other: "#8a93a0",
-  font: "Inter, Manrope, system-ui, sans-serif",
-  diverging: ["#b42a2a", "#e34948", "#f19a99", "#f0efec", "#86b6ef", "#2a78d6", "#1c5cab"],
+  series: ["#0f3b2e", "#ff9f1c", "#8a4600", "#9fd8b8", "#6b7f3a", "#a0522d", "#2f6f6f", "#d9b26f"],
+  ink: "#14201b", muted: "#5a665f", grid: "#d8cfb6", surface: "#f4ecd8", other: "#a39a84",
+  font: "Inter, system-ui, sans-serif",
+  diverging: ["#a0522d", "#c48a6c", "#e2c3ad", "#f4ecd8", "#a9c9b3", "#5b8f77", "#0f3b2e"],
 };
 const dark: ChartTokens = {
-  series: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"],
-  ink: "#e8ecf2", muted: "#8b94a3", grid: "#2a3240", surface: "#161c26", other: "#5f6878",
+  series: ["#7fc9a3", "#ff9f1c", "#e0924a", "#c7eed8", "#a8bf6a", "#d58a62", "#6fb3b3", "#e8c98a"],
+  ink: "#efe7d4", muted: "#a9b8ad", grid: "#2a4a3d", surface: "#0f2a21", other: "#6e8277",
   font: light.font,
-  diverging: ["#b42a2a", "#e34948", "#f19a99", "#2f3644", "#86b6ef", "#3987e5", "#1c5cab"],
+  diverging: ["#d58a62", "#a86a4c", "#5c4537", "#0f2a21", "#2d5744", "#56937a", "#7fc9a3"],
 };
 
 export function defaultTokens(isDark: boolean): ChartTokens {
@@ -36,20 +36,30 @@ export function readTokens(element: HTMLElement, isDark: boolean): ChartTokens {
   const probe = document.createElement("span");
   probe.hidden = true;
   element.appendChild(probe);
-  const resolve = (name: string, fallback: string, token = "") => {
-    probe.style.color = token ? `var(${name}, var(${token}, ${sentinel}))` : `var(${name}, ${sentinel})`;
+  const compute = (expression: string, fallback: string) => {
+    probe.style.color = expression;
     const value = getComputedStyle(probe).color;
-    return value && value !== sentinel ? value : fallback;
+    return value && value !== sentinel && /^(rgb|#|color\()/.test(value) ? value : fallback;
+  };
+  const resolve = (name: string, fallback: string, token = "") => compute(token ? `var(${name}, var(${token}, ${sentinel}))` : `var(${name}, ${sentinel})`, fallback);
+  const channels = (color: string) => color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/)?.slice(1, 4).map(Number) ?? null;
+  const mix = (color: string, share: number, surface: string, fallback: string) => {
+    const [from, to] = [channels(color), channels(surface)];
+    return from && to ? `rgb(${from.map((value, index) => Math.round(value * share / 100 + to[index] * (1 - share / 100))).join(", ")})` : fallback;
   };
   try {
+    const series = base.series.map((color, index) => resolve(`--chart-${index + 1}`, color));
+    const surface = resolve("--chart-surface", base.surface, "--color-surface");
+    const [brown, green] = [series[5], series[0]];
     return {
       ...base,
-      series: base.series.map((color, index) => resolve(`--chart-${index + 1}`, color)),
+      series,
+      surface,
       ink: resolve("--chart-ink", base.ink, "--color-text"),
       muted: resolve("--chart-muted", base.muted, "--color-text-muted"),
       grid: resolve("--chart-grid", base.grid, "--color-border"),
-      surface: resolve("--chart-surface", base.surface, "--color-surface"),
       font: getComputedStyle(element).fontFamily || base.font,
+      diverging: [brown, mix(brown, 60, surface, base.diverging[1]), mix(brown, 28, surface, base.diverging[2]), surface, mix(green, 28, surface, base.diverging[4]), mix(green, 60, surface, base.diverging[5]), green],
     };
   } finally {
     probe.remove();

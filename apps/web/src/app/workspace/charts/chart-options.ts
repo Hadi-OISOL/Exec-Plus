@@ -27,7 +27,7 @@ function base(tokens: ChartTokens, context: KitContext): EChartsCoreOption {
     textStyle: { fontFamily: tokens.font, color: tokens.ink },
     tooltip: {
       trigger: "item", confine: true, backgroundColor: tokens.surface, borderColor: tokens.grid, borderWidth: 1, padding: [10, 12],
-      textStyle: { color: tokens.ink, fontFamily: tokens.font, fontSize: 13 }, extraCssText: "border-radius:8px;box-shadow:0 4px 8px -2px rgba(16,24,40,.08),0 2px 4px -2px rgba(16,24,40,.06);font-variant-numeric:tabular-nums;",
+      textStyle: { color: tokens.ink, fontFamily: tokens.font, fontSize: 13 }, extraCssText: "border-radius:4px;box-shadow:0 10px 24px -16px rgba(20,32,27,.45);font-variant-numeric:tabular-nums;",
     },
   };
 }
@@ -140,7 +140,7 @@ export function makeKitOption(spec: ChartSpec, tokens: ChartTokens, context: Kit
         yAxis: { type: "category", data: spec.y, ...axis.category, axisLabel: { ...axis.category.axisLabel, width: narrow ? 70 : 120, overflow: "truncate" } },
         visualMap: { show: true, min: -1, max: 1, calculable: false, orient: "horizontal", left: "center", bottom: 0, itemWidth: 10, itemHeight: narrow ? 140 : 200, text: ["+1", "−1"], textStyle: { color: tokens.muted, fontSize: 11 }, inRange: { color: tokens.diverging } },
         series: [{ type: "heatmap", data, itemStyle: { borderColor: tokens.surface, borderWidth: 2, borderRadius: 4 },
-          label: { show: spec.cells.length <= 64 && !narrow, color: tokens.ink, fontSize: 11, fontWeight: 600, rich: { strong: { color: "#ffffff", fontSize: 11, fontWeight: 600 } }, formatter: (item: { dataIndex: number }) => { const value = spec.cells[item.dataIndex]?.value ?? null; return Math.abs(plotNumber(value) ?? 0) >= 0.6 ? `{strong|${readableMetric(value)}}` : readableMetric(value); } },
+          label: { show: spec.cells.length <= 64 && !narrow, color: tokens.ink, fontSize: 11, fontWeight: 600, rich: { strong: { color: tokens.surface, fontSize: 11, fontWeight: 600 } }, formatter: (item: { dataIndex: number }) => { const value = spec.cells[item.dataIndex]?.value ?? null; return Math.abs(plotNumber(value) ?? 0) >= 0.6 ? `{strong|${readableMetric(value)}}` : readableMetric(value); } },
           tooltip: { formatter: (item: { dataIndex: number }) => { const cell = spec.cells[item.dataIndex]; return cell ? tip(`${cell.y} × ${cell.x}`, [["Value", displayMetric(cell.value)]]) : ""; } } }],
       };
     }
@@ -158,7 +158,7 @@ export function makeKitOption(spec: ChartSpec, tokens: ChartTokens, context: Kit
     case "treemap": return { ...option,
       series: [{ type: "treemap", roam: false, nodeClick: false, breadcrumb: { show: false }, width: "100%", height: "100%", top: 0, left: 0,
         itemStyle: { borderColor: tokens.surface, borderWidth: 2, gapWidth: 2, borderRadius: 6 },
-        label: { color: "#ffffff", fontSize: 12, fontWeight: 600, overflow: "truncate", formatter: (item: { name: string; data: { exact?: string } }) => `${item.name}\n${readableMetric(item.data.exact)}` },
+        label: { color: tokens.ink, textBorderColor: tokens.surface, textBorderWidth: 2, fontSize: 12, fontWeight: 600, overflow: "truncate", formatter: (item: { name: string; data: { exact?: string } }) => `${item.name}\n${readableMetric(item.data.exact)}` },
         levels: [{ colorMappingBy: "index", color: tokens.series }],
         tooltip: { formatter: (item: { name: string; data: { exact?: string } }) => tip(item.name, [["Value", `${displayMetric(item.data.exact)}${unit}`]]) },
         data: spec.nodes.map(treeData) }],

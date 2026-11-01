@@ -10,7 +10,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   color: var(--chart-ink);
   background: var(--color-surface);
   border: 1px solid var(--chart-line);
-  border-radius: 15px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .header {
@@ -26,10 +26,11 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 .header h3 {
   margin: 0;
   color: var(--color-text);
-  font-size: 21px;
-  font-weight: 650;
-  line-height: 1.3;
-  letter-spacing: -.035em;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -.02em;
   overflow-wrap: anywhere;
 }
 .fieldCaption {
@@ -39,7 +40,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.eyebrow { display: block; margin-bottom: 9px; font-size: 12px; font-weight: 650; letter-spacing: .07em; color: var(--chart-muted); }
+.eyebrow { display: block; margin-bottom: 9px; font-family: var(--font-mono); font-size: 11.5px; font-weight: 400; letter-spacing: .08em; color: var(--chart-muted); }
 .actions {
   display: flex;
   align-items: center;
@@ -135,8 +136,9 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
   display: block;
   margin-top: 6px;
   color: var(--chart-ink);
-  font-size: 17px;
-  font-weight: 600;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 20px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .readout > div > span { font-size: 12px; }
@@ -164,6 +166,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 .tableScroll table {
   border-collapse: collapse;
   width: 100%;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
 }
@@ -236,7 +239,7 @@ What it does: Provides a responsive chart canvas, exact tables and keyboard-visi
 }
 .visualization button:focus-visible,
 .visualization [tabindex="0"]:focus-visible {
-  outline: 2px solid var(--color-primary-text);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 3px;
 }
 .compact .header {

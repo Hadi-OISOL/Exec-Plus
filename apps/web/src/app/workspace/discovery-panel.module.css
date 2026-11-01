@@ -24,10 +24,10 @@
 .meaningPrompt p { margin: 6px 0 0; color: var(--color-text-secondary); line-height: 1.6; font-size: 13px; }
 .meaningPrompt button { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; }
 .sectionHeading { margin: 28px 0 16px; }
-.sectionHeading > span { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--color-primary-text); }
-.sectionHeading h3 { margin: 8px 0; font-size: 21px; text-wrap: balance; }
+.sectionHeading > span { font-family: var(--font-mono); font-size: 11px; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); }
+.sectionHeading h3 { margin: 8px 0; font-family: var(--font-display, Georgia, serif); font-size: 24px; font-weight: 500; text-wrap: balance; }
 .sectionHeading p { margin: 0; max-width: 76ch; color: var(--color-text-secondary); line-height: 1.6; font-size: 14px; }
-.checks { border-left: 3px solid var(--color-primary-text); }
+.checks { border-left: 3px solid var(--color-success); }
 
 @media (max-width: 560px) {
   .intro .shape { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

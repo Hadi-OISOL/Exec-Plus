@@ -6,6 +6,7 @@ import type { AdditionalNumericalAnswer } from "./compound-results";
 import { VerifiedNarrative } from "./verified-narrative";
 import type { VerifiedNarrativeValue } from "./verified-narrative";
 import { ResultExportActions } from "./result-export-actions";
+import chatStyles from "./ask-panel.module.css";
 import { useEffect, useEffectEvent, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
 import { Icon, RecordTable } from "./explore-components";
@@ -682,7 +683,7 @@ export function AskPanel({
         aria-live="polite"
         aria-relevant="additions text"
       >
-        <div className="assistantMessage welcomeMessage">
+        <div className={`assistantMessage welcomeMessage ${chatStyles.assistantCard}`}>
           <span className="messageAuthor">Syntelio</span>
           <h3>What would you like to discover?</h3>
           <p>
@@ -713,11 +714,11 @@ export function AskPanel({
         )}
         {turns.map((turn) => (
           <article className="conversationTurn" key={turn.id}>
-            <div className="userMessage">
+            <div className={`userMessage ${chatStyles.userBubble}`}>
               <span className="messageAuthor">You</span>
               <p>{turn.question}</p>
             </div>
-            <div className="assistantMessage">
+            <div className={`assistantMessage ${chatStyles.assistantCard}`}>
               <span className="messageAuthor">
                 Syntelio{" "}
                 {turn.answer?.lineage && (
@@ -971,7 +972,7 @@ export function AskPanel({
         ))}
         {pending && (
           <>
-            <div className="userMessage">
+            <div className={`userMessage ${chatStyles.userBubble}`}>
               <span className="messageAuthor">You</span>
               <p>{pending}</p>
             </div>
@@ -994,7 +995,7 @@ export function AskPanel({
           onCancel={() => void cancelJob()}
         />
       )}
-      <div className="chatComposer">
+      <div className={`chatComposer ${chatStyles.composer}`}>
         {draftNotice && <p role="status" className="nextQuestionNotice">Your next question is saved below. Send it when the current answer finishes.</p>}
         <button
           className="summaryAction"

@@ -9,7 +9,7 @@ What it does: Reuses the workspace colour tokens so the cards match the surround
   background: var(--surface, var(--color-surface));
   border: 1px solid var(--line, var(--color-border));
   border-radius: 8px;
-  box-shadow: 0 1px 3px #1a234205;
+  box-shadow: 0 1px 3px var(--shadow-ink);
 }
 .header {
   display: flex;
