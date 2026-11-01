@@ -53,8 +53,8 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
   render time; insight cards are paper receipts with a Double-checked stamp; panel modules
   lost their last hard-coded colours (new `workspace/ask-panel.module.css`).
 - Evidence: web typecheck/lint (2 img warnings)/149 tests/next build; W1 contrast table all
-  text >= 4.5:1; full browser suite on this tree running at release time (previous full run
-  140 pass / 4 skip / 1 pre-existing fail); live: 4 pages 200, profile saved, "Hello Hadi!"
+  text >= 4.5:1; full browser suite on this tree 140 pass / 4 skip / 1 pre-existing fail
+  (background-uploads multi-sheet, DuckDB Excel extension absent locally); live: 4 pages 200, profile saved, "Hello Hadi!"
   greeting, account disabled, six loopback listeners, timers active, live CSS carries the
   new tokens. Screenshots in `data/verification/2026-11-02-claude/screens/workspace/`.
 - Limits: this is a retheme only; the structural step (overview as receipt board, chat
