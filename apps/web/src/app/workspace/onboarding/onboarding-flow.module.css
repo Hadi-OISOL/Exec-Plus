@@ -1,29 +1,34 @@
 /* Use case: Keeps the first-run questionnaire calm, readable and finger-friendly.
-What it does: Lays out one question per screen with chips, a progress bar and safe motion. */
+What it does: Lays out one question per screen on a filled panel without lines or shadows, with filled choice blocks, a thick progress bar and safe motion, in the public site's type and colour roles. */
 
 .screen { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; background: var(--color-bg); color: var(--color-text); font-family: var(--font-product); }
-.card { width: 100%; max-width: 560px; min-width: 0; padding: clamp(20px, 4vw, 36px); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); box-shadow: 0 12px 40px var(--shadow-ink); }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; margin-bottom: 20px; color: var(--color-text-secondary); font-size: 14px; }
-.brand span:first-child { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-md); background: var(--color-primary); color: var(--color-on-primary); }
-.progress { display: grid; gap: 8px; margin-bottom: 20px; font-size: 13px; color: var(--color-text-muted); }
-.bar { height: 4px; border-radius: var(--radius-full); background: var(--color-surface-sunken); overflow: hidden; }
+.card { width: 100%; max-width: 600px; min-width: 0; padding: clamp(24px, 4vw, 44px); background: var(--color-surface); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 28px; color: var(--color-text); font-size: 15px; }
+.brand span:first-child { display: inline-grid; place-items: center; width: 28px; height: 28px; background: var(--color-primary); color: var(--color-on-primary); font-weight: 700; }
+.progress { display: grid; gap: 10px; margin-bottom: 24px; font-size: 15px; color: var(--color-text-secondary); }
+.bar { height: 6px; background: var(--color-surface-sunken); overflow: hidden; }
 .bar > span { display: block; height: 100%; background: var(--color-primary); transition: width .25s ease; }
-.card h1 { margin: 0 0 8px; font-size: clamp(22px, 3.4vw, 28px); line-height: 1.25; letter-spacing: -0.01em; }
-.card p { margin: 0 0 16px; color: var(--color-text-secondary); line-height: 1.55; font-size: 15px; }
-.hint { font-size: 13px !important; color: var(--color-text-muted) !important; }
+.card h1 { margin: 0 0 12px; font-size: clamp(26px, 3.6vw, 36px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 560; text-wrap: balance; }
+.card p { margin: 0 0 16px; color: var(--color-text); line-height: 1.5; font-size: 17px; text-wrap: pretty; }
+.hint { font-size: 15px !important; color: var(--color-text-secondary) !important; }
 .choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 4px; }
-.choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-full); background: var(--color-surface); color: var(--color-text); font-size: 15px; cursor: pointer; }
+.choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 0; background: var(--color-surface-sunken); color: var(--color-text); font-size: 16px; cursor: pointer; transition: background-color 180ms ease, transform 140ms cubic-bezier(0.22, 1, 0.36, 1); }
 .choice:hover { background: var(--color-surface-hover); }
-.choice[aria-checked="true"] { background: var(--color-primary-subtle); border-color: var(--color-primary); color: var(--color-primary-text); font-weight: 600; }
+.choice:active { transform: scale(0.97); }
+.choice[aria-checked="true"] { background: var(--color-primary); color: var(--color-on-primary); font-weight: 600; }
 .choice svg { width: 16px; height: 16px; flex: none; }
-.text { width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font-size: 17px; }
-.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 28px; }
-.actions button { min-height: 44px; padding: 8px 18px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-full); background: var(--color-surface); color: var(--color-text); font-size: 15px; font-weight: 550; cursor: pointer; }
+.text { width: 100%; min-height: 52px; padding: 10px 14px; border: 0; background: var(--color-surface-sunken); color: var(--color-text); font-size: 18px; }
+.text:focus { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 32px; }
+.actions button { min-height: 44px; padding: 8px 18px; border: 0; background: var(--color-surface-sunken); color: var(--color-text); font-size: 16px; font-weight: 560; cursor: pointer; transition: background-color 180ms ease, transform 140ms cubic-bezier(0.22, 1, 0.36, 1); }
+.actions button:hover:not(:disabled) { background: var(--color-surface-hover); }
+.actions button:active:not(:disabled) { transform: scale(0.97); }
 .actions button:disabled { opacity: .55; cursor: default; }
-.primary { background: var(--color-primary) !important; border-color: var(--color-primary) !important; color: var(--color-on-primary) !important; margin-left: auto; }
-.quiet { border-color: transparent !important; color: var(--color-text-secondary) !important; }
+.primary { background: var(--color-primary) !important; color: var(--color-on-primary) !important; margin-left: auto; }
+.primary:hover:not(:disabled) { background: var(--color-primary-hover) !important; }
+.quiet { background: transparent !important; color: var(--color-text-secondary) !important; text-decoration: underline; text-underline-offset: 0.18em; }
 .error { color: var(--color-danger) !important; }
-.summary { display: grid; gap: 10px; margin: 0 0 8px; padding: 0; list-style: none; font-size: 14px; }
+.summary { display: grid; gap: 10px; margin: 0 0 8px; padding: 0; list-style: none; font-size: 15px; }
 .summary strong { color: var(--color-text-secondary); font-weight: 500; }
 @media (max-width: 480px) { .actions button { flex: 1 1 auto; } .primary { margin-left: 0; } }
-@media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } .choice, .actions button { transition: none; } }
