@@ -40,6 +40,38 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### November 2 (night) — Pricing receipts, rethemed product pictures, planner privacy fix
+
+- Release **e63b698c0708652d** (commit fa3785a; API+web, unchanged 0035) is active; checked
+  backups 20261101T221720Z (pre) / 20261101T221754Z (post), checksums OK. Same kit.
+- Owner asked for three plans. Catalog keys stay demo/starter/growth/enterprise; names are now
+  **Free / Pro / Team / Enterprise** with display-only placeholder prices 0 / 50 / 100 USD a
+  month / contact (`PRICE_USD_MONTH` in `domain/plans.py`, no DB column, no billing,
+  no subscriptions; owner will set real values). New unauthenticated `GET /plans/public`;
+  `apps/web/src/app/site/plans.ts` mirrors the catalog by hand (update both together).
+  `docs/local-plan-entitlements.md` records the mapping. The live catalog took the new
+  names from code (no admin-saved rows).
+- Landing (tasteskill run, agent D): "What it costs" section with three receipts torn from one
+  roll plus an Enterprise line and the placeholder note; an answer tape of exact farm-file
+  results (`site/ticker.tsx`); number roll-ups on receipt figures (kit `print-reveal.tsx`,
+  `data-count`); torn paper edges with a printed date; bigger hero scale; asymmetric
+  evidence papers. All motion behind prefers-reduced-motion. Taste lint 0/0; inspect 3
+  defended FAIL (mono figures, paper shadow, few-pictures).
+- All `apps/web/public/marketing/*.webp` re-captured from the rethemed workspace at the same
+  names and sizes (agent S, scripts `.taste-skill/shoot-retheme*.mjs`, crops in
+  `.taste-skill/product-retheme/`); unreferenced feat-dashboard/unusual/workspace removed.
+- Privacy fix: the Nov 1 greeting change had put the whole private memory/questionnaire
+  context into the chat planner prompt; the planner now receives only `preferred_name`
+  (`test_personal_memory_is_excluded_from_query_planner...` passes again; the profile
+  planner test now asserts the name-only contract). Wording-only profile use elsewhere unchanged.
+- Evidence: targeted backend (plans 29, memory/profile/routing) pass, ruff/mypy clean; web
+  typecheck/lint/149 tests/next build; full browser suite on the landing tree 140 pass /
+  4 skip / 1 pre-existing fail; live: health, six loopback listeners, timers, backups,
+  `/plans/public` names and prices, pricing section and new images served, onboarding +
+  "Hello Hadi!" greeting check (`live-check-pricing.json`).
+- Limits: prices are placeholders, not a commercial offer; `plans.ts` is a hand mirror of the
+  backend numbers; the "Printed" date on evidence papers is the build date.
+
 ### November 2 (later) — Workspace rethemed to the receipt design system
 
 - Release **e323b16d11976f39** (commit 0c1c587; web only, unchanged 0035) is active; checked
