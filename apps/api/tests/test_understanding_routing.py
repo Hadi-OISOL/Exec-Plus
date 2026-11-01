@@ -173,8 +173,9 @@ def test_forget_during_classification_is_respected_before_reading(integration):
     assert save(env, owner, wid).status_code == 200
     result = ask(env, owner, path, "what this data about?")
     assert result["answer"] is not None
+    assert len(model.requests) >= 2
     assert "PrivateRetailRole" not in json.dumps(
-        [request.messages for request in model.requests], default=str
+        [request.messages for request in model.requests[1:]], default=str
     )
     assert json.loads(model.requests[-1].messages[-1].content)["personal_memory"] == {}
 

@@ -168,3 +168,17 @@ def test_offline_greeting_uses_preferred_name(integration):
     assert ask(env, owner, path, "hello")["answer"]["message"].startswith("Hey! ")
     assert save(env, owner).status_code == 200
     assert ask(env, owner, path, "hello")["answer"]["message"].startswith("Hey, Hadi! ")
+
+
+def test_planner_prompt_carries_private_preferences_for_social_replies(integration):
+    env = integration
+    owner, _wid, _root, path, model = prepare(env, READING, READING)
+    assert save(env, owner).status_code == 200
+    ask(env, owner, path, "hello, how is it going today")
+    planner = [
+        request.messages[-1].content
+        for request in model.requests
+        if "Private preferences of this user" in request.messages[-1].content
+    ]
+    assert planner and '"preferred_name": "Hadi"' in planner[-1]
+    assert "Address the user by preferred_name" in planner[-1]
