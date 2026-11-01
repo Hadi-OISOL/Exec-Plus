@@ -1,5 +1,5 @@
 /* Use case: Greets a new person with a short, skippable questionnaire before the workspace opens.
-What it does: Asks one question per screen, keeps drafts across Back/Skip, saves answers once on
+What it does: Asks one question per screen on a paper card over the green field, slides each screen in, keeps drafts across Back/Skip, saves answers once on
 finish or "Skip for now", and hands the saved profile back to the workspace. */
 
 import { useEffect, useRef, useState } from "react";
@@ -7,6 +7,7 @@ import type { FormEvent } from "react";
 import type { ApiRequest } from "../profile-panel";
 import { hasAnswer, profilePayload, progressLabel, toggleChoice } from "./onboarding-values";
 import type { Answer, ProfileView, Question } from "./onboarding-values";
+import "../../site/site-tokens.css";
 import styles from "./onboarding-flow.module.css";
 
 const check = <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
@@ -48,6 +49,7 @@ export function OnboardingFlow({ request, initial, onDone }: { request: ApiReque
   return <main className={styles.screen} aria-label="Getting to know you">
     <form className={styles.card} onSubmit={submit}>
       <div className={styles.brand}><span aria-hidden="true">S</span><span>Syntelio</span></div>
+      <div key={step} className={styles.slide}>
       {step === -1 && <>
         <h1 ref={heading} tabIndex={-1}>Hi! To give you better answers, let&apos;s get to know you.</h1>
         <p>Takes about 2 minutes. Mostly taps, very little typing. You can skip any question, and change your answers later under My memory.</p>
@@ -88,6 +90,7 @@ export function OnboardingFlow({ request, initial, onDone }: { request: ApiReque
         <p>New explanations and suggestions can use these preferences. Numbers always come from your data, never from this profile.</p>
         <div className={styles.actions}><button type="button" className={styles.primary} onClick={() => onDone(saved)}>Continue to workspace</button></div>
       </>}
+      </div>
     </form>
   </main>;
 }

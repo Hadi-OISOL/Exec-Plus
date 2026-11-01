@@ -1,0 +1,142 @@
+/* Use case: Shared surface and control helpers for the public site.
+What it does: Supplies the green field, ruled-paper card, saffron and ghost buttons, ink-outline chip, mint kicker and section reveal classes built on site tokens. */
+
+.field {
+  background: var(--site-field);
+  color: var(--site-on-field);
+  position: relative;
+  isolation: isolate;
+}
+
+.field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.page {
+  background: var(--site-page);
+  color: var(--site-text);
+  font-family: var(--font-body);
+}
+
+.ruledPaper {
+  background-color: var(--site-paper);
+  background-image: repeating-linear-gradient(0deg, transparent 0 31px, rgba(20, 32, 27, 0.06) 31px 32px);
+  color: var(--site-ink);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-paper);
+}
+
+.kicker {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--site-mint);
+  font-weight: 500;
+}
+
+.kickerInk { color: var(--site-saffron-ink); }
+
+.display {
+  color: inherit;
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-soft);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.display em {
+  font-style: italic;
+  color: var(--site-saffron-ink);
+  font-variation-settings: var(--display-italic-soft);
+}
+
+.buttonSaffron,
+.buttonGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 22px;
+  border-radius: var(--radius-chip);
+  font: 600 15px/1.2 var(--font-body);
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform var(--t-fast) var(--ease-expo), box-shadow var(--t-fast) var(--ease-expo), background-color var(--t-fast) var(--ease-expo);
+}
+
+.buttonSaffron {
+  background: var(--site-saffron);
+  color: var(--site-field);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.buttonSaffron:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.buttonSaffron:active { transform: translateY(0); }
+
+.buttonGhost {
+  background: transparent;
+  color: currentColor;
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.buttonGhost:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+
+.buttonSaffron:focus-visible,
+.buttonGhost:focus-visible,
+.chipInk:focus-visible {
+  outline: 3px solid var(--site-ink);
+  outline-offset: 3px;
+}
+.field .buttonSaffron:focus-visible,
+.field .buttonGhost:focus-visible,
+.field .chipInk:focus-visible,
+.field .display em { outline-color: var(--site-focus); color: var(--site-saffron); }
+
+.chipInk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: var(--radius-chip);
+  border: 1.5px solid var(--site-ink);
+  background: transparent;
+  color: var(--site-ink);
+  font: 500 14px/1.2 var(--font-body);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease-expo), color var(--t-fast) var(--ease-expo);
+}
+
+.chipInk:hover { background: color-mix(in srgb, var(--site-ink) 8%, transparent); }
+.chipInk[aria-pressed="true"],
+.chipInk[data-selected="true"] { background: var(--site-ink); color: var(--site-paper); }
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal[data-reveal="wait"] { opacity: 0; transform: translateY(18px); }
+  .reveal[data-reveal="in"] { animation: rise var(--t-slow) var(--ease-expo) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+  .revealLeft[data-reveal="wait"] { opacity: 0; transform: translateX(-18px); }
+  .revealLeft[data-reveal="in"] { animation: slide var(--t-slow) var(--ease-expo) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes slide {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}

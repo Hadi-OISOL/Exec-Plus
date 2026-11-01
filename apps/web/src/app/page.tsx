@@ -1,20 +1,20 @@
 /* Use case: The public Syntelio website at the root route.
-What it does: Sets the hero sentence with a real answer chart inside it, the live sample question, the stage slider, the analyst sentence, the evidence rows with real interface crops, the open questions, the closing choice and the quiet footer line, all linking to the sign-up and log-in pages. */
+What it does: Opens on a green field with the claim that every number comes with a receipt and prints a real one, then offers the live sample question on paper, the four stages, the ten analysts, the three things that arrive with an answer, the open questions, the closing field and the quiet footer line, all linking to the sign-up and log-in pages. */
 
 import Link from "next/link";
 import styles from "./page.module.css";
 import { AnalystSentence } from "./site/analysts";
 import { AskSample } from "./site/ask-sample";
 import { Shot } from "./site/shot";
-import { SiteMotion } from "./site/site-motion";
+import { PrintReveal, Receipt } from "./site/kit";
 import { Stages } from "./site/stages";
 
-const evidence = [
-  { title: "Numbers from a read-only engine", text: "Every figure comes from a validated query executed against your data. The model never supplies or rounds a number.", shot: "feat-engine", alt: "A double-checked finding: average electrical conductivity by region, Central highest at 2.22 dS/m, as a bar chart", w: "420px", ratio: [1110, 720], phone: "100%" },
-  { title: "Lineage on every answer", text: "Each answer carries the dataset version, operation, filters and row count, so a result can be replayed and checked months later.", shot: "feat-lineage", alt: "The analyst overview counts: 100 rows checked by a separate count query, 20 columns, 6 measures analysed", w: "360px", ratio: [1120, 530], phone: "70%", align: "end" },
-  { title: "Forecasts and what‑ifs, with their working", text: "Dated series are projected with measured error and compared with what actually arrived. A what-if states its assumption, here 2 mm more irrigation a day for ten days, and computes the exact result; nothing is predicted from it.", shot: "feat-forecast", alt: "A saved what-if on the farm file: starting total 6,575.6 mm of previous irrigation, and 6,595.6 mm after adding 2 mm a day for ten days, a change of 20 mm", w: "400px", ratio: [1430, 240], phone: "100%" },
-  { title: "Unusual values, with sensible defaults", text: "Outliers and grouped or seasonal deviations are flagged across every measure, and you can set alerts on the ones you care about.", shot: "feat-unusual", alt: "The closest-to-unusual list: three rows named with their values and the usual range for their column", w: "520px", ratio: [2160, 300], phone: "100%" },
-  { title: "Your data stays in your workspace", text: "Workspaces are isolated. Roles decide who sees which datasets, and the audit history records every question, export and change.", shot: "feat-workspace", alt: "The workspace settings: create a workspace with a name and a seat limit", w: "340px", ratio: [1238, 700], phone: "70%", align: "end" },
+const rainfall = [["West", "1,744.51", 1744.51], ["North", "1,599.96", 1599.96], ["South", "1,567.74", 1567.74], ["Central", "1,562.96", 1562.96], ["East", "1,310.04", 1310.04]] as const;
+
+const arrives = [
+  { title: "Numbers from a read-only engine", text: "Every figure comes from a validated query executed against your data. The model never supplies or rounds a number.", caption: "Average electrical conductivity by region, double-checked by a second query.", shot: "feat-engine", alt: "A double-checked finding: average electrical conductivity by region, Central highest at 2.22 dS/m, as a bar chart", ratio: "1110 / 720" },
+  { title: "Lineage on every answer", text: "Each answer carries the dataset version, operation, filters and row count, so a result can be replayed and checked months later.", caption: "The analyst overview: 100 rows confirmed by a separate count, 20 columns, 6 measures.", shot: "feat-lineage", alt: "The analyst overview counts: 100 rows checked by a separate count query, 20 columns, 6 measures analysed", ratio: "1120 / 530" },
+  { title: "Forecasts and what-ifs, with their working", text: "Dated series are projected with measured error and compared with what actually arrived. A what-if states its assumption and computes the exact result; nothing is predicted from it.", caption: "A saved what-if: 2 mm more irrigation a day for ten days adds exactly 20 mm.", shot: "feat-forecast", alt: "A saved what-if on the farm file: starting total 6,575.6 mm of previous irrigation, and 6,595.6 mm after adding 2 mm a day for ten days, a change of 20 mm", ratio: "1430 / 240" },
 ] as const;
 
 const questions = [
@@ -26,42 +26,65 @@ const questions = [
   ["What does it cost?", "Creating an account is free. Each account includes 5 GB of storage and files up to 500 MB."],
 ] as const;
 
+const delay = (index: number) => ({ "--i": index } as React.CSSProperties);
+
+function HeroReceipt() {
+  return <Receipt
+    className={styles.printer}
+    frame="printer"
+    question="Which region had the most rainfall on average?"
+    figure="1,744.51"
+    unit="mm"
+    figureLabel="West, mean Rainfall_mm across its 18 fields."
+    bars={rainfall.map(([label, value, raw]) => ({ label, value, share: raw / rainfall[0][2], emphasis: label === "West" }))}
+    barsLabel="Average rainfall by region, millimetres"
+    footer={[
+      { label: "Dataset", value: "test_100rows.csv · version 1" },
+      { label: "Operation", value: "AVG(Rainfall_mm) by Region" },
+      { label: "Filters", value: "none" },
+      { label: "Rows read", value: "100 of 100 · 20 columns" },
+      { label: "Replayable", value: "yes" },
+    ]}
+    ariaLabel="Receipt: Which region had the most rainfall on average?"
+  />;
+}
+
 export default function Home() {
   return (
     <div className={styles.site}>
       <script dangerouslySetInnerHTML={{ __html: `document.documentElement.classList.add("js")` }} />
-      <SiteMotion />
-      <header className={`${styles.frame} ${styles.nav}`}>
-        <Link className={styles.brand} href="/" aria-label="Syntelio home"><span className={styles.mark} aria-hidden="true">S</span>Syntelio</Link>
-        <nav aria-label="Site" className={styles.navLinks}>
-          <a className={styles.textLink} href="#try">Try it</a><a className={styles.textLink} href="#how">How it works</a><a className={styles.textLink} href="#questions">Questions</a>
-        </nav>
-        <div className={styles.navAction}>
-          <Link href="/login" className={styles.textLink}>Log in</Link>
-          <Link href="/signup" className={styles.button}>Create a free account</Link>
-        </div>
-      </header>
+      <PrintReveal />
+      <div className={styles.field}>
+        <header className={`${styles.frame} ${styles.nav}`}>
+          <Link className={styles.brand} href="/" aria-label="Syntelio home"><span className={styles.mark} aria-hidden="true">S</span>Syntelio</Link>
+          <nav aria-label="Site" className={styles.navLinks}>
+            <a className={styles.textLink} href="#try">Try it</a><a className={styles.textLink} href="#how">How it works</a><a className={styles.textLink} href="#questions">Questions</a>
+          </nav>
+          <div className={styles.navAction}>
+            <Link href="/login" className={styles.textLink}>Log in</Link>
+            <Link href="/signup" className={styles.button}>Create a free account</Link>
+          </div>
+        </header>
+        <section className={`${styles.frame} ${styles.hero}`} aria-label="Syntelio">
+          <div>
+            <h1 className={styles.heroLine}>Every number comes with a <em>receipt.</em></h1>
+            <p className={styles.lead}>Upload a spreadsheet or connect your database. Ten analysts read it, you ask the rest in plain words, and a read-only engine computes every figure; the model never does.</p>
+            <div className={styles.heroActions}>
+              <Link href="/signup" className={styles.button}>Create a free account</Link>
+              <a href="#try" className={`${styles.button} ${styles.buttonGhost}`}>See a sample answer</a>
+            </div>
+            <p className={styles.langs}>Also understands: <b lang="ur" dir="rtl">اردو</b> · <b lang="ur-Latn">Roman Urdu</b></p>
+          </div>
+          <HeroReceipt />
+        </section>
+      </div>
 
       <main>
-        <section className={`${styles.frame} ${styles.hero}`} aria-label="Syntelio">
-          <h1 className={styles.heroLine}>
-            <span className={styles.line}><span style={{ "--i": 0 } as React.CSSProperties}>Ask your data.</span></span>
-            <span className={styles.line}><span style={{ "--i": 1 } as React.CSSProperties}>See the <span className={styles.slot}><Shot name="slot-bars" alt="A real Syntelio answer: average electrical conductivity by region as five bars, Central highest at 2.22 and North lowest at 1.42" width={450} height={190} priority /></span></span></span>
-          </h1>
-          <div className={styles.heroFoot}>
-            <p className={styles.lead} data-load="" style={{ "--d": "420ms" } as React.CSSProperties}>Syntelio reads your spreadsheet or database and answers plain questions in English, Urdu or Roman Urdu. A read-only engine computes every number; the model never does.</p>
-            <div className={styles.heroActions} data-load="" style={{ "--d": "500ms" } as React.CSSProperties}>
-              <Link href="/signup" className={styles.button}>Create a free account</Link>
-              <a href="#how" className={styles.textLink}>How it works</a>
-            </div>
-          </div>
-        </section>
-
-        <section className={`${styles.frame} ${styles.section} ${styles.try}`} id="try">
+        <div className={styles.band}><section className={`${styles.frame} ${styles.section}`} id="try">
           <h2 data-reveal="">Try it on a 100‑row farm file</h2>
-          <p className={styles.sectionNote} data-reveal="" style={{ "--i": 1 } as React.CSSProperties}>test_100rows.csv has Soil, Crop, Rainfall and Region columns for 100 fields. Four questions are prepared here, in English and Roman Urdu; the product takes any question.</p>
-          <div data-reveal="" style={{ "--i": 2 } as React.CSSProperties}><AskSample /></div>
-        </section>
+          <p className={styles.sectionNote} data-reveal="" style={delay(1)}>Four questions are prepared here, in English and Roman Urdu; the product takes any question and prints the same kind of receipt.</p>
+          <div data-reveal="" style={delay(2)}><AskSample /></div>
+        </section></div>
 
         <section className={`${styles.frame} ${styles.section}`} id="how">
           <h2 data-reveal="">From file to answer in four stages</h2>
@@ -69,47 +92,46 @@ export default function Home() {
         </section>
 
         <section className={`${styles.frame} ${styles.analysts}`} aria-labelledby="analysts-heading">
-          <h2 id="analysts-heading" data-reveal="">Ten analysts, before you ask</h2>
-          <div data-reveal="" style={{ "--i": 1 } as React.CSSProperties}><AnalystSentence /></div>
+          <h2 id="analysts-heading" data-reveal="">Ten analysts read it before you ask</h2>
+          <div data-reveal="" style={delay(1)}><AnalystSentence /></div>
         </section>
 
-        <section className={`${styles.frame} ${styles.section}`} id="defend">
-          <div className={styles.defendHead}><h2 data-reveal="">Built for numbers you can defend</h2></div>
-          <ul className={styles.rows}>
-            {evidence.map(row => (
-              <li key={row.title} className={styles.row} style={{ "--w": row.w, "--ratio": `${row.ratio[0]} / ${row.ratio[1]}`, "--phone-w": row.phone, "--phone-align": "align" in row ? row.align : "start" } as React.CSSProperties}>
-                <div className={styles.rowText}><h3 data-reveal="">{row.title}</h3><p data-reveal="" style={{ "--i": 1 } as React.CSSProperties}>{row.text}</p></div>
-                <Shot name={row.shot} alt={row.alt} width={row.ratio[0] / 2} height={row.ratio[1] / 2} />
+        <div className={styles.band}><section className={`${styles.frame} ${styles.section}`} id="arrives">
+          <h2 data-reveal="">What arrives with the answer</h2>
+          <ul className={styles.papers}>
+            {arrives.map((paper, index) => (
+              <li key={paper.title} className={styles.paperCard} data-reveal="" style={{ "--i": index, "--ratio": paper.ratio } as React.CSSProperties}>
+                <Shot name={paper.shot} alt={paper.alt} width={560} height={300} />
+                <h3>{paper.title}</h3>
+                <p>{paper.text}</p>
+                <p className={styles.caption}>{paper.caption}</p>
               </li>
             ))}
           </ul>
-        </section>
+        </section></div>
 
         <section className={`${styles.frame} ${styles.section}`} id="questions">
           <ul className={styles.faqRows}>
             <li className={styles.faqRow}><h2>Questions, answered</h2></li>
             {questions.map(([question, answer]) => (
-              <li key={question} className={styles.faqRow}><h3 data-reveal="">{question}</h3><p data-reveal="" style={{ "--i": 1 } as React.CSSProperties}>{answer}</p></li>
+              <li key={question} className={styles.faqRow}><h3 data-reveal="">{question}</h3><p data-reveal="" style={delay(1)}>{answer}</p></li>
             ))}
           </ul>
         </section>
 
-        <section className={styles.close} aria-labelledby="close-heading">
-          <h2 id="close-heading" className={styles.closeLine}><span>New here,</span><span>or back?</span></h2>
-          <div className={styles.closeMid}>
-            <div className={styles.closeChoice}>
-              <Link href="/signup" className={styles.button}>Create a free account</Link>
-              <span>or</span>
-              <Link href="/login" className={`${styles.button} ${styles.buttonPale}`}>Log in</Link>
-            </div>
-            <p>Accounts are free, with 5 GB of storage and files up to 500 MB.</p>
+        <section className={`${styles.field} ${styles.close}`} aria-labelledby="close-heading">
+          <h2 id="close-heading" className={styles.closeLine}>Your first <em>receipt</em> is a file away.</h2>
+          <p>Accounts are free, with 5 GB of storage and files up to 500 MB.</p>
+          <div className={styles.closeChoice}>
+            <Link href="/signup" className={styles.button}>Create a free account</Link>
+            <Link href="/login" className={`${styles.button} ${styles.buttonGhost}`}>Log in</Link>
           </div>
         </section>
       </main>
 
       <footer className={styles.footer}>
         <span>Syntelio · Synthesized Enterprise Intelligence</span>
-        <nav aria-label="Footer"><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><a href="#defend">Security &amp; privacy</a></nav>
+        <nav aria-label="Footer"><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><a href="#questions">Security &amp; privacy</a></nav>
         <span>© {new Date().getFullYear()} · Pakistan and beyond</span>
       </footer>
     </div>

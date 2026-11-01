@@ -1,0 +1,213 @@
+/* Use case: Styles and prints the public-site receipt.
+What it does: Lays out the paper, figure, mono rows, bars, footer, tear and stamp with site tokens; under motion-allowed conditions the tape feeds in steps, rows appear top-down, bars grow and the stamp lands last. */
+
+.receipt {
+  margin: 0;
+  width: min(440px, 100%);
+  position: relative;
+  color: var(--site-ink);
+  font-family: var(--font-body);
+}
+
+.tilt { transform: rotate(-1.4deg); }
+
+.slot {
+  height: 18px;
+  background: var(--site-field-deep);
+  border-radius: var(--radius-slot);
+  position: relative;
+  z-index: 3;
+  margin: 0 -6px;
+}
+
+.tape {
+  position: relative;
+  filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.35)); /* taste-skill-ignore: the receipt is a physical paper object lifted off the field */
+}
+
+.paper {
+  background: var(--site-paper);
+  padding: 24px 24px 22px;
+  background-image: repeating-linear-gradient(0deg, transparent 0 27px, rgba(20, 32, 27, 0.05) 27px 28px); /* taste-skill-ignore: faint ruled-paper texture allowed on paper by the lead decision */
+}
+
+.tear {
+  display: block;
+  width: 100%;
+  height: 8px;
+  fill: var(--site-paper);
+}
+
+.header,
+.rows,
+.barValue,
+.footer {
+  font-family: var(--font-mono); /* taste-skill-ignore: receipts and ledgers are the one monospace place */
+  font-variant-numeric: tabular-nums;
+}
+
+.header {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--site-ink-muted);
+}
+
+.question {
+  color: inherit;
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-small);
+  font-style: italic;
+  font-weight: 450;
+  font-size: 21px;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.figureLine {
+  margin: 18px 0 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.figure {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-soft);
+  font-weight: 500;
+  font-size: clamp(56px, 7vw, 84px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.unit {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--site-ink-muted);
+}
+
+.figureLabel {
+  margin: 4px 0 14px;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--site-ink-muted);
+}
+
+.rows {
+  margin: 22px 0 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.row dt { color: var(--site-ink-muted); flex: 0 0 auto; }
+.row dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.emphasis dd, .emphasis .barValue { color: var(--site-saffron-ink); font-weight: 500; }
+
+.bars {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+  font-size: 14px;
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.track { display: block; height: 12px; }
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--site-field);
+  border-radius: 2px;
+  transform-origin: left center;
+}
+
+.emphasis .fill { background: var(--site-saffron-ink); }
+
+.footer { font-size: 13.5px; color: var(--site-ink); }
+
+.stamp { margin-top: 16px; }
+
+.stampBase {
+  display: inline-block;
+  padding: 5px 10px;
+  border: 2px solid var(--site-field);
+  border-radius: var(--radius-stamp);
+  color: var(--site-field);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transform: rotate(-3deg);
+  mix-blend-mode: multiply;
+}
+
+.stampSaffron { border-color: var(--site-saffron-ink); color: var(--site-saffron-ink); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .receipt[data-print="wait"] .tape,
+  .receipt[data-print="wait"] .figureLine,
+  .receipt[data-print="wait"] .row,
+  .receipt[data-print="wait"] .bar,
+  .receipt[data-print="wait"] .stampBase { opacity: 0; }
+  .receipt[data-print="wait"] .fill { transform: scaleX(0); }
+
+  .receipt[data-print="in"] .tape {
+    animation: feed var(--t-print) steps(9, end) both;
+  }
+  .receipt[data-print="in"] .figureLine,
+  .receipt[data-print="in"] .row,
+  .receipt[data-print="in"] .bar {
+    animation: line var(--t-base) var(--ease-expo) both;
+    animation-delay: calc(var(--t-print) * 0.45 + var(--i, 0) * var(--stagger));
+  }
+  .receipt[data-print="in"] .fill {
+    animation: grow var(--t-slow) var(--ease-expo) both;
+    animation-delay: calc(var(--t-print) * 0.45 + var(--i, 0) * var(--stagger) + var(--t-fast));
+  }
+  .receipt[data-print="in"] .stampBase {
+    animation: land var(--t-base) var(--ease-spring) both;
+    animation-delay: calc(var(--t-print) * 0.5 + var(--n, 0) * var(--stagger) + var(--t-base));
+  }
+}
+
+@keyframes feed {
+  from { clip-path: inset(0 0 100% 0); transform: translateY(-14px); }
+  to { clip-path: inset(0 0 0 0); transform: none; }
+}
+
+@keyframes line {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes land {
+  from { opacity: 0; transform: rotate(-9deg) scale(1.5); }
+  to { opacity: 1; transform: rotate(-3deg) scale(1); }
+}
+
+@media (max-width: 640px) {
+  .tilt { transform: none; }
+  .paper { padding: 20px 18px 18px; }
+  .figure { font-size: 56px; }
+}

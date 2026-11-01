@@ -1,0 +1,106 @@
+/* Use case: Shared design tokens for the public Syntelio site (landing, auth, onboarding).
+What it does: Declares the receipt palette in light and dark, self-hosted display and mono faces, spacing, radius, shadow and motion roles; imported by public pages only, never by the workspace. */
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("../fonts/FrauncesVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --site-field: #0f3b2e;
+  --site-field-deep: #071a14;
+  --site-paper: #f4ecd8;
+  --site-paper-shade: #e9dfc7;
+  --site-ink: #14201b;
+  --site-ink-muted: rgba(20, 32, 27, 0.68);
+  --site-rule: rgba(20, 32, 27, 0.18);
+  --site-saffron: #ff9f1c;
+  --site-saffron-ink: #8a4600;
+  --site-mint: #9fd8b8;
+  --site-on-field: #f4ecd8;
+  --site-on-field-muted: rgba(244, 236, 216, 0.72);
+  --site-page: #f4ecd8;
+  --site-text: #14201b;
+  --site-text-muted: rgba(20, 32, 27, 0.66);
+  --site-line: rgba(20, 32, 27, 0.14);
+  --site-focus: #ff9f1c;
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: var(--font-sans), Inter, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --display-soft: "opsz" 144, "SOFT" 40;
+  --display-italic-soft: "opsz" 144, "SOFT" 100;
+  --display-small: "opsz" 36, "SOFT" 30;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+  --space-9: 112px;
+  --gutter: clamp(16px, 4vw, 48px);
+  --measure: 52ch;
+
+  --radius-chip: 999px;
+  --radius-card: 14px;
+  --radius-slot: 0 0 10px 10px;
+  --radius-stamp: 4px;
+
+  --shadow-paper: 0 1px 0 rgba(20, 32, 27, 0.12), 0 24px 50px -28px rgba(20, 32, 27, 0.55);
+  --shadow-receipt: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 10px 24px -16px rgba(20, 32, 27, 0.45);
+
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 180ms;
+  --t-base: 350ms;
+  --t-slow: 600ms;
+  --t-print: 1100ms;
+  --stagger: 80ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --site-field: #0b2a21;
+    --site-field-deep: #051410;
+    --site-page: #081f18;
+    --site-text: #efe7d4;
+    --site-text-muted: rgba(239, 231, 212, 0.68);
+    --site-line: rgba(239, 231, 212, 0.16);
+    --shadow-paper: 0 1px 0 rgba(0, 0, 0, 0.3), 0 24px 50px -28px rgba(0, 0, 0, 0.7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --site-field: #0b2a21;
+  --site-field-deep: #051410;
+  --site-page: #081f18;
+  --site-text: #efe7d4;
+  --site-text-muted: rgba(239, 231, 212, 0.68);
+  --site-line: rgba(239, 231, 212, 0.16);
+  --shadow-paper: 0 1px 0 rgba(0, 0, 0, 0.3), 0 24px 50px -28px rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-base: 0ms;
+    --t-slow: 0ms;
+    --t-print: 0ms;
+    --stagger: 0ms;
+  }
+}

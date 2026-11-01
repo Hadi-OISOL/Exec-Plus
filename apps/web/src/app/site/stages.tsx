@@ -18,7 +18,7 @@ export function Stages() {
   const [index, setIndex] = useState(0);
   const stage = stages[index];
   return <div className={styles.stages}>
-    <div className={styles.stageText}>
+    <div className={styles.stageText} aria-live="polite">
       <h3 key={`h-${index}`} className={styles.stageFade}>{stage.clause}</h3>
       <p key={`p-${index}`} className={styles.stageFade}>{stage.note}</p>
     </div>

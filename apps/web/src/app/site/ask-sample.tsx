@@ -1,10 +1,11 @@
 /* Use case: The one live thing on the public website: a question box over the real 100-row farm sample.
-What it does: Matches what the reader types or taps against four prepared questions, shows the exact precomputed answer with its bars and receipt, and renders the first answer on the server so the section reads without scripts. */
+What it does: Matches what the reader types or taps against four prepared questions, prints the exact precomputed answer on the shared paper receipt with its bars and footer rows, and renders the first answer on the server so the section reads without scripts. */
 
 "use client";
 
 import { useId, useState } from "react";
 import styles from "../page.module.css";
+import { Receipt } from "./kit";
 
 type Answer = {
   id: string;
@@ -66,21 +67,28 @@ export function AskSample() {
   const [text, setText] = useState(sampleAnswers[0].question);
   const answer = matchSampleAnswer(text);
   const max = answer ? Math.max(...answer.rows.map(row => row[2])) : 1;
-  return <div>
-    <label htmlFor={`${id}-ask`} className={styles.srOnly}>Ask the sample file a question</label>
-    <textarea id={`${id}-ask`} className={styles.askLine} data-ui="" rows={1} value={text} onChange={event => setText(event.target.value.replace(/\n/g, " "))} onKeyDown={event => { if (event.key === "Enter") event.preventDefault(); }} placeholder="Ask the sample file…" autoComplete="off" spellCheck={false} />
-    <div className={styles.answer} data-ui="" aria-live="polite">
-      {answer ? <>
-        <p className={styles.answerHead}><span className={styles.verified}>Verified</span><span className={styles.muted}>Computed by the query engine, not the model</span></p>
-        <p>{answer.sentence[0]}<strong>{answer.sentence[1]}</strong>{answer.sentence[2]}</p>
-        <ul className={styles.bars} aria-label={`${answer.operation} ${answer.grouping}${answer.unit ? `, in ${answer.unit}` : ""}`}>
-          {answer.rows.map(([label, shown, value]) => <li key={label} data-lead={label === answer.lead}><span>{label}</span><span className={styles.bar} style={{ width: `${(value / max) * 100}%` }} /><span>{shown}</span></li>)}
-        </ul>
-        <p className={styles.receipt}><b>test_100rows.csv</b><span>version 1</span><span>{answer.operation} {answer.grouping}</span><span>no filters</span><span>100 rows</span></p>
-      </> : <p className={styles.muted}>{text.trim() ? "This sample knows four questions. In the product any question goes to the query engine, and an unclear one gets a clarifying question back." : "Type a question, or tap one below."}</p>}
+  return <div className={styles.try}>
+    <div>
+      <label htmlFor={`${id}-ask`} className={styles.srOnly}>Ask the sample file a question</label>
+      <textarea id={`${id}-ask`} className={styles.askLine} data-ui="" rows={1} value={text} onChange={event => setText(event.target.value.replace(/\n/g, " "))} onKeyDown={event => { if (event.key === "Enter") event.preventDefault(); }} placeholder="Ask the sample file…" autoComplete="off" spellCheck={false} />
+      <ul className={styles.examples} aria-label="Prepared questions">
+        {sampleAnswers.filter(candidate => candidate !== answer).slice(0, 3).map(candidate => <li key={candidate.id}><button type="button" className={styles.example} lang={candidate.id === "drip" ? "ur-Latn" : undefined} onClick={() => setText(candidate.question)}>{candidate.question}</button></li>)}
+      </ul>
+      <p className={`${styles.muted} ${styles.tryNote}`}>test_100rows.csv: 100 fields, 20 columns, Soil, Crop, Rainfall and Region among them. Every answer here is precomputed from the file.</p>
     </div>
-    <ul className={styles.examples} aria-label="Prepared questions">
-      {sampleAnswers.filter(candidate => candidate !== answer).slice(0, 3).map(candidate => <li key={candidate.id}><button type="button" className={styles.example} onClick={() => setText(candidate.question)}>{candidate.question}</button></li>)}
-    </ul>
+    <p className={styles.srOnly} aria-live="polite">{answer ? `${answer.sentence[0]}${answer.sentence[1]}${answer.sentence[2]}` : "No prepared answer matches this question."}</p>
+    <div className={`${styles.answer} ${styles.tryAnswer}`}>
+      {answer ? <Receipt
+        key={answer.id}
+        tilt
+        question={answer.question}
+        figure={answer.sentence[1]}
+        figureLabel={`${answer.sentence[0]}${answer.sentence[1]}${answer.sentence[2]}`}
+        bars={answer.rows.map(([label, shown, value]) => ({ label, value: shown, share: value / max, emphasis: label === answer.lead }))}
+        barsLabel={`${answer.operation} ${answer.grouping}${answer.unit ? `, in ${answer.unit}` : ""}`}
+        footer={[{ label: "Dataset", value: "test_100rows.csv · version 1" }, { label: "Operation", value: `${answer.operation} ${answer.grouping}` }, { label: "Filters", value: "none" }, { label: "Rows read", value: "100 of 100" }]}
+        ariaLabel={`Receipt: ${answer.question}`}
+      /> : <p className={styles.muted}>{text.trim() ? "This sample knows four questions. In the product any question goes to the query engine, and an unclear one gets a clarifying question back." : "Type a question, or tap one below."}</p>}
+    </div>
   </div>;
 }

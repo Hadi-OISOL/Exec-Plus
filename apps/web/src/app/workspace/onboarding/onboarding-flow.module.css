@@ -1,34 +1,57 @@
 /* Use case: Keeps the first-run questionnaire calm, readable and finger-friendly.
-What it does: Lays out one question per screen on a filled panel without lines or shadows, with filled choice blocks, a thick progress bar and safe motion, in the public site's type and colour roles. */
+What it does: Lays a paper card on the green field with one question per screen, a saffron progress bar, ink-outlined choice chips that fill saffron when selected, and a transform/opacity slide between screens that is switched off under reduced motion. The card stays paper in dark mode. Colour, type and motion roles come from site/site-tokens.css. */
 
-.screen { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; background: var(--color-bg); color: var(--color-text); font-family: var(--font-product); }
-.card { width: 100%; max-width: 600px; min-width: 0; padding: clamp(24px, 4vw, 44px); background: var(--color-surface); }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 28px; color: var(--color-text); font-size: 15px; }
-.brand span:first-child { display: inline-grid; place-items: center; width: 28px; height: 28px; background: var(--color-primary); color: var(--color-on-primary); font-weight: 700; }
-.progress { display: grid; gap: 10px; margin-bottom: 24px; font-size: 15px; color: var(--color-text-secondary); }
-.bar { height: 6px; background: var(--color-surface-sunken); overflow: hidden; }
-.bar > span { display: block; height: 100%; background: var(--color-primary); transition: width .25s ease; }
-.card h1 { margin: 0 0 12px; font-size: clamp(26px, 3.6vw, 36px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 560; text-wrap: balance; }
-.card p { margin: 0 0 16px; color: var(--color-text); line-height: 1.5; font-size: 17px; text-wrap: pretty; }
-.hint { font-size: 15px !important; color: var(--color-text-secondary) !important; }
+.screen {
+  --field: var(--site-field, light-dark(#0f3b2e, #0b2a21));
+  --paper: var(--site-paper, #f4ecd8);
+  --paper-sunken: var(--site-paper-shade, #e9dfc7);
+  --ink: var(--site-ink, #14201b);
+  --muted: #3d4c45;
+  --rule: var(--site-rule, rgba(20, 32, 27, 0.22));
+  --saffron: var(--site-saffron, #ff9f1c);
+  --saffron-strong: #f08f00;
+  --danger: #a3212b;
+  --ease-out: var(--ease-expo, cubic-bezier(0.22, 1, 0.36, 1));
+  --font-serif: var(--font-display, "Fraunces", Georgia, "Times New Roman", serif);
+  min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; background: var(--field); color: var(--ink); font-family: var(--font-product); overflow: hidden;
+}
+.card { width: 100%; max-width: 600px; min-width: 0; padding: clamp(24px, 4vw, 44px); background: var(--paper); color: var(--ink); box-shadow: var(--shadow-receipt, 0 30px 60px -24px rgba(0, 0, 0, 0.6)); background-image: repeating-linear-gradient(transparent 0 31px, rgba(20, 32, 27, 0.06) 31px 32px); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 28px; color: var(--ink); font-size: 15px; }
+.brand span:first-child { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--saffron); color: #0f3b2e; font-family: var(--font-serif); font-weight: 700; font-size: 19px; }
+.slide { display: block; }
+.progress { display: grid; gap: 10px; margin-bottom: 24px; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.bar { height: 6px; background: var(--paper-sunken); border-radius: 3px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--saffron); transition: width 250ms var(--ease-out); }
+.card h1 { margin: 0 0 12px; color: var(--ink); font-family: var(--font-serif); font-size: clamp(28px, 3.8vw, 40px); line-height: 1.04; letter-spacing: -0.02em; font-weight: 500; text-wrap: balance; font-variation-settings: var(--display-soft, "opsz" 72, "SOFT" 40); }
+.card h1:focus { outline: none; }
+.card p { margin: 0 0 16px; color: var(--ink); line-height: 1.5; font-size: 17px; text-wrap: pretty; }
+.hint { font-size: 15px !important; color: var(--muted) !important; }
 .choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 4px; }
-.choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 0; background: var(--color-surface-sunken); color: var(--color-text); font-size: 16px; cursor: pointer; transition: background-color 180ms ease, transform 140ms cubic-bezier(0.22, 1, 0.36, 1); }
-.choice:hover { background: var(--color-surface-hover); }
+.choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1.5px solid var(--ink); border-radius: 999px; background: transparent; color: var(--ink); font-size: 16px; font-family: inherit; cursor: pointer; transition: background-color 180ms ease, transform 140ms var(--ease-out); }
+.choice:hover { background: var(--paper-sunken); }
 .choice:active { transform: scale(0.97); }
-.choice[aria-checked="true"] { background: var(--color-primary); color: var(--color-on-primary); font-weight: 600; }
+.choice:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.choice[aria-checked="true"] { background: var(--saffron); border-color: var(--saffron); color: var(--ink); font-weight: 600; }
 .choice svg { width: 16px; height: 16px; flex: none; }
-.text { width: 100%; min-height: 52px; padding: 10px 14px; border: 0; background: var(--color-surface-sunken); color: var(--color-text); font-size: 18px; }
-.text:focus { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.text { width: 100%; min-height: 52px; padding: 10px 14px; border: 0; border-bottom: 2px solid var(--rule); border-radius: 4px 4px 0 0; background: var(--paper-sunken); color: var(--ink); font-size: 18px; font-family: inherit; }
+.text:focus { outline: 2px solid var(--saffron); outline-offset: 2px; border-bottom-color: var(--ink); }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 32px; }
-.actions button { min-height: 44px; padding: 8px 18px; border: 0; background: var(--color-surface-sunken); color: var(--color-text); font-size: 16px; font-weight: 560; cursor: pointer; transition: background-color 180ms ease, transform 140ms cubic-bezier(0.22, 1, 0.36, 1); }
-.actions button:hover:not(:disabled) { background: var(--color-surface-hover); }
+.actions button { min-height: 44px; padding: 8px 18px; border: 1.5px solid var(--ink); border-radius: 4px; background: transparent; color: var(--ink); font-size: 16px; font-weight: 560; font-family: inherit; cursor: pointer; transition: background-color 180ms ease, transform 140ms var(--ease-out); }
+.actions button:hover:not(:disabled) { background: var(--paper-sunken); }
 .actions button:active:not(:disabled) { transform: scale(0.97); }
+.actions button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .actions button:disabled { opacity: .55; cursor: default; }
-.primary { background: var(--color-primary) !important; color: var(--color-on-primary) !important; margin-left: auto; }
-.primary:hover:not(:disabled) { background: var(--color-primary-hover) !important; }
-.quiet { background: transparent !important; color: var(--color-text-secondary) !important; text-decoration: underline; text-underline-offset: 0.18em; }
-.error { color: var(--color-danger) !important; }
+.primary { background: var(--saffron) !important; border-color: var(--saffron) !important; color: var(--ink) !important; font-weight: 600 !important; margin-left: auto; }
+.primary:hover:not(:disabled) { background: var(--saffron-strong) !important; border-color: var(--saffron-strong) !important; }
+.quiet { background: transparent !important; border-color: transparent !important; color: var(--muted) !important; text-decoration: underline; text-underline-offset: 0.18em; }
+.error { color: var(--danger) !important; }
 .summary { display: grid; gap: 10px; margin: 0 0 8px; padding: 0; list-style: none; font-size: 15px; }
-.summary strong { color: var(--color-text-secondary); font-weight: 500; }
+.summary strong { color: var(--muted); font-weight: 500; }
+@media (prefers-reduced-motion: no-preference) {
+  .card { animation: cardRise 600ms var(--ease-out) both; }
+  .slide { animation: slideIn 380ms var(--ease-out) both; }
+  @keyframes cardRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+}
 @media (max-width: 480px) { .actions button { flex: 1 1 auto; } .primary { margin-left: 0; } }
 @media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } .choice, .actions button { transition: none; } }
