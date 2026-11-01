@@ -19,6 +19,7 @@ from execplus.domain.operations import StaffAudit
 from execplus.domain.plans import (
     LIMITS,
     OPERATIONS,
+    PRICE_USD_MONTH,
     STOCK,
     checked_key,
     checked_limits,
@@ -82,6 +83,13 @@ def allowances(
     return assignment, values, current
 
 
+def presented(item: dict[str, Any], *extra: str) -> dict[str, Any]:
+    return {
+        **{key: item[key] for key in ("key", "name", "limits", *extra)},
+        "price_usd_month": PRICE_USD_MONTH.get(item["key"]),
+    }
+
+
 def ratio(used: int | None, limit: int | None) -> Fraction | None:
     if used is None or limit is None:
         return None
@@ -95,10 +103,11 @@ class PlanService:
     def catalog(self, actor: User) -> list[dict[str, Any]]:
         with self.uow() as repo:
             repo.require_active_actor(actor.id)
-            return [
-                {key: item[key] for key in ("key", "name", "version", "limits")}
-                for item in repo.plan_catalog()
-            ]
+            return [presented(item, "version") for item in repo.plan_catalog()]
+
+    def public_catalog(self) -> list[dict[str, Any]]:
+        with self.uow() as repo:
+            return [presented(item) for item in repo.plan_catalog()]
 
     def configure(
         self, actor: User, key: str, name: str, limits: dict[str, Any], expected: int

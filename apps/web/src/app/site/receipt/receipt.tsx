@@ -1,5 +1,5 @@
 /* Use case: The paper receipt that accompanies every public-site figure.
-What it does: Renders a server-side receipt (header, question, serif figure, mono rows, bar list, footer rows, perforated edge, optional printer slot) from exact caller-supplied strings; motion is opt-in through data-print and happens in CSS. */
+What it does: Renders a server-side receipt (header, question, serif figure, mono rows, bar list, footer rows, perforated edge, optional printer slot) from exact caller-supplied strings; motion is opt-in through data-print and happens in CSS, and a plain numeric figure is marked data-count so the reveal script can roll it up to its exact text. */
 
 import type { ReactNode } from "react";
 import styles from "./receipt.module.css";
@@ -73,7 +73,7 @@ export function Receipt({
           <p className={styles.question}>{question}</p>
           {figure ? (
             <p className={styles.figureLine} style={next()}>
-              <span className={styles.figure}>{figure}</span>
+              <span className={styles.figure} data-count={/^(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$/.test(figure) ? "" : undefined}>{figure}</span>
               {unit ? <span className={styles.unit}>{unit}</span> : null}
             </p>
           ) : null}

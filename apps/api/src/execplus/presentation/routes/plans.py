@@ -44,6 +44,11 @@ def catalog(actor: Actor, plans: Service) -> object:
     return plans.catalog(actor)
 
 
+@router.get("/plans/public")
+def public_catalog(plans: Service) -> object:
+    return plans.public_catalog()
+
+
 @router.put("/admin/plans/{key}")
 def configure(key: str, body: CatalogInput, actor: Actor, plans: Service) -> object:
     return plans.configure(actor, key, body.name, body.limits, body.expected_version)

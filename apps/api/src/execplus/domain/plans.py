@@ -1,7 +1,8 @@
 """Use case: Defines price-free local product allowances.
 
-What it does: Validates versioned limits and periods without subscriptions,
-invented prices or changes to independent global safety limits.
+What it does: Validates versioned limits and periods without subscriptions or
+changes to independent global safety limits; monthly prices are display-only
+placeholders the owner will replace, never a billing input.
 """
 
 import hashlib
@@ -42,9 +43,9 @@ DEMO = {
     "model_attempts": 500,
 }
 CATALOG = {
-    "demo": {"name": "Demo", "limits": DEMO},
+    "demo": {"name": "Free", "limits": DEMO},
     "starter": {
-        "name": "Starter",
+        "name": "Pro",
         "limits": {
             **DEMO,
             "seats": 10,
@@ -58,7 +59,7 @@ CATALOG = {
         },
     },
     "growth": {
-        "name": "Growth",
+        "name": "Team",
         "limits": {
             **DEMO,
             "seats": 30,
@@ -85,6 +86,12 @@ CATALOG = {
             "model_attempts": 50000,
         },
     },
+}
+PRICE_USD_MONTH: dict[str, int | None] = {
+    "demo": 0,
+    "starter": 50,
+    "growth": 100,
+    "enterprise": None,
 }
 
 

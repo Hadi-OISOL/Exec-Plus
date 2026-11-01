@@ -1,5 +1,5 @@
 /* Use case: Styles the public Syntelio website.
-What it does: Maps the shared site tokens onto the landing, lays out the green hero around the kit's printed receipt, the live question box on paper, the stage slider, the analyst sentence, the three evidence papers, the open questions, the closing field and the quiet footer line, with reduced-motion-safe entrances. */
+What it does: Maps the shared site tokens onto the landing, lays out the green hero around the kit's printed receipt and the travelling answer tape, the live question box on paper, the stage slider, the analyst sentence, the three pinned evidence papers, the three plan receipts torn from one roll, the open questions, the closing field and the quiet footer line, with reduced-motion-safe entrances and paper lifts. */
 
 .site {
   --field: var(--site-field);
@@ -8,6 +8,7 @@ What it does: Maps the shared site tokens onto the landing, lays out the green h
   --mint: var(--site-mint);
   --paper: var(--site-paper);
   --paper-deep: var(--site-paper-shade);
+  --field-deep: var(--site-field-deep);
   --paper-ink: var(--site-ink);
   --paper-muted: var(--site-ink-muted);
   --bg: var(--site-page);
@@ -22,9 +23,9 @@ What it does: Maps the shared site tokens onto the landing, lays out the green h
   --step-body: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);
   --step-lead: clamp(1.5rem, 1.1rem + 1.4vw, 2.25rem);
   --step-head: clamp(2.25rem, 1.4rem + 2.8vw, 3.75rem);
-  --step-display: clamp(2.4rem, 0.5rem + 5.9vw, 7rem);
+  --step-display: clamp(2.8rem, 0.4rem + 6.4vw, 7.25rem);
   --margin: clamp(1rem, 2.4vw, 3rem);
-  --gap-section: clamp(6rem, 11vw, 11rem);
+  --gap-section: clamp(6rem, 12vw, 14rem);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --t-press: 140ms;
   --t-hover: 180ms;
@@ -90,15 +91,24 @@ What it does: Maps the shared site tokens onto the landing, lays out the green h
 .navAction { margin-inline-start: auto; display: flex; align-items: center; gap: 1.5rem; }
 .navAction .button { min-height: 44px; }
 
-.hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(2rem, 4vw, 4rem); align-items: center; min-height: min(calc(100svh - 76px), 880px); padding-block: clamp(2rem, 5vh, 4rem) clamp(3rem, 7vh, 5rem); }
-.heroLine { font-size: var(--step-display); line-height: 0.96; max-width: 17ch; }
-.lead { margin-top: 2.5rem; max-width: 46ch; font-size: 1.25rem; line-height: 1.4; color: var(--field-muted); }
+.hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: clamp(2rem, 4vw, 5rem); align-items: center; min-height: min(calc(100svh - 76px - 64px), 880px); padding-block: clamp(2rem, 6vh, 5rem) clamp(3rem, 8vh, 6rem); }
+.heroLine { font-size: var(--step-display); line-height: 0.94; max-width: 15ch; }
+.site .lead { margin-top: 2.5rem; max-width: 46ch; font-size: 1.25rem; line-height: 1.4; color: var(--field-muted); }
 .heroActions { display: flex; align-items: center; gap: 0.875rem; flex-wrap: wrap; margin-top: 2.25rem; }
 .langs { margin-top: 1.75rem; font-size: var(--step-small); color: var(--field-muted); }
 .langs b { color: var(--field-ink); font-weight: 500; }
 
 /* the printed receipt comes from site/kit */
 .printer { justify-self: end; width: min(440px, 100%); }
+
+/* the tape of answers under the hero */
+.ticker { overflow: clip; background: var(--paper); color: var(--paper-ink); border-block: 6px solid var(--field-deep); }
+.tickerTrack { display: flex; width: max-content; }
+.tickerList { display: flex; gap: 0; margin: 0; padding: 0; list-style: none; }
+.tickerItem { display: flex; align-items: baseline; gap: 0.75rem; padding: 0.9rem 2.5rem 0.9rem 1.5rem; white-space: nowrap; font-size: var(--step-small); }
+.tickerItem::before { content: ""; align-self: center; width: 10px; height: 10px; border-radius: 2px; background: var(--saffron); }
+.tickerQuestion { font-family: var(--font-display); font-variation-settings: var(--display-small); font-weight: 450; font-size: 1.0625rem; }
+.tickerAnswer { font-family: var(--font-mono); font-variant-numeric: tabular-nums; } /* taste-skill-ignore: the tape is a receipt roll, the one monospace place */
 
 /* sections on paper */
 .band { background: var(--surface); }
@@ -154,14 +164,28 @@ What it does: Maps the shared site tokens onto the landing, lays out the green h
 .statement .lit { color: var(--ink); }
 .site .statement .lit:not(:first-child) { color: var(--saffron-text); font-style: italic; }
 
-/* arrives: three papers */
-.papers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1.5rem, 3vw, 3rem); margin: 2.5rem 0 0; padding: 0; list-style: none; align-items: stretch; }
-.paperCard { display: grid; grid-template-rows: auto auto auto 1fr; align-content: start; gap: 1rem; padding: 1.25rem 1.25rem 1.5rem; background: var(--paper); color: var(--paper-ink); }
+/* arrives: three papers pinned at different heights */
+.papers { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: clamp(1.5rem, 3vw, 3rem) clamp(1.5rem, 3vw, 3rem); margin: 3rem 0 0; padding: 0; list-style: none; align-items: start; }
+.paperCard { position: relative; display: grid; grid-template-rows: auto auto auto auto 1fr; align-content: start; gap: 1rem; padding: 1.75rem 1.5rem 1.75rem; background: var(--paper); color: var(--paper-ink); box-shadow: var(--shadow-paper); transition: transform var(--t-hover) var(--ease-out), box-shadow var(--t-hover) var(--ease-out); } /* taste-skill-ignore: pinned paper is a physical object lifted off the field, as the receipt is */
+.paperCard:nth-child(1) { grid-column: 1 / 7; transform: rotate(-0.6deg); }
+.paperCard:nth-child(2) { grid-column: 7 / 13; margin-top: 5rem; transform: rotate(0.7deg); }
+.paperCard:nth-child(3) { grid-column: 3 / 11; transform: rotate(-0.4deg); }
+.paperTear { position: absolute; top: -7px; left: 0; width: 100%; height: 8px; fill: var(--paper); transform: scaleY(-1); }
+.printed { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--paper-muted); } /* taste-skill-ignore: a stamped date on paper */
 .paperCard .caption { order: -1; }
 .paperCard .shot { background: #ffffff; aspect-ratio: var(--ratio); }
 .paperCard h3 { font-size: 1.5rem; line-height: 1.15; }
 .paperCard p { color: var(--paper-muted); font-size: 1.0625rem; }
 .caption { font-size: var(--step-small); color: var(--saffron-text); }
+
+/* pricing: three receipts torn from one roll */
+.pricing { padding-bottom: calc(var(--gap-section) / 2); }
+.roll { height: 22px; margin-top: 3.5rem; background: var(--field-deep); border-radius: 0 0 12px 12px; box-shadow: inset 0 2px 0 rgba(244, 236, 216, 0.28), inset 0 -5px 0 var(--field); } /* taste-skill-ignore: the printer slot the plan receipts feed from, drawn flat with two inset lips */
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1rem, 2.5vw, 2.5rem); margin: -4px 0 0; padding: 0; list-style: none; align-items: start; }
+.plan { transition: transform var(--t-hover) var(--ease-out); }
+.site .planButton { width: 100%; margin-top: 1.5rem; }
+.site .enterprise { margin-top: 3.5rem; max-width: 60ch; }
+.enterprise b { font-family: var(--font-display); font-weight: 500; font-size: 1.375rem; font-variation-settings: var(--display-small); }
 
 /* questions: large questions, answers beside */
 .faqRows { display: grid; gap: 4rem; margin: 0; padding: 0; list-style: none; }
@@ -185,10 +209,18 @@ What it does: Maps the shared site tokens onto the landing, lays out the green h
 
 /* motion: the receipt prints, the once-only reveals */
 @media (prefers-reduced-motion: no-preference) {
+  .tickerTrack { animation: tape 70s linear infinite; }
+  .ticker:hover .tickerTrack { animation-play-state: paused; }
+  @media (hover: hover) and (pointer: fine) {
+    .paperCard:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift), var(--shadow-paper); } /* taste-skill-ignore: hover lifts the paper */
+    .plan:hover { transform: translateY(-2px); }
+  }
   :global(html.js) .site [data-reveal] { transition: opacity 700ms var(--ease-expo), transform 900ms var(--ease-expo); transition-delay: calc(var(--i, 0) * var(--stagger)); }
   :global(html.js) .site [data-reveal="wait"] { opacity: 0; transform: translateY(24px); }
   .site .button, .site .example { will-change: transform; }
 }
+
+@keyframes tape { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 @media (prefers-reduced-motion: reduce) {
   .site *, .site *::before, .site *::after { animation: none !important; transition: none !important; }
@@ -200,8 +232,10 @@ What it does: Maps the shared site tokens onto the landing, lays out the green h
   .tryAnswer { padding-top: 0; }
   .answer { margin-inline: 0; }
   .papers { grid-template-columns: 1fr; }
-  .paperCard { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto; align-items: center; }
-  .paperCard .shot { grid-row: 1 / 5; }
+  .paperCard, .paperCard:nth-child(n) { grid-column: auto; margin-top: 0; transform: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto; align-items: center; }
+  .paperCard .shot { grid-row: 1 / 6; }
+  .plans { grid-template-columns: 1fr; gap: 2.5rem; }
+  .roll { display: none; }
   .paperCard .caption { order: 0; }
   .faqRow h2, .faqRow h3 { grid-column: 1 / 6; }
   .faqRow p { grid-column: 6 / 13; }
@@ -231,8 +265,9 @@ What it does: Maps the shared site tokens onto the landing, lays out the green h
   .stageText { order: 3; padding: 2rem 1.25rem 2.5rem; }
   .stageNames { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; }
   .site .stageName { font-size: 0.9375rem; text-align: left; }
-  .paperCard { grid-template-columns: 1fr; }
+  .paperCard, .paperCard:nth-child(n) { grid-template-columns: 1fr; }
   .paperCard .shot { grid-row: auto; }
+  .tickerItem { padding-block: 0.75rem; }
   .paperCard .caption { order: -1; }
   .faqRows { gap: 3rem; }
   .faqRow { display: block; }

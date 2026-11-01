@@ -178,7 +178,7 @@ def test_planner_prompt_carries_private_preferences_for_social_replies(integrati
     planner = [
         request.messages[-1].content
         for request in model.requests
-        if "Private preferences of this user" in request.messages[-1].content
+        if "Preferred name of this user" in request.messages[-1].content
     ]
-    assert planner and '"preferred_name": "Hadi"' in planner[-1]
-    assert "Address the user by preferred_name" in planner[-1]
+    assert planner and '"Hadi"' in planner[-1]
+    assert "PrivateRetailRole" not in planner[-1] and "Focus" not in planner[-1]

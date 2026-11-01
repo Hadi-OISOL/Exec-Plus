@@ -1,13 +1,15 @@
 /* Use case: The public Syntelio website at the root route.
-What it does: Opens on a green field with the claim that every number comes with a receipt and prints a real one, then offers the live sample question on paper, the four stages, the ten analysts, the three things that arrive with an answer, the open questions, the closing field and the quiet footer line, all linking to the sign-up and log-in pages. */
+What it does: Opens on a green field with the claim that every number comes with a receipt and prints a real one over a travelling tape of sample answers, then offers the live sample question on paper, the four stages, the ten analysts, the three pinned evidence papers, the three plans printed from one roll, the open questions, the closing field and the quiet footer line, all linking to the sign-up and log-in pages. */
 
 import Link from "next/link";
 import styles from "./page.module.css";
 import { AnalystSentence } from "./site/analysts";
 import { AskSample } from "./site/ask-sample";
 import { Shot } from "./site/shot";
-import { PrintReveal, Receipt } from "./site/kit";
+import { PrintReveal, Receipt, tearPoints } from "./site/kit";
+import { Pricing } from "./site/pricing";
 import { Stages } from "./site/stages";
+import { Ticker } from "./site/ticker";
 
 const rainfall = [["West", "1,744.51", 1744.51], ["North", "1,599.96", 1599.96], ["South", "1,567.74", 1567.74], ["Central", "1,562.96", 1562.96], ["East", "1,310.04", 1310.04]] as const;
 
@@ -23,10 +25,11 @@ const questions = [
   ["Which languages can I ask in?", "English, Urdu and Roman Urdu. When a request could mean more than one thing, Syntelio asks a clarifying question instead of guessing."],
   ["Who can see my data?", "Only members of your workspace, with the roles you give them. Every question, answer and export is recorded in the workspace audit history."],
   ["Can I trust a forecast?", "Forecasts are labelled estimates with their measured error and the method used. Syntelio never presents a projection as a fact, and compares it with actual values once they arrive."],
-  ["What does it cost?", "Creating an account is free. Each account includes 5 GB of storage and files up to 500 MB."],
+  ["What does it cost?", "Creating an account is free, with 5 GB of storage and files up to 500 MB. Paid plans with higher allowances are listed above; their prices are placeholders while the product is in private preview."],
 ] as const;
 
 const delay = (index: number) => ({ "--i": index } as React.CSSProperties);
+const printedOn = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 function HeroReceipt() {
   return <Receipt
@@ -58,7 +61,7 @@ export default function Home() {
         <header className={`${styles.frame} ${styles.nav}`}>
           <Link className={styles.brand} href="/" aria-label="Syntelio home"><span className={styles.mark} aria-hidden="true">S</span>Syntelio</Link>
           <nav aria-label="Site" className={styles.navLinks}>
-            <a className={styles.textLink} href="#try">Try it</a><a className={styles.textLink} href="#how">How it works</a><a className={styles.textLink} href="#questions">Questions</a>
+            <a className={styles.textLink} href="#try">Try it</a><a className={styles.textLink} href="#how">How it works</a><a className={styles.textLink} href="#pricing">Pricing</a><a className={styles.textLink} href="#questions">Questions</a>
           </nav>
           <div className={styles.navAction}>
             <Link href="/login" className={styles.textLink}>Log in</Link>
@@ -77,6 +80,7 @@ export default function Home() {
           </div>
           <HeroReceipt />
         </section>
+        <Ticker />
       </div>
 
       <main>
@@ -101,6 +105,8 @@ export default function Home() {
           <ul className={styles.papers}>
             {arrives.map((paper, index) => (
               <li key={paper.title} className={styles.paperCard} data-reveal="" style={{ "--i": index, "--ratio": paper.ratio } as React.CSSProperties}>
+                <svg className={styles.paperTear} viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon points={tearPoints(32, 4)} /></svg>
+                <p className={styles.printed}>Printed {printedOn}</p>
                 <Shot name={paper.shot} alt={paper.alt} width={560} height={300} />
                 <h3>{paper.title}</h3>
                 <p>{paper.text}</p>
@@ -109,6 +115,12 @@ export default function Home() {
             ))}
           </ul>
         </section></div>
+
+        <section className={`${styles.frame} ${styles.section} ${styles.pricing}`} id="pricing">
+          <h2 data-reveal="">What it costs</h2>
+          <p className={styles.sectionNote} data-reveal="" style={delay(1)}>Placeholder prices while the product is in private preview. Every plan prints the same receipts.</p>
+          <Pricing />
+        </section>
 
         <section className={`${styles.frame} ${styles.section}`} id="questions">
           <ul className={styles.faqRows}>

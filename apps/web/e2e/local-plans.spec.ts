@@ -1,5 +1,5 @@
 /* Use case: Proves local plan controls through real owner/admin screens.
-What it does: Checks a native Demo allowance, UI-assigned limits, upload denial, a price-free upgrade and safe refresh failure. */
+What it does: Checks a native Free allowance, UI-assigned limits, upload denial, a price-free upgrade and safe refresh failure. */
 
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -58,7 +58,7 @@ test("local allowances enforce backend limits and administrator changes appear f
   await expect(page.getByText("This workspace has reached its local allowance. Saved answers, dashboards, earlier results and receipt replays still open; new work of this kind waits until the allowance is reviewed. Ask an administrator to review it.", { exact: true })).toBeVisible();
   expect((await page.request.get(`${api}/workspaces/${wid}/datasets`, { headers })).status()).toBe(200);
   expect(await (await page.request.get(`${api}/workspaces/${wid}/datasets`, { headers })).json()).toEqual([]);
-  await assign("Starter");
+  await assign("Pro");
   await navigate("Data library");
   await page.getByLabel("CSV or Excel file").setInputFiles({ name: "synthetic-plan-sales.csv", mimeType: "text/csv", buffer: Buffer.from("date,category,revenue,cost\n2026-01-01,A,10.10,5.05\n2026-01-02,B,20.20,8.10\n") });
   await page.getByRole("button", { name: "Upload file", exact: true }).click();

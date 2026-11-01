@@ -5,9 +5,11 @@
 
 Migration **0026** adds `plan_catalog`, `workspace_plans` and `plan_admissions` to the existing PostgreSQL schema. No dependency, external service, payment activation or provider configuration is added.
 
-Native account registration and every subsequently created native workspace assign the current **Demo** catalog version in the same transaction as its workspace and owner membership. The explicit `plan.default_assigned` audit records that initialization. Legacy operator workspaces remain unassigned until an administrator deliberately assigns a plan; they keep their prior global safety limits and model ledger.
+Native account registration and every subsequently created native workspace assign the current **Free** (catalog key `demo`) version in the same transaction as its workspace and owner membership. The explicit `plan.default_assigned` audit records that initialization. Legacy operator workspaces remain unassigned until an administrator deliberately assigns a plan; they keep their prior global safety limits and model ledger.
 
-Demo, Starter, Growth and Enterprise are local capacity presets, **not subscriptions**. Each catalog update creates a new version. Assignment snapshots the selected limits and an explicit timezone-aware window of at most 366 days. Defaults last 30 days. Nothing renews automatically. Existing resources and evidence remain stored when limits decrease or a period expires; new admitted work is refused until a valid allowance exists.
+Free, Pro, Team and Enterprise are local capacity presets, **not subscriptions**. Their catalog keys stay `demo`, `starter`, `growth` and `enterprise` for traceability; on November 2 only the displayed names changed (Demo→Free, Starter→Pro, Growth→Team).
+
+Each plan carries a **placeholder monthly price in USD** (`price_usd_month`: Free 0, Pro 50, Team 100, Enterprise `null` = contact us) from the code constant `PRICE_USD_MONTH` in `execplus/domain/plans.py`. It is presentation only: no billing, payment, subscription or entitlement logic reads it, the owner will replace the numbers later, and no schema column stores it. The catalog itself is code-first: `plan_catalog()` overlays `CATALOG` defaults with any administrator-saved `plan_catalog` rows, so the renamed names appear live on deploy unless an administrator has already saved a row for that key (then a `PUT /admin/plans/{key}` with the new name is needed). The website copy in `apps/web/src/app/site/plans.ts` mirrors these values by hand. Each catalog update creates a new version. Assignment snapshots the selected limits and an explicit timezone-aware window of at most 366 days. Defaults last 30 days. Nothing renews automatically. Existing resources and evidence remain stored when limits decrease or a period expires; new admitted work is refused until a valid allowance exists.
 
 ## Counting and enforcement
 
@@ -33,7 +35,8 @@ Consolidated exports lock all contributing workspaces in order and admit one exp
 
 ## Protected controls
 
-- `GET /plans`: authenticated catalog, without private workspace usage.
+- `GET /plans/public`: unauthenticated, read-only static catalog (key, name, limits, `price_usd_month`) for the public pricing section; no usage or private data.
+- `GET /plans`: authenticated catalog with versions and `price_usd_month`, without private workspace usage.
 - `PUT /admin/plans/{key}`: platform administrator, exact `expected_version`, name and all limit fields.
 - `GET /admin/workspaces/{workspace_id}/plan`: administrator assignment metadata only.
 - `PUT /admin/workspaces/{workspace_id}/plan`: administrator, selected catalog key, expected assignment version and explicit start/end.

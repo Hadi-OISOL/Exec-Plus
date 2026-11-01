@@ -427,3 +427,18 @@ def test_malformed_idempotency_key_keeps_exact_origin_and_safe_error(integration
         assert result.headers.get("access-control-allow-origin") == expected
         assert "not an opaque UUID" not in result.text
         assert "x-request-id" in result.headers
+
+
+def test_public_catalog_shows_names_placeholder_prices_and_limits_without_login(integration):
+    from execplus.domain.plans import CATALOG, PRICE_USD_MONTH
+
+    response = integration.client.get("/plans/public")
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["key"] for item in body] == ["demo", "starter", "growth", "enterprise"]
+    assert [item["name"] for item in body] == ["Free", "Pro", "Team", "Enterprise"]
+    assert [item["price_usd_month"] for item in body] == [0, 50, 100, None]
+    assert PRICE_USD_MONTH == {"demo": 0, "starter": 50, "growth": 100, "enterprise": None}
+    for item in body:
+        assert item["limits"] == CATALOG[item["key"]]["limits"]
+        assert set(item) == {"key", "name", "limits", "price_usd_month"}
