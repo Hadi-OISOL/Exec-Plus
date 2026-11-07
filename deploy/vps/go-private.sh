@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Use case: Owner-run undo of go-public.sh, returning Syntelio to tunnel-only access.
+# Use case: Owner-run undo of go-public.sh, returning Osalytix to tunnel-only access.
 # What it does: Stops Caddy, restores only the public-access lines of app.env from the first saved copy
 # (later edits such as rotated keys are kept), restores a localhost website image and closes 80/443.
 # Usage: sudo bash go-private.sh [--dry-run]
@@ -57,7 +57,7 @@ restore_key() {
 }
 
 test "$(id -u)" -eq 0 || { echo "Run with sudo." >&2; exit 1; }
-test -f "$state" || { echo "No $state: Syntelio was not made public with go-public.sh." >&2; exit 1; }
+test -f "$state" || { echo "No $state: Osalytix was not made public with go-public.sh." >&2; exit 1; }
 stamp="$(env_value STAMP "$state")"
 saved="$app_env.pre-public-$stamp"
 test -f "$saved" || { echo "Missing the saved settings $saved." >&2; exit 1; }
@@ -101,7 +101,7 @@ mv "$state" "$state.closed-$(date -u +%Y%m%dT%H%M%SZ)"
 
 for _ in $(seq 30); do
   if curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:18401/health/ready; then
-    echo "Syntelio is private again: open it through the SSH tunnel at http://localhost:18400/workspace"
+    echo "Osalytix is private again: open it through the SSH tunnel at http://localhost:18400/workspace"
     exit 0
   fi
   sleep 3

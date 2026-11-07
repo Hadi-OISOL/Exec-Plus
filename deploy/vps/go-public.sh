@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Use case: Owner-run switch that makes Syntelio reachable at a public HTTPS address on the VPS.
+# Use case: Owner-run switch that makes Osalytix reachable at a public HTTPS address on the VPS.
 # What it does: Checked backup, saved app.env, public settings, web rebuild, Caddy start, service
 # recreation and an HTTPS readiness wait. Rerun after changing SYNTELIO_PUBLIC_HOST to move hosts.
 # Usage: sudo bash go-public.sh [--dry-run] [--enable-firewall]
@@ -143,7 +143,7 @@ echo "Waiting for the certificate and the services (up to 5 minutes)..."
 for _ in $(seq 60); do
   if curl -fsS --max-time 10 -o /dev/null "$url/api/health/ready" \
     && curl -fsS --max-time 10 -o /dev/null "$url/workspace"; then
-    echo "Syntelio is public at: $url/workspace"
+    echo "Osalytix is public at: $url/workspace"
     exit 0
   fi
   sleep 5

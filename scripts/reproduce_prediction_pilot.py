@@ -1,4 +1,4 @@
-"""Use case: Reproduces the RD-Agent pilot's bank result with Syntelio's prediction recipe.
+"""Use case: Reproduces the RD-Agent pilot's bank result with Osalytix's prediction recipe.
 
 What it does: Trains the product trainer on the pilot's exact train/holdout split, and
 separately runs the full domain recipe (own fixed-seed split) on the original bank.csv.

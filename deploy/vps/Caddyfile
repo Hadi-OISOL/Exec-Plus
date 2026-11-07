@@ -1,4 +1,4 @@
-# Use case: Public HTTPS front door for Syntelio on the VPS, one hostname for website and API.
+# Use case: Public HTTPS front door for Osalytix on the VPS, one hostname for website and API.
 # What it does: Gets certificates automatically, sends /api/* to the loopback API with the prefix
 # removed, everything else to the loopback website, caps request size and logs without query strings.
 {
