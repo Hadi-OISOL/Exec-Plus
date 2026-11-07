@@ -66,7 +66,7 @@ test("the ready card shows the file, exact finding value, purpose and primary ac
   assert.doesNotMatch(html, /Fallback summary/);
   assert.match(html, /9\.291538461538 PKR/);
   assert.match(html, /Show North deals/);
-  for (const label of ["Ask Syntelio", "See dashboard", "Review meanings", "How this data can help you", "What best describes you?", "Sales manager", "Best region"]) assert.ok(html.includes(label), label);
+  for (const label of ["Ask Osalytix", "See dashboard", "Review meanings", "How this data can help you", "What best describes you?", "Sales manager", "Best region"]) assert.ok(html.includes(label), label);
 });
 
 test("without a purpose the card falls back to the first reading and its suggestions", () => {

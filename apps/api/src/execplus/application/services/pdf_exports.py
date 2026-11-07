@@ -119,7 +119,7 @@ class PdfExportService:
                         uuid4(), wid, actor.id, "pdf.exported", "thread_turn", turn_id, generated_at
                     )
                 )
-            return PdfDownload(f"syntelio-answer-{turn_id}.pdf", content)
+            return PdfDownload(f"osalytix-answer-{turn_id}.pdf", content)
 
     async def _prepare(
         self,
@@ -271,7 +271,7 @@ class PdfExportService:
             repo.membership(wid, actor.id)
             sections.extend(self._source_sections(repo, actor, wid, sources))
         document = PdfDocument(
-            "Syntelio - saved answer",
+            "Osalytix - saved answer",
             generated_at or datetime.now(timezone.utc),
             tuple(sections),
             thread_charts(answer),

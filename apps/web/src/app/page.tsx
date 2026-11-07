@@ -1,4 +1,4 @@
-/* Use case: The public Syntelio website at the root route.
+/* Use case: The public Osalytix website at the root route.
 What it does: Opens on a green field with the claim that every number comes with a receipt and prints a real one over a travelling tape of sample answers, then offers the live sample question on paper, the four stages, the ten analysts, the three pinned evidence papers, the three plans printed from one roll, the open questions, the closing field and the quiet footer line, all linking to the sign-up and log-in pages. */
 
 import Link from "next/link";
@@ -22,9 +22,9 @@ const arrives = [
 const questions = [
   ["Does the AI calculate the numbers?", "No. A language model only interprets your question and words the explanation. A read-only query engine computes every figure, and each answer shows the dataset, operation, filters and row count it used."],
   ["Which files and sources work?", "CSV, TSV, Excel (xlsx, xls, xlsb, ods), JSON and NDJSON, Parquet, SQLite, SPSS, Stata, SAS, XML and zipped versions of these, up to 500 MB per file. Read-only connections to PostgreSQL, MySQL/MariaDB and SQL Server, plus Google Sheets import, are included."],
-  ["Which languages can I ask in?", "English, Urdu and Roman Urdu. When a request could mean more than one thing, Syntelio asks a clarifying question instead of guessing."],
+  ["Which languages can I ask in?", "English, Urdu and Roman Urdu. When a request could mean more than one thing, Osalytix asks a clarifying question instead of guessing."],
   ["Who can see my data?", "Only members of your workspace, with the roles you give them. Every question, answer and export is recorded in the workspace audit history."],
-  ["Can I trust a forecast?", "Forecasts are labelled estimates with their measured error and the method used. Syntelio never presents a projection as a fact, and compares it with actual values once they arrive."],
+  ["Can I trust a forecast?", "Forecasts are labelled estimates with their measured error and the method used. Osalytix never presents a projection as a fact, and compares it with actual values once they arrive."],
   ["What does it cost?", "Creating an account is free, with 5 GB of storage and files up to 500 MB. Paid plans with higher allowances are listed above; their prices are placeholders while the product is in private preview."],
 ] as const;
 
@@ -59,7 +59,7 @@ export default function Home() {
       <PrintReveal />
       <div className={styles.field}>
         <header className={`${styles.frame} ${styles.nav}`}>
-          <Link className={styles.brand} href="/" aria-label="Syntelio home"><span className={styles.mark} aria-hidden="true">S</span>Syntelio</Link>
+          <Link className={styles.brand} href="/" aria-label="Osalytix home"><span className={styles.mark} aria-hidden="true">O</span>Osalytix</Link>
           <nav aria-label="Site" className={styles.navLinks}>
             <a className={styles.textLink} href="#try">Try it</a><a className={styles.textLink} href="#how">How it works</a><a className={styles.textLink} href="#pricing">Pricing</a><a className={styles.textLink} href="#questions">Questions</a>
           </nav>
@@ -68,7 +68,7 @@ export default function Home() {
             <Link href="/signup" className={styles.button}>Create a free account</Link>
           </div>
         </header>
-        <section className={`${styles.frame} ${styles.hero}`} aria-label="Syntelio">
+        <section className={`${styles.frame} ${styles.hero}`} aria-label="Osalytix">
           <div>
             <h1 className={styles.heroLine}>Every number comes with a <em>receipt.</em></h1>
             <p className={styles.lead}>Upload a spreadsheet or connect your database. Ten analysts read it, you ask the rest in plain words, and a read-only engine computes every figure; the model never does.</p>
@@ -142,7 +142,7 @@ export default function Home() {
       </main>
 
       <footer className={styles.footer}>
-        <span>Syntelio · Synthesized Enterprise Intelligence</span>
+        <span>Osalytix</span>
         <nav aria-label="Footer"><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><a href="#questions">Security &amp; privacy</a></nav>
         <span>© {new Date().getFullYear()} · Pakistan and beyond</span>
       </footer>

@@ -18,13 +18,13 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   return <main className={styles.page}>
     <div className={styles.side}>
-      <Link className={styles.brand} href="/" aria-label="Syntelio home"><span className={styles.mark} aria-hidden="true">S</span>Syntelio</Link>
+      <Link className={styles.brand} href="/" aria-label="Osalytix home"><span className={styles.mark} aria-hidden="true">O</span>Osalytix</Link>
       <div className={styles.card}>
         <AuthForm mode={mode} api={api} onSession={async () => router.push("/workspace")} />
       </div>
-      <p className={styles.foot}><span>© {new Date().getFullYear()} Syntelio</span><Link href="/">Home</Link><Link href="/#defend">Security &amp; privacy</Link></p>
+      <p className={styles.foot}><span>© {new Date().getFullYear()} Osalytix</span><Link href="/">Home</Link><Link href="/#defend">Security &amp; privacy</Link></p>
     </div>
-    <aside className={styles.panel} aria-label="What Syntelio does">
+    <aside className={styles.panel} aria-label="What Osalytix does">
       <p className={styles.claim}>Every number comes with a <em>receipt.</em></p>
       <div className={styles.printer}>
         <Receipt header="test_100rows.csv · 100 rows · 20 columns" question="Which region had the most rainfall on average?" figure="1,744.5" unit="mm" figureLabel="West, average Rainfall_mm" bars={rainfall} barsLabel="Average rainfall by region, millimetres" footer={[{ label: "Query", value: "AVG(Rainfall_mm) GROUP BY Region" }, { label: "Access", value: "read-only · replayable" }]} stamp="Verified · replayable" frame="printer" print />

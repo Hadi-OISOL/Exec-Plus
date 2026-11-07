@@ -115,7 +115,7 @@ def sheet_to_csv(values: list[list[Any]], limit: int | None = None) -> bytes:
     if len(rows) > MAX_ROWS or width > MAX_COLUMNS or len(rows) * width > MAX_CELLS:
         raise IngestionError(
             "sheet_too_large",
-            "The sheet is larger than Syntelio can import. Choose a smaller tab or range.",
+            "The sheet is larger than Osalytix can import. Choose a smaller tab or range.",
             413,
         )
     seen: dict[str, int] = {}

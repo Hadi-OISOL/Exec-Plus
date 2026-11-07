@@ -1,4 +1,4 @@
-/* Use case: Shows the signed-in person's private chats in a collapsible sidebar beside Ask Syntelio.
+/* Use case: Shows the signed-in person's private chats in a collapsible sidebar beside Ask Osalytix.
 What it does: Starts, searches, groups by recency, pages, opens, renames and removes (hides) chats; on phones it is a drawer that traps focus. */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";

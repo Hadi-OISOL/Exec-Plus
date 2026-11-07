@@ -179,7 +179,7 @@ def test_scheduled_report_is_delivered_over_starttls_with_auth_login(integration
     ]
     message = mailbox.messages[0]
     assert message["From"] == SENDER and message["To"] == actor.email
-    assert message["Subject"] == "Syntelio saved analysis report"
+    assert message["Subject"] == "Osalytix saved analysis report"
     assert message["Message-ID"].endswith("@execplus.report>")
     body = message.get_payload(decode=True).decode().replace("\r\n", "\n")
     assert body.startswith("Saved analysis (original revision)\n")

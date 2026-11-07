@@ -1,2 +1,2 @@
-<!-- Use case: Gives browser tabs the Syntelio mark. What it does: Supplies the app icon that Next.js links automatically, replacing the missing favicon request. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#2563EB"/><text x="16" y="22" fill="#fff" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle">S</text></svg>
+<!-- Use case: Gives browser tabs the Osalytix mark. What it does: Supplies the app icon that Next.js links automatically, replacing the missing favicon request. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0f3b2e"/><text x="16" y="22" fill="#ff9f1c" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle">O</text></svg>

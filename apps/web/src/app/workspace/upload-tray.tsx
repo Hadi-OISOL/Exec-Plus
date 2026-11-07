@@ -108,7 +108,7 @@ function UploadRow({ item, manager, onOpen }: { item: UploadItem; manager: Uploa
         {indeterminate ? `Sending ${formatBytes(item.size)}` : `${value}% · ${formatBytes(item.sentBytes)} of ${formatBytes(item.size)}`}
         {item.phase === "uploading" && item.speed > 0 && ` · ${formatBytes(Math.round(item.speed))}/s`}
         {item.phase === "uploading" && remaining && ` · ${remaining}`}
-        {item.phase === "processing" && " · Syntelio is reading your file"}
+        {item.phase === "processing" && " · Osalytix is reading your file"}
       </p>
       {item.error && <p className={styles.error} role="alert">{item.error}</p>}
       <div className={styles.actions}>

@@ -155,7 +155,7 @@ class ReportService:
                             + f"?workspace={wid}&saved={latest.item_id}\n"
                         )
                         self.email.send(
-                            actor.email, "Syntelio saved analysis report", body, delivery.id
+                            actor.email, "Osalytix saved analysis report", body, delivery.id
                         )
                         status = "sent"
             except IngestionError as error:

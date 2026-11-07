@@ -1,4 +1,4 @@
-/* Use case: Verifies the chat-history sidebar beside Ask Syntelio in a real browser.
+/* Use case: Verifies the chat-history sidebar beside Ask Osalytix in a real browser.
 What it does: Toggles and remembers it, starts and continues a context-titled chat across reloads, renames, loads more than one page and uses the phone drawer. */
 
 import { execFileSync } from "node:child_process";

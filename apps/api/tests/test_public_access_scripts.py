@@ -164,7 +164,7 @@ def test_go_private_rebuilds_web_when_a_newer_release_is_active(tmp_path):
     [
         ({"RESOLVED_ADDRESS": "198.51.100.7"}, "does not resolve to this server"),
         ({"EMAIL": "owner@example.com"}, "real mailbox"),
-        ({"HOST": "https://Syntelio.example.com/"}, "lowercase hostname"),
+        ({"HOST": "https://Osalytix.example.com/"}, "lowercase hostname"),
     ],
 )
 def test_go_public_refuses_bad_settings_before_any_change(tmp_path, change, message):

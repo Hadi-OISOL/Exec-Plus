@@ -164,7 +164,7 @@ export function DataReady({ fileName, rows, columns, seconds, summary, confirmed
         <p className={styles.summary}>{words(purpose?.summary || summary)}</p>
       </div>
       <div className={styles.actions}>
-        <button type="button" className={styles.primary} onClick={onAsk}><Icon name="chat" size={16} />Ask Syntelio</button>
+        <button type="button" className={styles.primary} onClick={onAsk}><Icon name="chat" size={16} />Ask Osalytix</button>
         <button type="button" className={styles.secondary} onClick={onDashboard}><Icon name="studies" size={16} />See dashboard</button>
         <button type="button" className={styles.secondary} onClick={onReview}><Icon name="check" size={16} />Review meanings</button>
       </div>

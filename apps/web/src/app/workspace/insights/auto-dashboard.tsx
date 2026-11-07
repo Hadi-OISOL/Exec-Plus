@@ -1,4 +1,4 @@
-/* Use case: Shows the dashboard Syntelio built for this dataset before anything else on the overview.
+/* Use case: Shows the dashboard Osalytix built for this dataset before anything else on the overview.
 What it does: Loads the auto-dashboard-v1 version, renders KPI tiles and kit charts with exact values, explains why the tiles were chosen, and lets the owner edit, share, rebuild or save a tile as a pinnable study. */
 
 "use client";

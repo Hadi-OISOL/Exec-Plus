@@ -48,12 +48,12 @@ export function OnboardingFlow({ request, initial, onDone }: { request: ApiReque
 
   return <main className={styles.screen} aria-label="Getting to know you">
     <form className={styles.card} onSubmit={submit}>
-      <div className={styles.brand}><span aria-hidden="true">S</span><span>Syntelio</span></div>
+      <div className={styles.brand}><span aria-hidden="true">O</span><span>Osalytix</span></div>
       <div key={step} className={styles.slide}>
       {step === -1 && <>
         <h1 ref={heading} tabIndex={-1}>Hi! To give you better answers, let&apos;s get to know you.</h1>
         <p>Takes about 2 minutes. Mostly taps, very little typing. You can skip any question, and change your answers later under My memory.</p>
-        <p className={styles.hint}>Your answers only shape how Syntelio explains things. They never change calculations, filters or who can see data.</p>
+        <p className={styles.hint}>Your answers only shape how Osalytix explains things. They never change calculations, filters or who can see data.</p>
         <div className={styles.actions}>
           <button type="button" className={styles.quiet} disabled={busy} onClick={() => void save("skipped")}>Skip for now</button>
           <button type="submit" className={styles.primary}>Let&apos;s start</button>

@@ -101,7 +101,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
                 application.state.runtime.engine.dispose()
 
     application = FastAPI(
-        title="Syntelio API",
+        title="Osalytix API",
         summary="Verified conversational analytics",
         version=__version__,
         lifespan=lifespan,

@@ -1,4 +1,4 @@
-"""Use case: Lets a new person tell Syntelio who they are once, so wording can adapt to them.
+"""Use case: Lets a new person tell Osalytix who they are once, so wording can adapt to them.
 
 What it does: Fixes the skippable questionnaire, validates chosen answers and exposes the few
 answers that may shape explanations; it never supplies numbers, filters or confirmed meanings.
@@ -141,7 +141,7 @@ QUESTIONNAIRE: tuple[Question, ...] = (
         "chart_preference",
         "Which charts do you prefer?",
         "single",
-        ("Bars", "Lines", "Tables instead of charts", "Let Syntelio choose"),
+        ("Bars", "Lines", "Tables instead of charts", "Let Osalytix choose"),
     ),
     Question(
         "next_steps",

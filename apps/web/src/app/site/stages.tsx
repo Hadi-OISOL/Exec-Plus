@@ -9,7 +9,7 @@ import styles from "../page.module.css";
 
 const stages = [
   { name: "Add", clause: "First, add your file", note: "CSV, Excel, JSON, Parquet, SQLite, SPSS, Stata, SAS or XML up to 500 MB, or a read-only connection to PostgreSQL, MySQL, SQL Server or Google Sheets.", shot: "stage-add", alt: "The upload step: a drop zone that takes a CSV, Excel, JSON, Parquet or other data file up to 500 MB", width: 630, height: 310 },
-  { name: "Confirm", clause: "Then confirm what it means", note: "Syntelio profiles every column, suggests roles and units, and asks only about what it could not infer.", shot: "stage-confirm", alt: "The prepare step: the active file, 100 rows and 20 columns, with its file-consistency score", width: 557, height: 280 },
+  { name: "Confirm", clause: "Then confirm what it means", note: "Osalytix profiles every column, suggests roles and units, and asks only about what it could not infer.", shot: "stage-confirm", alt: "The prepare step: the active file, 100 rows and 20 columns, with its file-consistency score", width: 557, height: 280 },
   { name: "Read", clause: "Then read what the analysts found", note: "Findings, charts and suggested questions arrive without prompting, each recalculated by an independent check.", shot: "stage-read", alt: "The analyst team list: ten checks, each marked done with what it found", width: 322, height: 625 },
   { name: "Ask", clause: "Then ask, forecast and export", note: "Keep asking in your own words, run forecasts and what-ifs, and export answers to PDF or Excel with their evidence.", shot: "stage-ask", alt: "A verified chat answer for average rainfall by region with its chart controls", width: 550, height: 370 },
 ];

@@ -656,7 +656,7 @@ export function AskPanel({
           <Icon name="sparkle" />
         </div>
         <div>
-          <h2>Ask Syntelio</h2>
+          <h2>Ask Osalytix</h2>
           <span>Your data, in conversation</span>
         </div>
         {!sidebar.open && (
@@ -684,7 +684,7 @@ export function AskPanel({
         aria-relevant="additions text"
       >
         <div className={`assistantMessage welcomeMessage ${chatStyles.assistantCard}`}>
-          <span className="messageAuthor">Syntelio</span>
+          <span className="messageAuthor">Osalytix</span>
           <h3>What would you like to discover?</h3>
           <p>
             You’re exploring <strong>{filename}</strong>. Ask what a column
@@ -720,7 +720,7 @@ export function AskPanel({
             </div>
             <div className={`assistantMessage ${chatStyles.assistantCard}`}>
               <span className="messageAuthor">
-                Syntelio{" "}
+                Osalytix{" "}
                 {turn.answer?.lineage && (
                   <span className="verifiedBadge">
                     <Icon name="check" size={12} /> Verified

@@ -1,4 +1,4 @@
-/* Use case: Shared design tokens for the public Syntelio site (landing, auth, onboarding).
+/* Use case: Shared design tokens for the public Osalytix site (landing, auth, onboarding).
 What it does: Declares the receipt palette in light and dark, self-hosted display and mono faces, spacing, radius, shadow and motion roles; imported by public pages only, never by the workspace. */
 
 @font-face {

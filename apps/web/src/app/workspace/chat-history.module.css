@@ -1,4 +1,4 @@
-/* Use case: Styles the private chat-history sidebar beside Ask Syntelio.
+/* Use case: Styles the private chat-history sidebar beside Ask Osalytix.
 What it does: Docks it left on desktop, slides it in as a drawer on phones and uses shared tokens for light/dark themes. */
 
 .sidebar { position: absolute; inset: 0 auto 0 0; z-index: 2; display: flex; flex-direction: column; gap: var(--space-2); width: 260px; padding: var(--space-3); border-right: 1px solid var(--color-border); background: var(--color-surface-sunken); font-size: var(--text-small); }

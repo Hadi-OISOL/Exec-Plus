@@ -193,7 +193,7 @@ def records_to_csv(records: list[dict[str, Any]]) -> bytes:
     if len(rows) > MAX_ROWS or len(columns) > MAX_COLUMNS or len(rows) * len(columns) > MAX_CELLS:
         raise IngestionError(
             "source_too_large",
-            "That source is larger than Syntelio can import. Choose a smaller one.",
+            "That source is larger than Osalytix can import. Choose a smaller one.",
             413,
         )
     output = BytesIO()

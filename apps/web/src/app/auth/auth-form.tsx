@@ -14,7 +14,7 @@ type Props = { mode: AuthMode; api: string; onSession: (created: boolean, token:
 
 const titles: Record<AuthMode, [string, string]> = {
   login: ["Welcome back", "Sign in to return to your data and saved work."],
-  register: ["Create your Syntelio account", "Set up a private workspace, then add your first file. It takes about a minute."],
+  register: ["Create your Osalytix account", "Set up a private workspace, then add your first file. It takes about a minute."],
   reset: ["Reset your password", "Enter the one-time code your administrator gave you after checking it is really you. Codes expire after 30 minutes."],
 };
 
@@ -111,7 +111,7 @@ export function AuthForm({ mode, api, onSession, switchMode }: Props) {
       <button className={styles.submit} disabled={busy}>{busy ? (creating ? "Creating your workspace…" : resetting ? "Resetting…" : "Signing in…") : creating ? "Create account" : resetting ? "Reset password and sign in" : "Sign in with password"}</button>
     </form>
     <p className={styles.alt}>
-      {mode === "login" && registration && <>New to Syntelio? {alt("register", "New account", "Create account")}</>}
+      {mode === "login" && registration && <>New to Osalytix? {alt("register", "New account", "Create account")}</>}
       {creating && <>Already have an account? {alt("login", "Use existing account", "Log in")}</>}
       {resetting && alt("login", "Back to sign in", "Back to log in")}
     </p>
