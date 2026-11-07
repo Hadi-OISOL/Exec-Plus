@@ -41,6 +41,8 @@ def test_questionnaire_is_fixed_and_answers_are_validated():
     assert kept["goals"] == ["Track KPIs", "Forecast"]
     assert kept["regions_currency"] == "Pakistan, PKR"
     assert validate_answers({"goals": [], "anything_else": "  "}) == {}
+    for language in ("English", "Urdu or Roman Urdu", "Mixed", "Spanish", "Another language"):
+        assert validate_answers({"language": language}) == {"language": language}
     for bad in (
         {"unknown": "x"},
         {"preferred_name": "Hadi"},

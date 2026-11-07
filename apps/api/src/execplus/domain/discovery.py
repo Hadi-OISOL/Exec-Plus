@@ -72,7 +72,7 @@ def measure_candidates(context: DescriptionContext) -> list[str]:
         column["name"]
         for column in sorted(
             (column for column in context.profile["columns"] if _candidate(context, column)),
-            key=lambda column: exploration_rank(context, column["name"]),
+            key=lambda column: exploration_rank(context, column["name"], context.focus_columns),
         )
     ]
 
@@ -94,7 +94,7 @@ def category_candidates(context: DescriptionContext) -> list[str]:
         column["name"]
         for column in sorted(
             (column for column in context.profile["columns"] if _category(context, column)),
-            key=lambda column: exploration_rank(context, column["name"]),
+            key=lambda column: exploration_rank(context, column["name"], context.focus_columns),
         )
     ]
 

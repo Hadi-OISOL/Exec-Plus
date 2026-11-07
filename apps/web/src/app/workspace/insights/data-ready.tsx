@@ -1,5 +1,5 @@
 /* Use case: Greets the user after upload with a "Your data is ready" card that feels like a team of analysts reporting back.
-What it does: Shows file size and a plain summary with primary actions, the dataset purpose (when the server offers it), the top findings with their exact values, each analyst's own live result as it arrives (fetched in parallel), the Trends finding and clickable questions that open chat. */
+What it does: Shows file size and a plain summary with primary actions, a few follow-up questions about this file (answers stay private), the dataset purpose (when the server offers it), the top findings with their exact values, each analyst's own live result as it arrives (fetched in parallel), the Trends finding and clickable questions that open chat. */
 
 "use client";
 
@@ -9,6 +9,8 @@ import type { ApiRequest } from "../profile-panel";
 import { Icon } from "../explore-components";
 import { actionIntent, analystNames } from "./insights-model";
 import type { ActionIntent, InsightCard, InsightsPayload } from "./insights-model";
+import { FollowUpQuestions } from "./follow-up";
+import type { FollowUp } from "./follow-up";
 import styles from "./data-ready.module.css";
 
 type Words = (text: string) => string;
@@ -19,6 +21,7 @@ export type DatasetPurpose = {
   benefits: string[];
   suggested_questions: { title: string; question: string }[];
   profile_question: { question: string; choices: string[] } | null;
+  follow_up?: FollowUp;
 };
 export type PurposeState = { root: string; status: RequestStatus; payload?: DatasetPurpose };
 export type TeamMember = { id: string; name: string; status: RequestStatus; detail: string };
@@ -39,7 +42,7 @@ export async function loadPurpose(root: string, request: ApiRequest, signal?: Ab
   }
 }
 
-export function useDatasetPurpose(root: string, request: ApiRequest, enabled: boolean): PurposeState {
+export function useDatasetPurpose(root: string, request: ApiRequest, enabled: boolean, round = 0): PurposeState {
   const [state, setState] = useState<PurposeState | null>(null);
   useEffect(() => {
     const path = purposePath(root);
@@ -47,7 +50,7 @@ export function useDatasetPurpose(root: string, request: ApiRequest, enabled: bo
     const controller = new AbortController();
     void loadPurpose(root, request, controller.signal).then(next => { if (!controller.signal.aborted) setState(next); });
     return () => controller.abort();
-  }, [root, request, enabled]);
+  }, [root, request, enabled, round]);
   if (state?.root === root) return state;
   return { root, status: enabled && purposePath(root) ? "working" : "waiting" };
 }
@@ -67,7 +70,7 @@ export async function loadReport(root: string, analyst: string, request: ApiRequ
   }
 }
 
-export function useAnalystReports(root: string, request: ApiRequest, enabled: boolean): Reports {
+export function useAnalystReports(root: string, request: ApiRequest, enabled: boolean, round = 0): Reports {
   const [state, setState] = useState<{ root: string; reports: Reports } | null>(null);
   useEffect(() => {
     if (!enabled) return;
@@ -78,7 +81,7 @@ export function useAnalystReports(root: string, request: ApiRequest, enabled: bo
       });
     }
     return () => controller.abort();
-  }, [root, request, enabled]);
+  }, [root, request, enabled, round]);
   return state?.root === root ? state.reports : {};
 }
 
@@ -146,8 +149,8 @@ function FindingRow({ card, index, words, onAction, onSee }: { card: InsightCard
   </li>;
 }
 
-export function DataReady({ fileName, rows, columns, seconds, summary, confirmed, purpose, insights, reports = {}, team, questions, words, onAsk, onDashboard, onReview, onQuestion, onAction, onSee, checks }: {
-  fileName: string; rows: number; columns: number; seconds: string | null; summary: string; confirmed: boolean;
+export function DataReady({ fileName, rows, columns, seconds, summary, confirmed, purpose, insights, reports = {}, team, questions, words, onAsk, onDashboard, onReview, onQuestion, onAction, onSee, checks, root = "", request, onFocusSaved }: {
+  fileName: string; rows: number; columns: number; seconds: string | null; summary: string; confirmed: boolean; root?: string; request?: ApiRequest; onFocusSaved?: () => void;
   purpose?: DatasetPurpose; insights: { status: RequestStatus; payload?: InsightsPayload }; reports?: Reports; team: TeamMember[]; questions: { label: string; question: string }[];
   words: Words; onAsk: () => void; onDashboard: () => void; onReview: () => void; onQuestion: (question: string) => void; onAction: (intent: ActionIntent) => void; onSee: (id: string) => void; checks?: ReactNode;
 }) {
@@ -169,9 +172,10 @@ export function DataReady({ fileName, rows, columns, seconds, summary, confirmed
         <button type="button" className={styles.secondary} onClick={onReview}><Icon name="check" size={16} />Review meanings</button>
       </div>
     </header>
+    {purpose?.follow_up && request && <FollowUpQuestions key={`${root}:${purpose.follow_up.status}:${JSON.stringify(purpose.follow_up.answers)}`} followUp={purpose.follow_up} root={root} request={request} words={words} onSaved={() => onFocusSaved?.()} />}
     {purpose && (purpose.benefits.length > 0 || purpose.profile_question) && <section className={styles.purpose} aria-label="How this data can help you">
       {purpose.benefits.length > 0 && <><h3>How this data can help you</h3><ul>{purpose.benefits.map((item, index) => <li key={index}>{words(item)}</li>)}</ul></>}
-      {Boolean(purpose.profile_question?.choices?.length) && purpose.profile_question && <div className={styles.profile} role="group" aria-label={purpose.profile_question.question}>
+      {!purpose.follow_up && Boolean(purpose.profile_question?.choices?.length) && purpose.profile_question && <div className={styles.profile} role="group" aria-label={purpose.profile_question.question}>
         <p>{purpose.profile_question.question}</p>
         <div className={styles.chips}>{purpose.profile_question.choices.map(choice => <button key={choice} type="button" className={styles.chip} onClick={() => onQuestion(profileAnswer(choice))}>{choice}</button>)}</div>
       </div>}

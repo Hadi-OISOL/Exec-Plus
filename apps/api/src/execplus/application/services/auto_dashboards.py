@@ -6,6 +6,7 @@ receipts and keeps private, shareable dashboard versions per owner and upload.
 """
 
 import asyncio
+import hashlib
 import json
 from collections import OrderedDict
 from collections.abc import Callable
@@ -34,6 +35,7 @@ from execplus.domain.auto_dashboard import (
     selection_prompt,
     tile,
 )
+from execplus.domain.dataset_focus import grain
 from execplus.domain.errors import (
     AuthorizationError,
     ClarificationRequiredError,
@@ -78,6 +80,21 @@ def _blocked(context: DescriptionContext) -> bool:
         any(source.get("understanding_id") for source in context.view.sources)
         and context.state != "confirmed"
     )
+
+
+def _focus_mark(context: DescriptionContext) -> str:
+    """A checksum, so a shared dashboard never reveals the owner's private answers."""
+    return hashlib.sha256(json.dumps(context.focus, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def _current(item: AutoDashboard, context: DescriptionContext) -> bool:
+    mark = _focus_mark(context) if context.focus else None
+    return item.payload["sources"] == list(context.view.sources) and (
+        item.payload.get("focus") == mark
+    )
+
+
+FOCUS_ROUTE = "deterministic:auto-dashboard-focus-v1"
 
 
 class AutoDashboardService:
@@ -191,7 +208,12 @@ class AutoDashboardService:
         context, table, scope = await asyncio.to_thread(
             self.analytics.descriptive_snapshot, actor, wid, did, uid
         )
-        hit = _CACHE.get(_key(context.view.sources))
+        cache = (
+            [context.view.sources, context.focus_columns]
+            if context.focus_columns
+            else context.view.sources
+        )
+        hit = _CACHE.get(_key(cache))
         if hit:
             return hit[0], hit[1], context, table, scope
         profile = context.profile
@@ -257,7 +279,7 @@ class AutoDashboardService:
         await asyncio.to_thread(
             self.analytics.recheck_description, actor, wid, did, uid, context.view.sources
         )
-        _remember(context.view.sources, (brief, cards))
+        _remember(cache, (brief, cards))
         return brief, cards, context, table, scope
 
     async def _coverage(
@@ -293,6 +315,11 @@ class AutoDashboardService:
                 entry["name"], entry["min"], entry["max"], [row[0] for row in result.rows]
             )
         return None
+
+    @staticmethod
+    def _title(candidates: list[Candidate], key: str) -> tuple[str, str]:
+        found = next(item for item in candidates if item.id == key)
+        return found.title, found.reason
 
     async def _select(
         self, brief: dict[str, Any], candidates: list[Candidate], goal: str
@@ -386,7 +413,12 @@ class AutoDashboardService:
     ) -> AutoDashboard:
         brief, cards, context, table, scope = await self.brief(actor, wid, did, uid)
         candidates = [] if _blocked(context) else enumerate_candidates(context, brief, cards)
-        if chosen is None:
+        if chosen is None and (context.focus_columns or grain(context.focus)):
+            picked = [
+                (item, *self._title(candidates, item)) for item in deterministic_pick(candidates)
+            ]
+            selection = dict(route=FOCUS_ROUTE, fallback_reason=None)
+        elif chosen is None:
             picked, selection = await self._select(brief, candidates, context.private_goal)
         else:
             known = {item.id: item for item in candidates}
@@ -426,7 +458,7 @@ class AutoDashboardService:
                 item for item in repo.auto_dashboards(wid, did, uid) if item.owner_id == actor.id
             ]
             latest = max(mine, key=lambda item: item.number) if mine else None
-            if reuse and latest and latest.payload["sources"] == list(context.view.sources):
+            if reuse and latest and _current(latest, context):
                 return latest
             record = AutoDashboard(
                 uuid4(),
@@ -443,6 +475,7 @@ class AutoDashboardService:
                     definition_state=context.state,
                     needs_confirmation=context.state != "confirmed",
                     sources=list(context.view.sources),
+                    **({"focus": _focus_mark(context)} if context.focus else {}),
                     brief_version=brief["version"],
                     brief_summary=dict(
                         rows=brief["dataset"]["rows"],
@@ -482,7 +515,7 @@ class AutoDashboardService:
             mine = [item for item in items if item.owner_id == actor.id]
             latest = max(mine, key=lambda item: item.number) if mine else None
             others = self._shared(repo, actor, wid, items)
-        if latest is None or latest.payload["sources"] != list(context.view.sources):
+        if latest is None or not _current(latest, context):
             latest = await self.build(actor, wid, did, uid, reuse=True)
         return latest, others
 

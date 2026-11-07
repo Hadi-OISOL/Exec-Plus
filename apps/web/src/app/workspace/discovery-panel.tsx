@@ -248,7 +248,8 @@ export function DiscoveryPanel({
 }) {
   const [loaded, setLoaded] = useState<{ root: string; discovery: Discovery; seconds: string } | null>(null);
   const discovery = loaded?.root === root ? loaded.discovery : null;
-  const purpose = useDatasetPurpose(root, request, enabled);
+  const [round, setRound] = useState(0);
+  const purpose = useDatasetPurpose(root, request, enabled, round);
   const [dashboardState, setDashboardState] = useState<{ root: string; status: RequestStatus } | null>(null);
   const dashboardStatus = dashboardState?.root === root ? dashboardState.status : "waiting";
   const reportDashboard = useCallback((status: RequestStatus) => setDashboardState({ root, status }), [root]);
@@ -257,7 +258,7 @@ export function DiscoveryPanel({
   const error = failure?.root === root ? failure.message : "";
   const [attempt, setAttempt] = useState(0);
   const [insights, retryInsights] = useInsights(root, request, enabled);
-  const reports = useAnalystReports(root, request, enabled);
+  const reports = useAnalystReports(root, request, enabled, round);
   const knownFields = useMemo(() => discovery?.diagram?.nodes.filter(node => node.kind === "field").map(node => node.label) ?? [], [discovery]);
   const [fields, words] = useInsightWords(insights?.payload, knownFields);
   useEffect(() => {
@@ -383,7 +384,10 @@ export function DiscoveryPanel({
           onReview={onReview}
           onQuestion={onQuestion}
           onAction={act}
-          checks={<HypothesisChecks root={root} request={request} enabled={enabled} words={words} onQuestion={onQuestion} />}
+          root={root}
+          request={request}
+          onFocusSaved={() => { setRound(value => value + 1); retryInsights(); }}
+          checks={<HypothesisChecks key={round} root={root} request={request} enabled={enabled} words={words} onQuestion={onQuestion} />}
           onSee={id => scrollTo(document.querySelector<HTMLElement>(`[data-insight="${CSS.escape(id)}"]`) ?? document.querySelector<HTMLElement>('[aria-label="Analyst overview"]'))}
         />
         {discovery.definition_state !== "confirmed" && <div className={overview.meaningPrompt}>
@@ -415,7 +419,7 @@ export function DiscoveryPanel({
           ))}
         </details>
       </div>
-      <div id={dashboardId} tabIndex={-1}><AutoDashboardView root={root} request={request} enabled={enabled} fields={fields} onReview={onReview} onStatus={reportDashboard} /></div>
+      <div id={dashboardId} tabIndex={-1}><AutoDashboardView key={round} root={root} request={request} enabled={enabled} fields={fields} onReview={onReview} onStatus={reportDashboard} /></div>
       <InsightsOverview state={insights} retry={retryInsights} onAction={act} fields={fields} words={words} />
       {discovery.findings.length > 0 && <details className={`legacyCalculations ${overview.legacy}`} open={Boolean(insights?.error || (insights && !insights.payload?.insights.length))}>
       <summary>More detail: individual calculations</summary>

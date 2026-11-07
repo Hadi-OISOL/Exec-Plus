@@ -1,5 +1,5 @@
 /* Use case: The tape of real answers that runs under the public-site hero.
-What it does: Prints six exact precomputed results from test_100rows.csv as one continuous paper strip; the strip travels slowly when motion is allowed and stands still otherwise, with the repeat copy hidden from assistive technology. */
+What it does: Prints six exact precomputed results from farm_field_survey.csv as one continuous paper strip; the strip travels slowly when motion is allowed and stands still otherwise, with the repeat copy hidden from assistive technology. */
 
 import styles from "../page.module.css";
 
@@ -9,7 +9,7 @@ const answers = [
   ["Which crop has the largest fields?", "Wheat · AVG(Field_Area_hectare) 9.29"],
   ["Drip irrigation kitne kheton mein hai?", "COUNT(rows) by Irrigation_Type · Drip 19 of 100"],
   ["How many fields are canal-fed?", "Canal 31 · Sprinkler 26 · Rainfed 24"],
-  ["Where does this come from?", "test_100rows.csv · version 1 · 100 of 100 rows read"],
+  ["Where does this come from?", "farm_field_survey.csv · version 1 · 100 of 100 rows read"],
 ] as const;
 
 function Strip({ hidden }: { hidden?: boolean }) {

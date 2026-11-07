@@ -350,7 +350,14 @@ async def _prepare(
         service.descriptive_snapshot, actor, workspace_id, dataset_id, upload_id
     )
     key = json.dumps(
-        [str(actor.id), str(workspace_id), str(dataset_id), str(upload_id), context.view.sources],
+        [
+            str(actor.id),
+            str(workspace_id),
+            str(dataset_id),
+            str(upload_id),
+            context.view.sources,
+            context.focus_columns,
+        ],
         sort_keys=True,
         default=str,
     )

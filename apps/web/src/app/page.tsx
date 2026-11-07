@@ -22,7 +22,7 @@ const arrives = [
 const questions = [
   ["Does the AI calculate the numbers?", "No. A language model only interprets your question and words the explanation. A read-only query engine computes every figure, and each answer shows the dataset, operation, filters and row count it used."],
   ["Which files and sources work?", "CSV, TSV, Excel (xlsx, xls, xlsb, ods), JSON and NDJSON, Parquet, SQLite, SPSS, Stata, SAS, XML and zipped versions of these, up to 500 MB per file. Read-only connections to PostgreSQL, MySQL/MariaDB and SQL Server, plus Google Sheets import, are included."],
-  ["Which languages can I ask in?", "English, Urdu and Roman Urdu. When a request could mean more than one thing, Osalytix asks a clarifying question instead of guessing."],
+  ["Which languages can I ask in?", "Ask in the language you think in; the answer's numbers always come from your data. It is tested so far with English, Urdu and Roman Urdu, and other languages are being checked. When a request could mean more than one thing, Osalytix asks a clarifying question instead of guessing."],
   ["Who can see my data?", "Only members of your workspace, with the roles you give them. Every question, answer and export is recorded in the workspace audit history."],
   ["Can I trust a forecast?", "Forecasts are labelled estimates with their measured error and the method used. Osalytix never presents a projection as a fact, and compares it with actual values once they arrive."],
   ["What does it cost?", "Creating an account is free, with 5 GB of storage and files up to 500 MB. Paid plans with higher allowances are listed above; their prices are placeholders while the product is in private preview."],
@@ -42,7 +42,7 @@ function HeroReceipt() {
     bars={rainfall.map(([label, value, raw]) => ({ label, value, share: raw / rainfall[0][2], emphasis: label === "West" }))}
     barsLabel="Average rainfall by region, millimetres"
     footer={[
-      { label: "Dataset", value: "test_100rows.csv · version 1" },
+      { label: "Dataset", value: "farm_field_survey.csv · version 1" },
       { label: "Operation", value: "AVG(Rainfall_mm) by Region" },
       { label: "Filters", value: "none" },
       { label: "Rows read", value: "100 of 100 · 20 columns" },
@@ -76,7 +76,7 @@ export default function Home() {
               <Link href="/signup" className={styles.button}>Create a free account</Link>
               <a href="#try" className={`${styles.button} ${styles.buttonGhost}`}>See a sample answer</a>
             </div>
-            <p className={styles.langs}>Also understands: <b lang="ur" dir="rtl">اردو</b> · <b lang="ur-Latn">Roman Urdu</b></p>
+            <p className={styles.langs}>Ask in your own language. Tested so far: English · <b lang="ur" dir="rtl">اردو</b> · <b lang="ur-Latn">Roman Urdu</b></p>
           </div>
           <HeroReceipt />
         </section>
@@ -86,7 +86,7 @@ export default function Home() {
       <main>
         <div className={styles.band}><section className={`${styles.frame} ${styles.section}`} id="try">
           <h2 data-reveal="">Try it on a 100‑row farm file</h2>
-          <p className={styles.sectionNote} data-reveal="" style={delay(1)}>Four questions are prepared here, in English and Roman Urdu; the product takes any question and prints the same kind of receipt.</p>
+          <p className={styles.sectionNote} data-reveal="" style={delay(1)}>Four questions are prepared here; in the product you can ask your own, in your own words, and get the same kind of receipt.</p>
           <div data-reveal="" style={delay(2)}><AskSample /></div>
         </section></div>
 

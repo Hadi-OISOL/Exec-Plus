@@ -129,7 +129,17 @@ QUESTIONNAIRE: tuple[Question, ...] = (
         "language",
         "Which language should I reply in?",
         "single",
-        ("English", "Urdu or Roman Urdu", "Mixed"),
+        (
+            "English",
+            "Urdu or Roman Urdu",
+            "Mixed",
+            "Arabic",
+            "Spanish",
+            "French",
+            "Chinese",
+            "Hindi",
+            "Another language",
+        ),
     ),
     Question(
         "number_format",

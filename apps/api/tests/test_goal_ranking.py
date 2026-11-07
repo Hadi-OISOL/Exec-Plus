@@ -1,9 +1,10 @@
 """Use case: Verifies persona/goal ranking answers and the dataset-purpose-v1 endpoint.
 
 What it does: Uses a fictional leads file where a non-tech record has the highest score, checks
-the server ranking against an independent pandas recomputation, the clarifying choices for an
-unmatched persona, an unknown role and ambiguous scores, the model-suggestion fallback and the
-purpose endpoint's shape, authorization and 404.
+the server ranking against an independent pandas recomputation, the short "about you" questions
+asked before ranking "for me" (and their private reuse), whole-word matching, the honest no-fit
+reply, ambiguous scores, the model-suggestion fallback and the purpose endpoint's shape,
+authorization and 404.
 """
 
 import io
@@ -18,13 +19,16 @@ from execplus.application.services.intent_router import IntentRouterService
 from execplus.application.services.threads import ThreadService
 from execplus.domain.goal_ranking import (
     ROUTE,
+    about_join,
+    about_split,
     choose_score,
     goal_question,
     persona_keywords,
+    rank_rows,
     ranking_fields,
 )
 from execplus.domain.semantics import dataset_view
-from test_workspace_integration import identity, upload, workspace
+from test_workspace_integration import accept, identity, invite, upload, workspace
 
 LEADS_CSV = (
     b"total_score,organization,person,role,need,evidence,contact,location,intent_score,"
@@ -136,11 +140,9 @@ def pandas_ranking(persona="software engineer", score="total_score"):
             " ".join(str(row[name]) for name in texts).casefold().replace(",", " ").split()
         )
         tokens = {token.strip(".") for token in tokens}
-        return {
-            word
-            for word in keywords
-            if word in tokens or (len(word) >= 5 and any(t.startswith(word) for t in tokens))
-        }
+        singular = {token[:-1] for token in tokens if token.endswith("s")}
+        ing = {token[:-3] for token in tokens if token.endswith("ing")}
+        return {word for word in keywords if word in tokens | singular | ing}
 
     frame["matches"] = frame.apply(lambda row: len(hits(row)), axis=1)
     kept = frame[frame["matches"] > 0]
@@ -167,10 +169,51 @@ async def leads_thread(env, content=LEADS_CSV, model=None, interpretation=False,
     return headers, actor, UUID(wid), uid, model, threads, thread
 
 
+async def about_me(threads, actor, wid, thread, question, replies=("A few years", "Partners")):
+    """Asks a "for me" question and answers each short about-you question with a choice."""
+    answer, turn = await threads.ask(actor, wid, thread.id, question)
+    for reply in replies:
+        if answer is not None:
+            break
+        assert reply in turn.evidence["clarification"]["choices"]
+        answer, turn = await threads.ask(actor, wid, thread.id, reply)
+    return answer, turn
+
+
+def test_engine_never_matches_inside_engineer():
+    view = leads_view()
+    fields = ranking_fields(view)
+    frame = pd.read_csv(io.BytesIO(LEADS_CSV), dtype=str)
+    rows = tuple(tuple(row) for row in frame.itertuples(index=False))
+    headers = tuple(frame.columns)
+    assert rank_rows(headers, rows, fields, "total_score", ("engine", "service")) == []
+    found = rank_rows(headers, rows, fields, "total_score", ("engineer",))
+    assert [row.values["organization"] for row in found] == ["Acme AI", "Gearbox"]
+
+
+def test_about_answers_round_trip_in_the_clarification_question():
+    carried = about_join("Which lead is best for me?", {"persona": "mechanic", "level": "skipped"})
+    assert about_split(carried) == (
+        "Which lead is best for me?",
+        {"persona": "mechanic", "level": "skipped"},
+    )
+    assert about_split("Which lead is best for me?") is None
+
+
 @pytest.mark.asyncio
 async def test_software_engineer_gets_the_hottest_matching_lead(integration):
     _, actor, wid, _, model, threads, thread = await leads_thread(integration)
     answer, turn = await threads.ask(actor, wid, thread.id, QUESTION)
+    assert answer is None and turn.message == "How experienced are you in that work?"
+    assert turn.evidence["clarification"]["choices"] == [
+        "New to it",
+        "A few years",
+        "Senior / expert",
+        "Skip this question",
+    ]
+    answer, turn = await threads.ask(actor, wid, thread.id, "A few years")
+    assert answer is None and turn.message == "What do you want from these leads?"
+    answer, turn = await threads.ask(actor, wid, thread.id, "Skip this question")
     assert turn.status == "complete" and turn.model_route == ROUTE
     message = answer.message
     assert message.startswith(
@@ -200,11 +243,13 @@ async def test_software_engineer_gets_the_hottest_matching_lead(integration):
 @pytest.mark.asyncio
 async def test_unmatched_persona_asks_one_question_with_grounded_choices(integration):
     _, actor, wid, _, _, threads, thread = await leads_thread(integration)
-    answer, turn = await threads.ask(
-        actor, wid, thread.id, "As a pastry chef, which lead is best for me?"
+    answer, turn = await about_me(
+        threads, actor, wid, thread, "As a pastry chef, which lead is best for me?"
     )
     assert answer is None and turn.kind == "ambiguous"
-    assert turn.message.startswith("None of the 6 leads mention “pastry chef”")
+    assert turn.message.startswith("None of the 6 leads mention pastry chef work")
+    assert "can't call any of them a fit for you" in turn.message
+    assert "Most of them ask for software engineer work (3)" in turn.message
     choices = turn.evidence["clarification"]["choices"]
     assert choices[0] == "As a software engineer, which leads are the best fit for me?"
     assert all(choice.startswith("As a ") for choice in choices)
@@ -216,7 +261,8 @@ async def test_unmatched_persona_asks_one_question_with_grounded_choices(integra
 async def test_for_me_asks_what_you_do_then_uses_saved_memory(integration):
     headers, actor, wid, _, _, threads, thread = await leads_thread(integration)
     answer, turn = await threads.ask(actor, wid, thread.id, "Which lead is the best fit for me?")
-    assert answer is None and turn.message.startswith("What do you do?")
+    assert answer is None
+    assert turn.message.startswith("Before I rank these leads for you: what do you do?")
     assert turn.evidence["clarification"]["choices"]
     saved = integration.client.put(
         f"/workspaces/{wid}/agent-memory",
@@ -224,15 +270,16 @@ async def test_for_me_asks_what_you_do_then_uses_saved_memory(integration):
         json={"expected_version": 0, "role": "Backend developer"},
     )
     assert saved.status_code == 200, saved.text
-    answer, turn = await threads.ask(actor, wid, thread.id, "Which lead is the best fit for me?")
+    answer, turn = await about_me(threads, actor, wid, thread, "Which lead is the best fit for me?")
     assert turn.status == "complete"
     assert answer.message.startswith("For you, your best-fit lead is Acme AI")
+    assert "You told me experience: a few years and you want partners" in answer.message
 
 
 @pytest.mark.asyncio
 async def test_ambiguous_scores_clarify_then_rank_by_the_chosen_score(integration):
     _, actor, wid, _, _, threads, thread = await leads_thread(integration, NO_TOTAL_CSV)
-    answer, turn = await threads.ask(actor, wid, thread.id, QUESTION)
+    answer, turn = await about_me(threads, actor, wid, thread, QUESTION)
     assert answer is None and "Which one should decide what counts as hot" in turn.message
     choices = turn.evidence["clarification"]["choices"]
     answer, turn = await threads.ask(actor, wid, thread.id, choices[1])
@@ -252,7 +299,7 @@ async def test_model_may_suggest_columns_and_words_but_bad_replies_fall_back(int
     _, actor, wid, _, _, threads, thread = await leads_thread(
         integration, model=selector, interpretation=True
     )
-    answer, turn = await threads.ask(actor, wid, thread.id, QUESTION)
+    answer, turn = await about_me(threads, actor, wid, thread, QUESTION)
     assert turn.model_route == "fake:fake-model:goal-ranking-v1"
     assert "your hottest lead is Shopwise (intent_score 9" in answer.message
     assert "whose need mention" in answer.message
@@ -279,7 +326,21 @@ def test_purpose_endpoint_shape_scoping_and_404(integration):
         "benefits",
         "suggested_questions",
         "profile_question",
+        "follow_up",
     }
+    assert [item["id"] for item in body["follow_up"]["questions"]] == [
+        "persona",
+        "level",
+        "want",
+        "measure",
+        "segment",
+    ]
+    assert body["follow_up"]["questions"][3]["options"] == [
+        "total_score",
+        "intent_score",
+        "fit_score",
+    ]
+    assert body["follow_up"]["status"] == "pending" and body["follow_up"]["answers"] == {}
     assert body["version"] == "dataset-purpose-v1"
     assert body["summary"].startswith("AI Leads — Master lists 6 leads.")
     assert body["suggested_questions"][0] == {
@@ -300,3 +361,56 @@ def test_purpose_endpoint_shape_scoping_and_404(integration):
     outsider, _ = identity(integration, "outsider-purpose@example.test")
     assert integration.client.get(path, headers=outsider).status_code in {403, 404}
     assert integration.client.get(path).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_mechanic_gets_an_honest_no_fit_even_with_model_keywords(integration):
+    reply = json.dumps(
+        {"score_column": None, "text_columns": [], "keywords": ["engine", "service"]}
+    )
+    selector = Selector(reply)
+    _, actor, wid, _, _, threads, thread = await leads_thread(
+        integration, model=selector, interpretation=True
+    )
+    answer, turn = await about_me(
+        threads, actor, wid, thread, "if I am a mechanic, which one is best for me"
+    )
+    assert answer is None and turn.kind == "ambiguous"
+    assert turn.message.startswith(
+        "None of the 6 leads mention mechanic work: I looked for whole words such as "
+        "mechanic, engine, service, automotive"
+    )
+    assert "Acme AI" not in turn.message and "Top matches" not in turn.message
+    assert "Most of them ask for software engineer work (3)" in turn.message
+
+
+@pytest.mark.asyncio
+async def test_free_text_about_you_answers_rank_and_stay_private_for_this_file(integration):
+    headers, actor, wid, uid, _, threads, thread = await leads_thread(integration)
+    answer, turn = await threads.ask(actor, wid, thread.id, "Which leads are the best fit for me?")
+    assert answer is None and "what do you do?" in turn.message
+    answer, turn = await threads.ask(
+        actor, wid, thread.id, "I'm a backend developer who builds APIs"
+    )
+    assert answer is None and turn.message == "How experienced are you in that work?"
+    answer, turn = await threads.ask(actor, wid, thread.id, "Senior / expert")
+    answer, turn = await threads.ask(actor, wid, thread.id, "Clients or projects")
+    assert turn.status == "complete"
+    assert answer.message.startswith("For you, your best-fit lead is Acme AI")
+    assert "You told me experience: senior / expert and you want clients or projects" in (
+        answer.message
+    )
+    path = f"/workspaces/{wid}/uploads/{uid}/dataset-purpose"
+    saved = integration.client.get(path, headers=headers).json()["follow_up"]["answers"]
+    assert saved == {
+        "persona": "backend developer who builds apis",
+        "level": "Senior / expert",
+        "want": "Clients or projects",
+    }
+    answer, turn = await threads.ask(actor, wid, thread.id, "Which leads are the best fit for me?")
+    assert turn.status == "complete" and answer.message.startswith("For you, your best-fit")
+    member, member_user = identity(integration, f"{uuid4().hex[:8]}@example.test")
+    iid = invite(integration, headers, str(wid), member_user.email).json()["id"]
+    accept(integration, member, str(wid), iid)
+    other = integration.client.get(path, headers=member).json()["follow_up"]
+    assert other["answers"] == {} and other["status"] == "pending"

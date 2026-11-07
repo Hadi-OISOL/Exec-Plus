@@ -14,6 +14,7 @@ from typing import Any
 from uuid import UUID
 
 from execplus.domain.answer_presentation import decimal_text
+from execplus.domain.dataset_focus import grain as focus_grain
 from execplus.domain.discovery import category_candidates, measure_candidates, name_words
 from execplus.domain.guidance import DescriptionContext
 from execplus.domain.insights import queryable
@@ -112,6 +113,15 @@ def _goal_bonus(goal: str, columns: tuple[str, ...]) -> int:
     return 25 if any(name_words(name) & wanted for name in columns) else 0
 
 
+def _focus_bonus(focus: dict[str, str], candidate: Candidate) -> int:
+    """The person's own answers lead: chosen measure first, chosen group, then their time view."""
+    bonus = 40 if focus.get("measure") in candidate.columns else 0
+    bonus += 30 if focus.get("segment") in candidate.columns else 0
+    if focus_grain(focus) and candidate.kind in {"trend", "volume"}:
+        bonus += 35
+    return bonus
+
+
 def enumerate_candidates(
     context: DescriptionContext, brief: dict[str, Any], cards: list[dict[str, Any]]
 ) -> list[Candidate]:
@@ -120,14 +130,15 @@ def enumerate_candidates(
     categories = [name for name in category_candidates(context) if queryable(name)][:3]
     coverage = brief.get("date_coverage")
     date_column = coverage["column"] if coverage and queryable(coverage["column"]) else None
-    period = grain(int(coverage["span_days"])) if coverage else "month"
+    period = focus_grain(context.focus) or (
+        grain(int(coverage["span_days"])) if coverage else "month"
+    )
     goal = context.private_goal
     found: list[Candidate] = []
 
     def add(candidate: Candidate) -> None:
-        found.append(
-            replace(candidate, score=candidate.score + _goal_bonus(goal, candidate.columns))
-        )
+        bonus = _goal_bonus(goal, candidate.columns) + _focus_bonus(context.focus, candidate)
+        found.append(replace(candidate, score=candidate.score + bonus))
 
     add(
         Candidate(

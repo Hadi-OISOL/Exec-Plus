@@ -50,6 +50,7 @@ export function studyMethod(tile: DashboardTile): StudyMethod | null {
 export function selectionNote(dashboard: AutoDashboard): string {
   const route = dashboard.selection.route;
   if (route === "user:edit") return "You chose these tiles.";
+  if (route === "deterministic:auto-dashboard-focus-v1") return "Tiles follow your answers about this file: your chosen measure, group and time view come first.";
   if (route.startsWith("deterministic:")) return "Tiles were picked by a fixed score: column roles, group sizes and checked findings.";
   return "A language model ranked the candidate tiles and wrote their titles; every value comes from a server query.";
 }

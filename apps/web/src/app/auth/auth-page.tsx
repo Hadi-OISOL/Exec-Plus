@@ -27,7 +27,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     <aside className={styles.panel} aria-label="What Osalytix does">
       <p className={styles.claim}>Every number comes with a <em>receipt.</em></p>
       <div className={styles.printer}>
-        <Receipt header="test_100rows.csv · 100 rows · 20 columns" question="Which region had the most rainfall on average?" figure="1,744.5" unit="mm" figureLabel="West, average Rainfall_mm" bars={rainfall} barsLabel="Average rainfall by region, millimetres" footer={[{ label: "Query", value: "AVG(Rainfall_mm) GROUP BY Region" }, { label: "Access", value: "read-only · replayable" }]} stamp="Verified · replayable" frame="printer" print />
+        <Receipt header="farm_field_survey.csv · 100 rows · 20 columns" question="Which region had the most rainfall on average?" figure="1,744.5" unit="mm" figureLabel="West, average Rainfall_mm" bars={rainfall} barsLabel="Average rainfall by region, millimetres" footer={[{ label: "Query", value: "AVG(Rainfall_mm) GROUP BY Region" }, { label: "Access", value: "read-only · replayable" }]} stamp="Verified · replayable" frame="printer" print />
       </div>
       <PrintReveal />
     </aside>

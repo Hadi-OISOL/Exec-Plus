@@ -1,4 +1,4 @@
-/* Use case: Lays out the "Your data is ready" card, findings, questions and analyst team.
+/* Use case: Lays out the "Your data is ready" card, follow-up questions, findings, questions and analyst team.
 What it does: Uses shared light/dark design tokens, stacks to one column down to 320px, keeps 44px touch targets and respects reduced motion. */
 
 .ready { display: grid; gap: 20px; min-width: 0; margin-bottom: 24px; overflow-wrap: anywhere; }
@@ -24,6 +24,23 @@ What it does: Uses shared light/dark design tokens, stacks to one column down to
 .purpose ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; line-height: 20px; color: var(--color-text); }
 .profile { display: grid; gap: 8px; }
 .profile p { margin: 0; font-size: 14px; font-weight: 500; color: var(--color-text); }
+
+.followUp { display: grid; gap: 12px; min-width: 0; padding: 18px 20px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-raised, var(--color-surface)); box-shadow: 0 1px 0 rgb(20 32 27 / 10%); }
+.askList { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.askList > li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding-top: 12px; border-top: 1px dashed var(--color-border); }
+.askList > li:first-child { padding-top: 0; border-top: 0; }
+.ask { display: grid; gap: 8px; min-width: 0; }
+.ask p { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--color-text); }
+.answerInput { min-height: 40px; max-width: 420px; padding: 8px 12px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 14px; }
+.answerInput:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.chip[aria-pressed="true"] { border-color: var(--color-text); background: var(--color-text); color: var(--color-surface); }
+.focusRows { margin: 0; display: grid; gap: 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 20px; }
+.focusRows div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 6px 0; border-top: 1px dashed var(--color-border); }
+.focusRows div:first-child { border-top: 0; }
+.focusRows dt { color: var(--color-text-muted); }
+.focusRows dd { margin: 0; color: var(--color-text); font-weight: 500; }
+.error { margin: 0; font-size: 13px; color: var(--color-danger, var(--color-text)); }
+.primary:disabled, .secondary:disabled { opacity: .6; cursor: progress; }
 
 .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); gap: 20px; align-items: start; }
 .main { display: grid; gap: 20px; min-width: 0; }
@@ -63,7 +80,7 @@ What it does: Uses shared light/dark design tokens, stacks to one column down to
 @media (max-width: 860px) { .columns { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 560px) {
   .hero { grid-template-columns: minmax(0, 1fr); padding: 16px; }
-  .know, .questions, .team, .purpose { padding: 16px; }
+  .know, .questions, .team, .purpose, .followUp { padding: 16px; }
   .primary, .secondary { flex: 1 1 100%; }
   .chip { min-height: 44px; }
 }

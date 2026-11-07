@@ -1,4 +1,4 @@
-"""Use case: Exposes the exact dataset brief, dataset purpose and each automatic dashboard.
+"""Use case: Exposes the dataset brief, purpose, private follow-up answers and automatic dashboards.
 
 What it does: Authorizes callers, attributes model usage and serializes dashboard versions.
 """
@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from execplus.application.services.auto_dashboards import AutoDashboardService
+from execplus.application.services.dataset_focus import save as save_focus
 from execplus.application.services.dataset_purpose import purpose
 from execplus.application.usage_context import usage_scope
 from execplus.domain.auto_dashboard import AutoDashboard
@@ -60,6 +61,26 @@ async def dataset_purpose(
     workspace_id: UUID, upload_id: UUID, actor: Actor, request: Request
 ) -> object:
     return await purpose(request.app.state.runtime.analytics, actor, workspace_id, upload_id)
+
+
+class FocusInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    answers: dict[str, str] = Field(default_factory=dict, max_length=8)
+    status: str
+
+
+@router.put(ROOT + "/uploads/{upload_id}/dataset-focus")
+async def dataset_focus(
+    workspace_id: UUID, upload_id: UUID, body: FocusInput, actor: Actor, request: Request
+) -> object:
+    return await save_focus(
+        request.app.state.runtime.analytics,
+        actor,
+        workspace_id,
+        upload_id,
+        body.answers,
+        body.status,
+    )
 
 
 @router.get(SOURCE + "/auto-dashboard")

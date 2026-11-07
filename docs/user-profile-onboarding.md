@@ -45,3 +45,43 @@ immutable and reopen unchanged.
 - Never supplies numbers, units, filters, plans, permissions or confirmed business meanings.
 - Never rewrites saved replies, shared definitions or workspace memory.
 - Never leaks to other users: profiles are keyed by `user_id` and only `/me/profile` reads them.
+
+## Per-file follow-up questions (`dataset-focus-v1`, no migration)
+
+After any upload, `GET /workspaces/{wid}/uploads/{uid}/dataset-purpose` adds `follow_up`
+`{version, questions, answers, status}`. The 3–5 questions are deterministic templates from that
+file's own columns (`domain/dataset_focus.py`):
+
+- Ordinary files: `measure` (which number matters most; measure candidates), `segment` (which
+  group; category candidates), `time` (Day/Week/Month/Quarter/Year by …, No time view; only when
+  a date exists), `decision` (short text with suggestions), `relation` (how you are connected).
+- Ranking files (scores + descriptive text, e.g. leads): `persona` (trade or main skills, text with
+  the work kinds found in the rows as chips), `level`, `want`, `measure` (which score), `segment`.
+
+`PUT /workspaces/{wid}/uploads/{uid}/dataset-focus` `{answers, status: completed|skipped}` saves
+them after validating each answer against the current questions (422 `invalid_focus`). Answers
+live in one private object per workspace, dataset and member
+(`workspaces/{wid}/private/dataset-focus/{dataset_id}/{user_id}.json`), the same pattern as
+hypothesis feedback; only that member's own requests read it. Answers given to the chat's
+"about you" questions (`persona`, `level`, `want`) are merged into the same object.
+
+How answers are used: the chosen measure and group sort first in measure/category candidates
+(insights, hypotheses, discovery), the first suggested question uses them, the auto dashboard
+is rebuilt with the deterministic pick (route `deterministic:auto-dashboard-focus-v1`), bonuses
+for the chosen measure/group, the chosen time view as the trend grain, and only a checksum of
+the answers in its payload. The chat planner receives only the chosen column names and the fixed
+time-view label as "choice" context; free text (decision, persona) never reaches the planner, and
+answers never become filters, numbers, permissions or meanings. Without answers nothing changes.
+
+## Persona ranking asks first
+
+"Which leads are the best fit for me?" now asks, one at a time with clickable answers, what you
+do (skipped when the question names a role, saved answers or My memory role exist), your
+experience level and what you want (a job, clients, partners). The state travels in the
+clarification question as `[about me: persona=…; level=…; want=…]`. Matching is whole-word with
+plain inflections only ("engine" never matches "engineer"); when no record mentions the person's
+work, the reply says so plainly and names the kinds of work the records do mention, instead of a
+ranking. Level and goal shape the wording only.
+
+Language options for the profile now also include Arabic, Spanish, French, Chinese, Hindi and
+Another language; earlier answers stay valid.

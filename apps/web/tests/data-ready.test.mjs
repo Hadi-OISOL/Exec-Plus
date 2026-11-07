@@ -136,3 +136,31 @@ test("profile choices become a chat answer", () => {
   assert.equal(profileAnswer("Sales manager"), "I am a Sales manager");
   assert.equal(profileAnswer("Owner"), "I am an Owner");
 });
+
+const { answeredRows, focusPath, validAnswers } = load(resolve(dirname(fileURLToPath(import.meta.url)), "../src/app/workspace/insights/follow-up.tsx"));
+const followUp = {
+  version: "dataset-focus-v1", status: "pending", answers: {},
+  questions: [
+    { id: "measure", prompt: "Which number matters most to you?", kind: "single", options: ["amount", "quantity"] },
+    { id: "segment", prompt: "Which group do you want to compare?", kind: "single", options: ["region"] },
+    { id: "decision", prompt: "What decision should this data help with?", kind: "text", options: ["Where to focus effort"], hint: "Pick one or write your own." },
+  ],
+};
+
+test("follow-up questions are asked on the ready card and replace the old profile chips", () => {
+  const html = renderToStaticMarkup(createElement(DataReady, { ...props(), purpose: { ...purpose, follow_up: followUp }, root, request: async () => ({}) }));
+  for (const label of ["A few questions about this file", "Which number matters most to you?", "quantity", "Where to focus effort", "Save my answers", "Skip for now"]) assert.ok(html.includes(label), label);
+  assert.ok(!html.includes("What best describes you?"));
+  assert.ok(html.indexOf("A few questions about this file") < html.indexOf("What you should know"));
+});
+
+test("saved answers show back as a private receipt and invalid values are dropped", () => {
+  const saved = { ...followUp, status: "completed", answers: { measure: "quantity", segment: "skipped", decision: "Plan stock" } };
+  assert.deepEqual(validAnswers(saved), { measure: "quantity", decision: "Plan stock" });
+  assert.deepEqual(answeredRows(saved).map(row => row.value), ["quantity", "Plan stock"]);
+  const html = renderToStaticMarkup(createElement(DataReady, { ...props(), purpose: { ...purpose, follow_up: saved }, root, request: async () => ({}) }));
+  for (const label of ["Your focus for this file", "Only you can see them", "Plan stock", "Change answers"]) assert.ok(html.includes(label), label);
+  assert.ok(!html.includes("Save my answers"));
+  assert.equal(focusPath(root), "/workspaces/w1/uploads/u1/dataset-focus");
+  assert.equal(focusPath("/elsewhere"), null);
+});

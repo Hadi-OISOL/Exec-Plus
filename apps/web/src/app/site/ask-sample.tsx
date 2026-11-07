@@ -74,7 +74,7 @@ export function AskSample() {
       <ul className={styles.examples} aria-label="Prepared questions">
         {sampleAnswers.filter(candidate => candidate !== answer).slice(0, 3).map(candidate => <li key={candidate.id}><button type="button" className={styles.example} lang={candidate.id === "drip" ? "ur-Latn" : undefined} onClick={() => setText(candidate.question)}>{candidate.question}</button></li>)}
       </ul>
-      <p className={`${styles.muted} ${styles.tryNote}`}>test_100rows.csv: 100 fields, 20 columns, Soil, Crop, Rainfall and Region among them. Every answer here is precomputed from the file.</p>
+      <p className={`${styles.muted} ${styles.tryNote}`}>farm_field_survey.csv: 100 fields, 20 columns, Soil, Crop, Rainfall and Region among them. Every answer here is precomputed from the file.</p>
     </div>
     <p className={styles.srOnly} aria-live="polite">{answer ? `${answer.sentence[0]}${answer.sentence[1]}${answer.sentence[2]}` : "No prepared answer matches this question."}</p>
     <div className={`${styles.answer} ${styles.tryAnswer}`}>
@@ -86,7 +86,7 @@ export function AskSample() {
         figureLabel={`${answer.sentence[0]}${answer.sentence[1]}${answer.sentence[2]}`}
         bars={answer.rows.map(([label, shown, value]) => ({ label, value: shown, share: value / max, emphasis: label === answer.lead }))}
         barsLabel={`${answer.operation} ${answer.grouping}${answer.unit ? `, in ${answer.unit}` : ""}`}
-        footer={[{ label: "Dataset", value: "test_100rows.csv · version 1" }, { label: "Operation", value: `${answer.operation} ${answer.grouping}` }, { label: "Filters", value: "none" }, { label: "Rows read", value: "100 of 100" }]}
+        footer={[{ label: "Dataset", value: "farm_field_survey.csv · version 1" }, { label: "Operation", value: `${answer.operation} ${answer.grouping}` }, { label: "Filters", value: "none" }, { label: "Rows read", value: "100 of 100" }]}
         ariaLabel={`Receipt: ${answer.question}`}
       /> : <p className={styles.muted}>{text.trim() ? "This sample knows four questions. In the product any question goes to the query engine, and an unclear one gets a clarifying question back." : "Type a question, or tap one below."}</p>}
     </div>

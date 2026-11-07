@@ -29,6 +29,7 @@ from execplus.application.progress import activity, model_call, planned
 from execplus.application.services.analytics import AnalyticsService
 from execplus.application.services.auto_dashboards import cached_brief
 from execplus.application.services.data_diagrams import DataDiagramService, DiagramAnswer
+from execplus.application.services.dataset_focus import read_focus, write_focus
 from execplus.application.services.document_answers import DocumentAnswerService
 from execplus.application.services.forecasts import read_complete
 from execplus.application.services.insights import build_insights
@@ -80,6 +81,7 @@ from execplus.domain.conversation_requirements import (
 )
 from execplus.domain.data_diagram import DiagramClarification, DiagramRequest, diagram_request
 from execplus.domain.dataset_brief import planner_view
+from execplus.domain.dataset_focus import planner_hint
 from execplus.domain.dataset_reading import (
     READING_PROMPT,
     parse_reading,
@@ -114,20 +116,26 @@ from execplus.domain.goal_ranking import (
     SELECTION_PROMPT,
     GoalQuestion,
     RankingFields,
+    about_join,
+    about_note,
+    about_prompt,
+    about_reply,
+    about_split,
     asks_hot,
     choose_score,
     goal_question,
-    nouns,
+    missing_about,
+    no_fit_message,
     parse_selection,
     persona_choices,
     persona_keywords,
-    persona_question,
     persona_tokens,
     profile_choices,
     rank_rows,
     ranking_fields,
     ranking_message,
     selection_input,
+    themes,
 )
 from execplus.domain.guidance import (
     DescriptionContext,
@@ -925,6 +933,14 @@ class IntentRouterService:
         choice_context = " ".join(
             [prior_question, *((prior_turn.metric, *prior_turn.grouping) if prior_turn else ())]
         )
+        about = about_split(prior_clarification.question) if prior_clarification else None
+        if about is not None and (
+            question.strip().endswith("?")
+            or len(words(question).split()) > 12
+            or prior_clarification is None
+            or prior_clarification.sources != description.view.sources
+        ):
+            about = None
         # Keep the last question available for model-selected explanation, even
         # when the latest wording is not a recognized analytical continuation.
         explanation_context = prior_clarification if self.context_enabled else None
@@ -978,6 +994,24 @@ class IntentRouterService:
         def require_current_context() -> None:
             if stale_message:
                 raise ClarificationRequiredError(stale_message)
+
+        about_fields = ranking_fields(description.view) if about is not None else None
+        if about is not None and about_fields is not None:
+            base, answers = about
+            step = missing_about(self._about_known(description, base, answers))
+            if step:
+                answers = {**answers, step: about_reply(step, question)}
+            return await self._rank_for_goal(
+                actor,
+                workspace_id,
+                dataset_id,
+                upload_id,
+                description,
+                base,
+                goal_question(base) or GoalQuestion("", True),
+                about_fields,
+                answers,
+            )
 
         if self.context_enabled and prior_result is not None:
             if not prior_result.current_for(actor.id, workspace_id, description.view.sources):
@@ -1343,6 +1377,15 @@ class IntentRouterService:
             context += (
                 "Actor-private analysis goal (untrusted context, not a shared definition): "
                 + json.dumps(description.private_goal)
+                + "\n"
+            )
+        focus_hint = planner_hint(description.focus, description.view)
+        if focus_hint:
+            context += (
+                "Columns and time view this user chose for this file (untrusted preference; use "
+                "only to choose between equally valid readings and for wording, never as filters, "
+                "numbers, permissions or meanings): "
+                + json.dumps(focus_hint, ensure_ascii=False)
                 + "\n"
             )
         if broad_goal and description.private_goal:
@@ -2331,6 +2374,40 @@ class IntentRouterService:
             return None, (), (), ""
         return score, texts, keywords, f"{response.provider}:{response.model}:goal-ranking-v1"
 
+    def _about_known(
+        self, description: DescriptionContext, base: str, answers: dict[str, str]
+    ) -> dict[str, str]:
+        """What is known about the person: question, chat answers, saved focus, then memory."""
+        known = {
+            key: description.focus[key] for key in ("level", "want") if description.focus.get(key)
+        }
+        known.update({key: value for key, value in answers.items() if key != "persona"})
+        asked = goal_question(base)
+        memory = description.agent_memory
+        persona = (
+            (asked.persona if asked else "")
+            or answers.get("persona", "")
+            or description.focus.get("persona", "")
+            or (memory.role if memory else "")
+        )
+        return {**known, **({"persona": persona} if persona else {})}
+
+    def _remember_about(
+        self, actor: User, workspace_id: UUID, dataset_id: UUID, answers: dict[str, str]
+    ) -> None:
+        """Answers given in chat to "about you" questions are kept privately for this file."""
+        saved = read_focus(self.analytics.storage, workspace_id, dataset_id, actor.id)
+        if all(saved["answers"].get(key) == value for key, value in answers.items()):
+            return
+        write_focus(
+            self.analytics.storage,
+            workspace_id,
+            dataset_id,
+            actor.id,
+            {**saved["answers"], **answers},
+            saved["status"],
+        )
+
     async def _rank_for_goal(
         self,
         actor: User,
@@ -2341,33 +2418,37 @@ class IntentRouterService:
         question: str,
         goal: GoalQuestion,
         fields: RankingFields,
+        answers: dict[str, str] | None = None,
     ) -> DatasetGuide:
-        """Rank records for a persona by one stated rule over exact returned rows."""
+        """Ask who the person is when unknown, then rank by one stated rule over exact rows."""
         view = description.view
-        persona = goal.persona or (
-            description.agent_memory.role if description.agent_memory else ""
-        )
-        persona = persona or description.private_goal
-        if not persona_tokens(persona):
+        answers = answers or {}
+        known = self._about_known(description, question, answers)
+        persona = known.get("persona", "")
+        step = missing_about(known) if goal.for_me or not persona_tokens(persona) else None
+        if step:
             _, table, _ = await read_complete(
                 lambda: self.analytics.descriptive_snapshot(
                     actor, workspace_id, dataset_id, upload_id
                 )
             )
-            labels = profile_choices(table.headers, table.rows, fields.texts)
-            raise PlanningClarification(
-                ClarificationContext(
-                    question,
-                    persona_question(description.name)
-                    + " You can also save your role in My memory so I remember it.",
-                    view.sources,
-                    persona_choices(description.name, labels),
-                )
+            profile = description.agent_memory.profile if description.agent_memory else None
+            message, choices = about_prompt(
+                step,
+                description.name,
+                profile.preferred_name if profile else "",
+                str(profile.answers.get("role", "")) if profile else "",
+                profile_choices(table.headers, table.rows, fields.texts),
             )
+            raise PlanningClarification(
+                ClarificationContext(about_join(question, answers), message, view.sources, choices)
+            )
+        if answers:
+            await asyncio.to_thread(self._remember_about, actor, workspace_id, dataset_id, answers)
         score, texts, extra, model_route = await self._goal_selection(question, persona, fields)
         if texts:
             fields = replace(fields, texts=texts)
-        choice = choose_score(question, fields, view, score)
+        choice = choose_score(question, fields, view, score or description.focus.get("measure"))
         if choice.column is None:
             raise PlanningClarification(
                 ClarificationContext(
@@ -2403,22 +2484,23 @@ class IntentRouterService:
             route,
             view.sources,
         )
-        ranked = rank_rows(
-            result.columns, result.rows, fields, choice.column, persona_keywords(persona, extra)
-        )
+        keywords = persona_keywords(persona, extra)
+        ranked = rank_rows(result.columns, result.rows, fields, choice.column, keywords)
         if not ranked:
-            _, plural = nouns(description.name)
+            found = themes(result.columns, result.rows, fields.texts)
             raise PlanningClarification(
                 ClarificationContext(
                     question,
-                    f"None of the {result.records_analyzed:,} {plural} mention “{persona}” or "
-                    f"related words in {', '.join(fields.texts)}. Which skills or role "
-                    "should I look for instead?",
-                    view.sources,
-                    persona_choices(
+                    no_fit_message(
                         description.name,
-                        profile_choices(result.columns, result.rows, fields.texts),
+                        persona,
+                        keywords,
+                        fields,
+                        result.records_analyzed,
+                        found,
                     ),
+                    view.sources,
+                    persona_choices(description.name, tuple(label for label, _ in found[:4])),
                 )
             )
         base = question.strip().rstrip("?.! ")
@@ -2432,6 +2514,7 @@ class IntentRouterService:
                 result.records_analyzed,
                 len(result.rows) >= limit,
                 asks_hot(question),
+                about_note(known),
             ),
             route,
             (choice.column, *fields.texts),

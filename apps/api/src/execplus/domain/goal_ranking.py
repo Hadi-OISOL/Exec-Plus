@@ -58,6 +58,13 @@ ROLE_VOCABULARY: dict[str, tuple[frozenset[str], frozenset[str]]] = {
         _set("accountant accounting bookkeeper finance tax"),
         _set("accountant accounting bookkeeping tax finance audit payroll"),
     ),
+    "Mechanic": (
+        _set("mechanic mechanics technician"),
+        _set(
+            "mechanic repair maintenance vehicle car truck engine automotive garage workshop "
+            "brake tyre tire"
+        ),
+    ),
 }
 
 _STOP = _set(
@@ -196,14 +203,23 @@ def persona_keywords(persona: str, extra: tuple[str, ...] = ()) -> tuple[str, ..
     )
 
 
+def _stems(word: str) -> set[str]:
+    """The word and its plain English base forms: repairs/repaired/repairing -> repair."""
+    found = {word}
+    for suffix, base in (("ies", "y"), ("ing", ""), ("ing", "e"), ("ed", ""), ("ed", "e")):
+        if word.endswith(suffix) and len(word) - len(suffix) + len(base) >= 3:
+            found.add(word[: -len(suffix)] + base)
+    if word.endswith("es") and word[:-2].endswith(("s", "x", "z", "ch", "sh")):
+        found.add(word[:-2])
+    elif word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        found.add(word[:-1])
+    return found
+
+
 def _matches(text: str, keywords: tuple[str, ...]) -> tuple[str, ...]:
-    tokens = set(words(text).split())
-    return tuple(
-        keyword
-        for keyword in keywords
-        if keyword in tokens
-        or (len(keyword) >= 5 and any(token.startswith(keyword) for token in tokens))
-    )
+    """Whole words or their inflections only, so "engine" never matches inside "engineer"."""
+    tokens = set().union(*(_stems(token) for token in words(text).split()))
+    return tuple(keyword for keyword in keywords if _stems(keyword) & tokens)
 
 
 def _number(value: Any) -> Decimal | None:
@@ -272,6 +288,7 @@ def ranking_message(
     records: int,
     truncated: bool,
     hot: bool = True,
+    note: str = "",
 ) -> str:
     score = choice.column or ""
     singular, plural = nouns(dataset_name)
@@ -314,15 +331,16 @@ def ranking_message(
             "pick one below to re-rank."
         )
     rule += (
-        " Word matching is a text check, not a judgement of quality, and these scores come "
-        "from the file, not from me."
+        " Matching is on whole words, not a judgement of quality, and these scores come "
+        "from the file, not from me." + note
     )
     return "\n\n".join([lead, "Top matches\n" + "\n".join(lines), rule])
 
 
-def profile_choices(
+def themes(
     headers: tuple[str, ...], rows: tuple[tuple[Any, ...], ...], texts: tuple[str, ...]
-) -> tuple[str, ...]:
+) -> list[tuple[str, int]]:
+    """Known kinds of work the record texts mention, most common first, with record counts."""
     indexes = [headers.index(name) for name in texts if name in headers]
     counts: dict[str, int] = {}
     for label, (_, vocabulary) in ROLE_VOCABULARY.items():
@@ -333,7 +351,111 @@ def profile_choices(
         )
         if hits:
             counts[label] = hits
-    return tuple(sorted(counts, key=lambda label: (-counts[label], label))[:4])
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+
+
+def profile_choices(
+    headers: tuple[str, ...], rows: tuple[tuple[Any, ...], ...], texts: tuple[str, ...]
+) -> tuple[str, ...]:
+    return tuple(label for label, _ in themes(headers, rows, texts)[:4])
+
+
+def no_fit_message(
+    dataset_name: str,
+    persona: str,
+    keywords: tuple[str, ...],
+    fields: RankingFields,
+    records: int,
+    found: list[tuple[str, int]],
+) -> str:
+    plural = nouns(dataset_name)[1]
+    looked = ", ".join(keywords[:6])
+    message = (
+        f"None of the {records:,} {plural} mention {persona} work: I looked for whole words "
+        f"such as {looked} in {', '.join(fields.texts)} and found none, so I can't call any "
+        "of them a fit for you."
+    )
+    if found:
+        named = " and ".join(f"{label.lower()} work ({count:,})" for label, count in found[:2])
+        message += f" Most of them ask for {named}."
+    return message + " Which other skills should I look for?"
+
+
+ABOUT_STEPS = ("persona", "level", "want")
+LEVELS = ("New to it", "A few years", "Senior / expert")
+WANTS = ("A job", "Clients or projects", "Partners", "Just exploring")
+SKIP = "Skip this question"
+_ABOUT = re.compile(r"^(?P<base>.*?)\s*\[about me:(?P<body>[^\]]*)\]$", re.S)
+_SELF = re.compile(r"^(?:i am|i m|im|i work as|i work in|as)\s+(?:an?\s+)?")
+
+
+def about_split(question: str) -> tuple[str, dict[str, str]] | None:
+    """Reads the original question and the about-you answers carried by a persona clarification."""
+    found = _ABOUT.match(question)
+    if found is None:
+        return None
+    answers: dict[str, str] = {}
+    for part in found["body"].split(";"):
+        key, _, value = part.partition("=")
+        if key.strip() in ABOUT_STEPS and value.strip():
+            answers[key.strip()] = value.strip()
+    return found["base"], answers
+
+
+def about_join(base: str, answers: dict[str, str]) -> str:
+    body = "; ".join(f"{key}={answers[key]}" for key in ABOUT_STEPS if answers.get(key))
+    return f"{base} [about me: {body}]"
+
+
+def about_reply(step: str, text: str) -> str:
+    clean = re.sub(r"[\[\];=]", " ", " ".join(text.split())).strip()[:80]
+    if words(clean) == words(SKIP):
+        return "skipped"
+    if step == "persona":
+        return _SELF.sub("", words(clean)) or clean
+    return clean
+
+
+def missing_about(answers: dict[str, str]) -> str | None:
+    return next((step for step in ABOUT_STEPS if not answers.get(step)), None)
+
+
+def about_prompt(
+    step: str, dataset_name: str, name: str, profile_role: str, labels: tuple[str, ...]
+) -> tuple[str, tuple[str, ...]]:
+    """One short question about the person, with clickable answers."""
+    plural = nouns(dataset_name)[1]
+    if step == "persona":
+        known = (
+            f" Your profile says {profile_role}; tell me the actual work." if profile_role else ""
+        )
+        hello = f"{name}, before" if name else "Before"
+        return (
+            f"{hello} I rank these {plural} for you: what do you do? Name your trade or main "
+            f"skills, for example “mechanic, car repair”.{known}",
+            labels,
+        )
+    if step == "level":
+        return "How experienced are you in that work?", (*LEVELS, SKIP)
+    return f"What do you want from these {plural}?", (*WANTS, SKIP)
+
+
+def about_note(answers: dict[str, str]) -> str:
+    level, want = answers.get("level", ""), answers.get("want", "")
+    said = [
+        part
+        for part in (
+            f"experience: {level.lower()}" if level and level != "skipped" else "",
+            f"you want {want.lower()}" if want and want != "skipped" else "",
+        )
+        if part
+    ]
+    if not said:
+        return ""
+    return (
+        f" You told me {' and '.join(said)}; that shapes this explanation only, because the "
+        "file has no field that says what each record needs on those points."
+    )
 
 
 def persona_question(dataset_name: str) -> str:

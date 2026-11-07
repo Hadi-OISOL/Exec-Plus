@@ -4,7 +4,7 @@ What it does: Matches column questions and renders observed, saved and tentative
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from execplus.domain.agent_memory import AgentMemory
@@ -33,6 +33,12 @@ class DescriptionContext:
     state: str
     private_goal: str = ""
     agent_memory: AgentMemory | None = None
+    focus: dict[str, str] = field(default_factory=dict)
+    focus_status: str = "pending"
+
+    @property
+    def focus_columns(self) -> tuple[str, ...]:
+        return tuple(self.focus[key] for key in ("measure", "segment") if self.focus.get(key))
 
 
 def words(text: str) -> str:

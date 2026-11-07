@@ -28,6 +28,7 @@ from execplus.application.services.dataset_access import (
     dataset_access,
     scope_snapshot,
 )
+from execplus.application.services.dataset_focus import read_focus
 from execplus.application.services.lineage import (
     authorize_analysis_receipt,
     persist_query_execution,
@@ -210,6 +211,9 @@ class AnalyticsService:
                 preference.goal if preference and not access.restricted else "",
                 repo.agent_memory(workspace_id, actor.id) if not source else None,
             )
+            if not source:
+                focus = read_focus(self.storage, workspace_id, dataset_id, actor.id)
+                context = replace(context, focus=focus["answers"], focus_status=focus["status"])
             scope = WorkspaceScope(
                 workspace_id, actor.id, frozenset({member.role}), frozenset({dataset_id})
             )
