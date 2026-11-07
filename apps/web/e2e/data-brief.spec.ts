@@ -42,10 +42,10 @@ async function modelReading(page: Page) {
   });
 }
 
-async function readingLeadsOverview(page: Page, panel: ReturnType<Page["getByRole"]>) {
-  const home = page.getByRole("region", { name: "Analytics home", exact: true });
-  await expect(home).toBeVisible();
-  expect((await panel.boundingBox())!.y).toBeLessThan((await home.boundingBox())!.y);
+async function readingStandsAlone(page: Page, panel: ReturnType<Page["getByRole"]>) {
+  await expect(panel).toBeVisible();
+  await expect(page.getByRole("region", { name: "Analytics home", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "First findings from your file", exact: true })).toBeHidden();
 }
 
 async function upload(page: Page, person: ReturnType<typeof account>, source = file) {
@@ -70,8 +70,10 @@ test("a model reading opens at the top after upload and saves confirmed meaning 
   await expect(panel.getByText("Question 1 of", { exact: false })).toBeVisible();
   expect((await panel.boundingBox())!.y).toBeLessThan(500);
   await expect(page.locator("#chat-question")).toBeHidden();
+  await readingStandsAlone(page, panel);
   await page.getByRole("button", { name: "Ask Osalytix", exact: true }).first().click();
-  await expect(page.locator("#chat-question")).toBeVisible();
+  await expect(panel).toBeVisible();
+  await expect(page.locator("#chat-question")).toBeHidden();
   await page.getByRole("button", { name: "Overview", exact: true }).first().click();
   await expect(panel).toBeVisible();
   await expect(page.getByRole("region", { name: "Guided data review", exact: true })).toHaveCount(0);
@@ -212,7 +214,7 @@ test("focused reading keeps edits on Back, saves progress and retries only the f
   const { root, dataset, get } = await upload(page, person);
   const panel = page.getByRole("region", { name: "Data reading", exact: true });
   await expect(panel.getByText("Question 1 of", { exact: false })).toBeVisible();
-  await readingLeadsOverview(page, panel);
+  await readingStandsAlone(page, panel);
   await expect(page.locator("#chat-question")).toBeHidden();
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
   await panel.getByRole("button", { name: "Yes, that's right", exact: true }).click();
@@ -268,7 +270,7 @@ test("a rejected AI reading keeps a focused structural review with honest proven
   await expect(panel).toContainText("Based on the file’s structure and your saved definitions");
   await expect(panel).not.toContainText("Suggested by the language model");
   await expect(page.getByRole("region", { name: "Guided data review", exact: true })).toHaveCount(0);
-  await readingLeadsOverview(page, panel);
+  await readingStandsAlone(page, panel);
   const before = await get(root + "/understanding");
   await panel.getByRole("button", { name: "Skip for now", exact: true }).click();
   expect(await get(root + "/understanding")).toEqual(before);

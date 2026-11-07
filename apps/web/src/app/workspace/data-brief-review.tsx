@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ApiRequest } from "./profile-panel";
 import styles from "./data-brief-review.module.css";
 import { WorkspaceLoading } from "./workspace-loading";
+import { unitChoices } from "./unit-choices";
 
 type Definition = {
   description: string;
@@ -620,13 +621,18 @@ export function DataBriefReview({
                   {card.needsUnit ? "Unit of measurement (required)" : "Unit, if you know it"}
                   <input
                     value={draft.unit}
+                    list="reading-unit-choices"
+                    placeholder="Pick a suggestion or type a unit"
                     maxLength={40}
                     aria-label={card.needsUnit ? "Unit of measurement (required)" : "Unit, if you know it"}
                     required={card.needsUnit}
                     aria-describedby={card.needsUnit ? "reading-unit-hint" : undefined}
                     onChange={(event) => setDraft({ ...draft, edited: true, unit: event.target.value })}
                   />
-                  {card.needsUnit && <span id="reading-unit-hint" className={styles.caption}>Answer the unit question here: for example USD, kg or hours. Use unitless only when no unit applies. Your column meaning stays in the separate field below.</span>}
+                  <datalist id="reading-unit-choices">
+                    {unitChoices(card.column?.name ?? "", card.column?.unit).map((unit) => <option key={unit} value={unit} />)}
+                  </datalist>
+                  {card.needsUnit && <span id="reading-unit-hint" className={styles.caption}>Pick a suggested unit or type your own. Choose unitless only when no unit applies.</span>}
                 </label>
               )}
               <label>

@@ -1000,7 +1000,7 @@ export default function WorkspacePage() {
       : "";
   const briefActive = Boolean(root && user && !limitedUpload && briefFor === profileUpload && !reviewOpen);
   const guidedActive = Boolean(root && user && !limitedUpload && guidedFor === profileUpload && !briefActive && !reviewOpen);
-  const reviewing = ["overview", "ask"].includes(section) && (guidedActive || reviewOpen || (section === "overview" && briefActive && briefManual));
+  const reviewing = ["overview", "ask"].includes(section) && (guidedActive || reviewOpen || briefActive);
   const sections = [
     { id: "overview", name: "Overview", group: "Analyze" },
     { id: "ask", name: "Ask Osalytix", group: "Analyze" },
@@ -1931,7 +1931,7 @@ export default function WorkspacePage() {
                     )}
                     <div className="exploreLayout discoveryLayout">
                   {briefActive && user && (
-                    <div hidden={section !== "overview"}><DataBriefReview
+                    <div hidden={!["overview", "ask"].includes(section)}><DataBriefReview
                       key={`brief-${user.id}-${root}`}
                       root={root}
                       request={request}
