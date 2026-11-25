@@ -442,3 +442,47 @@ def test_public_catalog_shows_names_placeholder_prices_and_limits_without_login(
     for item in body:
         assert item["limits"] == CATALOG[item["key"]]["limits"]
         assert set(item) == {"key", "name", "limits", "price_usd_month"}
+
+
+def test_expired_default_allowance_starts_its_next_period_but_administrator_one_does_not(
+    integration,
+):
+    env = integration
+    headers, actor, wid, _ = native(env, "renewing-plan@example.test")
+    old = datetime.now(timezone.utc) - timedelta(days=45)
+    with env.engine.begin() as connection:
+        connection.execute(
+            s.workspace_plans.update()
+            .where(s.workspace_plans.c.workspace_id == UUID(wid))
+            .values(starts_at=old, ends_at=old + timedelta(days=30))
+        )
+    usage = env.client.get(f"/workspaces/{wid}/plan-usage", headers=headers).json()
+    assert usage["active"] is True
+    assert usage["assignment"]["basis"] == "native_default"
+    assert usage["assignment"]["starts_at"] < datetime.now(timezone.utc).isoformat()
+    assert usage["assignment"]["ends_at"] > datetime.now(timezone.utc).isoformat()
+    assert (
+        env.client.post(
+            f"/workspaces/{wid}/datasets", headers=headers, json={"name": "after renewal"}
+        ).status_code
+        == 201
+    )
+    with env.engine.connect() as connection:
+        versions = connection.execute(
+            select(func.count())
+            .select_from(s.workspace_plans)
+            .where(s.workspace_plans.c.workspace_id == UUID(wid))
+        ).scalar_one()
+    assert versions == 2
+    end = datetime.now(timezone.utc) - timedelta(seconds=1)
+    key = usage["assignment"]["plan_key"]
+    env.runtime.operations.change_staff(
+        actor.email, "admin", confirmed_user_id=actor.id, identity_checked=True
+    )
+    env.runtime.plans.assign(actor, UUID(wid), key, 2, end - timedelta(days=1), end)
+    assert (
+        env.client.post(
+            f"/workspaces/{wid}/datasets", headers=headers, json={"name": "blocked"}
+        ).status_code
+        == 429
+    )

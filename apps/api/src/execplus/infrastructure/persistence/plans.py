@@ -34,6 +34,23 @@ class SQLPlanRepository:
         )
         return dict(row) if row else None
 
+    def current_plan_assignment(self, wid: UUID, now: datetime) -> dict[str, Any] | None:
+        assignment = self.plan_assignment(wid)
+        if not assignment or assignment["basis"] != "native_default" or now < assignment["ends_at"]:
+            return assignment
+        length = assignment["ends_at"] - assignment["starts_at"]
+        starts = assignment["ends_at"] + length * ((now - assignment["ends_at"]) // length)
+        renewed = {
+            **assignment,
+            "id": uuid4(),
+            "version": assignment["version"] + 1,
+            "starts_at": starts,
+            "ends_at": starts + length,
+            "created_at": now,
+        }
+        self.add_plan_assignment(renewed)
+        return renewed
+
     def plan_catalog(self) -> list[dict[str, Any]]:
         values = {key: {"key": key, "version": 1, **value} for key, value in CATALOG.items()}
         for row in self.connection.execute(
@@ -131,7 +148,7 @@ class SQLPlanRepository:
         self.connection.execute(
             select(s.workspaces.c.id).where(s.workspaces.c.id == wid).with_for_update()
         ).scalar_one()
-        assignment = self.plan_assignment(wid)
+        assignment = self.current_plan_assignment(wid, now)
         require_active(assignment, now)
         require_capacity(assignment, kind, self.plan_stock(wid, kind, now), amount)
 
@@ -223,7 +240,7 @@ class SQLPlanRepository:
                     409,
                 )
             return False
-        assignment = self.plan_assignment(wid)
+        assignment = self.current_plan_assignment(wid, now)
         require_active(assignment, now)
         if assignment is not None:
             used = self.plan_used(wid, kind, assignment["starts_at"], assignment["ends_at"])

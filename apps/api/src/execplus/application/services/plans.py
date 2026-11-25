@@ -56,8 +56,8 @@ def admit(
 def allowances(
     repo: WorkspaceRepository, wid: UUID, *, stock: bool = True
 ) -> tuple[dict[str, Any] | None, dict[str, Any], datetime]:
-    assignment = repo.plan_assignment(wid)
     current = now()
+    assignment = repo.current_plan_assignment(wid, current)
     values = {}
     for kind in sorted(LIMITS):
         limit = assignment["limits"][kind] if assignment else None
