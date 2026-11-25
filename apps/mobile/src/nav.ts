@@ -3,14 +3,19 @@ What it does: Defines the route shapes and the small push/back navigator shared 
 
 import { createContext, useContext } from "react";
 import type { Source } from "./api";
+import type { FileTab } from "./screens/File";
 
 export type Route =
   | { name: "home" }
+  | { name: "ask" }
+  | { name: "more" }
+  | { name: "memory" }
+  | { name: "audit" }
   | { name: "files" }
   | { name: "chats" }
   | { name: "account" }
   | { name: "profile" }
-  | { name: "file"; source: Source; fresh?: boolean }
+  | { name: "file"; source: Source; fresh?: boolean; tab?: FileTab }
   | { name: "chat"; workspaceId: string; source?: Source; threadId?: string; question?: string };
 
 export type Nav = {

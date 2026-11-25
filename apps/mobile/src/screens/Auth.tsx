@@ -31,6 +31,7 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
         await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, { encoding: Crypto.CryptoEncoding.BASE64 }),
       );
       const returnTo = Linking.createURL("auth");
+      console.log("osalytix-google-return", returnTo);
       const start = `${API}/auth/google/start?return_to=${encodeURIComponent(returnTo)}&challenge=${challenge}`;
       const result = await WebBrowser.openAuthSessionAsync(start, returnTo);
       if (result.type !== "success") return setError(`Google sign-in was not finished. If it keeps failing, this app address may need to be allowed: ${returnTo}`);

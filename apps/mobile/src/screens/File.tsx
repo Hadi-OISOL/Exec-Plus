@@ -3,12 +3,25 @@ What it does: Checks the live data-brief and shows only the file questions while
 
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { api, rootOf, Source } from "../api";
 import { useNav } from "../nav";
 import { color, font, space } from "../theme";
 import { Bars, Button, Card, Chip, ErrorText, Loading, P, Receipt, Screen, exact, s } from "../ui";
 import { Brief, FileQuestions } from "./FileQuestions";
+import { About, Checks, Findings, Forecast, Quality, Unusual } from "./FileTabs";
+
+export type FileTab = "insights" | "dashboard" | "findings" | "checks" | "unusual" | "forecast" | "quality" | "about";
+export const FILE_TABS: [FileTab, string][] = [
+  ["insights", "Insights"],
+  ["dashboard", "Dashboard"],
+  ["findings", "Findings"],
+  ["checks", "Checks"],
+  ["unusual", "Unusual values"],
+  ["forecast", "Forecast"],
+  ["quality", "Data quality"],
+  ["about", "About this data"],
+];
 
 type ChartRow = { label: string; value?: string; count?: string };
 type Chart = { type: string; title: string; y?: { label: string; unit: string | null }; rows: ChartRow[] } | null;
@@ -26,12 +39,12 @@ function chartRows(chart: Chart) {
   return (chart?.rows ?? []).map((r) => ({ label: r.label, value: r.value ?? r.count }));
 }
 
-export function FileScreen({ source, fresh }: { source: Source; fresh?: boolean }) {
+export function FileScreen({ source, fresh, tab: firstTab }: { source: Source; fresh?: boolean; tab?: FileTab }) {
   const nav = useNav();
   const root = rootOf(source);
   const [phase, setPhase] = useState<"checking" | "questions" | "ready">("checking");
   const [brief, setBrief] = useState<Brief | null>(null);
-  const [tab, setTab] = useState<"insights" | "dashboard">("insights");
+  const [tab, setTab] = useState<FileTab>(firstTab ?? "insights");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [tiles, setTiles] = useState<Tile[] | null>(null);
   const [error, setError] = useState("");
@@ -90,17 +103,35 @@ export function FileScreen({ source, fresh }: { source: Source; fresh?: boolean 
     );
 
   const ask = (question?: string) => nav.push({ name: "chat", workspaceId: source.workspaceId, source, question });
+  const reviewAgain = async () => {
+    await SecureStore.deleteItemAsync(doneKey(source.upload.id));
+    skipped.delete(source.upload.id);
+    setPhase("checking");
+  };
 
   return (
     <Screen kicker={source.upload.filename} title={source.datasetName} onBack={nav.back}>
       <Button label="Ask about this file" onPress={() => ask()} />
-      <View style={s.row}>
-        <Chip label="Insights" active={tab === "insights"} onPress={() => setTab("insights")} />
-        <Chip label="Dashboard" active={tab === "dashboard"} onPress={() => setTab("dashboard")} />
-        <Chip label="File questions" onPress={async () => { await SecureStore.deleteItemAsync(doneKey(source.upload.id)); skipped.delete(source.upload.id); setPhase("checking"); }} />
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(2) }}>
+        {FILE_TABS.map(([key, label]) => (
+          <Chip key={key} label={label} active={tab === key} onPress={() => setTab(key)} />
+        ))}
+        <Chip label="File questions" onPress={reviewAgain} />
+      </ScrollView>
       <ErrorText text={error} />
-      {tab === "insights" ? (
+      {tab === "findings" ? (
+        <Findings source={source} ask={ask} />
+      ) : tab === "checks" ? (
+        <Checks source={source} />
+      ) : tab === "unusual" ? (
+        <Unusual source={source} />
+      ) : tab === "forecast" ? (
+        <Forecast source={source} onReview={reviewAgain} />
+      ) : tab === "quality" ? (
+        <Quality source={source} />
+      ) : tab === "about" ? (
+        <About source={source} ask={ask} />
+      ) : tab === "insights" ? (
         overview === null ? (
           <Loading label="Six analysts are checking your file…" />
         ) : (

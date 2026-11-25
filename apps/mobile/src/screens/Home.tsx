@@ -46,7 +46,7 @@ export function HomeScreen() {
     { label: "Upload a file", glyph: "↑", go: () => nav.tab({ name: "files" }) },
     { label: "Try a sample", glyph: "✦", go: () => nav.tab({ name: "files" }) },
     { label: "Your chats", glyph: "❝", go: () => nav.tab({ name: "chats" }) },
-    { label: "Account", glyph: "◉", go: () => nav.tab({ name: "account" }) },
+    { label: "Account", glyph: "◉", go: () => nav.push({ name: "account" }) },
   ];
 
   return (

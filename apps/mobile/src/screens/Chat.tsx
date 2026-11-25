@@ -40,11 +40,15 @@ export function ChatScreen({
   source,
   threadId: initialThread,
   question: firstQuestion,
+  asTab,
+  onSwitch,
 }: {
   workspaceId: string;
   source?: Source;
   threadId?: string;
   question?: string;
+  asTab?: boolean;
+  onSwitch?: () => void;
 }) {
   const nav = useNav();
   const [threadId, setThreadId] = useState(initialThread ?? "");
@@ -119,7 +123,13 @@ export function ChatScreen({
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: color.field }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <Screen kicker="Ask Osalytix" title={title} onBack={nav.back} scroll={false}>
+      <Screen
+        kicker="Ask Osalytix"
+        title={title}
+        onBack={asTab ? undefined : nav.back}
+        right={onSwitch ? <Chip label="Switch file" onPress={onSwitch} /> : undefined}
+        scroll={false}
+      >
         <ScrollView ref={scroll} contentContainerStyle={{ gap: space(4), paddingBottom: space(6) }} keyboardShouldPersistTaps="handled">
           {loading && <Loading label="Opening your chat…" />}
           {!loading && turns.length === 0 && !pending && (

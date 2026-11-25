@@ -8,6 +8,9 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { api, ApiError, loadToken, saveToken } from "./src/api";
 import { NavContext, Route } from "./src/nav";
 import { AccountScreen } from "./src/screens/Account";
+import { AskScreen } from "./src/screens/Ask";
+import { MoreScreen } from "./src/screens/More";
+import { AuditScreen, MemoryScreen } from "./src/screens/Workspace";
 import { AuthScreen } from "./src/screens/Auth";
 import { ChatScreen } from "./src/screens/Chat";
 import { ChatsScreen } from "./src/screens/Chats";
@@ -21,9 +24,10 @@ import { Loading } from "./src/ui";
 type Session = { workspaceId: string; profilePending: boolean };
 const TABS: { route: Route; label: string; glyph: string }[] = [
   { route: { name: "home" }, label: "Home", glyph: "⌂" },
+  { route: { name: "ask" }, label: "Ask", glyph: "✦" },
   { route: { name: "files" }, label: "Files", glyph: "▤" },
   { route: { name: "chats" }, label: "Chats", glyph: "❝" },
-  { route: { name: "account" }, label: "Account", glyph: "◉" },
+  { route: { name: "more" }, label: "More", glyph: "☰" },
 ];
 
 export default function App() {
@@ -123,6 +127,14 @@ function renderRoute(route: Route, back: () => void) {
   switch (route.name) {
     case "home":
       return <HomeScreen />;
+    case "ask":
+      return <AskScreen />;
+    case "more":
+      return <MoreScreen />;
+    case "memory":
+      return <MemoryScreen />;
+    case "audit":
+      return <AuditScreen />;
     case "files":
       return <FilesScreen />;
     case "chats":
@@ -132,7 +144,7 @@ function renderRoute(route: Route, back: () => void) {
     case "profile":
       return <ProfileScreen onDone={back} />;
     case "file":
-      return <FileScreen key={route.source.upload.id} source={route.source} fresh={route.fresh} />;
+      return <FileScreen key={`${route.source.upload.id}-${route.tab ?? ""}`} source={route.source} fresh={route.fresh} tab={route.tab} />;
     case "chat":
       return <ChatScreen key={route.threadId ?? route.source?.upload.id} {...route} />;
   }
