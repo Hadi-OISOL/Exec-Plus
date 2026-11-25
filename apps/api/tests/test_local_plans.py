@@ -444,7 +444,7 @@ def test_public_catalog_shows_names_placeholder_prices_and_limits_without_login(
         assert set(item) == {"key", "name", "limits", "price_usd_month"}
 
 
-def test_expired_default_allowance_starts_its_next_period_but_administrator_one_does_not(
+def test_expired_free_allowance_starts_its_next_period_but_paid_one_does_not(
     integration,
 ):
     env = integration
@@ -480,6 +480,17 @@ def test_expired_default_allowance_starts_its_next_period_but_administrator_one_
         actor.email, "admin", confirmed_user_id=actor.id, identity_checked=True
     )
     env.runtime.plans.assign(actor, UUID(wid), key, 2, end - timedelta(days=1), end)
+    assert key == "demo"
+    assert (
+        env.client.post(
+            f"/workspaces/{wid}/datasets", headers=headers, json={"name": "free renews"}
+        ).status_code
+        == 201
+    )
+    paid = env.client.get(f"/workspaces/{wid}/plan-usage", headers=headers).json()["assignment"]
+    env.runtime.plans.assign(
+        actor, UUID(wid), "starter", paid["version"], end - timedelta(days=1), end
+    )
     assert (
         env.client.post(
             f"/workspaces/{wid}/datasets", headers=headers, json={"name": "blocked"}

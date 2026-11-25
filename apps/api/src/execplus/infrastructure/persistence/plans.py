@@ -36,7 +36,10 @@ class SQLPlanRepository:
 
     def current_plan_assignment(self, wid: UUID, now: datetime) -> dict[str, Any] | None:
         assignment = self.plan_assignment(wid)
-        if not assignment or assignment["basis"] != "native_default" or now < assignment["ends_at"]:
+        rolls_over = assignment and (
+            assignment["basis"] == "native_default" or assignment["plan_key"] == "demo"
+        )
+        if not assignment or not rolls_over or now < assignment["ends_at"]:
             return assignment
         length = assignment["ends_at"] - assignment["starts_at"]
         starts = assignment["ends_at"] + length * ((now - assignment["ends_at"]) // length)
