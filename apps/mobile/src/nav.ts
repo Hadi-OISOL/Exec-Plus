@@ -1,27 +1,36 @@
 /* Use case: Describes where the Osalytix phone app can go and how screens move between places.
-What it does: Defines the route shapes and the small push/back navigator shared through React context. */
+What it does: Defines the pushed routes, the main screen's focus (file, chat or analytics, thread) and the navigator shared through React context. */
 
 import { createContext, useContext } from "react";
 import type { Source } from "./api";
 import type { FileTab } from "./screens/File";
 
 export type Route =
-  | { name: "home" }
-  | { name: "ask" }
-  | { name: "more" }
+  | { name: "main" }
+  | { name: "files" }
   | { name: "memory" }
   | { name: "audit" }
-  | { name: "files" }
-  | { name: "chats" }
   | { name: "account" }
   | { name: "profile" }
-  | { name: "file"; source: Source; fresh?: boolean; tab?: FileTab }
-  | { name: "chat"; workspaceId: string; source?: Source; threadId?: string; question?: string };
+  | { name: "team" }
+  | { name: "support" }
+  | { name: "scenarios"; source: Source }
+  | { name: "recommendations"; source: Source };
+
+export type Focus = {
+  source?: Source;
+  fresh?: boolean;
+  mode: "chat" | "analytics";
+  tab: FileTab;
+  threadId?: string;
+  question?: string;
+  chatKey: number;
+};
 
 export type Nav = {
   push: (route: Route) => void;
   back: () => void;
-  tab: (route: Route) => void;
+  open: (focus: Partial<Focus>) => void;
   workspaceId: string;
   signOut: () => void;
 };

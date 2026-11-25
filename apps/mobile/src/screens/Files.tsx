@@ -66,7 +66,7 @@ export function FilesScreen() {
         { method: "POST", raw: blob, contentType: MIME[extension] ?? asset.mimeType ?? "application/octet-stream" },
       );
       await load();
-      nav.push({ name: "file", fresh: true, source: { workspaceId: wid, datasetId: dataset.id, datasetName: dataset.name, upload } });
+      nav.open({ mode: "analytics", tab: "insights", fresh: true, source: { workspaceId: wid, datasetId: dataset.id, datasetName: dataset.name, upload } });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Upload failed.");
     } finally {
@@ -80,7 +80,7 @@ export function FilesScreen() {
     try {
       const upload = await api<Upload>(`/workspaces/${wid}/samples/${item.id}`, { method: "POST" });
       await load();
-      nav.push({ name: "file", fresh: true, source: { workspaceId: wid, datasetId: upload.dataset_id, datasetName: item.name, upload } });
+      nav.open({ mode: "analytics", tab: "insights", fresh: true, source: { workspaceId: wid, datasetId: upload.dataset_id, datasetName: item.name, upload } });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not add the sample.");
     } finally {
@@ -89,7 +89,7 @@ export function FilesScreen() {
   }
 
   return (
-    <Screen kicker="Your data" title="Files" scroll={false}>
+    <Screen kicker="Your data" title="Files" onBack={nav.back} scroll={false}>
       <ScrollView
         contentContainerStyle={{ gap: space(4), paddingBottom: space(24) }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
@@ -113,7 +113,7 @@ export function FilesScreen() {
           <P muted>No files yet. Upload one or start with a sample below.</P>
         ) : (
           files.map((f) => (
-            <Pressable key={f.upload.id} onPress={() => nav.push({ name: "file", source: f })} accessibilityRole="button">
+            <Pressable key={f.upload.id} onPress={() => nav.open({ mode: "analytics", tab: "insights", source: f })} accessibilityRole="button">
               {({ pressed }) => (
                 <Card style={{ opacity: pressed ? 0.85 : 1 }}>
                   <Text style={{ fontFamily: font.serif, fontSize: 18, color: color.ink }} numberOfLines={1}>

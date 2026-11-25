@@ -34,7 +34,7 @@ export function AccountScreen() {
   }, [nav.workspaceId]);
 
   return (
-    <Screen kicker="Account" title={me ? `Hello, ${me.display_name.split(" ")[0]}.` : "Account"}>
+    <Screen kicker="Account" title={me ? `Hello, ${me.display_name.split(" ")[0]}.` : "Account"} onBack={nav.back}>
       <ErrorText text={error} />
       {!me ? (
         <Loading label="Loading account" />

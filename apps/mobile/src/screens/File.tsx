@@ -1,14 +1,13 @@
-/* Use case: Opens one data file on the phone: its questions first, then insights and the automatic dashboard.
-What it does: Checks the live data-brief and shows only the file questions while any remain, then loads the analyst overview and auto dashboard with exact figures and an Ask button. */
+/* Use case: The analytics side of one data file on the phone, plus the "answer the file questions first" gate.
+What it does: Checks the live data-brief so open file questions come first, then renders insights, the automatic dashboard and every per-file analysis tab with exact figures. */
 
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { api, rootOf, Source } from "../api";
-import { useNav } from "../nav";
 import { color, font, space } from "../theme";
-import { Bars, Button, Card, Chip, ErrorText, Loading, P, Receipt, Screen, exact, s } from "../ui";
-import { Brief, FileQuestions } from "./FileQuestions";
+import { Bars, Card, Chip, ErrorText, Loading, P, Receipt, exact, s } from "../ui";
+import type { Brief } from "./FileQuestions";
 import { About, Checks, Findings, Forecast, Quality, Unusual } from "./FileTabs";
 
 export type FileTab = "insights" | "dashboard" | "findings" | "checks" | "unusual" | "forecast" | "quality" | "about";
@@ -39,23 +38,21 @@ function chartRows(chart: Chart) {
   return (chart?.rows ?? []).map((r) => ({ label: r.label, value: r.value ?? r.count }));
 }
 
-export function FileScreen({ source, fresh, tab: firstTab }: { source: Source; fresh?: boolean; tab?: FileTab }) {
-  const nav = useNav();
-  const root = rootOf(source);
+export function useFileGate(source: Source | undefined, fresh?: boolean) {
   const [phase, setPhase] = useState<"checking" | "questions" | "ready">("checking");
   const [brief, setBrief] = useState<Brief | null>(null);
-  const [tab, setTab] = useState<FileTab>(firstTab ?? "insights");
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [tiles, setTiles] = useState<Tile[] | null>(null);
-  const [error, setError] = useState("");
+  const [round, setRound] = useState(0);
+  const id = source?.upload.id;
 
   useEffect(() => {
+    if (!source || !id) return;
     let live = true;
+    setPhase("checking");
     (async () => {
-      if (skipped.has(source.upload.id) || (await SecureStore.getItemAsync(doneKey(source.upload.id)))) return live && setPhase("ready");
+      if (skipped.has(id) || (await SecureStore.getItemAsync(doneKey(id)))) return live && setPhase("ready");
       for (let attempt = 0; attempt < (fresh ? 6 : 2); attempt += 1) {
         try {
-          const value = await api<Brief>(`${root}/data-brief`, { method: "POST" });
+          const value = await api<Brief>(`${rootOf(source)}/data-brief`, { method: "POST" });
           if (!live) return;
           const unavailable = value.source !== "model" && !value.model_enabled && value.review_mode !== "missing";
           if (value.already_confirmed || unavailable) return setPhase("ready");
@@ -70,53 +67,61 @@ export function FileScreen({ source, fresh, tab: firstTab }: { source: Source; f
     return () => {
       live = false;
     };
-  }, [root, source.upload.id, fresh]);
+  }, [id, fresh, round]);
+
+  return {
+    phase,
+    brief,
+    finish: async (saved: boolean) => {
+      if (!id) return;
+      if (saved) await SecureStore.setItemAsync(doneKey(id), "1");
+      else skipped.add(id);
+      setPhase("ready");
+    },
+    reviewAgain: async () => {
+      if (!id) return;
+      await SecureStore.deleteItemAsync(doneKey(id));
+      skipped.delete(id);
+      setRound((n) => n + 1);
+    },
+  };
+}
+
+export function FileAnalytics({
+  source,
+  tab,
+  onTab,
+  ask,
+  onReview,
+}: {
+  source: Source;
+  tab: FileTab;
+  onTab: (tab: FileTab) => void;
+  ask: (question: string) => void;
+  onReview: () => void;
+}) {
+  const root = rootOf(source);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [tiles, setTiles] = useState<Tile[] | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (phase !== "ready") return;
+    setOverview(null);
+    setTiles(null);
     setError("");
     api<Overview>(`${root}/analyst-overview`).then(setOverview).catch((e) => setError(e.message));
     api<{ dashboard: { tiles: Tile[] } }>(`${root}/auto-dashboard`)
       .then((d) => setTiles(d.dashboard.tiles))
       .catch(() => setTiles([]));
-  }, [phase, root]);
-
-  if (phase === "checking")
-    return (
-      <Screen kicker={source.upload.filename} title={source.datasetName} onBack={nav.back}>
-        <Loading label="Reading your file…" />
-      </Screen>
-    );
-
-  if (phase === "questions" && brief)
-    return (
-      <FileQuestions
-        brief={brief}
-        root={root}
-        title={source.datasetName}
-        onDone={async (saved) => {
-          if (saved) await SecureStore.setItemAsync(doneKey(source.upload.id), "1");
-          else skipped.add(source.upload.id);
-          setPhase("ready");
-        }}
-      />
-    );
-
-  const ask = (question?: string) => nav.push({ name: "chat", workspaceId: source.workspaceId, source, question });
-  const reviewAgain = async () => {
-    await SecureStore.deleteItemAsync(doneKey(source.upload.id));
-    skipped.delete(source.upload.id);
-    setPhase("checking");
-  };
+  }, [root]);
 
   return (
-    <Screen kicker={source.upload.filename} title={source.datasetName} onBack={nav.back}>
-      <Button label="Ask about this file" onPress={() => ask()} />
+    <View style={{ gap: space(4) }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(2) }}>
         {FILE_TABS.map(([key, label]) => (
-          <Chip key={key} label={label} active={tab === key} onPress={() => setTab(key)} />
+          <Chip key={key} label={label} active={tab === key} onPress={() => onTab(key)} />
         ))}
-        <Chip label="File questions" onPress={reviewAgain} />
+        <Chip label="File questions" onPress={onReview} />
       </ScrollView>
       <ErrorText text={error} />
       {tab === "findings" ? (
@@ -126,7 +131,7 @@ export function FileScreen({ source, fresh, tab: firstTab }: { source: Source; f
       ) : tab === "unusual" ? (
         <Unusual source={source} />
       ) : tab === "forecast" ? (
-        <Forecast source={source} onReview={reviewAgain} />
+        <Forecast source={source} onReview={onReview} />
       ) : tab === "quality" ? (
         <Quality source={source} />
       ) : tab === "about" ? (
@@ -191,6 +196,6 @@ export function FileScreen({ source, fresh, tab: firstTab }: { source: Source; f
           ),
         )
       )}
-    </Screen>
+    </View>
   );
 }

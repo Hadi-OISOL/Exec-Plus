@@ -1,12 +1,12 @@
-/* Use case: Chat with Osalytix about one data file from the phone.
+/* Use case: The chat area of the phone app's main screen: talk to Osalytix about one data file.
 What it does: Creates or reopens a private thread, sends questions to the live /ask endpoint and shows each answer as a receipt with exact tables, bars, clarification choices and follow-up questions. */
 
 import { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, ScrollViewInstance, Text, TextInput, View } from "react-native";
+import { ScrollView, ScrollViewInstance, Text, TextInput, View } from "react-native";
 import { api, newRequestId, rootOf, Source } from "../api";
-import { useNav } from "../nav";
 import { color, font, space } from "../theme";
-import { Bars, Button, Chip, ErrorText, Loading, P, Receipt, Screen, Table, s } from "../ui";
+import { Bars, Button, Chip, ErrorText, Loading, P, Receipt, Table, s } from "../ui";
+import { ExportButton } from "./Features";
 
 type Answer = {
   kind?: string;
@@ -35,24 +35,20 @@ function bodyOf(answer: unknown): Answer | null {
   return value.answer && typeof value.answer === "object" ? value.answer : (answer as Answer);
 }
 
-export function ChatScreen({
+export function ChatView({
   workspaceId,
   source,
   threadId: initialThread,
   question: firstQuestion,
-  asTab,
-  onSwitch,
+  onThread,
 }: {
   workspaceId: string;
   source?: Source;
   threadId?: string;
   question?: string;
-  asTab?: boolean;
-  onSwitch?: () => void;
+  onThread?: (id: string) => void;
 }) {
-  const nav = useNav();
   const [threadId, setThreadId] = useState(initialThread ?? "");
-  const [title, setTitle] = useState(source?.datasetName ?? "Conversation");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(!!initialThread);
   const [text, setText] = useState("");
@@ -66,7 +62,6 @@ export function ChatScreen({
     (async () => {
       try {
         const thread = await api<{ title: string; turns: Turn[] }>(`/workspaces/${workspaceId}/threads/${initialThread}`);
-        if (thread.title) setTitle(thread.title);
         const loaded = await Promise.all(
           thread.turns.map(async (turn) => {
             try {
@@ -105,6 +100,7 @@ export function ChatScreen({
         if (!source) throw new Error("Open a file first.");
         tid = (await api<{ id: string }>(`${rootOf(source)}/threads`, { method: "POST" })).id;
         setThreadId(tid);
+        onThread?.(tid);
       }
       const result = await api<{ turn: Turn; answer: Answer | null }>(`/workspaces/${workspaceId}/threads/${tid}/ask`, {
         body: { question: q.slice(0, 500), request_id: newRequestId() },
@@ -122,19 +118,13 @@ export function ChatScreen({
   const starters = ["What is this file about?", "Which group is the biggest?", "Find anything unusual", "What should I do next?"];
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: color.field }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <Screen
-        kicker="Ask Osalytix"
-        title={title}
-        onBack={asTab ? undefined : nav.back}
-        right={onSwitch ? <Chip label="Switch file" onPress={onSwitch} /> : undefined}
-        scroll={false}
-      >
-        <ScrollView ref={scroll} contentContainerStyle={{ gap: space(4), paddingBottom: space(6) }} keyboardShouldPersistTaps="handled">
+    <View style={{ flex: 1 }}>
+        <ScrollView ref={scroll} contentContainerStyle={{ gap: space(4), padding: space(4), paddingBottom: space(6) }} keyboardShouldPersistTaps="handled">
           {loading && <Loading label="Opening your chat…" />}
           {!loading && turns.length === 0 && !pending && (
             <>
-              <P muted>Ask in your own words, in any language. Numbers are always calculated from your file.</P>
+              <Text style={{ fontFamily: font.serif, fontSize: 26, color: color.ink, marginTop: space(6) }}>What would you like to know?</Text>
+              <P muted>Ask in your own words, in any language. Numbers are always calculated from your file{source ? ` "${source.datasetName}"` : ""}.</P>
               <View style={s.row}>
                 {starters.map((item) => (
                   <Chip key={item} label={item} onPress={() => send(item)} />
@@ -143,7 +133,7 @@ export function ChatScreen({
             </>
           )}
           {turns.map((turn) => (
-            <TurnView key={turn.id} turn={turn} onAsk={send} />
+            <TurnView key={turn.id} turn={turn} onAsk={send} workspaceId={workspaceId} threadId={threadId} />
           ))}
           {pending ? (
             <>
@@ -153,7 +143,7 @@ export function ChatScreen({
           ) : null}
           <ErrorText text={error} />
         </ScrollView>
-        <View style={{ flexDirection: "row", gap: space(2), alignItems: "flex-end", paddingTop: space(2), paddingBottom: space(4) }}>
+        <View style={{ flexDirection: "row", gap: space(2), alignItems: "flex-end", padding: space(3), borderTopWidth: 1, borderTopColor: color.line, backgroundColor: color.paper }}>
           <TextInput
             value={text}
             onChangeText={setText}
@@ -165,8 +155,7 @@ export function ChatScreen({
           />
           <Button label="Ask" onPress={() => send(text)} busy={!!pending} disabled={!text.trim()} style={{ minWidth: 72 }} />
         </View>
-      </Screen>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -178,7 +167,7 @@ function Question({ text }: { text: string }) {
   );
 }
 
-function TurnView({ turn, onAsk }: { turn: Turn; onAsk: (q: string) => void }) {
+function TurnView({ turn, onAsk, workspaceId, threadId }: { turn: Turn; onAsk: (q: string) => void; workspaceId: string; threadId: string }) {
   const a = turn.answer ?? {};
   const columns = a.columns ?? [];
   const rows = a.rows ?? [];
@@ -216,6 +205,7 @@ function TurnView({ turn, onAsk }: { turn: Turn; onAsk: (q: string) => void }) {
           </Text>
         ) : null}
         {turn.status === "failed" ? <ErrorText text="This question could not be answered." /> : null}
+        {turn.status === "complete" && threadId && (numeric || message) ? <ExportButton workspaceId={workspaceId} threadId={threadId} turnId={turn.id} /> : null}
       </Receipt>
       {chips.length > 0 && (
         <View style={s.row}>
