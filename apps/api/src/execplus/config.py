@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     web_origin: str = "http://localhost:3000"
     local_registration_enabled: bool = True
     trusted_proxies: list[str] = Field(default_factory=list)
+    mobile_return_urls: list[str] = Field(default_factory=list)
     session_cookie_secure: bool | None = None
     integration_allow_loopback: bool = False
     webhook_master_secret: str = Field(default="", repr=False)

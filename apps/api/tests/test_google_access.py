@@ -4,6 +4,7 @@ What it does: Drives the routes with a stand-in Google; checks sessions, sealed 
 """
 
 import base64
+import hashlib
 import json
 from urllib.parse import parse_qs, urlparse
 from uuid import UUID
@@ -204,6 +205,46 @@ def test_sign_in_creates_a_session_for_the_verified_email(integration):
         follow_redirects=False,
     )
     assert "oauth_error=oauth_state_invalid" in again.headers["location"]
+
+
+def test_mobile_sign_in_returns_a_handoff_only_the_verifier_can_redeem(integration):
+    google, _ = enable(integration)
+    integration.client.app.state.mobile_returns = frozenset({"osalytix://auth"})
+    verifier = "v" * 64
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode()
+    challenge = challenge.rstrip("=")
+    refused = integration.client.get(
+        "/auth/google/start",
+        params=dict(return_to="exp://attacker/--/auth", challenge=challenge),
+        follow_redirects=False,
+    )
+    assert refused.status_code == 400
+    started = integration.client.get(
+        "/auth/google/start",
+        params=dict(return_to="osalytix://auth", challenge=challenge),
+        follow_redirects=False,
+    )
+    state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
+    google.grant("sign-in-code", "phone@example.test", "openid email profile")
+    callback = integration.client.get(
+        "/auth/google/callback",
+        params=dict(code="sign-in-code", state=state),
+        follow_redirects=False,
+    )
+    location = callback.headers["location"]
+    assert location.startswith("osalytix://auth?handoff=")
+    handoff = parse_qs(urlparse(location).query)["handoff"][0]
+    wrong = integration.client.post(
+        "/auth/oauth/exchange", json=dict(handoff=handoff, verifier="w" * 64)
+    )
+    assert wrong.status_code != 200 and "token" not in wrong.text
+    result = integration.client.post(
+        "/auth/oauth/exchange", json=dict(handoff=handoff, verifier=verifier)
+    ).json()
+    me = integration.client.get("/auth/me", headers={"Authorization": f"Bearer {result['token']}"})
+    assert me.json()["email"] == "phone@example.test"
+    _, web = sign_in(integration, google, "web@example.test")
+    assert web.headers["location"] == f"{WEB}/workspace?oauth=complete"
 
 
 def test_sign_in_never_links_an_existing_operator_by_email(integration):

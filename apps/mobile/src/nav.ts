@@ -5,6 +5,7 @@ import { createContext, useContext } from "react";
 import type { Source } from "./api";
 
 export type Route =
+  | { name: "home" }
   | { name: "files" }
   | { name: "chats" }
   | { name: "account" }

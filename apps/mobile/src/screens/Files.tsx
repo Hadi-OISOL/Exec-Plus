@@ -4,7 +4,7 @@ What it does: Lists every upload in the current workspace, uploads a picked file
 import * as DocumentPicker from "expo-document-picker";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
-import { api, Source, Upload } from "../api";
+import { api, listFiles, Source, Upload } from "../api";
 import { useNav } from "../nav";
 import { color, font, space } from "../theme";
 import { Button, Card, ErrorText, H, Loading, P, Screen, s } from "../ui";
@@ -37,14 +37,7 @@ export function FilesScreen() {
   const load = useCallback(async () => {
     setError("");
     try {
-      const datasets = await api<Dataset[]>(`/workspaces/${wid}/datasets`);
-      const lists = await Promise.all(
-        datasets.map(async (d) => {
-          const uploads = await api<Upload[]>(`/workspaces/${wid}/datasets/${d.id}/uploads`);
-          return uploads.map((upload) => ({ workspaceId: wid, datasetId: d.id, datasetName: d.name, upload }));
-        }),
-      );
-      setFiles(lists.flat().sort((a, b) => b.upload.created_at.localeCompare(a.upload.created_at)));
+      setFiles(await listFiles(wid));
       api("/me/storage").then(setStorage).catch(() => undefined);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load files.");

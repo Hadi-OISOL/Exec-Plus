@@ -111,6 +111,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     configure_observation_logging()
     application.state.web_origin = configured.web_origin
     application.state.trusted_proxies = frozenset(configured.trusted_proxies)
+    application.state.mobile_returns = frozenset(configured.mobile_return_urls)
     application.state.secure_cookies = (
         configured.session_cookie_secure
         if configured.session_cookie_secure is not None

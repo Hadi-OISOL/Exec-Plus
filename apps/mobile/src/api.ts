@@ -86,5 +86,16 @@ export type Upload = {
 };
 export type Source = { workspaceId: string; datasetId: string; datasetName: string; upload: Upload };
 
+export async function listFiles(workspaceId: string): Promise<Source[]> {
+  const datasets = await api<{ id: string; name: string }[]>(`/workspaces/${workspaceId}/datasets`);
+  const lists = await Promise.all(
+    datasets.map(async (d) => {
+      const uploads = await api<Upload[]>(`/workspaces/${workspaceId}/datasets/${d.id}/uploads`);
+      return uploads.map((upload) => ({ workspaceId, datasetId: d.id, datasetName: d.name, upload }));
+    }),
+  );
+  return lists.flat().sort((a, b) => b.upload.created_at.localeCompare(a.upload.created_at));
+}
+
 export const rootOf = (s: Source) =>
   `/workspaces/${s.workspaceId}/datasets/${s.datasetId}/uploads/${s.upload.id}`;

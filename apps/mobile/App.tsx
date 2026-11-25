@@ -13,12 +13,14 @@ import { ChatScreen } from "./src/screens/Chat";
 import { ChatsScreen } from "./src/screens/Chats";
 import { FileScreen } from "./src/screens/File";
 import { FilesScreen } from "./src/screens/Files";
+import { HomeScreen } from "./src/screens/Home";
 import { ProfileScreen } from "./src/screens/Profile";
 import { color } from "./src/theme";
 import { Loading } from "./src/ui";
 
 type Session = { workspaceId: string; profilePending: boolean };
 const TABS: { route: Route; label: string; glyph: string }[] = [
+  { route: { name: "home" }, label: "Home", glyph: "⌂" },
   { route: { name: "files" }, label: "Files", glyph: "▤" },
   { route: { name: "chats" }, label: "Chats", glyph: "❝" },
   { route: { name: "account" }, label: "Account", glyph: "◉" },
@@ -35,7 +37,7 @@ export default function App() {
 
 function Root() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
-  const [stack, setStack] = useState<Route[]>([{ name: "files" }]);
+  const [stack, setStack] = useState<Route[]>([{ name: "home" }]);
   const [bootError, setBootError] = useState("");
 
   const start = useCallback(async () => {
@@ -46,7 +48,7 @@ function Root() {
       const profile = await api<{ status: string }>("/me/profile").catch(() => ({ status: "completed" }));
       if (!workspaces.length) throw new Error("This account has no workspace yet. Create one on the website.");
       setSession({ workspaceId: workspaces[0].id, profilePending: profile.status === "pending" });
-      setStack([{ name: "files" }]);
+      setStack([{ name: "home" }]);
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 401) {
         await saveToken(null);
@@ -119,6 +121,8 @@ function Root() {
 
 function renderRoute(route: Route, back: () => void) {
   switch (route.name) {
+    case "home":
+      return <HomeScreen />;
     case "files":
       return <FilesScreen />;
     case "chats":

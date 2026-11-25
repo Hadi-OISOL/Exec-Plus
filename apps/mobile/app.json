@@ -22,8 +22,10 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
-    "backgroundColor": "#0f3b2e"
+    "backgroundColor": "#0f3b2e",
+    "scheme": "osalytix"
   }
 }

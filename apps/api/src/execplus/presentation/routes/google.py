@@ -50,11 +50,15 @@ async def config(service: OptionalService) -> object:
 
 
 @router.get("/auth/google/start")
-async def start(request: Request, service: Service) -> Response:
-    binding = oauth.browser(request)
+async def start(
+    request: Request, service: Service, return_to: str = "", challenge: str = ""
+) -> Response:
+    mobile = oauth.mobile_binding(request, return_to[:512], challenge[:64])
+    binding = mobile or oauth.browser(request)
     url = await run_in_threadpool(service.start_sign_in, binding, peer(request))
     response = RedirectResponse(url, status_code=302)
     oauth.set_browser(response, binding, service.api_url)
+    oauth.mark_return(response, return_to if mobile else None, service.api_url)
     return response
 
 
@@ -72,6 +76,9 @@ async def callback(
         )
     except IngestionError:
         handle = None
+    return_to = oauth.mobile_return(request)
+    if return_to:
+        return oauth.finish_mobile(return_to, handle)
     return oauth.finish(service.web_origin, service.api_url, handle)
 
 
