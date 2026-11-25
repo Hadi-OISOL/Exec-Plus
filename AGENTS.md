@@ -40,6 +40,19 @@ Read this file, `ROADMAP.md`, and `docs/decisions/architecture.md` before changi
 
 ## Current state
 
+### November 25 — Plan allowance roll-over and phone app redesign
+
+- Releases **e74b97e5463b3977** (commit 4465801) then **cff39c4e216fb1b4** (commit 28a5232) are
+  active on unchanged 0035; backups 20261125T134113Z and 20261125T135357Z, checksums OK.
+- Cause of "This workspace allowance is not active": 30-day plan periods ran out. Now
+  `current_plan_assignment()` starts the next period for native-default and every Free (`demo`)
+  plan; staff-assigned paid plans still end as set. A rolled-back dry run on live data renewed
+  84/84 expired workspaces. Plan/account/usage tests 195 pass; ruff/mypy clean.
+- Phone app (`apps/mobile`, Expo Go only, not a store build) is one chat screen with a side
+  drawer (chats, all analytics, what-if, recommendations, team, support, memory, history,
+  account) and PDF export of answers. Google sign-in on the phone needs the current Expo
+  address in `EXECPLUS_MOBILE_RETURN_URLS`.
+
 ### November 2 (night) — Pricing receipts, rethemed product pictures, planner privacy fix
 
 - Release **e63b698c0708652d** (commit fa3785a; API+web, unchanged 0035) is active; checked
